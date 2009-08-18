@@ -1,0 +1,82 @@
+#!/bin/sh -f
+
+version='version 0.0.0 $Id$'
+
+cc="@cc@"
+copts="@copts@"
+cflags="@cflags@"
+ld="@ld@"
+ldflags="@ldflags@"
+libs="@libs@"
+
+lua="@lua@"
+cflags="$cflags -I$lua/include"
+ldflags="$ldflags -L$lua/lib"
+libs="$libs -llua"
+
+## Add other packages here. Mind the order
+aff="@aff@"
+if [ ! -z "$aff" ] ; then
+  cflags="$cflags @aff_cflags@"
+  ldflags="$ldflags @aff_ldflags@"
+  libs="$libs @aff_libs@"
+fi
+
+mdwf="@mwdf@"
+if [ ! -z "$mdwf" ] ; then
+  cflags="$cflags @mdwf_cflags@"
+  ldflags="$ldflags @mdwf_ldflags@"
+  libs="$libs @mdwf_libs@"
+fi
+
+clover="@clover@"
+if [ ! -z "$clover" ] ; then
+  cflags="$cflags @clover_cflags@"
+  ldflags="$ldflags @clover_ldflags@"
+  libs="$libs @clover_libs@"
+fi
+
+qdp="@qdp@"
+cflags="$cflags @qdp_cflags@"
+ldflags="$ldflags @qdp_ldflags@"
+libs="$libs @qdp_libs@"
+
+# usage status
+usage() {
+  cat << EOF
+    usage: qlua-config option
+    options:
+       --version
+       --cc
+       --copts
+       --cflags
+       --ld
+       --ldflags
+       --libs
+       --lua
+       --qdp
+EOF
+   [ -z "$clover" ] || echo "       --clover"
+   [ -z "$mdwf" ]   || echo "       --mdwf"
+   [ -z "$aff" ]    || echo "       --aff"
+   ## Add other packages here
+}
+
+
+case "$1" in
+   --version)  echo "$version" ;;
+   --cc)       echo "$cc" ;;
+   --copts)    echo "$copts" ;;
+   --cflags)   echo "$cflags" ;;
+   --ld)       echo "$ld" ;;
+   --ldflags)  echo "$ldflags" ;;
+   --libs)     echo "$libs" ;;
+   --lua)      echo "$lua" ;;
+   --qdp)      echo "$qdp" ;;
+   --clover)   echo "$clover" ;;
+   --mdwf)     echo "$mdwf" ;;
+   --aff)      echo "$aff" ;;
+   ## add other modules here
+   *) usage 1 1>&2 ;;
+esac
+exit 0

@@ -1,0 +1,165 @@
+This is a sketch of the interface QDP to Lua.
+
+At the top level, create a dictionary, say qcd
+
+1. Generic functions and objects
+
+qcd.version -- read-only table of versions, e.g.,
+     qcd.version.qcd = "0.0.0";   -- version of the intface itself
+     qcd.version.aff = "2.0.2";   -- version of AFF library
+     qcd.version.qio = "????";    -- etc
+
+qcd.lattice(x,y,...) -- setup the lattice layout in QDP
+
+
+2. I/O objects
+
+qcd.reader.qio("file-name") -- opens a qio reader
+qcd.reader.aff("file-name") -- opens an aff reader
+qcd.writer.qio("file-name") -- opens a qio writer
+qcd.writer.aff("file-name") -- opens an aff writer
+
+2.1 I/O operations
+
+For the readers there are:
+
+raff:chdir("aff-path") -- changes the reader current dicretory
+raff:read("aff-path") -- returns the value stored at the aff path
+raff:close()  -- close the aff reader
+
+rqio:read() -- read the next record in qio (??)
+rqio:close() -- close the QIO reader.
+
+For the writers, there are
+
+waff:chdir("aff-path")   -- change current directory in the aff writer
+waff:write("aff-path", object) -- write an object which must be an 
+                                  int, double, complex vector, a boolean,
+                                  or a string
+waff:close() -- close the writer
+
+wqio:write(object) -- write an object (Propagator, Gauge, ...?)
+wqio:close() -- close the writer object
+
+I/O errors throw Lua exceptions (are there exceptions in Lua?)
+
+
+3. Non-lattice types
+
+3.1 Complex type: a single complex number with all arithmetics
+
+qcd.complex(<real>,<imag>) -- construct a complex number
+   <c> + <r> -- sum
+   <c> + <c>
+   <c> - <r>
+   <r> - <c>
+   <c> - <c>
+   - <c>
+   <c> * <r>
+   <c> * <c>
+   <c> / <r>
+   <r> / <c>
+   <c> / <c>
+   <c>:real() -- extract the real part
+   <c>:imag() -- extract the imaginary part
+
+3.2 vectors (needed for AFF and QDP)
+
+  qcd.vec_bool(size) -- construct a vector of <size> booleans
+  qcd.vec_int(size) -- construct a vector of <size> integers
+  qcd.vec_real(size) -- construct a vector of <size> reals
+  qcd.vec_complex(size) -- construct a vector of <size> complex
+     <v>[n] -- get the nth element of a vector (zero based!)
+     <v>[n] = <x> -- put an element into the vector
+     vectors could be written to and read from AFF:
+       raff:read("path") -- returns a vector or a string
+       waff:write("path", v) -- writes a vector to the aff object.
+
+4. Lattice types
+     Q: do we need these at all?
+
+     qcd.x.Bool() -- return new lattice boolean
+     qcd.x.Int() -- return new lattice integer
+     qcd.x.Double() -- return new lattice double
+     qcd.x.Complex() -- return new lattice complex
+     qcd.x.ColorVector() -- return new lattice color vector
+     qcd.x.ColorMatrix() -- return new lattice color matrix
+     qcd.x.Fermion() -- return new lattice fermion
+     qcd.x.Propagator() -- return new lattice propagator
+     qcd.x.Gauge() -- return new lattice gauge field (same as ColorMatrix ?)
+
+     where x = new for freshly allocated uninitialized lattice data
+           x = random for random data
+
+     Q: QDP random state: init, read, write.
+
+4.1 Reading from and writing to QIO:
+
+rqio:read() -- returns the next lattice data from QIO, and its metadata
+wqio:write(<T>, <metadata>) -- writes <T> which must be one of the above types
+                               with <metadata> into QIO.
+
+4.2 Arithmetics -- Q: or no mixed ops?
+     addition (and substraction)
+     I + I, n + I, I + n
+     D + D, n + D, D + n
+     D + C, n + C
+     C + D, C + n
+     C + C
+     D + M, n + M
+     C + M
+     M + D, M + n
+     M + C
+     V + V
+     F + F
+     P + P
+     M + M
+
+     Negation
+     - I
+     - D
+     - C
+     - V
+     - M
+     - F
+     - P
+
+     Multiplication
+     n * I, I * n, I * I
+     n * D, D * n, D * D, D * I, I * D
+     n * C, C * n, C * I, I * C, D * C, C * D, C * C
+     n * V, V * n, I * V, V * I, D * V, V * D, C * V, V * C
+     n * M, M * n, I * M, M * I, D * M, M * D, C * M, M * C, M * V, M * M
+     n * F, F * n, I * F, F * I, D * F, F * D, C * F, F * C, M * F
+     n * P, P * n, I * P, P * I, D * P, P * D, C * P, P * C, M * P
+
+Q: other operations?
+
+4.3 Useful functions:
+      c:conj()
+      C:conj() 
+      M:conj()
+      F:conj() -- ?
+      V:conj() -- ?
+      P:conj() -- ?
+     Q: access to elements?
+
+4.3 Level III routine interface
+     Some generic guidelines: encapsulate the L3 into an object and apply it
+     to QDP data. E.g.,
+
+       cl = qcd.clover(U, kappa, c_sw) -- returns a clover object
+       psi = cl:D(rhs) -- apply the operator
+       psi = cl:Dx(rhs) -- apply the conjugate of the operator
+       psi, eps, iter = cl:CG(rhs, epsilon, iter) -- solve the dirac equation
+       psi, eps, iter = cl:mixedCG(rhs, eps, iterD, iterF)
+
+     Another example
+
+       dw = qcd.mdwf(U, m, M5, Ls, a, b)
+       psi, eps, iter = dw:CG(rhs, eps, iter)
+
+     And yet another example:
+
+       bb = qcd.building_block(Pf, U, Pb, path(?))
+       aff:write(path, bb, momentum)

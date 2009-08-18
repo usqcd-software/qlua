@@ -1,0 +1,214 @@
+#!/bin/sh -f
+
+# show_help exit_code
+show_help() {
+  cat << EOF
+    usage: configure [options]
+
+    Options:
+
+     --help                   show this help and exit
+     --prefix=DIR             installation prefix
+     --bindir=DIR             use DIR instead of PREFIX/bin for executables
+     --libdir=DIR             use DIR instead of PREFIX/lib for libraries
+     --incdir=DIR             use DIR instead of PREFIX/include for headers
+     --docdir=DIR             use DIR instead of PREFIX/share/doc/mdwf for docs
+     --with-lua=DIR           use DIR/lib and DIR/include for lua installation
+     --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
+     --with-<package>=DIR     use DIR/bin/<package>-config to query package
+
+   Supported packages:
+     clover                   SciDAC L3 clover inverter
+     mdwf                     SciDAC L3 Moebius domain wall fermions
+     lhpc-aff                 LHPC AFF library
+
+   Environment variables:
+     CC                      C compiler to use
+     CFLAGS                  Flags to pass to the compiler
+     LD                      Link editor to use
+     LDFLAGS                 Flags to pass to the linker
+     LIBS                    Extra libraries to use
+     AR                      Library archiver
+     RANLIB                  Library indexing tool
+EOF
+exit $1
+}
+
+# show_error arg ...
+show_error() {
+   echo "**** Configure error: $*" 1>&2
+   exit 1
+}
+
+# configuration variables
+prefix=
+bindir=
+libdir=
+incdir=
+docdir=
+
+# defaults
+default_prefix=/usr/local
+# rest is relative to prefix by default
+bindir_loc=bin
+libdir_loc=lib
+incdir_loc=include
+docdir_loc=share/doc/qlua
+default_cc=gcc
+default_copts="-Wall"
+default_cflags=""
+default_ld=gcc
+default_ldflags=""
+default_ar=ar
+default_ranlib="echo RANLIB"
+
+# process_args arg ...
+process_args() {
+  while [ $# -ne 0 ]; do
+    case "$1" in
+      --help)  show_help 0 ;;
+      --prefix=*)       prefix=`echo "$1" | sed -e 's/--prefix=//'`   ;;
+      --bindir=*)       bindir=`echo "$1" | sed -e 's/--bindir=//'`   ;;
+      --libdir=*)       libdir=`echo "$1" | sed -e 's/--libdir=//'`   ;;
+      --incdir=*)       incdir=`echo "$1" | sed -e 's/--incdir=//'`   ;;
+      --docdir=*)       docdir=`echo "$1" | sed -e 's/--docdir=//'`   ;;
+      --with-lua=*)     lua=`echo "$1" | sed -e 's/--with-lua=//'`    ;;
+      --with-qdp=*)     qdp=`echo "$1" | sed -e 's/--with-qdp=//'`    ;;
+      --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
+      --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'`     ;;
+      --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
+      ## add other packages here
+      *) show_error "Unknown argument $1" ;;
+    esac
+    shift
+  done
+}
+
+# normalize
+normalize() {
+  prefix=${prefix:-$default_prefix}
+  bindir=${bindir:-$prefix/$bindir_loc}
+  libdir=${libdir:-$prefix/$libdir_loc}
+  incdir=${incdir:-$prefix/$incdir_loc}
+  docdir=${docdir:-$prefix/$docdir_loc}
+
+  # flags and defaults
+  cc="${CC:-$default_cc}"
+  cflags="${CFLAGS:-$default_cflags}"
+  default_ld="${cc:-$default_ld}"
+  ld="${LD:-$default_ld}"
+  ldflags="${LDFLAGS:-$default_ldflags}"
+  libs="${LIBS}"
+  ar="${AR:-$default_ar}"
+  ranlib="${RANLIB:-$default_ranlib}"
+
+  [ -z "$lua" ] && show_error "LUA must be explicitly specified"
+  [ -f $lua/include/lua.h ] || show_error "No lua.h found under $lua"
+  [ -f $lua/lib/liblua.a ] || show_error "No liblua.a found under $lua"
+  [ -z "$qdp" ] && show_error "QDP must be explicitly specified"
+  [ -x $qdp/bin/qdp-config ] || show_error "No qdp-config found under $qdp"
+  qdp_cc=`$qdp/bin/qdp-config --cc`
+  qdp_copts=`$qdp/bin/qdp-config --copts`
+  qdp_cflags=`$qdp/bin/qdp-config --cflags`
+  qdp_ldflags=`$qdp/bin/qdp-config --ldflags`
+  qdp_libs=`$qdp/bin/qdp-config --libs`
+  if [ ! -z "$clover" ] ; then
+     [ -x "$clover/bin/clover-config" ] \
+        || show_error "No clover-config under $clover"
+     clover_cflags=`$clover/bin/clover-config --cflags`
+     clover_ldflags=`$clover/bin/clover-config --ldflags`
+     clover_libs=`$clover/bin/clover-config --libs`
+  fi
+  if [ ! -z "$mdwf" ] ; then
+     [ -x "$mdwf/bin/mdwf-config" ] \
+        || show_error "No mdwf-config under $mdwf"
+     mdwf_cflags=`$mdwf/bin/mdwf-config --cflags`
+     mdwf_ldflags=`$mdwf/bin/mdwf-config --ldflags`
+     mdwf_libs=`$mdwf/bin/mdwf-config --libs`
+  fi
+  if [ ! -z "$aff" ] ; then
+     [ -x "$aff/bin/lhpc-aff-config" ] \
+        || show_error "No lhpc-aff-config under $aff"
+     aff_cflags=`$aff/bin/lhpc-aff-config --cflags`
+     aff_ldflags=`$aff/bin/lhpc-aff-config --ldflags`
+     aff_libs=`$aff/bin/lhpc-aff-config --libs`
+  fi
+  ## Add other packages here
+}
+
+# show_config
+show_config() {
+   echo "MDWF configuration summary:"
+   echo "====================================="
+   echo "prefix                  $prefix"
+   echo "binaries directory      $bindir"
+   echo "libraries directory     $libdir"
+   echo "headers directory       $incdir"
+   echo "doc directory           $docdir"
+   echo "C compiler              $cc"
+   echo "C optimization flags    $qdp_copts"
+   echo "Compiler flags          $cflags"
+   echo "Link editor             $ld"
+   echo "Linking flags           $ldflags"
+   echo "Extra libraries         $libs"
+   echo "Archiver                $ar"
+   echo "Ranlib                  $ranlib"
+   echo "LUA location            $lua"
+   echo "QDP location            $qdp"
+   [ -z "$clover" ] || echo "Clover location         $clover"
+   [ -z "$mdwf" ]   || echo "MDWF location           $mdwf"
+   [ -z "$aff" ]    || echo "AFF location            $aff"
+   ## Add other packages here
+   echo "====================================="
+}
+
+# build_config input output
+## Add other packages below
+build() {
+  sed < $1 \
+      -e "s|@bindir@|$bindir|g" \
+      -e "s|@libdir@|$libdir|g" \
+      -e "s|@incdir@|$incdir|g" \
+      -e "s|@docdir@|$docdir|g" \
+      -e "s|@cc@|$cc|g" \
+      -e "s|@cflags@|$cflags|g" \
+      -e "s|@copts@|$copts|g" \
+      -e "s|@ld@|$ld|g" \
+      -e "s|@ldflags@|$ldflags|g" \
+      -e "s|@libs@|$libs|g" \
+      -e "s|@ar@|$ar|g" \
+      -e "s|@ranlib@|$ranlib|g" \
+      -e "s|@lua@|$lua|g" \
+      -e "s|@qdp@|$qdp|g" \
+      -e "s|@qdp_cflags@|$qdp_cflags|g" \
+      -e "s|@qdp_ldflags@|$qdp_ldflags|g" \
+      -e "s|@qdp_libs@|$qdp_libs|g" \
+  | sed -e "s|@aff@|$aff|g" \
+        -e "s|@aff_cflags@|$aff_cflags|g" \
+        -e "s|@aff_ldflags@|$aff_ldflags|g" \
+        -e "s|@aff_libs@|$aff_libs|g" \
+  | sed -e "s|@clover@|$clover|g" \
+        -e "s|@clover_cflags@|$clover_cflags|g" \
+        -e "s|@clover_ldflags@|$clover_ldflags|g" \
+        -e "s|@clover_libs@|$clover_libs|g" \
+  | sed -e "s|@mdwf@|$mdwf|g" \
+        -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
+        -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
+        -e "s|@mdwf_libs@|$mdwf_libs|g" \
+      > $2 \
+|| show_error "Could not generate $2"
+}
+
+######
+
+if [ $# -eq 0 ]; then
+  show_help 1
+fi
+
+process_args $*
+normalize
+build qlua-config.in qlua-config
+chmod +x qlua-config
+build Makefile.in Makefile
+show_config
+show_config > config.log

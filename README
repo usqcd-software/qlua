@@ -1,0 +1,8 @@
+This package contains an interface between QDP/C and selected Level III
+routines on one hand and the scripting language Lua on the other hand.
+
+The goal is to make an easily extendable scripts for QCD applications.
+
+See INSTALL in this directory for build and installation instructions.
+
+Directory doc contains working documentation for this package.

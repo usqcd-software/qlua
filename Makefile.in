@@ -1,0 +1,59 @@
+# There is no PREFIX in this makefile, use configure to change the
+# installation locations.
+V = 0
+.PHONY: all doc lib clean realclean install
+
+BINDIR       = @bindir@
+LIBDIR       = @libdir@
+INCDIR       = @incdir@
+DOCDIR       = @docdir@
+
+CC           = @cc@
+COPTS        = @copts@
+CFLAGS       = @cflags@
+
+LD           = @ld@
+LDFLAGS      = @ldflags@
+LIBS         = @libs@
+
+AR           = @ar@
+RANLIB       = @ranlib@
+
+LUA          = @lua@
+
+QDP          = @qdp@
+QDP_CF       = @qdp_cflags@
+QDP_LF       = @qdp_ldflags@
+QDP_LIBS     = @qdp_libs@
+
+AFF          = @aff@
+AFF_CF       = @aff_cflags@
+AFF_LF       = @aff_ldflags@
+AFF_LIBS     = @aff_libs@
+
+CLOVER       = @clover@
+CLOVER_CF    = @clover_cflags@
+CLOVER_LF    = @clover_ldflags@
+CLOVER_LIBS  = @clover_libs@
+
+MDWF         = @mdwf@
+MDWF_CF      = @mdwf_cflags@
+MDWF_LF      = @mdwf_ldflags@
+MDWF_LIBS    = @mdwf_libs@
+
+## add other modules here
+
+#############################################################################
+ifeq ("$V", "0")
+   E=@echo "  "
+   C=@
+else
+   E=@echo > /dev/null
+   C=
+endif
+
+CCMD  = $(CC) -c $(COPTS) $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
+LCMD  = $(LD) $(LDFALGS) $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
+LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) $(LIBS)
+
+###############################################################################
