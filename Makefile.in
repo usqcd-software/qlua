@@ -44,16 +44,64 @@ MDWF_LIBS    = @mdwf_libs@
 ## add other modules here
 
 #############################################################################
+library = libqlua.a
+driver = qlua.c
+headers = qlua.h
+libsrc = init.c \
+         qvector.c \
+         qcomplex.c
+
+drvobj = $(driver:%.c=%.o)
+libobj = $(libsrc:%.c=%.o)
+program = $(driver:%.c=%)
+
+#############################################################################
 ifeq ("$V", "0")
    E=@echo "  "
    C=@
 else
-   E=@echo > /dev/null
+   E=@echo > /dev/null ""
    C=
 endif
 
-CCMD  = $(CC) -c $(COPTS) $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
-LCMD  = $(LD) $(LDFALGS) $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
-LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) $(LIBS)
+CCMD  = $(CC) -c $(COPTS) $(LUA:%=-I%/include) \
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
+LCMD  = $(LD) $(LDFALGS) $(LUA:%=-L%/lib) \
+              $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
+LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) $(LIBS) -llua
 
 ###############################################################################
+all: doc $(program)
+
+doc:
+
+lib: $(library)
+
+clean:
+	$ECLEAN objects
+	$C$(RM) $(drvobj) $(libobj) $(library)
+
+realclean: clean
+	$ECLEAN executables
+	$C$(RM) $(program)
+
+install:
+###############################################################################
+$(program): $(drvobj) $(library)
+	$ELD $(program)
+	$C$(LCMD) -o $(program) $(drvobj) -L. $(library:lib%.a=-l%) $(LLIBS)
+
+$(drvobj) $(libobj): %.o: sources/%.c
+	$ECC $@
+	$C$(CCMD) -Isources -o $@ $<
+
+$(library): $(libobj)
+	$EAR $(library)
+	$C$(AR) cr $(library) $(libobj)
+	$C$(RANLIB) $(library)
+
+$(drvobj) $(libobj): Makefile
+$(drvobj) $(libobj): sources/qlua.h
+init.o: sources/qvector.h sources/qcomplex.h
+qvector.o: sources/qvector.h
+qcomplex.o: sources/qcomplex.h

@@ -138,7 +138,7 @@ normalize() {
 
 # show_config
 show_config() {
-   echo "MDWF configuration summary:"
+   echo "QLUA configuration summary:"
    echo "====================================="
    echo "prefix                  $prefix"
    echo "binaries directory      $bindir"

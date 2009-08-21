@@ -1,0 +1,12 @@
+-- simple real numbers
+a = 1;
+b = 2;
+
+print("a=", a);
+print("b=", b);
+
+c = qcd.complex(3,4)
+print("c=", c, c:re(), c:im())
+print("c*=", c:conj())
+print("|c|=", c:abs())
+print("-c=", -c)
