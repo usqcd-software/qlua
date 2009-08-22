@@ -37,6 +37,92 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
     lua_settop(L, base);
 }
 
+int
+qlua_gettype(lua_State *L, int idx)
+{
+    luaL_checkany(L, idx);
+    switch (lua_type(L, idx)) {
+    case LUA_TNUMBER:
+        return qReal;
+    case LUA_TUSERDATA:
+        return qComplex;
+    default:
+        return qOther;
+    }
+}
+
+/* generic operations dispatchers */
+typedef struct {
+    int ta, tb;
+    int (*op)(lua_State *L);
+} q_Op2Table;
+
+int
+qlua_dispatch(lua_State *L, const q_Op2Table *t, const char *name)
+{
+    int i;
+    int ta = qlua_gettype(L, 1);
+    int tb = qlua_gettype(L, 2);
+
+    for (i = 0; t[i].op; i++) {
+        if ((t[i].ta == ta) && (t[i].tb == tb))
+            return t[i].op(L);
+    }
+
+    return luaL_error(L, "bad arguments for %s", name);
+}
+
+int
+qlua_add(lua_State *L)
+{
+    static const q_Op2Table qadd_table[] = {
+        { qReal,    qComplex, q_r_add_c },
+        { qComplex, qReal,    q_c_add_r },
+        { qComplex, qComplex, q_c_add_c },
+        { qOther,   qOther,   NULL}
+    };
+    return qlua_dispatch(L, qadd_table, "addition");
+}
+
+int
+qlua_sub(lua_State *L)
+{
+    static const q_Op2Table qsub_table[] = {
+        { qReal,    qComplex, q_r_sub_c },
+        { qComplex, qReal,    q_c_sub_r },
+        { qComplex, qComplex, q_c_sub_c },
+        { qOther,   qOther,   NULL}
+    };
+
+    return qlua_dispatch(L, qsub_table, "subtraction");
+}
+
+int
+qlua_mul(lua_State *L)
+{
+    static const q_Op2Table qmul_table[] = {
+        { qReal,    qComplex, q_r_mul_c },
+        { qComplex, qReal,    q_c_mul_r },
+        { qComplex, qComplex, q_c_mul_c },
+        { qOther,   qOther,   NULL}
+    };
+
+    return qlua_dispatch(L, qmul_table, "multiplication");
+}
+
+int
+qlua_div(lua_State *L)
+{
+    static const q_Op2Table qdiv_table[] = {
+        { qReal,    qComplex, q_r_div_c },
+        { qComplex, qReal,    q_c_div_r },
+        { qComplex, qComplex, q_c_div_c },
+        { qOther,   qOther,   NULL}
+    };
+
+    return qlua_dispatch(L, qdiv_table, "division");
+}
+
 void
 qlua_init(lua_State *L)
 {

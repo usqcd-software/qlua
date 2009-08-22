@@ -6,7 +6,27 @@ print("a=", a);
 print("b=", b);
 
 c = qcd.complex(3,4)
-print("c=", c, c:re(), c:im())
+z = qcd.complex(5,6)
+print("c:re()", c:re())
+print("c:im()", c:im())
 print("c*=", c:conj())
 print("|c|=", c:abs())
 print("-c=", -c)
+print("c=", c)
+print("z=", z)
+
+print("z+c", z + c)
+print("a+c", a + c)
+print("z+b", z + b)
+
+print("z-c", z - c)
+print("a-c", a - c)
+print("z-b", z - b)
+
+print("z*c", z * c)
+print("a*c", a * c)
+print("z*b", z * b)
+
+print("z/c*c", z / c * c)
+print("a/c*c", a / c * c)
+print("z/b*b", z / b * b)
