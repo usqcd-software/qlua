@@ -37,6 +37,20 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
     lua_settop(L, base);
 }
 
+static int
+qlua_type(lua_State *L, int idx, const char *mt)
+{
+    int base = lua_gettop(L);
+    int v;
+
+    lua_getmetatable(L, idx);
+    luaL_getmetatable(L, mt);
+    v = lua_equal(L, -1, -2);
+    lua_settop(L, base);
+
+    return v;
+}
+
 int
 qlua_gettype(lua_State *L, int idx)
 {
@@ -44,8 +58,14 @@ qlua_gettype(lua_State *L, int idx)
     switch (lua_type(L, idx)) {
     case LUA_TNUMBER:
         return qReal;
-    case LUA_TUSERDATA:
-        return qComplex;
+    case LUA_TSTRING:
+        return qString;
+    case LUA_TUSERDATA: {
+        if (qlua_type(L, idx, mtnComplex)) return qComplex;
+        if (qlua_type(L, idx, mtnVecInt)) return qVecInt;
+        if (qlua_type(L, idx, mtnVecDouble)) return qVecDouble;
+        if (qlua_type(L, idx, mtnVecComplex)) return qVecComplex;
+    }
     default:
         return qOther;
     }
@@ -79,6 +99,7 @@ qlua_add(lua_State *L)
         { qReal,    qComplex, q_r_add_c },
         { qComplex, qReal,    q_c_add_r },
         { qComplex, qComplex, q_c_add_c },
+        /* add other packages here */
         { qOther,   qOther,   NULL}
     };
     return qlua_dispatch(L, qadd_table, "addition");
@@ -91,6 +112,7 @@ qlua_sub(lua_State *L)
         { qReal,    qComplex, q_r_sub_c },
         { qComplex, qReal,    q_c_sub_r },
         { qComplex, qComplex, q_c_sub_c },
+        /* add other packages here */
         { qOther,   qOther,   NULL}
     };
 
@@ -104,6 +126,7 @@ qlua_mul(lua_State *L)
         { qReal,    qComplex, q_r_mul_c },
         { qComplex, qReal,    q_c_mul_r },
         { qComplex, qComplex, q_c_mul_c },
+        /* add other packages here */
         { qOther,   qOther,   NULL}
     };
 
@@ -117,6 +140,7 @@ qlua_div(lua_State *L)
         { qReal,    qComplex, q_r_div_c },
         { qComplex, qReal,    q_c_div_r },
         { qComplex, qComplex, q_c_div_c },
+        /* add other packages here */
         { qOther,   qOther,   NULL}
     };
 

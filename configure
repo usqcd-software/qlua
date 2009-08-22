@@ -199,6 +199,14 @@ build() {
 || show_error "Could not generate $2"
 }
 
+# build_modules
+## Add other packages below
+build_modules() {
+  [ -z "$aff" ] || echo "#define HAS_AFF"
+  [ -z "$mdwf" ] || echo "#define HAS_MDWF"
+  [ -z "$clover" ] || echo "#define HAS_CLOVER"
+}
+
 ######
 
 if [ $# -eq 0 ]; then
@@ -210,5 +218,6 @@ normalize
 build qlua-config.in qlua-config
 chmod +x qlua-config
 build Makefile.in Makefile
+build_modules > modules.h
 show_config
 show_config > config.log

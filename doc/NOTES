@@ -65,7 +65,6 @@ qcd.complex(<real>,<imag>) -- construct a complex number
 
 3.2 vectors (needed for AFF and QDP)
 
-  qcd.vec_bool(size) -- construct a vector of <size> booleans
   qcd.vec_int(size) -- construct a vector of <size> integers
   qcd.vec_real(size) -- construct a vector of <size> reals
   qcd.vec_complex(size) -- construct a vector of <size> complex
@@ -78,7 +77,6 @@ qcd.complex(<real>,<imag>) -- construct a complex number
 4. Lattice types
      Q: do we need these at all?
 
-     qcd.x.Bool() -- return new lattice boolean
      qcd.x.Int() -- return new lattice integer
      qcd.x.Double() -- return new lattice double
      qcd.x.Complex() -- return new lattice complex

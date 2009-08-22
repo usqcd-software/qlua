@@ -103,5 +103,5 @@ $(library): $(libobj)
 $(drvobj) $(libobj): Makefile
 $(drvobj) $(libobj): sources/qlua.h
 init.o: sources/qvector.h sources/qcomplex.h
-qvector.o: sources/qvector.h
+qvector.o: sources/qvector.h sources/qcomplex.h
 qcomplex.o: sources/qcomplex.h

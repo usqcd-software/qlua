@@ -16,6 +16,7 @@ message(const char *fmt, ...)
 void
 report(lua_State *L, const char *fname, int status)
 {
+    /* XXX only on node 0 */
     if (status && !lua_isnil(L, -1)) {
         const char *msg = lua_tostring(L, -1);
         if (msg == NULL) msg = "(error object is not a string)";

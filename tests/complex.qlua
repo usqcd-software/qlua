@@ -7,8 +7,8 @@ print("b=", b);
 
 c = qcd.complex(3,4)
 z = qcd.complex(5,6)
-print("c:re()", c:re())
-print("c:im()", c:im())
+print("c:real()", c:real())
+print("c:imag()", c:imag())
 print("c*=", c:conj())
 print("|c|=", c:abs())
 print("-c=", -c)

@@ -1,27 +1,26 @@
 #include <qlua.h>
 #include <math.h>
 #include <qcomplex.h>
-#include <qla.h>
 
-static const char *mt_name = "mtComplex";
+const char *mtnComplex = "qcd.mtComplex";
 
-static QLA_D_Complex *
+QLA_D_Complex *
 q_checkComplex(lua_State *L, int idx)
 {
-    void *ud = luaL_checkudata(L, idx, mt_name);
+    void *ud = luaL_checkudata(L, idx, mtnComplex);
 
     luaL_argcheck(L, ud != NULL, idx, "qcd.complex expected");
 
     return (QLA_D_Complex *)ud;
 }
 
-static QLA_D_Complex *
+QLA_D_Complex *
 q_newComplex(lua_State *L)
 {
     QLA_D_Complex *z = (QLA_D_Complex *)lua_newuserdata(L,
                                                         sizeof (QLA_D_Complex));
     
-    luaL_getmetatable(L, mt_name);
+    luaL_getmetatable(L, mtnComplex);
     lua_setmetatable(L, -2);
 
     return z;
@@ -260,8 +259,8 @@ q_c_div_c(lua_State *L)                                        /* (-2,+1,-) */
 
 static const luaL_Reg mtComplex[] = {
     { "__tostring", c_fmt },
-    { "re",         c_re },
-    { "im",         c_im },
+    { "real",       c_re },
+    { "imag",       c_im },
     { "conj",       c_conj },
     { "abs",        c_abs },
     { "__unm",      c_neg },
@@ -281,6 +280,6 @@ int
 init_complex(lua_State *L)
 {
     luaL_register(L, qcdlib, fComplex);
-    qlua_metatable(L, mt_name, mtComplex);
+    qlua_metatable(L, mtnComplex, mtComplex);
     return 0;
 }
