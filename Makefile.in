@@ -49,7 +49,8 @@ driver = qlua.c
 headers = qlua.h
 libsrc = init.c \
          qvector.c \
-         qcomplex.c
+         qcomplex.c \
+         qcd.c
 
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
@@ -102,6 +103,9 @@ $(library): $(libobj)
 
 $(drvobj) $(libobj): Makefile
 $(drvobj) $(libobj): sources/qlua.h
-init.o: sources/qvector.h sources/qcomplex.h
+init.o: sources/qvector.h \
+        sources/qcomplex.h \
+        sources/qcd.h
 qvector.o: sources/qvector.h sources/qcomplex.h
 qcomplex.o: sources/qcomplex.h
+qcd.o: sources/qcd.h

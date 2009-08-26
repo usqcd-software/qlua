@@ -1,22 +1,21 @@
-#include <stdarg.h>
-#include <stdio.h>
-
-#define lua_c
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
 #include <qlua.h>
 #include <qcomplex.h>
 #include <qvector.h>
+#include <qcd.h>
+#include <stdlib.h>
 
-static struct {
-    int (*init)(lua_State *L);
-} qcd_libs[] = {
-    { init_complex },
-    { init_vector },
-    { NULL }
-};
+void *
+qlua_malloc(lua_State *L, int size)
+{
+    void *p = malloc(size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = malloc(size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
+    return p;
+}
 
 void
 qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
@@ -146,6 +145,17 @@ qlua_div(lua_State *L)
 
     return qlua_dispatch(L, qdiv_table, "division");
 }
+
+
+static struct {
+    int (*init)(lua_State *L);
+} qcd_libs[] = {
+    { init_complex },
+    { init_vector },
+    { init_qcd },
+    /* add other packages here */
+    { NULL }
+};
 
 void
 qlua_init(lua_State *L)

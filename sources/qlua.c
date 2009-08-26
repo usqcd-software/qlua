@@ -6,22 +6,25 @@ const char *qcdlib = "qcd";
 void
 message(const char *fmt, ...)
 {
-    va_list va;
-    /* XXX only on node 0 */
-    va_start(va, fmt);
-    vfprintf(stderr, fmt, va);
-    va_end(va);
+    if (QDP_this_node == 0) {
+        va_list va;
+
+        va_start(va, fmt);
+        vfprintf(stderr, fmt, va);
+        va_end(va);
+    }
 }
 
 void
 report(lua_State *L, const char *fname, int status)
 {
-    /* XXX only on node 0 */
-    if (status && !lua_isnil(L, -1)) {
-        const char *msg = lua_tostring(L, -1);
-        if (msg == NULL) msg = "(error object is not a string)";
-        message("%s ERROR:: %s\n", progname, msg);
-        lua_pop(L, 1);
+    if (QDP_this_node == 0) {
+        if (status && !lua_isnil(L, -1)) {
+            const char *msg = lua_tostring(L, -1);
+            if (msg == NULL) msg = "(error object is not a string)";
+            message("%s ERROR:: %s\n", progname, msg);
+            lua_pop(L, 1);
+        }
     }
 }
 
@@ -32,7 +35,10 @@ main(int argc, char *argv[])
     int i;
     lua_State *L = NULL;
 
-    /* XXX init qdp */
+    if (QDP_initialize(&argc, &argv)) {
+        fprintf(stderr, "QDP initialization failed\n");
+        return 1;
+    }
     L = lua_open();
     if (L == NULL) {
         message("can not create Lua state");
@@ -48,6 +54,6 @@ main(int argc, char *argv[])
     }
     lua_close(L);
 end:
-    /* XXX close qdp */
+    QDP_finalize();
     return status;
 }

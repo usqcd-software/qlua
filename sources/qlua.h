@@ -9,6 +9,8 @@
 #include <lauxlib.h>
 #include <lualib.h>
 
+#include <qdp.h>
+
 enum {
     qReal,
     qString,
@@ -16,6 +18,14 @@ enum {
     qVecInt,
     qVecDouble,
     qVecComplex,
+    qLatInt,
+    qLatReal,
+    qLatComplex,
+    qLatColorVector,
+    qLatColorMatrix,
+    qLatDiracFermion,
+    qLatHalfFermion,
+    qLatDiracPropagator,
     /* add types for other packages here */
     qOther
 };
@@ -26,10 +36,20 @@ extern const char *mtnComplex;
 extern const char *mtnVecInt;
 extern const char *mtnVecDouble;
 extern const char *mtnVecComplex;
+extern const char *mtnLatInt;
+extern const char *mtnLatReal;
+extern const char *mtnLatComplex;
+extern const char *mtnLatColorVector;
+extern const char *mtnLatColorMatrix;
+extern const char *mtnLatDiracFermion;
+extern const char *mtnLatHalfFermion;
+extern const char *mtnLatDiracPropagator;
+/* add metatable names for other types here */
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
 void qlua_init(lua_State *L);
 int qlua_gettype(lua_State *L, int idx);
+void *qlua_malloc(lua_State *L, int size);
 
 /* additions */
 int qlua_add(lua_State *L);

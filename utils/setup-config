@@ -1,2 +1,2 @@
 #!/bin/sh
-exec ./configure --with-lua=/Users/avp/Local/packages/lua-5.1.4 --with-qdp=/usr/local/packages/qdp-1.8.0
+COPTS="-Wall -g" ./configure --with-lua=/Users/avp/Local/packages/lua-5.1.4 --with-qdp=/usr/local/packages/qdp-1.8.0
