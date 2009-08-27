@@ -283,3 +283,9 @@ init_complex(lua_State *L)
     qlua_metatable(L, mtnComplex, mtComplex);
     return 0;
 }
+
+int
+fini_complex(lua_State *L)
+{
+    return 0;
+}

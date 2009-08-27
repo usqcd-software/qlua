@@ -55,7 +55,7 @@ libdir_loc=lib
 incdir_loc=include
 docdir_loc=share/doc/qlua
 default_cc=gcc
-default_copts="-Wall"
+default_copts="-Wall -g"
 default_cflags=""
 default_ld=gcc
 default_ldflags=""
@@ -94,6 +94,7 @@ normalize() {
 
   # flags and defaults
   cc="${CC:-$default_cc}"
+  copts="${COPTS:-$default_copts}"
   cflags="${CFLAGS:-$default_cflags}"
   default_ld="${cc:-$default_ld}"
   ld="${LD:-$default_ld}"
@@ -146,7 +147,7 @@ show_config() {
    echo "headers directory       $incdir"
    echo "doc directory           $docdir"
    echo "C compiler              $cc"
-   echo "C optimization flags    $qdp_copts"
+   echo "C optimization flags    $copts"
    echo "Compiler flags          $cflags"
    echo "Link editor             $ld"
    echo "Linking flags           $ldflags"

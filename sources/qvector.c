@@ -50,19 +50,22 @@ q_newVector(lua_State *L, int s, const char *mt)
 tVecInt *
 q_newVecInt(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecInt, size, QLA_Int), mtnVecInt);
+    return q_newVector(L, VSIZE(tVecInt, size, QLA_Int),
+                       mtnVecInt);
 }
 
 tVecDouble *
 q_newVecDouble(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecDouble, size, QLA_D_Real), mtnVecInt);
+    return q_newVector(L, VSIZE(tVecDouble, size, QLA_D_Real),
+                       mtnVecDouble);
 }
 
 tVecComplex *
 q_newVecComplex(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecComplex, size, QLA_D_Complex), mtnVecInt);
+    return q_newVector(L, VSIZE(tVecComplex, size, QLA_D_Complex),
+                       mtnVecComplex);
 }
 
 /* integer vectors */
@@ -297,5 +300,11 @@ init_vector(lua_State *L)
     qlua_metatable(L, mtnVecInt,     mtVecInt);
     qlua_metatable(L, mtnVecDouble,  mtVecDouble);
     qlua_metatable(L, mtnVecComplex, mtVecComplex);
+    return 0;
+}
+
+int
+fini_vector(lua_State *L)
+{
     return 0;
 }

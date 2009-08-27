@@ -1,6 +1,7 @@
 #include <qlua.h>
+#include <qlint.h>
 #include <stdlib.h>
-#include <qcd.h>
+#include <qmp.h>
 
 static int qRank = 0;
 static int *qDim = NULL;
@@ -150,30 +151,6 @@ qmk_latint(lua_State *L, QLA_Int value)
     return 1;
 }
 
-static int
-q_copy_latint(lua_State *L, int idx)
-{
-    mLatInt *dst = qlua_newLatInt(L);
-    mLatInt *src = qlua_checkLatInt(L, idx);
-
-    QDP_I_eq_I(dst->ptr, src->ptr, QDP_all);
-
-    return 1;
-}
-
-static int
-qcd_latint(lua_State *L)
-{
-    switch (qlua_gettype(L, 1)) {
-    case qReal:
-        return qmk_latint(L, luaL_checkinteger(L, 1));
-    case qLatInt:
-        return q_copy_latint(L, 1);
-    default:
-        return luaL_error(L, "bad argument");
-    }
-}
-
 int
 q_I_eq_I(lua_State *L)
 {
@@ -183,6 +160,19 @@ q_I_eq_I(lua_State *L)
     QDP_I_eq_I(res->ptr, a->ptr, QDP_all);
 
     return 1;
+}
+
+static int
+q_latint(lua_State *L)
+{
+    switch (qlua_gettype(L, 1)) {
+    case qReal:
+        return qmk_latint(L, luaL_checkinteger(L, 1));
+    case qLatInt:
+        return q_I_eq_I(L);
+    default:
+        return luaL_error(L, "bad argument");
+    }
 }
 
 int
@@ -285,7 +275,7 @@ static struct luaL_reg mtLatInt[] = {
 
 /* lattice definition */
 static int
-qcd_lattice(lua_State *L)
+q_lattice(lua_State *L)
 {
     int r, i;
 
@@ -312,7 +302,7 @@ qcd_lattice(lua_State *L)
 }
 
 static int
-qcd_dims(lua_State *L)
+q_dims(lua_State *L)
 {
     int i;
 
@@ -333,7 +323,7 @@ pcoord_set(QLA_Int *dst, int coords[])
 }
 
 static int
-qcd_pcoord(lua_State *L)
+q_pcoord(lua_State *L)
 {
     int d = luaL_checkint(L, 1);
     mLatInt *v = qlua_newLatInt(L);
@@ -348,27 +338,29 @@ qcd_pcoord(lua_State *L)
     return 1;
 }
 
-static struct luaL_Reg fQcd[] = {
-    { "lattice", qcd_lattice },
-    { "dims",    qcd_dims },
-    { "pcoord",  qcd_pcoord },
-    { "lat_int", qcd_latint },
+static struct luaL_Reg fLatInt[] = {
+    { "lattice", q_lattice },
+    { "dims",    q_dims },
+    { "pcoord",  q_pcoord },
+    { "lat_int", q_latint },
     { NULL, NULL}
 };
 
 int
-init_qcd(lua_State *L)
+init_latint(lua_State *L)
 {
-    luaL_register(L, qcdlib, fQcd);
+    luaL_register(L, qcdlib, fLatInt);
     qlua_metatable(L, mtnLatInt, mtLatInt);
 
     return 0;
 }
 
 int
-fini_qcd(lua_State *L)
+fini_latint(lua_State *L)
 {
     qlua_free(L, qDim);
     qDim = 0;
     qRank = 0;
+
+    return 0;
 }
