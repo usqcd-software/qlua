@@ -17,6 +17,14 @@ qlua_malloc(lua_State *L, int size)
     return p;
 }
 
+
+void
+qlua_free(lua_State *L, void *ptr)
+{
+    if (ptr)
+        free(ptr);
+}
+
 void
 qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
 {
@@ -59,11 +67,14 @@ qlua_gettype(lua_State *L, int idx)
         return qReal;
     case LUA_TSTRING:
         return qString;
+    case LUA_TTABLE:
+        return qTable;
     case LUA_TUSERDATA: {
         if (qlua_type(L, idx, mtnComplex)) return qComplex;
         if (qlua_type(L, idx, mtnVecInt)) return qVecInt;
         if (qlua_type(L, idx, mtnVecDouble)) return qVecDouble;
         if (qlua_type(L, idx, mtnVecComplex)) return qVecComplex;
+        if (qlua_type(L, idx, mtnLatInt)) return qLatInt;
     }
     default:
         return qOther;
@@ -98,6 +109,7 @@ qlua_add(lua_State *L)
         { qReal,    qComplex, q_r_add_c },
         { qComplex, qReal,    q_c_add_r },
         { qComplex, qComplex, q_c_add_c },
+        { qLatInt,  qLatInt,  q_I_add_I },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -111,6 +123,7 @@ qlua_sub(lua_State *L)
         { qReal,    qComplex, q_r_sub_c },
         { qComplex, qReal,    q_c_sub_r },
         { qComplex, qComplex, q_c_sub_c },
+        { qLatInt,  qLatInt,  q_I_sub_I },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -125,6 +138,9 @@ qlua_mul(lua_State *L)
         { qReal,    qComplex, q_r_mul_c },
         { qComplex, qReal,    q_c_mul_r },
         { qComplex, qComplex, q_c_mul_c },
+        { qReal,    qLatInt,  q_i_mul_I },
+        { qLatInt,  qReal,    q_I_mul_i },
+        { qLatInt,  qLatInt,  q_I_mul_I },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -139,6 +155,7 @@ qlua_div(lua_State *L)
         { qReal,    qComplex, q_r_div_c },
         { qComplex, qReal,    q_c_div_r },
         { qComplex, qComplex, q_c_div_c },
+        { qLatInt,  qLatInt,  q_I_div_I },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -149,11 +166,18 @@ qlua_div(lua_State *L)
 
 static struct {
     int (*init)(lua_State *L);
-} qcd_libs[] = {
+} qcd_inits[] = {
     { init_complex },
     { init_vector },
     { init_qcd },
     /* add other packages here */
+    { NULL }
+};
+
+static struct {
+    int (*fini)(lua_State *L);
+} qcd_finis[] = {
+    { fini_qcd },
     { NULL }
 };
 
@@ -164,9 +188,20 @@ qlua_init(lua_State *L)
 
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     luaL_openlibs(L);  /* open libraries */
-    for (i = 0; qcd_libs[i].init; i++) {
-        lua_pushcfunction(L, qcd_libs[i].init);
+    for (i = 0; qcd_inits[i].init; i++) {
+        lua_pushcfunction(L, qcd_inits[i].init);
         lua_call(L, 0, 0);
     }
     lua_gc(L, LUA_GCRESTART, 0);
+}
+
+void
+qlua_fini(lua_State *L)
+{
+    int i;
+
+    for (i = 0; qcd_finis[i].fini; i++) {
+        lua_pushcfunction(L, qcd_finis[i].fini);
+        lua_call(L, 0, 0);
+    }
 }

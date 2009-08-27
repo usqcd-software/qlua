@@ -14,6 +14,7 @@
 enum {
     qReal,
     qString,
+    qTable,
     qComplex,
     qVecInt,
     qVecDouble,
@@ -48,14 +49,20 @@ extern const char *mtnLatDiracPropagator;
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
 void qlua_init(lua_State *L);
+void qlua_fini(lua_State *L);
 int qlua_gettype(lua_State *L, int idx);
 void *qlua_malloc(lua_State *L, int size);
+void qlua_free(lua_State *L, void *ptr);
+
+/* copies */
+int q_I_eq_I(lua_State *L);
 
 /* additions */
 int qlua_add(lua_State *L);
 int q_r_add_c(lua_State *L);
 int q_c_add_r(lua_State *L);
 int q_c_add_c(lua_State *L);
+int q_I_add_I(lua_State *L);
 /* add other packages here */
 
 /* subtractions */
@@ -63,6 +70,7 @@ int qlua_sub(lua_State *L);
 int q_r_sub_c(lua_State *L);
 int q_c_sub_r(lua_State *L);
 int q_c_sub_c(lua_State *L);
+int q_I_sub_I(lua_State *L);
 /* add other packages here */
 
 /* multiplications */
@@ -70,6 +78,9 @@ int qlua_mul(lua_State *L);
 int q_r_mul_c(lua_State *L);
 int q_c_mul_r(lua_State *L);
 int q_c_mul_c(lua_State *L);
+int q_I_mul_I(lua_State *L);
+int q_i_mul_I(lua_State *L);
+int q_I_mul_i(lua_State *L);
 /* add other packages here */
 
 /* divisions */
@@ -77,6 +88,7 @@ int qlua_div(lua_State *L);
 int q_r_div_c(lua_State *L);
 int q_c_div_r(lua_State *L);
 int q_c_div_c(lua_State *L);
+int q_I_div_I(lua_State *L);
 /* add other packages here */
 
 #endif /* !defined(MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F) */

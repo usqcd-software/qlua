@@ -1,11 +1,21 @@
-qcd.lattice(8,12,8,8)
+qcd.lattice{7, 8}
 
-print("rank=", qcd.rank())
-
-for i = 0, qcd.rank() - 1 do
-   print("dim[" .. i .. "]= " .. qcd.dim(i))
+for i,d in ipairs(qcd.dims()) do
+   print("dim[" .. i .. "] = " .. d)
 end
 
-c0 = qcd.pcoord(2)
+c0 = qcd.pcoord(0)
+c1 = qcd.pcoord(1)
 
 print("pcoord(2)", c0)
+
+c0[{1,2}] = -1
+
+cx = c0 + 6 * c1
+for d0 = 0, 7 - 1 do 
+  for d1 = 0, 8 - 1 do
+    print("  ", d0, d1, cx[{d0, d1}], cx[{d0,d1}]==(c0[{d0,d1}]+6*c1[{d0,d1}]))
+  end
+end
+
+cz = cx:copy()

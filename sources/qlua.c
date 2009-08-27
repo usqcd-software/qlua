@@ -52,6 +52,7 @@ main(int argc, char *argv[])
         if (status)
             break;
     }
+    qlua_fini(L);
     lua_close(L);
 end:
     QDP_finalize();
