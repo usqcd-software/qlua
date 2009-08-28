@@ -67,15 +67,10 @@ static int
 q_I_sum(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
-    int i;
-    QLA_Int *locked;
-    QLA_Int sum;
+    QLA_D_Real sum;
 
-    locked = QDP_expose_I(a->ptr);
-    for (i = QDP_sites_on_node, sum = 0; i--; locked++)
-        sum += *locked;
-    QDP_reset_I(a->ptr);
-    QMP_sum_int(&sum);
+
+    QDP_D_r_eq_sum_I(&sum, a->ptr, QDP_all);
     lua_pushnumber(L, sum);
 
     return 1;

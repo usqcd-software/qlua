@@ -74,16 +74,10 @@ static int
 q_R_sum(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
-    QLA_D_Real n = 0;
-    QLA_D_Real *locked;
-    int i;
+    QLA_D_Real sum;
 
-    locked = QDP_D_expose_R(a->ptr);
-    for (i = QDP_sites_on_node, n = 0; i--; locked++)
-        n += *locked;
-    QDP_D_reset_R(a->ptr);
-    QMP_sum_double(&n);
-    lua_pushnumber(L, n);
+    QDP_D_r_eq_sum_R(&sum, a->ptr, QDP_all);
+    lua_pushnumber(L, sum);
 
     return 1;
 }
