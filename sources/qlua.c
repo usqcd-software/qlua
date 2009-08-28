@@ -79,18 +79,15 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
 }
 
 int
-qlua_lookup(lua_State *L, int idx, const luaL_Reg *table)
+qlua_lookup(lua_State *L, int idx, const char *table)
 {
-    int i;
     const char *key = lua_tostring(L, idx);
 
-    for (i = 0; table[i].func; i++) {
-        if (strcmp(table[i].name, key) == 0) {
-            lua_pushcfunction(L, table[i].func);
-            return 1;
-        }
-    }
-    return luaL_error(L, "bad index");
+    luaL_getmetatable(L, table);
+    lua_getfield(L, -1, key);
+    if (lua_isnil(L, -1))
+        return luaL_error(L, "bad index");
+    return 1;
 }
 
 static int
@@ -118,14 +115,26 @@ qlua_gettype(lua_State *L, int idx)
         return qString;
     case LUA_TTABLE:
         return qTable;
-    case LUA_TUSERDATA:
-        if (qlua_type(L, idx, mtnComplex)) return qComplex;
-        if (qlua_type(L, idx, mtnVecInt)) return qVecInt;
-        if (qlua_type(L, idx, mtnVecDouble)) return qVecDouble;
-        if (qlua_type(L, idx, mtnVecComplex)) return qVecComplex;
-        if (qlua_type(L, idx, mtnLatInt)) return qLatInt;
-        if (qlua_type(L, idx, mtnLatRandom)) return qLatRandom;
-        if (qlua_type(L, idx, mtnLatReal)) return qLatReal;
+    case LUA_TUSERDATA: {
+        static const struct {
+            const char **name;
+            int ty;
+        } t[] = {
+            { &mtnComplex,       qComplex },
+            { &mtnVecInt,        qVecInt },
+            { &mtnVecDouble,     qVecDouble },
+            { &mtnVecComplex,    qVecComplex },
+            { &mtnLatInt,        qLatInt },
+            { &mtnLatReal,       qLatReal },
+            { &mtnLatRandom,     qLatRandom },
+            { NULL,              qOther }
+        };
+        int i;
+
+        for (i = 0; t[i].name; i++)
+            if (qlua_type(L, idx, *t[i].name)) return t[i].ty;
+        return qOther;
+    }
     default:
         return qOther;
     }

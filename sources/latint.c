@@ -9,6 +9,7 @@ static int *qDim = NULL;
 
 /* lattice integers */
 const char *mtnLatInt = "qcd.lattice.int";
+static const char *opLatInt = "qcd.lattice.int.op";
 
 mLatInt *
 qlua_newLatInt(lua_State *L)
@@ -189,19 +190,19 @@ qLatInt_get(lua_State *L)
 
         return 1;
     }
-    case qString: {
-        static const struct luaL_Reg latint_methods[] = {
-            { "norm2",  q_I_norm2 },
-            { "shift",  q_I_shift },
-            { "sum",    q_I_sum },
-            { NULL,     NULL}
-        };
-        return qlua_lookup(L, 2, latint_methods);
-    }
+    case qString:
+        return qlua_lookup(L, 2, opLatInt);
     }
 
     return luaL_error(L, "bad index");
 }
+
+static struct luaL_Reg LatIntMethods[] = {
+    { "norm2",  q_I_norm2 },
+    { "shift",  q_I_shift },
+    { "sum",    q_I_sum },
+    { NULL,     NULL}
+};
 
 static int
 qLatInt_put(lua_State *L)
@@ -421,6 +422,7 @@ init_latint(lua_State *L)
 {
     luaL_register(L, qcdlib, fLatInt);
     qlua_metatable(L, mtnLatInt, mtLatInt);
+    qlua_metatable(L, opLatInt, LatIntMethods);
 
     return 0;
 }

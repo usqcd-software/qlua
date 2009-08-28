@@ -5,6 +5,7 @@
 #include <qmp.h>
 
 const char *mtnLatReal = "qcd.lattice.real";
+const char *opLatReal = "qcd.lattice.real.op";
 
 mLatReal *
 qlua_newLatReal(lua_State *L)
@@ -362,40 +363,41 @@ qLatReal_get(lua_State *L)
 
         return 1;
     }
-    case qString: {
-        static const struct luaL_Reg latreal_methods[] = {
-            { "sum",       q_R_sum      },
-            { "norm2",     q_R_norm2    },
-            { "shift",     q_R_shift    },
-            { "sin",       q_R_sin      },
-            { "cos",       q_R_cos      },
-            { "tan",       q_R_tan      },
-            { "asin",      q_R_asin     },
-            { "acos",      q_R_acos     },
-            { "atan",      q_R_atan     },
-            { "sqrt",      q_R_sqrt     },
-            { "abs",       q_R_abs      },
-            { "exp",       q_R_exp      },
-            { "log",       q_R_log      },
-            { "sign",      q_R_sign     },
-            { "ceil",      q_R_ceil     },
-            { "floor",     q_R_floor    },
-            { "sinh",      q_R_sinh     },
-            { "consh",     q_R_cosh     },
-            { "tanh",      q_R_tanh     },
-            { "log10",     q_R_log10    },
-#if 0 /* XXX */
-            { "expi",      q_R_expi     },
-#endif
-            { "trunc",     q_R_trunc    },
-            { "round",     q_R_round    },
-            { NULL,        NULL         }
-        };
-        return qlua_lookup(L, 2, latreal_methods);
-    }
+    case qString:
+        return qlua_lookup(L, 2, opLatReal);
     }
     return luaL_error(L, "bad index");
 }
+
+static const struct luaL_Reg LatRealMethods[] = {
+    { "sum",       q_R_sum      },
+    { "norm2",     q_R_norm2    },
+    { "shift",     q_R_shift    },
+    { "sin",       q_R_sin      },
+    { "cos",       q_R_cos      },
+    { "tan",       q_R_tan      },
+    { "asin",      q_R_asin     },
+    { "acos",      q_R_acos     },
+    { "atan",      q_R_atan     },
+    { "sqrt",      q_R_sqrt     },
+    { "abs",       q_R_abs      },
+    { "exp",       q_R_exp      },
+    { "log",       q_R_log      },
+    { "sign",      q_R_sign     },
+    { "ceil",      q_R_ceil     },
+    { "floor",     q_R_floor    },
+    { "sinh",      q_R_sinh     },
+    { "consh",     q_R_cosh     },
+    { "tanh",      q_R_tanh     },
+    { "log10",     q_R_log10    },
+#if 0 /* XXX */
+    { "expi",      q_R_expi     },
+#endif
+    { "trunc",     q_R_trunc    },
+    { "round",     q_R_round    },
+    { NULL,        NULL         }
+};
+
 
 static int
 qLatReal_put(lua_State *L)
@@ -542,6 +544,7 @@ init_latreal(lua_State *L)
 {
     luaL_register(L, qcdlib, fLatReal);
     qlua_metatable(L, mtnLatReal, mtLatReal);
+    qlua_metatable(L, opLatReal, LatRealMethods);
 
     return 0;
 }
