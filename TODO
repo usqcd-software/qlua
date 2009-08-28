@@ -1,0 +1,38 @@
+*Basic types (missing in the standard Lua)
+*  Complex
+*   Vectors
+*      Integer
+*      Double
+*      Complex
+QDP types:
+*  lattice
+*  int
+*  real
+  complex
+  colorvector
+  colormatrix
+  diracfermion
+  halffermion
+  diracpropagator
++  random
+
+QIO
+  writer
+  reader
+
+Optional packages:
+
+AFF
+  reader
+  writer
+
+CLOVER
+  operator
+  conjugate operator
+  solvers
+
+Building blocks
+NPR
+Smearing
+Sequential sources
+Sources

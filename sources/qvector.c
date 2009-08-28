@@ -1,6 +1,7 @@
 #include <qlua.h>
 #include <qcomplex.h>
 #include <qvector.h>
+#include <string.h>
 
 const char *mtnVecInt     = "qcd.mtVecInt";
 const char *mtnVecDouble  = "qcd.mtVecDouble";
@@ -9,7 +10,7 @@ const char *mtnVecComplex = "qcd.mtVecComplex";
 #define VSIZE(s,n,t) (sizeof (s) + ((n)-1)*sizeof (t))
 
 static void *
-q_checkVector(lua_State *L, int idx, const char *mt)
+qlua_checkVector(lua_State *L, int idx, const char *mt)
 {
     void *v = luaL_checkudata(L, idx, mt);
 
@@ -19,25 +20,25 @@ q_checkVector(lua_State *L, int idx, const char *mt)
 }
 
 tVecInt *
-q_checkVecInt(lua_State *L, int idx)
+qlua_checkVecInt(lua_State *L, int idx)
 {
-    return (tVecInt *)q_checkVector(L, idx, mtnVecInt);
+    return (tVecInt *)qlua_checkVector(L, idx, mtnVecInt);
 }
 
 tVecDouble *
-q_checkVecDouble(lua_State *L, int idx)
+qlua_checkVecDouble(lua_State *L, int idx)
 {
-    return (tVecDouble *)q_checkVector(L, idx, mtnVecDouble);
+    return (tVecDouble *)qlua_checkVector(L, idx, mtnVecDouble);
 }
 
 tVecComplex *
-q_checkVecComplex(lua_State *L, int idx)
+qlua_checkVecComplex(lua_State *L, int idx)
 {
-    return (tVecComplex *)q_checkVector(L, idx, mtnVecComplex);
+    return (tVecComplex *)qlua_checkVector(L, idx, mtnVecComplex);
 }
 
 static void *
-q_newVector(lua_State *L, int s, const char *mt)
+qlua_newVector(lua_State *L, int s, const char *mt)
 {
     void *v = lua_newuserdata(L, s);
 
@@ -48,24 +49,24 @@ q_newVector(lua_State *L, int s, const char *mt)
 }
 
 tVecInt *
-q_newVecInt(lua_State *L, int size)
+qlua_newVecInt(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecInt, size, QLA_Int),
-                       mtnVecInt);
+    return qlua_newVector(L, VSIZE(tVecInt, size, QLA_Int),
+                          mtnVecInt);
 }
 
 tVecDouble *
-q_newVecDouble(lua_State *L, int size)
+qlua_newVecDouble(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecDouble, size, QLA_D_Real),
-                       mtnVecDouble);
+    return qlua_newVector(L, VSIZE(tVecDouble, size, QLA_D_Real),
+                          mtnVecDouble);
 }
 
 tVecComplex *
-q_newVecComplex(lua_State *L, int size)
+qlua_newVecComplex(lua_State *L, int size)
 {
-    return q_newVector(L, VSIZE(tVecComplex, size, QLA_D_Complex),
-                       mtnVecComplex);
+    return qlua_newVector(L, VSIZE(tVecComplex, size, QLA_D_Complex),
+                          mtnVecComplex);
 }
 
 /* integer vectors */
@@ -73,7 +74,7 @@ static int
 vi_fmt(lua_State *L)                                           /* (-1,+1,e) */
 {
     char fmt[72];
-    tVecInt *v = q_checkVecInt(L, 1);
+    tVecInt *v = qlua_checkVecInt(L, 1);
 
     sprintf(fmt, "vec_int[%d]", v->size);
     lua_pushstring(L, fmt);
@@ -84,12 +85,12 @@ vi_fmt(lua_State *L)                                           /* (-1,+1,e) */
 static int
 vi_get(lua_State *L)                                           /* (-2,+1,e) */
 {
-    tVecInt *v = q_checkVecInt(L, 1);
+    tVecInt *v = qlua_checkVecInt(L, 1);
     
     switch(qlua_gettype(L, 2)) {
     case qString: {
-        lua_pushstring(L, "length");
-        if (lua_equal(L, 2, -1)) {
+        const char *key = lua_tostring(L, 2);
+        if (strcmp(key, "length") == 0) {
             lua_pushnumber(L, v->size);
             return 1;
         }
@@ -108,7 +109,7 @@ vi_get(lua_State *L)                                           /* (-2,+1,e) */
 static int
 vi_put(lua_State *L)                                           /* (-3,+0,e) */
 {
-    tVecInt *v = q_checkVecInt(L, 1);
+    tVecInt *v = qlua_checkVecInt(L, 1);
     int idx = luaL_checkint(L, 2);
     int x = luaL_checkint(L, 3);
 
@@ -123,7 +124,7 @@ static int
 v_int(lua_State *L)                                            /* (-1,+1,e) */
 {
     int s = luaL_checkint(L, 1);
-    tVecInt *v = q_newVecInt(L, s);
+    tVecInt *v = qlua_newVecInt(L, s);
     v->size = s;
     
     return 1;
@@ -141,7 +142,7 @@ static int
 vd_fmt(lua_State *L)                                           /* (-1,+1,e) */
 {
     char fmt[72];
-    tVecDouble *v = q_checkVecDouble(L, 1);
+    tVecDouble *v = qlua_checkVecDouble(L, 1);
 
     sprintf(fmt, "vec_double[%d]", v->size);
     lua_pushstring(L, fmt);
@@ -152,12 +153,12 @@ vd_fmt(lua_State *L)                                           /* (-1,+1,e) */
 static int
 vd_get(lua_State *L)                                           /* (-2,+1,e) */
 {
-    tVecDouble *v = q_checkVecDouble(L, 1);
+    tVecDouble *v = qlua_checkVecDouble(L, 1);
     
     switch(qlua_gettype(L, 2)) {
     case qString: {
-        lua_pushstring(L, "length");
-        if (lua_equal(L, 2, -1)) {
+        const char *key = lua_tostring(L, 2);
+        if (strcmp(key, "length") == 0) {
             lua_pushnumber(L, v->size);
             return 1;
         }
@@ -176,7 +177,7 @@ vd_get(lua_State *L)                                           /* (-2,+1,e) */
 static int
 vd_put(lua_State *L)                                           /* (-3,+0,e) */
 {
-    tVecDouble *v = q_checkVecDouble(L, 1);
+    tVecDouble *v = qlua_checkVecDouble(L, 1);
     int idx = luaL_checkint(L, 2);
     double x = luaL_checknumber(L, 3);
 
@@ -191,7 +192,7 @@ static int
 v_double(lua_State *L)                                         /* (-1,+1,e) */
 {
     int s = luaL_checkint(L, 1);
-    tVecDouble *v = q_newVecDouble(L, s);
+    tVecDouble *v = qlua_newVecDouble(L, s);
     v->size = s;
     
     return 1;
@@ -209,7 +210,7 @@ static int
 vc_fmt(lua_State *L)                                           /* (-1,+1,e) */
 {
     char fmt[72];
-    tVecComplex *v = q_checkVecComplex(L, 1);
+    tVecComplex *v = qlua_checkVecComplex(L, 1);
 
     sprintf(fmt, "vec_complex[%d]", v->size);
     lua_pushstring(L, fmt);
@@ -220,12 +221,12 @@ vc_fmt(lua_State *L)                                           /* (-1,+1,e) */
 static int
 vc_get(lua_State *L)                                           /* (-2,+1,e) */
 {
-    tVecComplex *v = q_checkVecComplex(L, 1);
+    tVecComplex *v = qlua_checkVecComplex(L, 1);
     
     switch(qlua_gettype(L, 2)) {
     case qString: {
-        lua_pushstring(L, "length");
-        if (lua_equal(L, 2, -1)) {
+        const char *key = lua_tostring(L, 2);
+        if (strcmp(key, "length") == 0) {
             lua_pushnumber(L, v->size);
             return 1;
         }
@@ -233,7 +234,7 @@ vc_get(lua_State *L)                                           /* (-2,+1,e) */
     case qReal: {
         int i = luaL_checkint(L, 2);
         if ((i >= 0) && (i < v->size)) {
-            QLA_D_Complex *z = q_newComplex(L);
+            QLA_D_Complex *z = qlua_newComplex(L);
             QLA_c_eq_c(*z, v->val[i]);
             return 1;
         }
@@ -246,7 +247,7 @@ vc_get(lua_State *L)                                           /* (-2,+1,e) */
 static int
 vc_put(lua_State *L)                                           /* (-3,+0,e) */
 {
-    tVecComplex *v = q_checkVecComplex(L, 1);
+    tVecComplex *v = qlua_checkVecComplex(L, 1);
     int idx = luaL_checkint(L, 2);
 
     if ((idx >= 0) && (idx < v->size)) {
@@ -258,7 +259,7 @@ vc_put(lua_State *L)                                           /* (-3,+0,e) */
             return 0;
         }
         case qComplex: {
-            QLA_D_Complex *z = q_checkComplex(L, 3);
+            QLA_D_Complex *z = qlua_checkComplex(L, 3);
             QLA_c_eq_c(v->val[idx], *z);
             return 0;
         }
@@ -272,7 +273,7 @@ static int
 v_complex(lua_State *L)                                         /* (-1,+1,e) */
 {
     int s = luaL_checkint(L, 1);
-    tVecComplex *v = q_newVecComplex(L, s);
+    tVecComplex *v = qlua_newVecComplex(L, s);
     v->size = s;
     
     return 1;

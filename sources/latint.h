@@ -10,8 +10,12 @@ extern const char *mtnLatInt;
 int init_latint(lua_State *L);
 int fini_latint(lua_State *L);
 
-mLatInt *q_checkLatInt(lua_State *L, int idx);
-mLatInt *q_newLatInt(lua_State *L);
+mLatInt *qlua_checkLatInt(lua_State *L, int idx);
+mLatInt *qlua_newLatInt(lua_State *L);
+
+int *qlua_lattice_coord(lua_State *L, int idx);
+QDP_Shift qlua_checkShift(lua_State *L, int idx);
+QDP_ShiftDir qlua_checkShiftDir(lua_State *L, int idx);
 
 /* copies */
 int q_I_eq_I(lua_State *L);

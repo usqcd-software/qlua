@@ -1,7 +1,8 @@
 #include <qlua.h>
-#include <qlint.h>
+#include <latint.h>
 #include <stdlib.h>
 #include <qmp.h>
+#include <string.h>
 
 static int qRank = 0;
 static int *qDim = NULL;
@@ -63,6 +64,113 @@ qLatInt_gc(lua_State *L)
 }
 
 static int
+q_I_sum(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    int i;
+    QLA_Int *locked;
+    QLA_Int sum;
+
+    locked = QDP_expose_I(a->ptr);
+    for (i = QDP_sites_on_node, sum = 0; i--; locked++)
+        sum += *locked;
+    QDP_reset_I(a->ptr);
+    QMP_sum_int(&sum);
+    lua_pushnumber(L, sum);
+
+    return 1;
+}
+
+static int
+q_I_norm2(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    QLA_D_Real sum;
+
+    QDP_D_r_eq_norm2_I(&sum, a->ptr, QDP_all);
+    lua_pushnumber(L, sum);
+
+    return 1;
+}
+
+
+QDP_Shift
+qlua_checkShift(lua_State *L, int idx)
+{
+    int d = luaL_checkinteger(L, idx);
+
+    if ((d < 0) || (d >= qRank))
+        luaL_error(L, "bad shift dimension");
+
+    return QDP_neighbor[d];
+}
+
+QDP_ShiftDir
+qlua_checkShiftDir(lua_State *L, int idx)
+{
+    static const struct {
+        char *name;
+        QDP_ShiftDir dir;
+    } t[] = {
+        { "from_forward",  QDP_forward },
+        { "from_backward", QDP_backward },
+        { "to_forward",    QDP_backward },
+        { "to_backward",   QDP_forward },
+        { NULL,            QDP_forward }
+    };
+    int i;
+    const char *d = luaL_checkstring(L, idx);
+
+    for (i = 0; t[i].name; i++) {
+        if (strcmp(d, t[i].name) == 0)
+            return t[i].dir;
+    }
+    luaL_error(L, "bad shift direction");
+    /* NEVER HAPPENS */
+    return QDP_forward;
+}
+
+static int
+q_I_shift(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    QDP_Shift shift = qlua_checkShift(L, 2);
+    QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
+    mLatInt *b = qlua_newLatInt(L);
+
+    QDP_I_eq_sI(b->ptr, a->ptr, shift, dir, QDP_all);
+
+    return 1;
+}
+
+int *
+qlua_lattice_coord(lua_State *L, int n)
+{
+    int d, i;
+    int *idx;
+
+    luaL_checktype(L, n, LUA_TTABLE);
+    d = lua_objlen(L, n);
+    if (d != qRank) {
+        luaL_error(L, "parallel index rank mismatch");
+        return NULL;
+    }
+    idx = qlua_malloc(L, d * sizeof (int));
+    for (i = 0; i < d; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, n);
+        idx[i] = luaL_checkinteger(L, -1);
+        if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
+            qlua_free(L, idx);
+            luaL_error(L, "parallel index out of range");
+            return NULL;
+        }
+    }
+    
+    return idx;
+}
+
+static int
 qLatInt_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
@@ -70,20 +178,9 @@ qLatInt_get(lua_State *L)
         mLatInt *V = qlua_checkLatInt(L, 1);
         QLA_Int *locked;
         int *idx = 0;
-        int i, d;
         int z;
-        
-        d = lua_objlen(L, 2);
-        if (d != qRank)
-            return luaL_error(L, "parallel index rank mismatch");
-        idx = qlua_malloc(L, d * sizeof (int));
-        for (i = 0; i < d; i++) {
-            lua_pushnumber(L, i + 1);
-            lua_gettable(L, 2);
-            idx[i] = luaL_checkinteger(L, -1);
-            if ((idx[i] < 0) || (idx[i] >= qDim[i]))
-                return luaL_error(L, "parallel index out of range");
-        }
+
+        idx = qlua_lattice_coord(L, 2);
         locked = QDP_expose_I(V->ptr);
         if (QDP_node_number(idx) == QDP_this_node) {
             z = QLA_elem_I(locked[QDP_index(idx)]);
@@ -97,17 +194,18 @@ qLatInt_get(lua_State *L)
 
         return 1;
     }
-    case qString:
-        lua_pushstring(L, "copy");
-        if (lua_equal(L, 2, -1)) {
-            lua_pushcfunction(L, q_I_eq_I);
-            return 1;
-        }
-        /* THROUGH */
-    default:
-        return luaL_error(L, "bad index");
+    case qString: {
+        static const struct luaL_Reg latint_methods[] = {
+            { "norm2",  q_I_norm2 },
+            { "shift",  q_I_shift },
+            { "sum",    q_I_sum },
+            { NULL,     NULL}
+        };
+        return qlua_lookup(L, 2, latint_methods);
+    }
     }
 
+    return luaL_error(L, "bad index");
 }
 
 static int
@@ -116,21 +214,9 @@ qLatInt_put(lua_State *L)
     mLatInt *V = qlua_checkLatInt(L, 1);
     QLA_Int *locked;
     int *idx = 0;
-    int i, d;
     int z = luaL_checkinteger(L, 3);
 
-    luaL_checktype(L, 2, LUA_TTABLE);
-    d = lua_objlen(L, 2);
-    if (d != qRank)
-        return luaL_error(L, "parallel index rank mismatch");
-    idx = qlua_malloc(L, d * sizeof (int));
-    for (i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, 2);
-        idx[i] = luaL_checkinteger(L, -1);
-        if ((idx[i] < 0) || (idx[i] >= qDim[i]))
-            return luaL_error(L, "parallel index out of range");
-    }
+    idx = qlua_lattice_coord(L, 2);
     locked = QDP_expose_I(V->ptr);
     if (QDP_node_number(idx) == QDP_this_node) {
         QLA_elem_I(locked[QDP_index(idx)]) = z;
@@ -142,37 +228,27 @@ qLatInt_put(lua_State *L)
 }
 
 static int
-qmk_latint(lua_State *L, QLA_Int value)
-{
-    mLatInt *v = qlua_newLatInt(L);
-
-    QDP_I_eq_i(v->ptr, &value, QDP_all);
-
-    return 1;
-}
-
-int
-q_I_eq_I(lua_State *L)
-{
-    mLatInt *res = qlua_newLatInt(L);
-    mLatInt *a = qlua_checkLatInt(L, 1);
-
-    QDP_I_eq_I(res->ptr, a->ptr, QDP_all);
-
-    return 1;
-}
-
-static int
 q_latint(lua_State *L)
 {
     switch (qlua_gettype(L, 1)) {
-    case qReal:
-        return qmk_latint(L, luaL_checkinteger(L, 1));
-    case qLatInt:
-        return q_I_eq_I(L);
+    case qReal: {
+        QLA_Int d = luaL_checkinteger(L, 1);
+        mLatInt *v = qlua_newLatInt(L);
+
+        QDP_I_eq_i(v->ptr, &d, QDP_all);
+        break;
+    }
+    case qLatInt: {
+        mLatInt *res = qlua_newLatInt(L);
+        mLatInt *a = qlua_checkLatInt(L, 1);
+
+        QDP_I_eq_I(res->ptr, a->ptr, QDP_all);
+        break;
+    }
     default:
         return luaL_error(L, "bad argument");
     }
+    return 1;
 }
 
 int
@@ -250,8 +326,8 @@ q_I_div_I(lua_State *L)
 int
 q_neg_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *a = qlua_checkLatInt(L, 1);
+    mLatInt *res = qlua_newLatInt(L);
     QLA_Int m1 = -1;
 
     QDP_I_eq_i_times_I(res->ptr, &m1, a->ptr, QDP_all);
@@ -259,7 +335,7 @@ q_neg_I(lua_State *L)
     return 1;
 }
 
-static struct luaL_reg mtLatInt[] = {
+static struct luaL_Reg mtLatInt[] = {
     { "__tostring",   qLatInt_fmt },
     { "__gc",         qLatInt_gc },
     { "__index",      qLatInt_get },
@@ -269,7 +345,6 @@ static struct luaL_reg mtLatInt[] = {
     { "__sub",        qlua_sub },
     { "__mul",        qlua_mul },
     { "__div",        qlua_div },
-    /* handled by __index { "copy",         q_I_eq_I }, */
     { NULL,           NULL}
 };
 

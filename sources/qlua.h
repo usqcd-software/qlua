@@ -20,6 +20,7 @@ enum {
     qVecDouble,
     qVecComplex,
     qLatInt,
+    qLatRandom,
     qLatReal,
     qLatComplex,
     qLatColorVector,
@@ -45,6 +46,7 @@ extern const char *mtnLatDiracPropagator;
 /* add metatable names for other types here */
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
+int qlua_lookup(lua_State *L, int idx, const luaL_Reg *table);
 void qlua_init(lua_State *L);
 void qlua_fini(lua_State *L);
 int qlua_gettype(lua_State *L, int idx);

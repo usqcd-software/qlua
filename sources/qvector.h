@@ -23,11 +23,11 @@ extern const char *mtnVecComplex;
 int init_vector(lua_State *L);
 int fini_vector(lua_State *L);
 
-tVecInt *q_checkVecInt(lua_State *L, int idx);
-tVecInt *q_newVecInt(lua_State *L, int size);
-tVecDouble *q_checkVecDouble(lua_State *L, int idx) ;
-tVecDouble *q_newVecDouble(lua_State *L, int size);
-tVecComplex *q_checkVecComplex(lua_State *L, int idx);
-tVecComplex *q_newVecComplex(lua_State *L, int size);
+tVecInt *qlua_checkVecInt(lua_State *L, int idx);
+tVecInt *qlua_newVecInt(lua_State *L, int size);
+tVecDouble *qlua_checkVecDouble(lua_State *L, int idx) ;
+tVecDouble *qlua_newVecDouble(lua_State *L, int size);
+tVecComplex *qlua_checkVecComplex(lua_State *L, int idx);
+tVecComplex *qlua_newVecComplex(lua_State *L, int size);
 
 #endif /* !defined(MARK_73980191_6DDF_41BA_ADD9_143100E683FF) */

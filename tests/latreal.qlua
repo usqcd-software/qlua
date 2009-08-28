@@ -1,0 +1,26 @@
+d = 128
+qcd.lattice({d})
+
+j = qcd.pcoord(0)
+x = qcd.lat_real(qcd.pcoord(0)) * (math.pi / d)
+s = x:sin()
+
+for i = 0, d - 1 do
+   print(i, j[{i}], x[{i}], s[{i}])
+end
+
+print("sum(sin^2(x)), sum(x^2)", s:norm2(), x:norm2())
+
+print("\nrandom reals\n")
+
+r = qcd.lat_random(6, qcd.pcoord(0))
+
+print("generator: ", r)
+
+xx = r:random_real()
+xy = r:gaussian_real()
+
+print("average random: ", xx:sum() / d, xx:norm2() / d)
+print("average gaussian: ", xy:sum() / d, xy:norm2() / d)
+
+

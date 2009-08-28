@@ -49,7 +49,9 @@ driver = qlua.c
 headers = qlua.h
 libsrc = qvector.c \
          qcomplex.c \
-         qlint.c
+         latint.c \
+         latrandom.c \
+         latreal.c
 
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
@@ -102,8 +104,8 @@ $(library): $(libobj)
 
 $(drvobj) $(libobj): Makefile
 $(drvobj) $(libobj): sources/qlua.h
-qlua.o: sources/qvector.h \
-        sources/qcomplex.h \
-        sources/qlint.h
-qvector.o: sources/qcomplex.h
 $(libsrc:%.c=%.o): %.o: sources/%.h
+qlua.o: $(libsrc:%.c=sources/%.h)
+qvector.o: sources/qcomplex.h
+latrandom.o: sources/latint.h
+latreal.o: sources/latint.h

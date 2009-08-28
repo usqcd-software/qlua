@@ -11,11 +11,24 @@ print("pcoord(2)", c0)
 
 c0[{1,2}] = -1
 
-cx = c0 + 6 * c1
+cx = c0 + 100 * c1
+cy = qcd.pcoord(0):shift(0, "from_backward")
+cz = qcd.pcoord(1):shift(1, "from_forward")
 for d0 = 0, 7 - 1 do 
   for d1 = 0, 8 - 1 do
-    print("  ", d0, d1, cx[{d0, d1}], cx[{d0,d1}]==(c0[{d0,d1}]+6*c1[{d0,d1}]))
+    print("  ", d0, d1,
+          cy[{d0, d1}],
+          cz[{d0, d1}],
+          cx[{d0, d1}],
+          cx[{d0,d1}]==(c0[{d0,d1}]+100*c1[{d0,d1}]))
+    if not (cx[{d0,d1}] == (c0[{d0,d1}]+100*c1[{d0,d1}])) then
+       error("**** disagreement")
+    end
   end
 end
 
-cz = cx:copy()
+cz = qcd.lat_int(cx)
+print("sum(pcoord(0))", qcd.pcoord(0):sum())
+print("sum(pcoord(1))", qcd.pcoord(1):sum())
+
+print("s2 is", qcd.lat_int(2):norm2() == 7 * 8 * 4)

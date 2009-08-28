@@ -1,7 +1,11 @@
 #include <qlua.h>
+#include <string.h>
 #include <qcomplex.h>
 #include <qvector.h>
-#include <qlint.h>
+#include <latint.h>
+#include <latrandom.h>
+#include <latreal.h>
+
 /* include other package headers here */
 
 const char *progname = "qlua";
@@ -74,6 +78,21 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
     lua_settop(L, base);
 }
 
+int
+qlua_lookup(lua_State *L, int idx, const luaL_Reg *table)
+{
+    int i;
+    const char *key = lua_tostring(L, idx);
+
+    for (i = 0; table[i].func; i++) {
+        if (strcmp(table[i].name, key) == 0) {
+            lua_pushcfunction(L, table[i].func);
+            return 1;
+        }
+    }
+    return luaL_error(L, "bad index");
+}
+
 static int
 qlua_type(lua_State *L, int idx, const char *mt)
 {
@@ -99,13 +118,14 @@ qlua_gettype(lua_State *L, int idx)
         return qString;
     case LUA_TTABLE:
         return qTable;
-    case LUA_TUSERDATA: {
+    case LUA_TUSERDATA:
         if (qlua_type(L, idx, mtnComplex)) return qComplex;
         if (qlua_type(L, idx, mtnVecInt)) return qVecInt;
         if (qlua_type(L, idx, mtnVecDouble)) return qVecDouble;
         if (qlua_type(L, idx, mtnVecComplex)) return qVecComplex;
         if (qlua_type(L, idx, mtnLatInt)) return qLatInt;
-    }
+        if (qlua_type(L, idx, mtnLatRandom)) return qLatRandom;
+        if (qlua_type(L, idx, mtnLatReal)) return qLatReal;
     default:
         return qOther;
     }
@@ -140,6 +160,7 @@ qlua_add(lua_State *L)
         { qComplex, qReal,    q_c_add_r },
         { qComplex, qComplex, q_c_add_c },
         { qLatInt,  qLatInt,  q_I_add_I },
+        { qLatReal, qLatReal, q_R_add_R },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -154,6 +175,7 @@ qlua_sub(lua_State *L)
         { qComplex, qReal,    q_c_sub_r },
         { qComplex, qComplex, q_c_sub_c },
         { qLatInt,  qLatInt,  q_I_sub_I },
+        { qLatReal, qLatReal, q_R_sub_R },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -171,6 +193,9 @@ qlua_mul(lua_State *L)
         { qReal,    qLatInt,  q_i_mul_I },
         { qLatInt,  qReal,    q_I_mul_i },
         { qLatInt,  qLatInt,  q_I_mul_I },
+        { qReal,    qLatReal, q_r_mul_R },
+        { qLatReal, qReal,    q_R_mul_r },
+        { qLatReal, qLatReal, q_R_mul_R },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -186,6 +211,7 @@ qlua_div(lua_State *L)
         { qComplex, qReal,    q_c_div_r },
         { qComplex, qComplex, q_c_div_c },
         { qLatInt,  qLatInt,  q_I_div_I },
+        { qLatReal, qLatReal, q_R_div_R },
         /* add other packages here */
         { qOther,   qOther,   NULL}
     };
@@ -203,6 +229,8 @@ qlua_init(lua_State *L)
         { init_complex },
         { init_vector },
         { init_latint },
+        { init_latreal },
+        { init_latrandom },
         /* add other packages here */
         { NULL }
     };
@@ -226,6 +254,8 @@ qlua_fini(lua_State *L)
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* add other packages here */
+        { fini_latrandom },
+        { fini_latreal },
         { fini_latint },
         { fini_vector },
         { fini_complex },
