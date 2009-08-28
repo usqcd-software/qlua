@@ -8,7 +8,7 @@ QDP types:
 *  lattice
 *  int
 *  real
-  complex
+*  complex
   colorvector
   colormatrix
   diracfermion

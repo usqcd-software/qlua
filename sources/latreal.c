@@ -2,6 +2,7 @@
 #include <latreal.h>
 #include <latint.h>
 #include <latrandom.h>
+#include <latcomplex.h>
 #include <qmp.h>
 
 const char *mtnLatReal = "qcd.lattice.real";
@@ -208,6 +209,17 @@ q_R_exp(lua_State *L)
 }
 
 static int
+q_R_expi(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatComplex *r = qlua_newLatComplex(L);
+
+    QDP_D_C_eq_cexpi_R(r->ptr, a->ptr, QDP_all);
+
+    return 1;
+}
+
+static int
 q_R_log(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -369,35 +381,6 @@ qLatReal_get(lua_State *L)
     return luaL_error(L, "bad index");
 }
 
-static const struct luaL_Reg LatRealMethods[] = {
-    { "sum",       q_R_sum      },
-    { "norm2",     q_R_norm2    },
-    { "shift",     q_R_shift    },
-    { "sin",       q_R_sin      },
-    { "cos",       q_R_cos      },
-    { "tan",       q_R_tan      },
-    { "asin",      q_R_asin     },
-    { "acos",      q_R_acos     },
-    { "atan",      q_R_atan     },
-    { "sqrt",      q_R_sqrt     },
-    { "abs",       q_R_abs      },
-    { "exp",       q_R_exp      },
-    { "log",       q_R_log      },
-    { "sign",      q_R_sign     },
-    { "ceil",      q_R_ceil     },
-    { "floor",     q_R_floor    },
-    { "sinh",      q_R_sinh     },
-    { "consh",     q_R_cosh     },
-    { "tanh",      q_R_tanh     },
-    { "log10",     q_R_log10    },
-#if 0 /* XXX */
-    { "expi",      q_R_expi     },
-#endif
-    { "trunc",     q_R_trunc    },
-    { "round",     q_R_round    },
-    { NULL,        NULL         }
-};
-
 
 static int
 qLatReal_put(lua_State *L)
@@ -490,6 +473,19 @@ q_R_div_R(lua_State *L)
     return 1;
 }
 
+int
+q_R_dot(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    QLA_D_Real s;
+
+    QDP_D_r_eq_R_dot_R(&s, a->ptr, b->ptr, QDP_all);
+    lua_pushnumber(L, s);
+
+    return 1;
+}
+
 static int
 q_latreal(lua_State *L)
 {
@@ -520,6 +516,33 @@ q_latreal(lua_State *L)
     }
     return 1;
 }
+
+static const struct luaL_Reg LatRealMethods[] = {
+    { "sum",       q_R_sum      },
+    { "norm2",     q_R_norm2    },
+    { "shift",     q_R_shift    },
+    { "sin",       q_R_sin      },
+    { "cos",       q_R_cos      },
+    { "tan",       q_R_tan      },
+    { "asin",      q_R_asin     },
+    { "acos",      q_R_acos     },
+    { "atan",      q_R_atan     },
+    { "sqrt",      q_R_sqrt     },
+    { "abs",       q_R_abs      },
+    { "exp",       q_R_exp      },
+    { "log",       q_R_log      },
+    { "sign",      q_R_sign     },
+    { "ceil",      q_R_ceil     },
+    { "floor",     q_R_floor    },
+    { "sinh",      q_R_sinh     },
+    { "consh",     q_R_cosh     },
+    { "tanh",      q_R_tanh     },
+    { "log10",     q_R_log10    },
+    { "expi",      q_R_expi     },
+    { "trunc",     q_R_trunc    },
+    { "round",     q_R_round    },
+    { NULL,        NULL         }
+};
 
 static struct luaL_Reg mtLatReal[] = {
     { "__tostring",   qLatReal_fmt },

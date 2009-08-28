@@ -331,6 +331,19 @@ q_neg_I(lua_State *L)
     return 1;
 }
 
+int
+q_I_dot(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2);
+    QLA_D_Real s;
+
+    QDP_D_r_eq_I_dot_I(&s, a->ptr, b->ptr, QDP_all);
+    lua_pushnumber(L, s);
+
+    return 1;
+}
+
 static struct luaL_Reg mtLatInt[] = {
     { "__tostring",   qLatInt_fmt },
     { "__gc",         qLatInt_gc },

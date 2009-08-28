@@ -51,7 +51,8 @@ libsrc = qvector.c \
          qcomplex.c \
          latint.c \
          latrandom.c \
-         latreal.c
+         latreal.c \
+         latcomplex.c
 
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
@@ -108,4 +109,9 @@ $(libsrc:%.c=%.o): %.o: sources/%.h
 qlua.o: $(libsrc:%.c=sources/%.h)
 qvector.o: sources/qcomplex.h
 latrandom.o: sources/latint.h
-latreal.o: sources/latint.h
+latreal.o: sources/latint.h \
+           sources/latcomplex.h \
+           sources/latrandom.h
+latcomplex.o: sources/latrandom.h \
+              sources/latreal.h
+
