@@ -2,6 +2,7 @@
 #include <latint.h>
 #include <latrandom.h>
 #include <latreal.h>
+#include <latcomplex.h>
 
 const char *mtnLatRandom = "qcd.lattice.random";
 
@@ -69,10 +70,11 @@ q_S_eq_S(lua_State *L)
 }
 
 static struct luaL_Reg mtLatRandom[] = {
-    { "__tostring",       qLatRandom_fmt },
-    { "__gc",             qLatRandom_gc },
-    { "random_real",      q_R_random },
-    { "gaussian_real",    q_R_gaussian },
+    { "__tostring",          qLatRandom_fmt },
+    { "__gc",                qLatRandom_gc },
+    { "random_real",         q_R_random },
+    { "gaussian_real",       q_R_gaussian },
+    { "gaussian_complex",    q_C_gaussian },
     /* supported random generators for QDP types */
     { NULL,          NULL}
 };

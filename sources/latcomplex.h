@@ -13,8 +13,7 @@ int fini_latcomplex(lua_State *L);
 mLatComplex *qlua_checkLatComplex(lua_State *L, int idx);
 mLatComplex *qlua_newLatComplex(lua_State *L);
 
-int q_C_eq_random(lua_State *L);
-int q_C_eq_gaussian(lua_State *L);
+int q_C_gaussian(lua_State *L);
 
 int q_C_dot(lua_State *L);
 int q_C_add_C(lua_State *L);

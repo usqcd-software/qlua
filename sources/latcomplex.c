@@ -195,6 +195,26 @@ q_latcomplex(lua_State *L)
     return luaL_error(L, "bad argument");
 }
 
+int q_C_real(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatReal *c = qlua_newLatReal(L);
+
+    QDP_D_R_eq_re_C(c->ptr, a->ptr, QDP_all);
+
+    return 1;
+}
+
+int q_C_imag(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatReal *c = qlua_newLatReal(L);
+
+    QDP_D_R_eq_im_C(c->ptr, a->ptr, QDP_all);
+
+    return 1;
+}
+
 int
 q_C_add_C(lua_State *L)
 {
@@ -395,6 +415,17 @@ q_C_log(lua_State *L)
 }
 
 int
+q_C_gaussian(lua_State *L)
+{
+    mLatRandom *a = qlua_checkLatRandom(L, 1);
+    mLatComplex *r = qlua_newLatComplex(L);
+
+    QDP_D_C_eq_gaussian_S(r->ptr, a->ptr, QDP_all);
+
+    return 1;
+}
+
+int
 q_C_dot(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
@@ -407,6 +438,8 @@ q_C_dot(lua_State *L)
 }
 
 static struct luaL_Reg LatComplexMethods[] = {
+    { "real",   q_C_real },
+    { "imag",   q_C_imag },
     { "sum",    q_C_sum },
     { "norm2",  q_C_norm2 },
     { "shift",  q_C_shift },
