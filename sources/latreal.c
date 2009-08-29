@@ -361,7 +361,7 @@ qLatReal_get(lua_State *L)
         int *idx = 0;
         double z;
 
-        idx = qlua_lattice_coord(L, 2);
+        idx = qlua_checklatcoord(L, 2);
         locked = QDP_D_expose_R(V->ptr);
         if (QDP_node_number(idx) == QDP_this_node) {
             z = QLA_D_elem_R(locked[QDP_index(idx)]);
@@ -390,7 +390,7 @@ qLatReal_put(lua_State *L)
     int *idx = 0;
     double z = luaL_checknumber(L, 3);
 
-    idx = qlua_lattice_coord(L, 2);
+    idx = qlua_checklatcoord(L, 2);
     locked = QDP_D_expose_R(V->ptr);
     if (QDP_node_number(idx) == QDP_this_node) {
         QLA_D_elem_R(locked[QDP_index(idx)]) = z;
@@ -473,19 +473,6 @@ q_R_div_R(lua_State *L)
     return 1;
 }
 
-int
-q_R_dot(lua_State *L)
-{
-    mLatReal *a = qlua_checkLatReal(L, 1);
-    mLatReal *b = qlua_checkLatReal(L, 2);
-    QLA_D_Real s;
-
-    QDP_D_r_eq_R_dot_R(&s, a->ptr, b->ptr, QDP_all);
-    lua_pushnumber(L, s);
-
-    return 1;
-}
-
 static int
 q_latreal(lua_State *L)
 {
@@ -558,7 +545,7 @@ static struct luaL_Reg mtLatReal[] = {
 };
 
 static struct luaL_Reg fLatReal[] = {
-    { "lat_real",   q_latreal },
+    { "Real",   q_latreal },
     { NULL,         NULL }
 };
 

@@ -1,6 +1,8 @@
 #ifndef MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 #define MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 
+#define QDP_Precision 'F'  /* to force using _D_ in QDP */
+#define QDP_Nc 3           /* This is the only valid value for Nc */
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -23,11 +25,11 @@ enum {
     qLatRandom,
     qLatReal,
     qLatComplex,
-    qLatColorVector,
-    qLatColorMatrix,
-    qLatDiracFermion,
-    qLatHalfFermion,
-    qLatDiracPropagator,
+    qLatColVec,
+    qLatColMat,
+    qLatDiracFerm,
+    qLatHalfFerm,
+    qLatDiracProp,
     /* add types for other packages here */
     qOther
 };
@@ -35,7 +37,6 @@ enum {
 extern const char *progname;
 extern const char *qcdlib;
 #if 0 /* XXX qdp parts to do */
-extern const char *mtnLatColorVector;
 extern const char *mtnLatColorMatrix;
 extern const char *mtnLatDiracFermion;
 extern const char *mtnLatHalfFermion;

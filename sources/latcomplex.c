@@ -85,7 +85,7 @@ qLatComplex_get(lua_State *L)
         double z_im;
         int *idx = 0;
         
-        idx = qlua_lattice_coord(L, 2);
+        idx = qlua_checklatcoord(L, 2);
         locked = QDP_D_expose_C(V->ptr);
         if (QDP_node_number(idx) == QDP_this_node) {
             QLA_D_Complex *zz = &QLA_D_elem_C(locked[QDP_index(idx)]);
@@ -133,7 +133,7 @@ qLatComplex_put(lua_State *L)
     default:
         return luaL_error(L, "bad argument");
     }
-    idx = qlua_lattice_coord(L, 2);
+    idx = qlua_checklatcoord(L, 2);
     locked = QDP_D_expose_C(V->ptr);
     if (QDP_node_number(idx) == QDP_this_node) {
         QLA_D_Complex *zz = &QLA_D_elem_C(locked[QDP_index(idx)]);
@@ -162,6 +162,14 @@ q_latcomplex(lua_State *L)
             QLA_imag(z) = 0.0;
             QDP_D_C_eq_c(v->ptr, &z, QDP_all);
 
+            return 1;
+        }
+        case qComplex: {
+            QLA_D_Complex *z = qlua_checkComplex(L, 1);
+            mLatComplex *v = qlua_newLatComplex(L);
+
+            QDP_D_C_eq_c(v->ptr, z, QDP_all);
+            
             return 1;
         }
         case qLatReal: {
@@ -430,9 +438,9 @@ q_C_dot(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *b = qlua_checkLatComplex(L, 2);
-    QLA_D_Complex *s = qlua_newComplex(L);
+    mLatComplex *s = qlua_newLatComplex(L);
 
-    QDP_D_c_eq_C_dot_C(s, a->ptr, b->ptr, QDP_all);
+    QDP_D_C_eq_C_dot_C(s->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }
@@ -466,7 +474,7 @@ static struct luaL_Reg mtLatComplex[] = {
 };
 
 static struct luaL_Reg fLatComplex[] = {
-    { "lat_complex", q_latcomplex },
+    { "Complex",     q_latcomplex },
     { NULL,          NULL }
 };
 

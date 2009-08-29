@@ -2,15 +2,14 @@ d = 128
 qcd.lattice({d})
 
 j = qcd.pcoord(0)
-x = qcd.lat_real(qcd.pcoord(0)) * (math.pi / d)
+x = qcd.Real(qcd.pcoord(0)) * (math.pi / d)
 c = x:cos()
 s = x:sin()
 
-z = qcd.lat_complex(c,s)
+z = qcd.Complex(c,s)
 
 for i = 0, d - 1 do
    print(i, j[{i}], c[{i}], s[{i}], z[{i}])
 end
 
-print("c*s", qcd.dot(c,s))
-print("zz", qcd.dot(z,z))
+print("zz", qcd.dot(z,z):sum())

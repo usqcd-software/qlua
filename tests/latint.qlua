@@ -27,8 +27,8 @@ for d0 = 0, 7 - 1 do
   end
 end
 
-cz = qcd.lat_int(cx)
+cz = qcd.Int(cx)
 print("sum(pcoord(0))", qcd.pcoord(0):sum())
 print("sum(pcoord(1))", qcd.pcoord(1):sum())
 
-print("s2 is", qcd.lat_int(2):norm2() == 7 * 8 * 4)
+print("s2 is", qcd.Int(2):norm2() == 7 * 8 * 4)

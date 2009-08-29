@@ -11,6 +11,94 @@ static int *qDim = NULL;
 const char *mtnLatInt = "qcd.lattice.int";
 static const char *opLatInt = "qcd.lattice.int.op";
 
+int *
+qlua_latcoord(lua_State *L, int n)
+{
+    int d, i;
+    int *idx;
+
+    luaL_checktype(L, n, LUA_TTABLE);
+    d = lua_objlen(L, n);
+    if (d != qRank) {
+        return NULL;
+    }
+    idx = qlua_malloc(L, d * sizeof (int));
+    for (i = 0; i < d; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, n);
+        idx[i] = luaL_checkinteger(L, -1);
+        if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
+            qlua_free(L, idx);
+            return NULL;
+        }
+    }
+    
+    return idx;
+}
+
+int *
+qlua_checklatcoord(lua_State *L, int n)
+{
+    int *idx = qlua_latcoord(L, n);
+
+    if (idx == 0)
+        luaL_error(L, "bad lattice coordinates");
+
+    return idx;
+}
+
+int
+qlua_index(lua_State *L, int n, const char *name, int mv)
+{
+    int v = -1;
+
+    luaL_checktype(L, n, LUA_TTABLE);
+    lua_getfield(L, n, name);
+    if (lua_isnumber(L, -1)) {
+        v = luaL_checkint(L, -1);
+        if ((v < 0) || (v >= mv))
+            v = -1;
+    }
+    lua_pop(L, 1);
+    
+    return v;
+}
+
+int
+qlua_checkindex(lua_State *L, int n, const char *name, int mv)
+{
+    int v = qlua_index(L, n, name, mv);
+
+    if (v == -1)
+        luaL_error(L, "bad index");
+
+    return v;
+}
+
+int
+qlua_diracindex(lua_State *L, int n, int mv)
+{
+    return qlua_index(L, n, "d", mv);
+}
+
+int
+qlua_checkdiracindex(lua_State *L, int n, int mv)
+{
+    return qlua_checkindex(L, n, "d", mv);
+}
+
+int
+qlua_colorindex(lua_State *L, int n, int mv)
+{
+    return qlua_index(L, n, "c", mv);
+}
+
+int
+qlua_checkcolorindex(lua_State *L, int n, int mv)
+{
+    return qlua_checkindex(L, n, "c", mv);
+}
+
 mLatInt *
 qlua_newLatInt(lua_State *L)
 {
@@ -139,33 +227,6 @@ q_I_shift(lua_State *L)
     return 1;
 }
 
-int *
-qlua_lattice_coord(lua_State *L, int n)
-{
-    int d, i;
-    int *idx;
-
-    luaL_checktype(L, n, LUA_TTABLE);
-    d = lua_objlen(L, n);
-    if (d != qRank) {
-        luaL_error(L, "parallel index rank mismatch");
-        return NULL;
-    }
-    idx = qlua_malloc(L, d * sizeof (int));
-    for (i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, n);
-        idx[i] = luaL_checkinteger(L, -1);
-        if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
-            qlua_free(L, idx);
-            luaL_error(L, "parallel index out of range");
-            return NULL;
-        }
-    }
-    
-    return idx;
-}
-
 static int
 qLatInt_get(lua_State *L)
 {
@@ -176,7 +237,7 @@ qLatInt_get(lua_State *L)
         int *idx = 0;
         int z;
 
-        idx = qlua_lattice_coord(L, 2);
+        idx = qlua_checklatcoord(L, 2);
         locked = QDP_expose_I(V->ptr);
         if (QDP_node_number(idx) == QDP_this_node) {
             z = QLA_elem_I(locked[QDP_index(idx)]);
@@ -212,7 +273,7 @@ qLatInt_put(lua_State *L)
     int *idx = 0;
     int z = luaL_checkinteger(L, 3);
 
-    idx = qlua_lattice_coord(L, 2);
+    idx = qlua_checklatcoord(L, 2);
     locked = QDP_expose_I(V->ptr);
     if (QDP_node_number(idx) == QDP_this_node) {
         QLA_elem_I(locked[QDP_index(idx)]) = z;
@@ -426,7 +487,7 @@ static struct luaL_Reg fLatInt[] = {
     { "lattice", q_lattice },
     { "dims",    q_dims },
     { "pcoord",  q_pcoord },
-    { "lat_int", q_latint },
+    { "Int",     q_latint },
     { NULL, NULL}
 };
 

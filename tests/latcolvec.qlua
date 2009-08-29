@@ -1,0 +1,19 @@
+d = 4
+qcd.lattice({d,d,d})
+rnd = qcd.RandomState(1, qcd.pcoord(0) * d * d +
+                         qcd.pcoord(1) * d +
+                         qcd.pcoord(2))
+
+crnd = rnd:gaussian_Complex()
+x = qcd.ColorVector(crnd, 0)
+print("V(c,0)", x)
+
+x = rnd:gaussian_ColorVector()
+
+print("consturcted ColVec: ", x)
+print(x[{1,0,3,c=1}])
+
+x[{c=0}] = qcd.Complex(qcd.complex(math.pi,1))
+x[{c=2}] = qcd.Complex(qcd.Real(0), qcd.Real(0))
+
+print(x[{0,0,1,c=0}], x[{0,0,1,c=1}])

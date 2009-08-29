@@ -16,7 +16,6 @@ mLatReal *qlua_newLatReal(lua_State *L);
 int q_R_random(lua_State *L);
 int q_R_gaussian(lua_State *L);
 
-int q_R_dot(lua_State *L);
 int q_R_add_R(lua_State *L);
 int q_R_sub_R(lua_State *L);
 int q_R_mul_R(lua_State *L);

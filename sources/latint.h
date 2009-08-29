@@ -13,11 +13,17 @@ int fini_latint(lua_State *L);
 mLatInt *qlua_checkLatInt(lua_State *L, int idx);
 mLatInt *qlua_newLatInt(lua_State *L);
 
-int *qlua_lattice_coord(lua_State *L, int idx);
+int qlua_index(lua_State *L, int idx, const char *name, int mv); /* k or -1 */
+int qlua_checkindex(lua_State *L, int idx, const char *name, int mv);
+int qlua_diracindex(lua_State *L, int idx, int mv); /* k or -1 */
+int qlua_checkdiracindex(lua_State *L, int idx, int mv);
+int qlua_colorindex(lua_State *L, int idx, int mv); /* k or -1 */
+int qlua_checkcolorindex(lua_State *L, int idx, int mv);
+int *qlua_latcoord(lua_State *L, int idx); /* lc[] or NULL */
+int *qlua_checklatcoord(lua_State *L, int idx);
 QDP_Shift qlua_checkShift(lua_State *L, int idx);
 QDP_ShiftDir qlua_checkShiftDir(lua_State *L, int idx);
 
-int q_I_dot(lua_State *L);
 int q_I_add_I(lua_State *L);
 int q_I_sub_I(lua_State *L);
 int q_I_mul_I(lua_State *L);

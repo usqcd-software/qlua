@@ -117,5 +117,6 @@ latreal.o: sources/latint.h \
            sources/latrandom.h
 latcomplex.o: sources/latrandom.h \
               sources/latreal.h
-latcolvec.o: sources/latrandom.h \
+latcolvec.o: sources/latint.h \
+             sources/latrandom.h \
              sources/latcomplex.h

@@ -6,8 +6,9 @@
 #include <latrandom.h>
 #include <latreal.h>
 #include <latcomplex.h>
+#include <latcolvec.h>
 
-/* include other package headers here */
+/* ZZZ include other package headers here */
 
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
@@ -51,7 +52,6 @@ qlua_malloc(lua_State *L, int size)
     }
     return p;
 }
-
 
 void
 qlua_free(lua_State *L, void *ptr)
@@ -129,6 +129,8 @@ qlua_gettype(lua_State *L, int idx)
             { &mtnLatReal,       qLatReal },
             { &mtnLatRandom,     qLatRandom },
             { &mtnLatComplex,    qLatComplex },
+            { &mtnLatColVec,     qLatColVec },
+            /* ZZZ other types */
             { NULL,              qOther }
         };
         int i;
@@ -147,11 +149,6 @@ typedef struct {
     int ta, tb;
     int (*op)(lua_State *L);
 } q_Op2Table;
-
-typedef struct {
-    int ta;
-    int (*op)(lua_State *L);
-} q_Op1Table;
 
 int
 qlua_dispatch(lua_State *L, const q_Op2Table *t, const char *name)
@@ -178,7 +175,8 @@ qlua_add(lua_State *L)
         { qLatInt,            qLatInt,            q_I_add_I },
         { qLatReal,           qLatReal,           q_R_add_R },
         { qLatComplex,        qLatComplex,        q_C_add_C },
-        /* add other packages here */
+        { qLatColVec,         qLatColVec,         q_V_add_V },
+        /* ZZZ other additions */
         { qOther,             qOther,             NULL}
     };
     return qlua_dispatch(L, qadd_table, "addition");
@@ -194,7 +192,8 @@ qlua_sub(lua_State *L)
         { qLatInt,            qLatInt,            q_I_sub_I },
         { qLatReal,           qLatReal,           q_R_sub_R },
         { qLatComplex,        qLatComplex,        q_C_sub_C },
-        /* add other packages here */
+        { qLatColVec,         qLatColVec,         q_V_sub_V },
+        /* ZZZ other subtractions */
         { qOther,             qOther,             NULL}
     };
 
@@ -218,8 +217,11 @@ qlua_mul(lua_State *L)
         { qLatComplex,        qComplex,           q_C_mul_c },
         { qComplex,           qLatComplex,        q_c_mul_C },
         { qLatComplex,        qReal,              q_C_mul_r },
-        { qReal,              qLatComplex,        q_r_mul_C },
-        /* add other packages here */
+        { qReal,              qLatColVec,         q_r_mul_V },
+        { qLatColVec,         qReal,              q_V_mul_r },
+        { qComplex,           qLatColVec,         q_c_mul_V },
+        { qLatColVec,         qComplex,           q_V_mul_c },
+        /* ZZZ other multiplications */
         { qOther,   qOther,   NULL}
     };
 
@@ -236,7 +238,7 @@ qlua_div(lua_State *L)
         { qLatInt,            qLatInt,            q_I_div_I },
         { qLatReal,           qLatReal,           q_R_div_R },
         { qLatComplex,        qLatComplex,        q_C_div_C },
-        /* add other packages here */
+        /* ZZZ other divisions */
         { qOther,             qOther,             NULL}
     };
 
@@ -244,29 +246,19 @@ qlua_div(lua_State *L)
 }
 
 int
-q_dot(lua_State *L)
+q_dot(lua_State *L) /* local inner dot */
 {
-    static const q_Op1Table t[] = {
-        { qLatInt,       q_I_dot },
-        { qLatReal,      q_R_dot },
-        { qLatComplex,   q_C_dot },
-        { qOther,        NULL }
+    static const q_Op2Table t[] = {
+        { qLatComplex,   qLatComplex,     q_C_dot },
+        { qLatColVec,    qLatColVec,      q_V_dot },
+        /* ZZZ other dottable types here */
+        { qOther,        qOther,          NULL }
     };
-    int ta = qlua_gettype(L, 1);
-    int tb = qlua_gettype(L, 2);
-
-    if (ta == tb) {
-        int i;
-        for (i = 0; t[i].op; i++) {
-            if (ta == t[i].ta)
-                return t[i].op(L);
-        }
-    }
-    return luaL_error(L, "bad arguments in qcd.dot");
+    return qlua_dispatch(L, t, "dot");
 }
 
 static struct luaL_Reg fQCD[] = {
-    { "dot",    q_dot},
+    { "dot",    q_dot}, /* local inner dot */
     { NULL,     NULL}
 };
 
@@ -282,8 +274,9 @@ qlua_init(lua_State *L)
         { init_latint },
         { init_latreal },
         { init_latcomplex },
+        { init_latcolvec },
         { init_latrandom },
-        /* add other packages here */
+        /* ZZZ add other packages here */
         { NULL }
     };
 
@@ -306,8 +299,9 @@ qlua_fini(lua_State *L)
     static struct {
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
-        /* add other packages here */
+        /* ZZZ add other packages here */
         { fini_latrandom },
+        { fini_latcolvec },
         { fini_latcomplex },
         { fini_latreal },
         { fini_latint },
@@ -322,7 +316,6 @@ qlua_fini(lua_State *L)
         lua_call(L, 0, 0);
     }
 }
-
 
 /* the driver */
 int

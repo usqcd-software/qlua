@@ -3,6 +3,8 @@
 #include <latrandom.h>
 #include <latreal.h>
 #include <latcomplex.h>
+#include <latcolvec.h>
+/* ZZZ other packages */
 
 const char *mtnLatRandom = "qcd.lattice.random";
 
@@ -70,12 +72,13 @@ q_S_eq_S(lua_State *L)
 }
 
 static struct luaL_Reg mtLatRandom[] = {
-    { "__tostring",          qLatRandom_fmt },
-    { "__gc",                qLatRandom_gc },
-    { "random_real",         q_R_random },
-    { "gaussian_real",       q_R_gaussian },
-    { "gaussian_complex",    q_C_gaussian },
-    /* supported random generators for QDP types */
+    { "__tostring",               qLatRandom_fmt },
+    { "__gc",                     qLatRandom_gc },
+    { "random_Real",              q_R_random },
+    { "gaussian_Real",            q_R_gaussian },
+    { "gaussian_Complex",         q_C_gaussian },
+    { "gaussian_ColorVector",     q_V_gaussian },
+    /* ZZZ other gaussian randoms */
     { NULL,          NULL}
 };
 
@@ -101,8 +104,8 @@ q_latrandom(lua_State *L)
 }
 
 static struct luaL_Reg fLatRandom[] = {
-    { "lat_random", q_latrandom},
-    { NULL, NULL }
+    { "RandomState", q_latrandom},
+    { NULL,          NULL }
 };
 
 int
