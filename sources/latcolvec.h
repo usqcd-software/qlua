@@ -2,7 +2,7 @@
 #define MARK_2D398035_F07C_4356_BAC3_5795771D71FD
 
 typedef struct {
-    QDP_D_ColorVector *ptr;
+    QDP_ColorVector *ptr;
 } mLatColVec;
 
 extern const char *mtnLatColVec;

@@ -53,7 +53,8 @@ libsrc = qvector.c \
          latrandom.c \
          latreal.c \
          latcomplex.c \
-         latcolvec.c 
+         latcolvec.c \
+	 latcolmat.c
 
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
@@ -120,3 +121,7 @@ latcomplex.o: sources/latrandom.h \
 latcolvec.o: sources/latint.h \
              sources/latrandom.h \
              sources/latcomplex.h
+latcolmac.o: sources/latint.h \
+             sources/latrandom.h \
+             sources/latcomplex.h \
+             sources/latcolvec.h

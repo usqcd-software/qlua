@@ -7,7 +7,7 @@
 #include <latreal.h>
 #include <latcomplex.h>
 #include <latcolvec.h>
-
+#include <latcolmat.h>
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
@@ -130,6 +130,7 @@ qlua_gettype(lua_State *L, int idx)
             { &mtnLatRandom,     qLatRandom },
             { &mtnLatComplex,    qLatComplex },
             { &mtnLatColVec,     qLatColVec },
+            { &mtnLatColMat,     qLatColMat },
             /* ZZZ other types */
             { NULL,              qOther }
         };
@@ -176,6 +177,7 @@ qlua_add(lua_State *L)
         { qLatReal,           qLatReal,           q_R_add_R },
         { qLatComplex,        qLatComplex,        q_C_add_C },
         { qLatColVec,         qLatColVec,         q_V_add_V },
+        { qLatColMat,         qLatColMat,         q_M_add_M },
         /* ZZZ other additions */
         { qOther,             qOther,             NULL}
     };
@@ -193,6 +195,7 @@ qlua_sub(lua_State *L)
         { qLatReal,           qLatReal,           q_R_sub_R },
         { qLatComplex,        qLatComplex,        q_C_sub_C },
         { qLatColVec,         qLatColVec,         q_V_sub_V },
+        { qLatColMat,         qLatColMat,         q_M_sub_M },
         /* ZZZ other subtractions */
         { qOther,             qOther,             NULL}
     };
@@ -221,6 +224,12 @@ qlua_mul(lua_State *L)
         { qLatColVec,         qReal,              q_V_mul_r },
         { qComplex,           qLatColVec,         q_c_mul_V },
         { qLatColVec,         qComplex,           q_V_mul_c },
+        { qLatColMat,         qLatColMat,         q_M_mul_M },
+        { qLatColMat,         qLatColVec,         q_M_mul_V },
+        { qReal,              qLatColMat,         q_r_mul_M },
+        { qLatColMat,         qReal,              q_M_mul_r },
+        { qComplex,           qLatColMat,         q_c_mul_M },
+        { qLatColMat,         qComplex,           q_M_mul_c },
         /* ZZZ other multiplications */
         { qOther,   qOther,   NULL}
     };
@@ -251,6 +260,7 @@ q_dot(lua_State *L) /* local inner dot */
     static const q_Op2Table t[] = {
         { qLatComplex,   qLatComplex,     q_C_dot },
         { qLatColVec,    qLatColVec,      q_V_dot },
+        { qLatColMat,    qLatColMat,      q_M_dot },
         /* ZZZ other dottable types here */
         { qOther,        qOther,          NULL }
     };
@@ -275,6 +285,7 @@ qlua_init(lua_State *L)
         { init_latreal },
         { init_latcomplex },
         { init_latcolvec },
+        { init_latcolmat },
         { init_latrandom },
         /* ZZZ add other packages here */
         { NULL }
@@ -301,6 +312,7 @@ qlua_fini(lua_State *L)
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
         { fini_latrandom },
+        { fini_latcolmat },
         { fini_latcolvec },
         { fini_latcomplex },
         { fini_latreal },

@@ -4,6 +4,7 @@
 #include <latreal.h>
 #include <latcomplex.h>
 #include <latcolvec.h>
+#include <latcolmat.h>
 /* ZZZ other packages */
 
 const char *mtnLatRandom = "qcd.lattice.random";
@@ -33,7 +34,7 @@ qlua_checkLatRandom(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatRandom);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.LatRandom expected");
+    luaL_argcheck(L, v != 0, idx, "qcd.RandomState expected");
     
     return v;
 }
@@ -78,6 +79,7 @@ static struct luaL_Reg mtLatRandom[] = {
     { "gaussian_Real",            q_R_gaussian },
     { "gaussian_Complex",         q_C_gaussian },
     { "gaussian_ColorVector",     q_V_gaussian },
+    { "gaussian_ColorMatrix",     q_M_gaussian },
     /* ZZZ other gaussian randoms */
     { NULL,          NULL}
 };

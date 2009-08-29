@@ -99,6 +99,30 @@ qlua_checkcolorindex(lua_State *L, int n, int mv)
     return qlua_checkindex(L, n, "c", mv);
 }
 
+int
+qlua_leftindex(lua_State *L, int n, int mv)
+{
+    return qlua_index(L, n, "a", mv);
+}
+
+int
+qlua_checkleftindex(lua_State *L, int n, int mv)
+{
+    return qlua_checkindex(L, n, "a", mv);
+}
+
+int
+qlua_rightindex(lua_State *L, int n, int mv)
+{
+    return qlua_index(L, n, "b", mv);
+}
+
+int
+qlua_checkrightindex(lua_State *L, int n, int mv)
+{
+    return qlua_checkindex(L, n, "b", mv);
+}
+
 mLatInt *
 qlua_newLatInt(lua_State *L)
 {
@@ -124,7 +148,7 @@ qlua_checkLatInt(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatInt);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.LatInt expected");
+    luaL_argcheck(L, v != 0, idx, "qcd.Int expected");
     
     return v;
 }
@@ -156,10 +180,10 @@ static int
 q_I_sum(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
-    QLA_D_Real sum;
+    QLA_Real sum;
 
 
-    QDP_D_r_eq_sum_I(&sum, a->ptr, QDP_all);
+    QDP_r_eq_sum_I(&sum, a->ptr, QDP_all);
     lua_pushnumber(L, sum);
 
     return 1;
@@ -169,9 +193,9 @@ static int
 q_I_norm2(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
-    QLA_D_Real sum;
+    QLA_Real sum;
 
-    QDP_D_r_eq_norm2_I(&sum, a->ptr, QDP_all);
+    QDP_r_eq_norm2_I(&sum, a->ptr, QDP_all);
     lua_pushnumber(L, sum);
 
     return 1;
@@ -397,9 +421,9 @@ q_I_dot(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
-    QLA_D_Real s;
+    QLA_Real s;
 
-    QDP_D_r_eq_I_dot_I(&s, a->ptr, b->ptr, QDP_all);
+    QDP_r_eq_I_dot_I(&s, a->ptr, b->ptr, QDP_all);
     lua_pushnumber(L, s);
 
     return 1;

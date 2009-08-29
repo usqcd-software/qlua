@@ -11,9 +11,8 @@ QDP types:
 *  Real
 *  Complex
 *  ColorVector
-  ColorMatrix
+*  ColorMatrix
   DiracFermion
-  HalfFermion
   DiracPropagator
 
 Constants
@@ -23,6 +22,10 @@ Constants
 QIO
   writer
   reader
+
+Miscallenious:
+  os.host
+  os.tick
 
 Optional packages:
 

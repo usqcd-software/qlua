@@ -12,12 +12,12 @@ static const char *opLatComplex = "qcd.lattice.complex.op";
 mLatComplex *
 qlua_newLatComplex(lua_State *L)
 {
-    QDP_D_Complex *v = QDP_D_create_C();
+    QDP_Complex *v = QDP_create_C();
     mLatComplex *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_D_create_C();
+        v = QDP_create_C();
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_Complex)");
     }
@@ -34,7 +34,7 @@ qlua_checkLatComplex(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatComplex);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.LatComplex expected");
+    luaL_argcheck(L, v != 0, idx, "qcd.Complex expected");
     
     return v;
 }
@@ -56,7 +56,7 @@ qLatComplex_gc(lua_State *L)
 {
     mLatComplex *b = qlua_checkLatComplex(L, 1);
 
-    QDP_D_destroy_C(b->ptr);
+    QDP_destroy_C(b->ptr);
     b->ptr = 0;
 
     return 0;
@@ -67,9 +67,9 @@ q_neg_C(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
-    QLA_D_Real m1 = -1;
+    QLA_Real m1 = -1;
 
-    QDP_D_C_eq_r_times_C(r->ptr, &m1, a->ptr, QDP_all);
+    QDP_C_eq_r_times_C(r->ptr, &m1, a->ptr, QDP_all);
     return 1;
 }
 
@@ -79,16 +79,16 @@ qLatComplex_get(lua_State *L)
     switch (qlua_gettype(L, 2)) {
     case qTable: {
         mLatComplex *V = qlua_checkLatComplex(L, 1);
-        QLA_D_Complex *W;
-        QLA_D_Complex *locked;
+        QLA_Complex *W;
+        QLA_Complex *locked;
         double z_re;
         double z_im;
         int *idx = 0;
         
         idx = qlua_checklatcoord(L, 2);
-        locked = QDP_D_expose_C(V->ptr);
+        locked = QDP_expose_C(V->ptr);
         if (QDP_node_number(idx) == QDP_this_node) {
-            QLA_D_Complex *zz = &QLA_D_elem_C(locked[QDP_index(idx)]);
+            QLA_Complex *zz = &QLA_elem_C(locked[QDP_index(idx)]);
 
             z_re = QLA_real(*zz);
             z_im = QLA_imag(*zz);
@@ -96,7 +96,7 @@ qLatComplex_get(lua_State *L)
             z_re = 0;
             z_im = 0;
         }
-        QDP_D_reset_C(V->ptr);
+        QDP_reset_C(V->ptr);
         qlua_free(L, idx);
         QMP_sum_double(&z_re);
         QMP_sum_double(&z_im);
@@ -116,7 +116,7 @@ static int
 qLatComplex_put(lua_State *L)
 {
     mLatComplex *V = qlua_checkLatComplex(L, 1);
-    QLA_D_Complex *locked;
+    QLA_Complex *locked;
     int *idx = 0;
     double z_re, z_im;
 
@@ -125,7 +125,7 @@ qLatComplex_put(lua_State *L)
         z_re = luaL_checknumber(L, 3);
         break;
     case qComplex: {
-        QLA_D_Complex *z = qlua_checkComplex(L, 3);
+        QLA_Complex *z = qlua_checkComplex(L, 3);
         z_re = QLA_real(*z);
         z_im = QLA_imag(*z);
         break;
@@ -134,14 +134,14 @@ qLatComplex_put(lua_State *L)
         return luaL_error(L, "bad argument");
     }
     idx = qlua_checklatcoord(L, 2);
-    locked = QDP_D_expose_C(V->ptr);
+    locked = QDP_expose_C(V->ptr);
     if (QDP_node_number(idx) == QDP_this_node) {
-        QLA_D_Complex *zz = &QLA_D_elem_C(locked[QDP_index(idx)]);
+        QLA_Complex *zz = &QLA_elem_C(locked[QDP_index(idx)]);
 
         QLA_real(*zz) = z_re;
         QLA_imag(*zz) = z_im;
     }
-    QDP_D_reset_C(V->ptr);
+    QDP_reset_C(V->ptr);
     qlua_free(L, idx);
 
     return 0;
@@ -154,21 +154,21 @@ q_latcomplex(lua_State *L)
     case 1:
         switch (qlua_gettype(L, 1)) {
         case qReal: {
-            QLA_D_Real d = luaL_checknumber(L, 1);
-            QLA_D_Complex z;
+            QLA_Real d = luaL_checknumber(L, 1);
+            QLA_Complex z;
             mLatComplex *v = qlua_newLatComplex(L);
             
             QLA_real(z) = d;
             QLA_imag(z) = 0.0;
-            QDP_D_C_eq_c(v->ptr, &z, QDP_all);
+            QDP_C_eq_c(v->ptr, &z, QDP_all);
 
             return 1;
         }
         case qComplex: {
-            QLA_D_Complex *z = qlua_checkComplex(L, 1);
+            QLA_Complex *z = qlua_checkComplex(L, 1);
             mLatComplex *v = qlua_newLatComplex(L);
 
-            QDP_D_C_eq_c(v->ptr, z, QDP_all);
+            QDP_C_eq_c(v->ptr, z, QDP_all);
             
             return 1;
         }
@@ -176,7 +176,7 @@ q_latcomplex(lua_State *L)
             mLatReal *d = qlua_checkLatReal(L, 1);
             mLatComplex *v = qlua_newLatComplex(L);
             
-            QDP_D_C_eq_R(v->ptr, d->ptr, QDP_all);
+            QDP_C_eq_R(v->ptr, d->ptr, QDP_all);
 
             return 1;
         }
@@ -184,7 +184,7 @@ q_latcomplex(lua_State *L)
             mLatComplex *d = qlua_checkLatComplex(L, 1);
             mLatComplex *v = qlua_newLatComplex(L);
             
-            QDP_D_C_eq_C(v->ptr, d->ptr, QDP_all);
+            QDP_C_eq_C(v->ptr, d->ptr, QDP_all);
 
             return 1;
         }
@@ -196,7 +196,7 @@ q_latcomplex(lua_State *L)
         mLatReal *b = qlua_checkLatReal(L, 2);
         mLatComplex *c = qlua_newLatComplex(L);
 
-        QDP_D_C_eq_R_plus_i_R(c->ptr, a->ptr, b->ptr, QDP_all);
+        QDP_C_eq_R_plus_i_R(c->ptr, a->ptr, b->ptr, QDP_all);
         return 1;
     }
     }
@@ -208,7 +208,7 @@ int q_C_real(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_D_R_eq_re_C(c->ptr, a->ptr, QDP_all);
+    QDP_R_eq_re_C(c->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -218,7 +218,7 @@ int q_C_imag(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_D_R_eq_im_C(c->ptr, a->ptr, QDP_all);
+    QDP_R_eq_im_C(c->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -230,7 +230,7 @@ q_C_add_C(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_C_plus_C(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_C_eq_C_plus_C(c->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }
@@ -242,7 +242,7 @@ q_C_sub_C(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_C_minus_C(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_C_eq_C_minus_C(c->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }
@@ -254,7 +254,7 @@ q_C_mul_C(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_C_times_C(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_C_eq_C_times_C(c->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }
@@ -263,10 +263,10 @@ int
 q_C_mul_c(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
-    QLA_D_Complex *b = qlua_checkComplex(L, 2);
+    QLA_Complex *b = qlua_checkComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_c_times_C(c->ptr, b, a->ptr, QDP_all);
+    QDP_C_eq_c_times_C(c->ptr, b, a->ptr, QDP_all);
 
     return 1;
 }
@@ -274,11 +274,11 @@ q_C_mul_c(lua_State *L)
 int
 q_c_mul_C(lua_State *L)
 {
-    QLA_D_Complex *a = qlua_checkComplex(L, 1);
+    QLA_Complex *a = qlua_checkComplex(L, 1);
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_c_times_C(c->ptr, a, b->ptr, QDP_all);
+    QDP_C_eq_c_times_C(c->ptr, a, b->ptr, QDP_all);
 
     return 1;
 }
@@ -288,10 +288,10 @@ int
 q_C_mul_r(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
-    QLA_D_Real b = luaL_checknumber(L, 2);
+    QLA_Real b = luaL_checknumber(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_r_times_C(c->ptr, &b, a->ptr, QDP_all);
+    QDP_C_eq_r_times_C(c->ptr, &b, a->ptr, QDP_all);
 
     return 1;
 }
@@ -299,11 +299,11 @@ q_C_mul_r(lua_State *L)
 int
 q_r_mul_C(lua_State *L)
 {
-    QLA_D_Real a = luaL_checknumber(L, 1);
+    QLA_Real a = luaL_checknumber(L, 1);
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_r_times_C(c->ptr, &a, b->ptr, QDP_all);
+    QDP_C_eq_r_times_C(c->ptr, &a, b->ptr, QDP_all);
 
     return 1;
 }
@@ -315,7 +315,7 @@ q_C_div_C(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *c = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_C_divide_C(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_C_eq_C_divide_C(c->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }
@@ -324,9 +324,9 @@ static int
 q_C_sum(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
-    QLA_D_Complex *s = qlua_newComplex(L);
+    QLA_Complex *s = qlua_newComplex(L);
 
-    QDP_D_c_eq_sum_C(s, a->ptr, QDP_all);
+    QDP_c_eq_sum_C(s, a->ptr, QDP_all);
 
     return 1;
 }
@@ -335,9 +335,9 @@ static int
 q_C_norm2(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
-    QLA_D_Real n;
+    QLA_Real n;
 
-    QDP_D_r_eq_norm2_C(&n, a->ptr, QDP_all);
+    QDP_r_eq_norm2_C(&n, a->ptr, QDP_all);
     lua_pushnumber(L, n);
     
     return 1;
@@ -351,7 +351,7 @@ q_C_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_sC(r->ptr, a->ptr, shift, dir, QDP_all);
+    QDP_C_eq_sC(r->ptr, a->ptr, shift, dir, QDP_all);
 
     return 1;
 }
@@ -362,7 +362,7 @@ q_C_conj(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_conj_C(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_conj_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -373,7 +373,7 @@ q_C_abs(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_D_R_eq_norm_C(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_norm_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -384,7 +384,7 @@ q_C_arg(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_D_R_eq_arg_C(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_arg_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -395,7 +395,7 @@ q_C_sqrt(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_csqrt_C(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_csqrt_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -406,7 +406,7 @@ q_C_exp(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_cexp_C(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_cexp_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -417,7 +417,7 @@ q_C_log(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_clog_C(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_clog_C(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -428,7 +428,7 @@ q_C_gaussian(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_gaussian_S(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_gaussian_S(r->ptr, a->ptr, QDP_all);
 
     return 1;
 }
@@ -440,7 +440,7 @@ q_C_dot(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatComplex *s = qlua_newLatComplex(L);
 
-    QDP_D_C_eq_C_dot_C(s->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_C_eq_C_dot_C(s->ptr, a->ptr, b->ptr, QDP_all);
 
     return 1;
 }

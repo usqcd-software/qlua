@@ -2,7 +2,7 @@
 #define MARK_DA4C72A1_DB3E_44A4_931E_369DDFF0D309
 
 typedef struct {
-    QDP_D_Real *ptr;
+    QDP_Real *ptr;
 } mLatReal;
 
 extern const char *mtnLatReal;

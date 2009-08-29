@@ -2,7 +2,7 @@
 #define MARK_1EF46601_F4FC_44FF_8701_E58341017024
 
 typedef struct {
-    QDP_D_Complex *ptr;
+    QDP_Complex *ptr;
 } mLatComplex;
 
 extern const char *mtnLatComplex;

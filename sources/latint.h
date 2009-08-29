@@ -21,6 +21,10 @@ int qlua_colorindex(lua_State *L, int idx, int mv); /* k or -1 */
 int qlua_checkcolorindex(lua_State *L, int idx, int mv);
 int *qlua_latcoord(lua_State *L, int idx); /* lc[] or NULL */
 int *qlua_checklatcoord(lua_State *L, int idx);
+int qlua_checkleftindex(lua_State *L, int idx, int mv);
+int qlua_leftindex(lua_State *L, int idx, int mv);
+int qlua_checkrightindex(lua_State *L, int idx, int mv);
+int qlua_rightindex(lua_State *L, int idx, int mv);
 QDP_Shift qlua_checkShift(lua_State *L, int idx);
 QDP_ShiftDir qlua_checkShiftDir(lua_State *L, int idx);
 
