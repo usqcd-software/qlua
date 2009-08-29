@@ -6,15 +6,19 @@
 *      Complex
 QDP types:
 *  lattice
-*  int
-*  real
-*  complex
-  colorvector
-  colormatrix
-  diracfermion
-  halffermion
-  diracpropagator
-+  random
+*  Int
+*  RandomState
+*  Real
+*  Complex
+*  ColorVector
+  ColorMatrix
+  DiracFermion
+  HalfFermion
+  DiracPropagator
+
+Constants
+  Nc
+  version.*
 
 QIO
   writer
