@@ -1,7 +1,9 @@
 #include <qlua.h>
 #include <qcomplex.h>
 #include <qgamma.h>
+#include <latdirferm.h>
 #include <qdp.h>
+#include <math.h>
 
 const char mtnGamma[] = "qcd.mtGamma";
 
@@ -24,6 +26,8 @@ typedef struct mGamma_s {
 typedef struct mClifford_s {
     mGamma g[16];
 } mClifford;
+
+static char gconj[] = {0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0};
 
 static const char *gn[] = {
     NULL, "g0",  "g1",  "g01",  "g2",  "g02", "g12",   "g012",
@@ -50,210 +54,78 @@ static const char gm[16][16] = {
   {14, 31, 12, 29, 26, 11, 24,  9,  6, 23,  4, 21, 18,  3, 16,  1},
   {15, 30, 13, 28, 27, 10, 25,  8,  7, 22,  5, 20, 19,  2, 17,  0}};
 
-#define g_OP(t,a,b) ((t)[(a)*qG_t + (b)])
+#define add_r(x,y,z) \
+   QLA_real(x->c) = QLA_real(y->c) + z; QLA_imag(x->c) = QLA_imag(y->c)
+#define add_c(x,y,z) QLA_c_eq_c_plus_c(x->c, y->c, z->c)
 
-#if 0
-static void
-gn_r(mGamma *r)
-{
-    if (r->r == 0)
-        r->t = qG_z;
-    else if (r->r == 1)
-        r->t = qG_p;
-    else if (r->r == -1)
-        r->t = qG_m;
-    else
-        r->t = qG_r;
-}
+#define g_ID(a,b) ((a)*qG_t + (b))
 
 static void
-gn_c(mGamma *r)
+g_add(mGamma *r, const mGamma *a, const mGamma *b)
 {
-    if (QLA_imag(r->c) == 0) {
-        r->r = QLA_real(r->c);
-    } else {
-        r->t = qG_c;
+    switch (g_ID(a->t, b->t)) {
+    case g_ID(qG_z, qG_z): r->t = qG_z; break;
+    case g_ID(qG_z, qG_p): r->t = qG_p; break;
+    case g_ID(qG_z, qG_m): r->t = qG_m; break;
+    case g_ID(qG_z, qG_r): r->r = b->r; r->t = qG_r; break;
+    case g_ID(qG_z, qG_c): QLA_c_eq_c(r->c, b->c); r->t = qG_c; break;
+    case g_ID(qG_p, qG_z): r->t = qG_p; break;
+    case g_ID(qG_p, qG_p): r->r = 2; r->t = qG_r; break;
+    case g_ID(qG_p, qG_m): r->t = qG_z; break;
+    case g_ID(qG_p, qG_r): r->r = 1 + b->r; r->t = qG_r; break;
+    case g_ID(qG_p, qG_c): add_r(r, b, 1); r->t = qG_c; break;
+    case g_ID(qG_m, qG_z): r->t = qG_m; break;
+    case g_ID(qG_m, qG_p): r->t = qG_z; break;
+    case g_ID(qG_m, qG_m): r->r = -2; r->t = qG_r; break;
+    case g_ID(qG_m, qG_r): r->r = b->r - 1; r->t = qG_r; break;
+    case g_ID(qG_m, qG_c): add_r(r, b, -1); r->t = qG_c; break;
+    case g_ID(qG_r, qG_z): r->r = a->r; r->t = qG_r; break;
+    case g_ID(qG_r, qG_p): r->r = a->r + 1; r->t = qG_r; break;
+    case g_ID(qG_r, qG_m): r->r = a->r - 1; r->t = qG_r; break;
+    case g_ID(qG_r, qG_r): r->r = a->r + b->r; r->t = qG_r; break;
+    case g_ID(qG_r, qG_c): add_r(r, b, a->r); r->t=qG_c; break;
+    case g_ID(qG_c, qG_z): QLA_c_eq_c(r->c, a->c); r->t = qG_c; break;
+    case g_ID(qG_c, qG_p): add_r(r, b,  1); r->t = qG_c; break;
+    case g_ID(qG_c, qG_m): add_r(r, b, -1); r->t = qG_c; break;
+    case g_ID(qG_c, qG_r): add_r(r, a, b->r); r->t = qG_c; break;
+    case g_ID(qG_c, qG_c): add_c(r, a, b); r->t = qG_c; break;
     }
 }
-#endif
 
-/* additions */
-typedef void (*gadd)(mGamma *r, const mGamma *a, const mGamma *b);
+#define mul_r(x,y,z) QLA_c_eq_c_times_r(x->c, y->c, z)
+#define mul_c(x,y,z) QLA_c_eq_c_times_c(x->c, y->c, z->c)
 
-static void gadd_z_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gadd_z_p(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_p;}
-static void gadd_z_m(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_m;}
-static void gadd_z_r(mGamma *r, const mGamma *a, const mGamma *b) {*r = *b;}
-static void gadd_z_c(mGamma *r, const mGamma *a, const mGamma *b) {*r = *b;}
-
-static void gadd_p_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_p;}
-static void gadd_p_p(mGamma *r, const mGamma *a, const mGamma *b)
+static void
+g_mul(mGamma *r, const mGamma *a, const mGamma *b)
 {
-    r->r = 2;
-    r->t = qG_r;
+    switch (g_ID(a->t, b->t)) {
+    case g_ID(qG_z, qG_z): r->t = qG_z; break;
+    case g_ID(qG_z, qG_p): r->t = qG_z; break;
+    case g_ID(qG_z, qG_m): r->t = qG_z; break;
+    case g_ID(qG_z, qG_r): r->t = qG_z; break;
+    case g_ID(qG_z, qG_c): r->t = qG_z; break;
+    case g_ID(qG_p, qG_z): r->t = qG_z; break;
+    case g_ID(qG_p, qG_p): r->t = qG_p; break;
+    case g_ID(qG_p, qG_m): r->t = qG_m; break;
+    case g_ID(qG_p, qG_r): r->r = b->r; r->t = qG_r; break;
+    case g_ID(qG_p, qG_c): QLA_c_eq_c(r->c, b->c); r->t = qG_c; break;
+    case g_ID(qG_m, qG_z): r->t = qG_z; break;
+    case g_ID(qG_m, qG_p): r->t = qG_m; break;
+    case g_ID(qG_m, qG_m): r->t = qG_p; break;
+    case g_ID(qG_m, qG_r): r->r = -b->r; r->t = qG_r; break;
+    case g_ID(qG_m, qG_c): QLA_c_eqm_c(r->c, b->c); r->t = qG_c; break;
+    case g_ID(qG_r, qG_z): r->t = qG_z; break;
+    case g_ID(qG_r, qG_p): r->r = a->r; r->t = qG_r; break;
+    case g_ID(qG_r, qG_m): r->r = -a->r; r->t = qG_r; break;
+    case g_ID(qG_r, qG_r): r->r = a->r * b->r; r->t = qG_r; break;
+    case g_ID(qG_r, qG_c): mul_r(r, b, a->r); r->t = qG_c; break;
+    case g_ID(qG_c, qG_z): r->t = qG_z; break;
+    case g_ID(qG_c, qG_p): QLA_c_eq_c(r->c, a->c); r->t = qG_c; break;
+    case g_ID(qG_c, qG_m): QLA_c_eqm_c(r->c, a->c); r->t = qG_c; break;
+    case g_ID(qG_c, qG_r): mul_r(r, a, b->r); r->t = qG_c; break;
+    case g_ID(qG_c, qG_c): mul_c(r, a, b); r->t = qG_c; break;
+    }
 }
-static void gadd_p_m(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gadd_p_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = 1 + b->r;
-    r->t = qG_r;
-}
-static void gadd_p_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = 1 + QLA_real(b->c);
-    QLA_imag(r->c) = QLA_imag(b->c);
-    r->t = qG_c;
-}
-
-static void gadd_m_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_m;}
-static void gadd_m_p(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gadd_m_m(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = -2;
-    r->t = qG_r;
-}
-static void gadd_m_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = -1 + b->r;
-    r->t = qG_r;
-}
-static void gadd_m_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = -1 + QLA_real(b->c);
-    QLA_imag(r->c) = QLA_imag(b->c);
-    r->t = qG_c;
-}
-
-static void gadd_r_z(mGamma *r, const mGamma *a, const mGamma *b) {*r = *a;}
-static void gadd_r_p(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = a->r + 1;
-    r->t = qG_r;
-}
-static void gadd_r_m(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = a->r - 1;
-    r->t = qG_r;
-}
-static void gadd_r_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = a->r + b->r;
-    r->t = qG_r;
-}
-static void gadd_r_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = a->r + QLA_real(b->c);
-    QLA_imag(r->c) = QLA_imag(b->c);
-    r->t = qG_c;
-}
-
-static void gadd_c_z(mGamma *r, const mGamma *a, const mGamma *b) {*r = *a;}
-static void gadd_c_p(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = QLA_real(a->c) + 1;
-    QLA_imag(r->c) = QLA_imag(a->c);
-    r->t = qG_c;
-}
-static void gadd_c_m(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = QLA_real(a->c) - 1;
-    QLA_imag(r->c) = QLA_imag(a->c);
-    r->t = qG_c;
-}
-static void gadd_c_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = QLA_real(a->c) + b->r;
-    QLA_imag(r->c) = QLA_imag(a->c);
-    r->t = qG_c;
-}
-static void gadd_c_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = QLA_real(a->c) + QLA_real(b->c);
-    QLA_imag(r->c) = QLA_imag(a->c) + QLA_imag(b->c);
-    r->t = qG_c;
-}
-
-static const gadd t_add[] = {
-    gadd_z_z, gadd_z_p, gadd_z_m, gadd_z_r, gadd_z_c,
-    gadd_p_z, gadd_p_p, gadd_p_m, gadd_p_r, gadd_p_c,
-    gadd_m_z, gadd_m_p, gadd_m_m, gadd_m_r, gadd_m_c,
-    gadd_r_z, gadd_r_p, gadd_r_m, gadd_r_r, gadd_r_c,
-    gadd_c_z, gadd_c_p, gadd_c_m, gadd_c_r, gadd_c_c
-};
-
-/* multiplications */
-typedef void (*gmul)(mGamma *r, const mGamma *a, const mGamma *b);
-static void gmul_z_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_z_p(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_z_m(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_z_r(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_z_c(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-
-static void gmul_p_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_p_p(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_p;}
-static void gmul_p_m(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_m;}
-static void gmul_p_r(mGamma *r, const mGamma *a, const mGamma *b) {*r = *b;}
-static void gmul_p_c(mGamma *r, const mGamma *a, const mGamma *b) {*r = *b;}
-
-static void gmul_m_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_m_p(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_m;}
-static void gmul_m_m(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_p;}
-static void gmul_m_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = -b->r;
-    r->t = qG_r;
-}
-static void gmul_m_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = -QLA_real(b->c);
-    QLA_imag(r->c) = -QLA_imag(b->c);
-    r->t = qG_c;
-}
-
-static void gmul_r_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_r_p(mGamma *r, const mGamma *a, const mGamma *b) {*r = *a;}
-static void gmul_r_m(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = -a->r;
-    r->t = qG_r;
-}
-static void gmul_r_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    r->r = a->r * b->r;
-    r->t = qG_r;
-}
-static void gmul_r_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_c_eq_c_times_r(r->c, b->c, a->r);
-    r->t = qG_c;
-}
-
-static void gmul_c_z(mGamma *r, const mGamma *a, const mGamma *b) {r->t = qG_z;}
-static void gmul_c_p(mGamma *r, const mGamma *a, const mGamma *b) {*r = *a;}
-static void gmul_c_m(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_real(r->c) = -QLA_real(a->c);
-    QLA_imag(r->c) = -QLA_imag(a->c);
-    r->t = qG_c;
-}
-static void gmul_c_r(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_c_eq_c_times_r(r->c, a->c, b->r);
-    r->t = qG_c;
-}
-static void gmul_c_c(mGamma *r, const mGamma *a, const mGamma *b)
-{
-    QLA_c_eq_c_times_c(r->c, a->c, b->c);
-    r->t = qG_c;
-}
-
-static const gmul t_mul[] = {
-    gmul_z_z, gmul_z_p, gmul_z_m, gmul_z_r, gmul_z_c,
-    gmul_p_z, gmul_p_p, gmul_p_m, gmul_p_r, gmul_p_c,
-    gmul_m_z, gmul_m_p, gmul_m_m, gmul_m_r, gmul_m_c,
-    gmul_r_z, gmul_r_p, gmul_r_m, gmul_r_r, gmul_r_c,
-    gmul_c_z, gmul_c_p, gmul_c_m, gmul_c_r, gmul_c_c
-};
 
 mClifford *
 qlua_newClifford(lua_State *L)
@@ -424,7 +296,7 @@ q_g_add_g(lua_State *L)
     int i;
 
     for (i = 0; i < 16; i++)
-        g_OP(t_add, x->g[i].t, y->g[i].t)(&r->g[i], &x->g[i], &y->g[i]);
+        g_add(&r->g[i], &x->g[i], &y->g[i]);
 
     return c_norm(L, r);
 }
@@ -440,7 +312,7 @@ q_r_add_g(lua_State *L)
     
     v.t = qG_r;
     v.r = b;
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -459,7 +331,7 @@ q_g_add_r(lua_State *L)
     
     v.t = qG_r;
     v.r = b;
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -478,7 +350,7 @@ q_c_add_g(lua_State *L)
     
     v.t = qG_c;
     QLA_c_eq_c(v.c, *b);
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -497,7 +369,7 @@ q_g_add_c(lua_State *L)
     
     v.t = qG_c;
     QLA_c_eq_c(v.c, *b);
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -532,7 +404,7 @@ q_g_sub_g(lua_State *L)
 
     for (i = 0; i < 16; i++) {
         g_neg(&t, &y->g[i]);
-        g_OP(t_add, x->g[i].t, t.t)(&r->g[i], &x->g[i], &t);
+        g_add(&r->g[i], &x->g[i], &t);
     }
 
     return c_norm(L, r);
@@ -550,7 +422,7 @@ q_r_sub_g(lua_State *L)
     v.t = qG_r;
     v.r = b;
     g_neg(&t, &x->g[0]);
-    g_OP(t_add, t.t, v.t)(&r->g[0], &t, &v);
+    g_add(&r->g[0], &t, &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         g_neg(&r->g[i], &x->g[i]);
@@ -569,7 +441,7 @@ q_g_sub_r(lua_State *L)
     
     v.t = qG_r;
     v.r = -b;
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -589,7 +461,7 @@ q_c_sub_g(lua_State *L)
     v.t = qG_c;
     QLA_c_eq_c(v.c, *b);
     g_neg(&t, &x->g[0]);
-    g_OP(t_add, t.t, v.t)(&r->g[0], &t, &v);
+    g_add(&r->g[0], &t, &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         g_neg(&r->g[i], &x->g[i]);
@@ -607,7 +479,7 @@ static int q_g_sub_c(lua_State *L)
     
     v.t = qG_c;
     QLA_c_eqm_c(v.c, *b);
-    g_OP(t_add, x->g[0].t, v.t)(&r->g[0], &x->g[0], &v);
+    g_add(&r->g[0], &x->g[0], &v);
     g_norm(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
@@ -628,11 +500,11 @@ q_g_mul_g(lua_State *L)
             int s = gm_s(i, j);
             int k = gm_k(i, j);
             mGamma t;
-            g_OP(t_mul, x->g[i].t, y->g[j].t)(&t, &x->g[i], &y->g[j]);
+            g_mul(&t, &x->g[i], &y->g[j]);
             if (s) {
                 g_neg(&t, &t);
             }
-            g_OP(t_add, r->g[k].t, t.t)(&r->g[k], &r->g[k], &t);
+            g_add(&r->g[k], &r->g[k], &t);
         }
     }
     
@@ -651,7 +523,7 @@ q_r_mul_g(lua_State *L)
     v.t = qG_r;
     v.r = a;
     for (i = 0; i < 16; i++)
-        g_OP(t_mul, v.t, b->g[i].t)(&r->g[i], &v, &b->g[i]);
+        g_mul(&r->g[i], &v, &b->g[i]);
     
     return c_norm(L, r);
 }
@@ -667,7 +539,7 @@ static int q_g_mul_r(lua_State *L)
     v.t = qG_r;
     v.r = a;
     for (i = 0; i < 16; i++)
-        g_OP(t_mul, b->g[i].t, v.t)(&r->g[i], &b->g[i], &v);
+        g_mul(&r->g[i], &b->g[i], &v);
     
     return c_norm(L, r);
 }
@@ -683,7 +555,7 @@ static int q_c_mul_g(lua_State *L)
     v.t = qG_c;
     QLA_c_eq_c(v.c, *a);
     for (i = 0; i < 16; i++)
-        g_OP(t_mul, v.t, b->g[i].t)(&r->g[i], &v, &b->g[i]);
+        g_mul(&r->g[i], &v, &b->g[i]);
     
     return c_norm(L, r);
 }
@@ -700,15 +572,81 @@ q_g_mul_c(lua_State *L)
     v.t = qG_c;
     QLA_c_eq_c(v.c, *a);
     for (i = 0; i < 16; i++)
-        g_OP(t_mul, b->g[i].t, v.t)(&r->g[i], &b->g[i], &v);
+        g_mul(&r->g[i], &b->g[i], &v);
     
     return c_norm(L, r);
 }
 
-/* XXX */ static int q_g_div_r(lua_State *L) { return 0; }
-/* XXX */ static int q_g_div_c(lua_State *L) { return 0; }
+static int
+q_g_div_r(lua_State *L)
+{
+    mClifford *b = qlua_checkClifford(L, 1);
+    QLA_Real a = luaL_checknumber(L, 2);
+    mClifford *r = qlua_newClifford(L);
+    int i;
+    mGamma v;
 
-/* XXX */ static int q_g_mul_D(lua_State *L) { return 0; }
+    v.t = qG_r;
+    v.r = 1/a;
+    for (i = 0; i < 16; i++)
+        g_mul(&r->g[i], &b->g[i], &v);
+    
+    return c_norm(L, r);
+}
+
+static int
+q_g_div_c(lua_State *L)
+{
+    mClifford *b = qlua_checkClifford(L, 1);
+    QLA_Complex *a = qlua_checkComplex(L, 2);
+    mClifford *r = qlua_newClifford(L);
+    int i;
+    mGamma v;
+    double n = 1 / hypot(QLA_real(*a), QLA_imag(*a));
+
+    v.t = qG_c;
+    QLA_real(v.c) = n * QLA_real(*a);
+    QLA_imag(v.c) = -n * QLA_imag(*a);
+    for (i = 0; i < 16; i++)
+        g_mul(&r->g[i], &b->g[i], &v);
+    
+    return c_norm(L, r);
+}
+
+static int
+q_g_mul_D(lua_State *L)
+{
+    mClifford *m = qlua_checkClifford(L, 1);
+    mLatDirFerm *f = qlua_checkLatDirFerm(L, 2);
+    mLatDirFerm *mf = qlua_newLatDirFerm(L);
+    mLatDirFerm *r = qlua_newLatDirFerm(L);
+    int i;
+
+    QDP_D_eq_zero(r->ptr, QDP_all);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, QDP_all);
+            QDP_D_peq_D(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_m:
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, QDP_all);
+            QDP_D_meq_D(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_r:
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, QDP_all);
+            QDP_D_peq_r_times_D(r->ptr, &m->g[i].r, mf->ptr, QDP_all);
+            break;
+        case qG_c:
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, QDP_all);
+            QDP_D_peq_c_times_D(r->ptr, &m->g[i].c, mf->ptr, QDP_all);
+            break;
+        }
+    }
+    return 1;
+}
+
 /* XXX */ static int q_g_mul_P(lua_State *L) { return 0; }
 /* XXX */ static int q_P_mul_g(lua_State *L) { return 0; }
 
@@ -723,6 +661,25 @@ q_g_neg(lua_State *L)
         g_neg(&r->g[i], &x->g[i]);
     }
     
+    return 1;
+}
+
+static int
+q_g_conj(lua_State *L)
+{
+    mClifford *x = qlua_checkClifford(L, 1);
+    mClifford *r = qlua_newClifford(L);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        if (gconj[i])
+            g_neg(&r->g[i], &x->g[i]);
+        else
+            r->g[i] = x->g[i];
+        if (r->g[i].t == qG_c)
+            QLA_c_eq_ca(r->g[i].c, r->g[i].c);
+    }
+
     return 1;
 }
 
@@ -760,6 +717,8 @@ static struct luaL_Reg mtGamma[] = {
     { "__add",             qlua_add },
     { "__sub",             qlua_sub },
     { "__mul",             qlua_mul },
+    { "__div",             qlua_div },
+    { "conj",              q_g_conj },
     { NULL,                NULL }
 };
 

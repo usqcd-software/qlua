@@ -51,3 +51,44 @@ for i = 0, 15 do
   end
 end
 
+print(1 + (gamma{mu=0} +
+           gamma{mu=1} +
+           gamma{mu=2} +
+           gamma{mu=3}) / 2)
+
+qcd.lattice({6})
+S = qcd.RandomState(1, qcd.pcoord(0))
+
+f1 = S:gaussian_DiracFermion()
+f2 = S:gaussian_DiracFermion()
+
+function D_dot(a,b)
+   return qcd.dot(a,b):sum()
+end
+
+for i = 0, 15 do
+   local z = gamma{n=i}
+   local q1 = z * f1
+   local q2 = z * f2
+   local a = D_dot(f2, q1)
+   local b = D_dot(q2, f1)
+   if (a-b):abs() < 1e-6 then
+      print("   Z", i, 0)
+   else
+      print("   Z", i, 1)
+   end
+end
+
+f1 = S:gaussian_DiracFermion()
+f2 = f1:gamma{mu=1} + f1:gamma{mu=5} * 0.75 + f1:gamma{n=10} * complex(1,2)
+
+print(qcd.dot(f1,f2):sum())
+for i = 0, 3 do
+  local z = f1:gamma{mu=i}
+  print(" conj G", i, D_dot(f1, z), D_dot(z, f1))
+end
+
+print(" Reg Gammas", D_dot(f2,f2))
+gg = gamma{mu=1} + gamma{mu=5} * 0.75 + gamma{n=10} * complex(1,2)
+gx = gg:conj() * gg
+print(" New Gammas", D_dot(f1, gx * f1))
