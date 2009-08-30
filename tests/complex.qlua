@@ -5,8 +5,8 @@ b = 2;
 print("a=", a);
 print("b=", b);
 
-c = qcd.complex(3,4)
-z = qcd.complex(5,6)
+c = complex(3,4)
+z = complex(5,6)
 print("c:real()", c:real())
 print("c:imag()", c:imag())
 print("c*=", c:conj())

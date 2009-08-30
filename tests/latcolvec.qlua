@@ -13,7 +13,7 @@ x = rnd:gaussian_ColorVector()
 print("consturcted ColVec: ", x)
 print(x[{1,0,3,c=1}])
 
-x[{c=0}] = qcd.Complex(qcd.complex(math.pi,1))
+x[{c=0}] = qcd.Complex(complex(math.pi,1))
 x[{c=2}] = qcd.Complex(qcd.Real(0), qcd.Real(0))
 
 print(x[{0,0,1,c=0}], x[{0,0,1,c=1}])

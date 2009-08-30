@@ -42,7 +42,7 @@ qlua_checkLatDirFerm(lua_State *L, int idx)
 }
 
 static int
-qLatDirFerm_fmt(lua_State *L)
+q_D_fmt(lua_State *L)
 {
     char fmt[72];
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 1);
@@ -54,7 +54,7 @@ qLatDirFerm_fmt(lua_State *L)
 }
 
 static int
-qLatDirFerm_gc(lua_State *L)
+q_D_gc(lua_State *L)
 {
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 1);
 
@@ -65,13 +65,13 @@ qLatDirFerm_gc(lua_State *L)
 }
 
 static int
-qLatDirFerm_get(lua_State *L)
+q_D_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
     case qTable: {
         mLatDirFerm *V = qlua_checkLatDirFerm(L, 1);
-        int d = qlua_checkdiracindex(L, 2, QDP_Nf);
-        int c = qlua_colorindex(L, 2, QDP_Nc);
+        int d = qlua_checkdiracindex(L, 2);
+        int c = qlua_colorindex(L, 2);
         int *idx = qlua_latcoord(L, 2);
         if (idx == NULL) {
             if (c == -1) {
@@ -118,11 +118,11 @@ qLatDirFerm_get(lua_State *L)
 }
 
 static int
-qLatDirFerm_put(lua_State *L)
+q_D_put(lua_State *L)
 {
     mLatDirFerm *V = qlua_checkLatDirFerm(L, 1);
-    int d = qlua_checkdiracindex(L, 2, QDP_Nf);
-    int c = qlua_colorindex(L, 2, QDP_Nc);
+    int d = qlua_checkdiracindex(L, 2);
+    int c = qlua_colorindex(L, 2);
     int *idx = qlua_latcoord(L, 2);
 
     if (idx == NULL) {
@@ -156,7 +156,7 @@ qLatDirFerm_put(lua_State *L)
 }
 
 static int
-q_neg_D(lua_State *L)
+q_D_neg(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
     mLatDirFerm *r = qlua_newLatDirFerm(L);
@@ -207,15 +207,19 @@ static int
 q_D_gamma(lua_State *L)
 {
     mLatDirFerm *f = qlua_checkLatDirFerm(L, 1);
-    int mu = qlua_index(L, 2, "mu", 4);
-    int n = qlua_index(L, 2, "n", 16);
+    int mu = qlua_gammaindex(L, 2);
+    int n = qlua_gammabinary(L, 2);
     
     if (((n == -1) && (mu == -1)) || ((n != -1) && (mu != -1)))
         return luaL_error(L, "bad index");
     if (n == -1) {
         mLatDirFerm *r = qlua_newLatDirFerm(L);
 
-        QDP_D_eq_gamma_times_D(r->ptr, f->ptr, 1 << mu, QDP_all);
+        if (mu < 5) {
+            QDP_D_eq_gamma_times_D(r->ptr, f->ptr, 1 << mu, QDP_all);
+        } else {
+            QDP_D_eq_gamma_times_D(r->ptr, f->ptr, 15, QDP_all);
+        }
 
         return 1;
     }
@@ -230,7 +234,7 @@ q_D_gamma(lua_State *L)
     return luaL_error(L, "this could never happen");
 }
 
-int
+static int
 q_D_dot(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -254,7 +258,7 @@ q_D_gaussian(lua_State *L)
 }
 
 
-int
+static int
 q_D_add_D(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -266,7 +270,7 @@ q_D_add_D(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_D_sub_D(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -278,7 +282,7 @@ q_D_sub_D(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_D_mul_r(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -290,7 +294,7 @@ q_D_mul_r(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_r_mul_D(lua_State *L)
 {
     QLA_Real a = luaL_checknumber(L, 1);
@@ -302,7 +306,7 @@ q_r_mul_D(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_D_mul_c(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -314,7 +318,7 @@ q_D_mul_c(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_c_mul_D(lua_State *L)
 {
     QLA_Complex *a = qlua_checkComplex(L, 1);
@@ -326,7 +330,7 @@ q_c_mul_D(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_mul_D(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -361,8 +365,8 @@ q_latdirferm(lua_State *L)
         switch (qlua_gettype(L, 1)) {
         case qLatComplex: {
             mLatComplex *z = qlua_checkLatComplex(L, 1);
-            int c = qlua_checkcolorindex(L, 2, QDP_Nc);
-            int d = qlua_checkdiracindex(L, 2, QDP_Nf);
+            int c = qlua_checkcolorindex(L, 2);
+            int d = qlua_checkdiracindex(L, 2);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
             QDP_D_eq_zero(v->ptr, QDP_all);
@@ -372,7 +376,7 @@ q_latdirferm(lua_State *L)
         }
         case qLatColVec: {
             mLatColVec *w = qlua_checkLatColVec(L, 1);
-            int d = qlua_checkdiracindex(L, 2, QDP_Nf);
+            int d = qlua_checkdiracindex(L, 2);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
             QDP_D_eq_zero(v->ptr, QDP_all);
@@ -387,7 +391,6 @@ q_latdirferm(lua_State *L)
     return luaL_error(L, "bad arguments");
 }
 
-
 static struct luaL_Reg LatDirFermMethods[] = {
     { "norm2",      q_D_norm2 },
     { "shift",      q_D_shift },
@@ -397,11 +400,11 @@ static struct luaL_Reg LatDirFermMethods[] = {
 };
 
 static struct luaL_Reg mtLatDirFerm[] = {
-    { "__tostring",        qLatDirFerm_fmt },
-    { "__gc",              qLatDirFerm_gc },
-    { "__index",           qLatDirFerm_get },
-    { "__newindex",        qLatDirFerm_put },
-    { "__umn",             q_neg_D },
+    { "__tostring",        q_D_fmt },
+    { "__gc",              q_D_gc },
+    { "__index",           q_D_get },
+    { "__newindex",        q_D_put },
+    { "__unm",             q_D_neg },
     { "__add",             qlua_add },
     { "__sub",             qlua_sub },
     { "__mul",             qlua_mul },
@@ -420,6 +423,14 @@ init_latdirferm(lua_State *L)
     luaL_register(L, qcdlib, fLatDirFerm);
     qlua_metatable(L, mtnLatDirFerm, mtLatDirFerm);
     qlua_metatable(L, opLatDirFerm, LatDirFermMethods);
+    qlua_reg_add(qLatDirFerm, qLatDirFerm, q_D_add_D);
+    qlua_reg_sub(qLatDirFerm, qLatDirFerm, q_D_sub_D);
+    qlua_reg_mul(qReal,       qLatDirFerm, q_r_mul_D);
+    qlua_reg_mul(qLatDirFerm, qReal,       q_D_mul_r);
+    qlua_reg_mul(qComplex,    qLatDirFerm, q_c_mul_D);
+    qlua_reg_mul(qLatDirFerm, qComplex,    q_D_mul_c);
+    qlua_reg_mul(qLatColMat,  qLatDirFerm, q_M_mul_D);
+    qlua_reg_dot(qLatDirFerm, q_D_dot);
 
     return 0;
 }

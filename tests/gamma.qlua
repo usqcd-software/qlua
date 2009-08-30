@@ -1,0 +1,53 @@
+g0 = gamma{mu=0}
+g2 = gamma{mu=2}
+gx = gamma{n=7}
+
+print("g0", g0, -g0)
+print("g2", g2, -g2)
+print("gx", gx, -gx)
+
+function ch_plus(a, b)
+  print("add/sub:", a, b, a + b, a - b)
+  return a + b
+end
+
+ch_plus(g0, -g2)
+ch_plus(1, g0)
+ch_plus(g2, 1)
+ch_plus(1+g2, -1)
+z = ch_plus(gx, complex(1,2))
+ch_plus(3, z)
+ch_plus(z, 4)
+
+ch_plus(-complex(2, 1), z)
+ch_plus(z, -complex(2, 2))
+
+function ch_mul(a, b)
+  print("mul", a, b, a * b)
+  return a * b
+end
+
+ch_mul(1, g0)
+ch_mul(0, g2)
+ch_mul(3, gx)
+ch_mul(-3, gx)
+ch_mul(gx+g0, 2.5)
+ch_mul(gx+g0, complex(2,3))
+ch_mul(complex(2,3), gamma{mu=5})
+ch_mul(complex(2,3), gamma{mu=5} * complex(2,-3))
+
+for i = 0, 3 do
+  for j = i, 3 do
+     print(i, j, gamma{mu=i}, gamma{mu=j}, gamma{mu=i}*gamma{mu=j})
+  end
+end
+
+print()
+for i = 0, 15 do
+  for j = 0, 15 do
+    gi = gamma{n=i}
+    gj = gamma{n=j}
+    print(i, j, gi, gj, gi * gj)
+  end
+end
+

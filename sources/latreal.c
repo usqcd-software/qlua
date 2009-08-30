@@ -39,7 +39,7 @@ qlua_checkLatReal(lua_State *L, int idx)
 }
 
 static int
-qLatReal_fmt(lua_State *L)
+q_R_fmt(lua_State *L)
 {
     char fmt[72];
     mLatReal *b = qlua_checkLatReal(L, 1);
@@ -51,7 +51,7 @@ qLatReal_fmt(lua_State *L)
 }
 
 static int
-qLatReal_gc(lua_State *L)
+q_R_gc(lua_State *L)
 {
     mLatReal *b = qlua_checkLatReal(L, 1);
 
@@ -62,7 +62,7 @@ qLatReal_gc(lua_State *L)
 }
 
 static int
-q_neg_R(lua_State *L)
+q_R_neg(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *res = qlua_newLatReal(L);
@@ -352,7 +352,7 @@ q_R_round(lua_State *L)
 }
 
 static int
-qLatReal_get(lua_State *L)
+q_R_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
     case qTable: {
@@ -383,7 +383,7 @@ qLatReal_get(lua_State *L)
 
 
 static int
-qLatReal_put(lua_State *L)
+q_R_put(lua_State *L)
 {
     mLatReal *V = qlua_checkLatReal(L, 1);
     QLA_Real *locked;
@@ -401,7 +401,7 @@ qLatReal_put(lua_State *L)
     return 0;
 }
 
-int
+static int
 q_R_add_R(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -413,7 +413,7 @@ q_R_add_R(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_R_sub_R(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -425,7 +425,7 @@ q_R_sub_R(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_R_mul_R(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -437,7 +437,7 @@ q_R_mul_R(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_r_mul_R(lua_State *L)
 {
     QLA_Real b = luaL_checknumber(L, 1);
@@ -449,7 +449,7 @@ q_r_mul_R(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_R_mul_r(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -461,7 +461,7 @@ q_R_mul_r(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_R_div_R(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
@@ -532,11 +532,11 @@ static const struct luaL_Reg LatRealMethods[] = {
 };
 
 static struct luaL_Reg mtLatReal[] = {
-    { "__tostring",   qLatReal_fmt },
-    { "__gc",         qLatReal_gc },
-    { "__index",      qLatReal_get },
-    { "__newindex",   qLatReal_put },
-    { "__umn",        q_neg_R },
+    { "__tostring",   q_R_fmt },
+    { "__gc",         q_R_gc },
+    { "__index",      q_R_get },
+    { "__newindex",   q_R_put },
+    { "__unm",        q_R_neg },
     { "__add",        qlua_add },
     { "__sub",        qlua_sub },
     { "__mul",        qlua_mul },
@@ -555,6 +555,14 @@ init_latreal(lua_State *L)
     luaL_register(L, qcdlib, fLatReal);
     qlua_metatable(L, mtnLatReal, mtLatReal);
     qlua_metatable(L, opLatReal, LatRealMethods);
+
+    qlua_reg_add(qLatReal, qLatReal, q_R_add_R);
+    qlua_reg_sub(qLatReal, qLatReal, q_R_sub_R);
+    qlua_reg_mul(qLatReal, qLatReal, q_R_mul_R);
+    qlua_reg_mul(qReal,    qLatReal, q_r_mul_R);
+    qlua_reg_mul(qLatReal, qReal,    q_R_mul_r);
+    qlua_reg_div(qLatReal, qLatReal, q_R_div_R);
+    qlua_reg_dot(qLatReal, q_R_mul_R);
 
     return 0;
 }

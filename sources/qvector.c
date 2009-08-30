@@ -130,13 +130,6 @@ v_int(lua_State *L)                                            /* (-1,+1,e) */
     return 1;
 }
 
-static const luaL_Reg mtVecInt[] = {
-    { "__tostring",     vi_fmt    },
-    { "__index",        vi_get    },
-    { "__newindex",     vi_put    },
-    { NULL,             NULL      }
-};
-
 /* double vectors */
 static int
 vd_fmt(lua_State *L)                                           /* (-1,+1,e) */
@@ -197,13 +190,6 @@ v_double(lua_State *L)                                         /* (-1,+1,e) */
     
     return 1;
 }
-
-static const luaL_Reg mtVecDouble[] = {
-    { "__tostring",     vd_fmt    },
-    { "__index",        vd_get    },
-    { "__newindex",     vd_put    },
-    { NULL,             NULL      }
-};
 
 /* complex vectors */
 static int
@@ -278,6 +264,20 @@ v_complex(lua_State *L)                                         /* (-1,+1,e) */
     
     return 1;
 }
+
+static const luaL_Reg mtVecInt[] = {
+    { "__tostring",     vi_fmt    },
+    { "__index",        vi_get    },
+    { "__newindex",     vi_put    },
+    { NULL,             NULL      }
+};
+
+static const luaL_Reg mtVecDouble[] = {
+    { "__tostring",     vd_fmt    },
+    { "__index",        vd_get    },
+    { "__newindex",     vd_put    },
+    { NULL,             NULL      }
+};
 
 static const luaL_Reg mtVecComplex[] = {
     { "__tostring",     vc_fmt    },

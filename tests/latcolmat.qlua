@@ -14,7 +14,7 @@ print("x0=", x0)
 x1 = qcd.ColorMatrix(2.0)
 print("x1=", x1)
 
-x2 = qcd.ColorMatrix(qcd.complex(3,4))
+x2 = qcd.ColorMatrix(complex(3,4))
 print("x2=", x2)
 
 x3 = qcd.ColorMatrix(crnd, {a=1, b=2})

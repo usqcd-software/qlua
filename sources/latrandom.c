@@ -41,7 +41,7 @@ qlua_checkLatRandom(lua_State *L, int idx)
 }
 
 static int
-qLatRandom_fmt(lua_State *L)
+q_S_fmt(lua_State *L)
 {
     char fmt[72];
     mLatRandom *b = qlua_checkLatRandom(L, 1);
@@ -53,7 +53,7 @@ qLatRandom_fmt(lua_State *L)
 }
 
 static int
-qLatRandom_gc(lua_State *L)
+q_S_gc(lua_State *L)
 {
     mLatRandom *b = qlua_checkLatRandom(L, 1);
 
@@ -72,19 +72,6 @@ q_S_eq_S(lua_State *L)
     QDP_S_eq_S(b->ptr, a->ptr, QDP_all);
     return 1;
 }
-
-static struct luaL_Reg mtLatRandom[] = {
-    { "__tostring",               qLatRandom_fmt },
-    { "__gc",                     qLatRandom_gc },
-    { "random_Real",              q_R_random },
-    { "gaussian_Real",            q_R_gaussian },
-    { "gaussian_Complex",         q_C_gaussian },
-    { "gaussian_ColorVector",     q_V_gaussian },
-    { "gaussian_ColorMatrix",     q_M_gaussian },
-    { "gaussian_DiracFermion",    q_D_gaussian },
-    /* ZZZ other gaussian randoms */
-    { NULL,          NULL}
-};
 
 static int
 q_latrandom(lua_State *L)
@@ -106,6 +93,19 @@ q_latrandom(lua_State *L)
     }
     return 1;
 }
+
+static struct luaL_Reg mtLatRandom[] = {
+    { "__tostring",               q_S_fmt },
+    { "__gc",                     q_S_gc },
+    { "random_Real",              q_R_random },
+    { "gaussian_Real",            q_R_gaussian },
+    { "gaussian_Complex",         q_C_gaussian },
+    { "gaussian_ColorVector",     q_V_gaussian },
+    { "gaussian_ColorMatrix",     q_M_gaussian },
+    { "gaussian_DiracFermion",    q_D_gaussian },
+    /* ZZZ other gaussian randoms */
+    { NULL,          NULL}
+};
 
 static struct luaL_Reg fLatRandom[] = {
     { "RandomState", q_latrandom},

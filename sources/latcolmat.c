@@ -41,7 +41,7 @@ qlua_checkLatColMat(lua_State *L, int idx)
 }
 
 static int
-qLatColMat_fmt(lua_State *L)
+q_M_fmt(lua_State *L)
 {
     char fmt[72];
     mLatColMat *b = qlua_checkLatColMat(L, 1);
@@ -53,7 +53,7 @@ qLatColMat_fmt(lua_State *L)
 }
 
 static int
-qLatColMat_gc(lua_State *L)
+q_M_gc(lua_State *L)
 {
     mLatColMat *b = qlua_checkLatColMat(L, 1);
 
@@ -64,13 +64,13 @@ qLatColMat_gc(lua_State *L)
 }
 
 static int
-qLatColMat_get(lua_State *L)
+q_M_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
     case qTable: {
         mLatColMat *V = qlua_checkLatColMat(L, 1);
-        int b = qlua_checkrightindex(L, 2, QDP_Nc);
-        int a = qlua_leftindex(L, 2, QDP_Nc);
+        int b = qlua_checkrightindex(L, 2);
+        int a = qlua_leftindex(L, 2);
         int *idx = qlua_latcoord(L, 2);
         if (idx == NULL) {
             if (a == -1) {
@@ -117,11 +117,11 @@ qLatColMat_get(lua_State *L)
 }
 
 static int
-qLatColMat_put(lua_State *L)
+q_M_put(lua_State *L)
 {
     mLatColMat *V = qlua_checkLatColMat(L, 1);
-    int b = qlua_checkrightindex(L, 2, QDP_Nc);
-    int a = qlua_leftindex(L, 2, QDP_Nc);
+    int b = qlua_checkrightindex(L, 2);
+    int a = qlua_leftindex(L, 2);
     int *idx = qlua_latcoord(L, 2);
 
     if (idx == NULL) {
@@ -221,7 +221,7 @@ q_M_trace(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_dot(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -245,7 +245,7 @@ q_M_gaussian(lua_State *L)
 }
 
 
-int
+static int
 q_M_add_M(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -257,7 +257,7 @@ q_M_add_M(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_sub_M(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -269,7 +269,7 @@ q_M_sub_M(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_mul_M(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -281,7 +281,7 @@ q_M_mul_M(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_mul_V(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -293,7 +293,7 @@ q_M_mul_V(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_mul_r(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -305,7 +305,7 @@ q_M_mul_r(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_r_mul_M(lua_State *L)
 {
     QLA_Real a = luaL_checknumber(L, 1);
@@ -317,7 +317,7 @@ q_r_mul_M(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_M_mul_c(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -329,7 +329,7 @@ q_M_mul_c(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_c_mul_M(lua_State *L)
 {
     QLA_Complex *a = qlua_checkComplex(L, 1);
@@ -342,7 +342,7 @@ q_c_mul_M(lua_State *L)
 }
 
 static int
-q_neg_M(lua_State *L)
+q_M_neg(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
     mLatColMat *r = qlua_newLatColMat(L);
@@ -400,8 +400,8 @@ q_latcolmat(lua_State *L)
         switch (qlua_gettype(L, 1)) {
         case qLatComplex: {
             mLatComplex *z = qlua_checkLatComplex(L, 1);
-            int a = qlua_checkleftindex(L, 2, QDP_Nc);
-            int b = qlua_checkrightindex(L, 2, QDP_Nc);
+            int a = qlua_checkleftindex(L, 2);
+            int b = qlua_checkrightindex(L, 2);
             mLatColMat *v = qlua_newLatColMat(L);
 
             QDP_M_eq_zero(v->ptr, QDP_all);
@@ -413,7 +413,7 @@ q_latcolmat(lua_State *L)
             mLatColVec *f = qlua_checkLatColVec(L, 1);
             switch (qlua_gettype(L, 2)) {
             case qTable: {
-                int b = qlua_checkrightindex(L, 2, QDP_Nc);
+                int b = qlua_checkrightindex(L, 2);
                 mLatColMat *v = qlua_newLatColMat(L);
                 
                 QDP_M_eq_zero(v->ptr, QDP_all);
@@ -450,11 +450,11 @@ static struct luaL_Reg LatColMatMethods[] = {
 };
 
 static struct luaL_Reg mtLatColMat[] = {
-    { "__tostring",        qLatColMat_fmt },
-    { "__gc",              qLatColMat_gc },
-    { "__index",           qLatColMat_get },
-    { "__newindex",        qLatColMat_put },
-    { "__umn",             q_neg_M },
+    { "__tostring",        q_M_fmt },
+    { "__gc",              q_M_gc },
+    { "__index",           q_M_get },
+    { "__newindex",        q_M_put },
+    { "__unm",             q_M_neg },
     { "__add",             qlua_add },
     { "__sub",             qlua_sub },
     { "__mul",             qlua_mul },
@@ -473,6 +473,15 @@ init_latcolmat(lua_State *L)
     luaL_register(L, qcdlib, fLatColMat);
     qlua_metatable(L, mtnLatColMat, mtLatColMat);
     qlua_metatable(L, opLatColMat, LatColMatMethods);
+    qlua_reg_add(qLatColMat, qLatColMat, q_M_add_M);
+    qlua_reg_sub(qLatColMat, qLatColMat, q_M_sub_M);
+    qlua_reg_mul(qReal,      qLatColMat, q_r_mul_M);
+    qlua_reg_mul(qLatColMat, qReal,      q_M_mul_r);
+    qlua_reg_mul(qComplex,   qLatColMat, q_c_mul_M);
+    qlua_reg_mul(qLatColMat, qComplex,   q_M_mul_c);
+    qlua_reg_mul(qLatColMat, qLatColVec, q_M_mul_V);
+    qlua_reg_mul(qLatColMat, qLatColMat, q_M_mul_M);
+    qlua_reg_dot(qLatColMat, q_M_dot);
 
     return 0;
 }

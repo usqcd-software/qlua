@@ -49,6 +49,7 @@ driver = qlua.c
 headers = qlua.h
 libsrc = qvector.c \
          qcomplex.c \
+         qgamma.c \
          latint.c \
          latrandom.c \
          latreal.c \

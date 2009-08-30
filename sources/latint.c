@@ -47,82 +47,6 @@ qlua_checklatcoord(lua_State *L, int n)
     return idx;
 }
 
-int
-qlua_index(lua_State *L, int n, const char *name, int mv)
-{
-    int v = -1;
-
-    luaL_checktype(L, n, LUA_TTABLE);
-    lua_getfield(L, n, name);
-    if (lua_isnumber(L, -1)) {
-        v = luaL_checkint(L, -1);
-        if ((v < 0) || (v >= mv))
-            v = -1;
-    }
-    lua_pop(L, 1);
-    
-    return v;
-}
-
-int
-qlua_checkindex(lua_State *L, int n, const char *name, int mv)
-{
-    int v = qlua_index(L, n, name, mv);
-
-    if (v == -1)
-        luaL_error(L, "bad index");
-
-    return v;
-}
-
-int
-qlua_diracindex(lua_State *L, int n, int mv)
-{
-    return qlua_index(L, n, "d", mv);
-}
-
-int
-qlua_checkdiracindex(lua_State *L, int n, int mv)
-{
-    return qlua_checkindex(L, n, "d", mv);
-}
-
-int
-qlua_colorindex(lua_State *L, int n, int mv)
-{
-    return qlua_index(L, n, "c", mv);
-}
-
-int
-qlua_checkcolorindex(lua_State *L, int n, int mv)
-{
-    return qlua_checkindex(L, n, "c", mv);
-}
-
-int
-qlua_leftindex(lua_State *L, int n, int mv)
-{
-    return qlua_index(L, n, "a", mv);
-}
-
-int
-qlua_checkleftindex(lua_State *L, int n, int mv)
-{
-    return qlua_checkindex(L, n, "a", mv);
-}
-
-int
-qlua_rightindex(lua_State *L, int n, int mv)
-{
-    return qlua_index(L, n, "b", mv);
-}
-
-int
-qlua_checkrightindex(lua_State *L, int n, int mv)
-{
-    return qlua_checkindex(L, n, "b", mv);
-}
-
 mLatInt *
 qlua_newLatInt(lua_State *L)
 {
@@ -154,7 +78,7 @@ qlua_checkLatInt(lua_State *L, int idx)
 }
 
 static int
-qLatInt_fmt(lua_State *L)
+q_I_fmt(lua_State *L)
 {
     char fmt[72];
     mLatInt *b = qlua_checkLatInt(L, 1);
@@ -166,7 +90,7 @@ qLatInt_fmt(lua_State *L)
 }
 
 static int
-qLatInt_gc(lua_State *L)
+q_I_gc(lua_State *L)
 {
     mLatInt *b = qlua_checkLatInt(L, 1);
 
@@ -252,7 +176,7 @@ q_I_shift(lua_State *L)
 }
 
 static int
-qLatInt_get(lua_State *L)
+q_I_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
     case qTable: {
@@ -290,7 +214,7 @@ static struct luaL_Reg LatIntMethods[] = {
 };
 
 static int
-qLatInt_put(lua_State *L)
+q_I_put(lua_State *L)
 {
     mLatInt *V = qlua_checkLatInt(L, 1);
     QLA_Int *locked;
@@ -332,7 +256,7 @@ q_latint(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_add_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -344,7 +268,7 @@ q_I_add_I(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_sub_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -356,7 +280,7 @@ q_I_sub_I(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_i_mul_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -368,7 +292,7 @@ q_i_mul_I(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_mul_i(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -380,7 +304,7 @@ q_I_mul_i(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_mul_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -392,7 +316,7 @@ q_I_mul_I(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_div_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -404,8 +328,8 @@ q_I_div_I(lua_State *L)
     return 1;
 }
 
-int
-q_neg_I(lua_State *L)
+static int
+q_I_neg(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *res = qlua_newLatInt(L);
@@ -416,7 +340,7 @@ q_neg_I(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_I_dot(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
@@ -428,19 +352,6 @@ q_I_dot(lua_State *L)
 
     return 1;
 }
-
-static struct luaL_Reg mtLatInt[] = {
-    { "__tostring",   qLatInt_fmt },
-    { "__gc",         qLatInt_gc },
-    { "__index",      qLatInt_get },
-    { "__newindex",   qLatInt_put },
-    { "__umn",        q_neg_I },
-    { "__add",        qlua_add },
-    { "__sub",        qlua_sub },
-    { "__mul",        qlua_mul },
-    { "__div",        qlua_div },
-    { NULL,           NULL}
-};
 
 /* lattice definition */
 static int
@@ -507,6 +418,19 @@ q_pcoord(lua_State *L)
     return 1;
 }
 
+static struct luaL_Reg mtLatInt[] = {
+    { "__tostring",   q_I_fmt },
+    { "__gc",         q_I_gc },
+    { "__index",      q_I_get },
+    { "__newindex",   q_I_put },
+    { "__unm",        q_I_neg },
+    { "__add",        qlua_add },
+    { "__sub",        qlua_sub },
+    { "__mul",        qlua_mul },
+    { "__div",        qlua_div },
+    { NULL,           NULL}
+};
+
 static struct luaL_Reg fLatInt[] = {
     { "lattice", q_lattice },
     { "dims",    q_dims },
@@ -521,6 +445,13 @@ init_latint(lua_State *L)
     luaL_register(L, qcdlib, fLatInt);
     qlua_metatable(L, mtnLatInt, mtLatInt);
     qlua_metatable(L, opLatInt, LatIntMethods);
+    qlua_reg_add(qLatInt, qLatInt, q_I_add_I);
+    qlua_reg_sub(qLatInt, qLatInt, q_I_sub_I);
+    qlua_reg_mul(qLatInt, qLatInt, q_I_mul_I);
+    qlua_reg_mul(qReal,   qLatInt, q_i_mul_I);
+    qlua_reg_mul(qLatInt, qReal,   q_I_mul_i);
+    qlua_reg_div(qLatInt, qLatInt, q_I_div_I);
+    qlua_reg_dot(qLatInt, q_I_dot);
 
     return 0;
 }

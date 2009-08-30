@@ -1,6 +1,7 @@
 #include <qlua.h>
 #include <string.h>
 #include <qcomplex.h>
+#include <qgamma.h>
 #include <qvector.h>
 #include <latint.h>
 #include <latrandom.h>
@@ -92,6 +93,115 @@ qlua_lookup(lua_State *L, int idx, const char *table)
     return 1;
 }
 
+int
+qlua_index(lua_State *L, int n, const char *name, int max_value)
+{
+    int v = -1;
+
+    luaL_checktype(L, n, LUA_TTABLE);
+    lua_getfield(L, n, name);
+    if (lua_isnumber(L, -1)) {
+        v = luaL_checkint(L, -1);
+        if ((v < 0) || (v >= max_value))
+            v = -1;
+    }
+    lua_pop(L, 1);
+    
+    return v;
+}
+
+int
+qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
+{
+    int v = qlua_index(L, n, name, max_value);
+
+    if (v == -1)
+        luaL_error(L, "bad index");
+
+    return v;
+}
+
+int
+qlua_diracindex(lua_State *L, int n)
+{
+    return qlua_index(L, n, "d", QDP_Nf);
+}
+
+int
+qlua_checkdiracindex(lua_State *L, int n)
+{
+    return qlua_checkindex(L, n, "d", QDP_Nf);
+}
+
+int
+qlua_colorindex(lua_State *L, int n)
+{
+    return qlua_index(L, n, "c", QDP_Nc);
+}
+
+int
+qlua_checkcolorindex(lua_State *L, int n)
+{
+    return qlua_checkindex(L, n, "c", QDP_Nc);
+}
+
+int
+qlua_leftindex(lua_State *L, int n)
+{
+    return qlua_index(L, n, "a", QDP_Nc);
+}
+
+int
+qlua_checkleftindex(lua_State *L, int n)
+{
+    return qlua_checkindex(L, n, "a", QDP_Nc);
+}
+
+int
+qlua_rightindex(lua_State *L, int n)
+{
+    return qlua_index(L, n, "b", QDP_Nc);
+}
+
+int
+qlua_checkrightindex(lua_State *L, int n)
+{
+    return qlua_checkindex(L, n, "b", QDP_Nc);
+}
+
+int
+qlua_gammaindex(lua_State *L, int n)
+{
+    int d = qlua_index(L, n, "mu", 6);
+
+    if (d == 4)
+        return -1;
+    return d;
+}
+
+int
+qlua_checkgammaindex(lua_State *L, int n)
+{
+    int d = qlua_gammaindex(L, n);
+
+    if (d == -1)
+        return luaL_error(L, "bad index");
+
+    return d;
+}
+
+int
+qlua_gammabinary(lua_State *L, int n)
+{
+    return qlua_index(L, n, "n", 16);
+}
+
+int
+qlua_checkgammabinary(lua_State *L, int n)
+{
+    return qlua_checkindex(L, n, "n", 16);
+}
+
 static int
 qlua_type(lua_State *L, int idx, const char *mt)
 {
@@ -123,6 +233,7 @@ qlua_gettype(lua_State *L, int idx)
             int ty;
         } t[] = {
             { mtnComplex,       qComplex },
+            { mtnGamma,         qGamma },
             { mtnVecInt,        qVecInt },
             { mtnVecDouble,     qVecDouble },
             { mtnVecComplex,    qVecComplex },
@@ -148,133 +259,102 @@ qlua_gettype(lua_State *L, int idx)
 }
 
 /* generic operations dispatchers */
-typedef struct {
-    int ta, tb;
-    int (*op)(lua_State *L);
-} q_Op2Table;
+#define Op1Idx(a)   (a)
+#define Op2Idx(a,b) ((a)*(qOther + 1) + (b))
 
-int
-qlua_dispatch(lua_State *L, const q_Op2Table *t, const char *name)
+static q_op qt_add[(qOther + 1) * (qOther + 1)];
+
+void
+qlua_reg_add(int ta, int tb, q_op op)
 {
-    int i;
-    int ta = qlua_gettype(L, 1);
-    int tb = qlua_gettype(L, 2);
-
-    for (i = 0; t[i].op; i++) {
-        if ((t[i].ta == ta) && (t[i].tb == tb))
-            return t[i].op(L);
-    }
-
-    return luaL_error(L, "bad arguments for %s", name);
+    qt_add[Op2Idx(ta, tb)] = op;
 }
 
-int
+int 
 qlua_add(lua_State *L)
 {
-    static const q_Op2Table qadd_table[] = {
-        { qReal,              qComplex,           q_r_add_c },
-        { qComplex,           qReal,              q_c_add_r },
-        { qComplex,           qComplex,           q_c_add_c },
-        { qLatInt,            qLatInt,            q_I_add_I },
-        { qLatReal,           qLatReal,           q_R_add_R },
-        { qLatComplex,        qLatComplex,        q_C_add_C },
-        { qLatColVec,         qLatColVec,         q_V_add_V },
-        { qLatColMat,         qLatColMat,         q_M_add_M },
-        { qLatDirFerm,        qLatDirFerm,        q_D_add_D },
-        /* ZZZ other additions */
-        { qOther,             qOther,             NULL}
-    };
-    return qlua_dispatch(L, qadd_table, "addition");
+    q_op op = qt_add[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for addition");
 }
 
-int
+static q_op qt_sub[(qOther + 1) * (qOther + 1)];
+
+void
+qlua_reg_sub(int ta, int tb, q_op op)
+{
+    qt_sub[Op2Idx(ta, tb)] = op;
+}
+
+int 
 qlua_sub(lua_State *L)
 {
-    static const q_Op2Table qsub_table[] = {
-        { qReal,              qComplex,           q_r_sub_c },
-        { qComplex,           qReal,              q_c_sub_r },
-        { qComplex,           qComplex,           q_c_sub_c },
-        { qLatInt,            qLatInt,            q_I_sub_I },
-        { qLatReal,           qLatReal,           q_R_sub_R },
-        { qLatComplex,        qLatComplex,        q_C_sub_C },
-        { qLatColVec,         qLatColVec,         q_V_sub_V },
-        { qLatColMat,         qLatColMat,         q_M_sub_M },
-        { qLatDirFerm,        qLatDirFerm,        q_D_sub_D },
-        /* ZZZ other subtractions */
-        { qOther,             qOther,             NULL}
-    };
+    q_op op = qt_sub[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
 
-    return qlua_dispatch(L, qsub_table, "subtraction");
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for subtraction");
 }
 
-int
+static q_op qt_mul[(qOther + 1) * (qOther + 1)];
+
+void
+qlua_reg_mul(int ta, int tb, q_op op)
+{
+    qt_mul[Op2Idx(ta, tb)] = op;
+}
+
+int 
 qlua_mul(lua_State *L)
 {
-    static const q_Op2Table qmul_table[] = {
-        { qReal,              qComplex,           q_r_mul_c },       
-        { qComplex,           qReal,              q_c_mul_r },       
-        { qComplex,           qComplex,           q_c_mul_c },       
-        { qReal,              qLatInt,            q_i_mul_I },       
-        { qLatInt,            qReal,              q_I_mul_i },       
-        { qLatInt,            qLatInt,            q_I_mul_I },       
-        { qReal,              qLatReal,           q_r_mul_R },       
-        { qLatReal,           qReal,              q_R_mul_r },       
-        { qLatReal,           qLatReal,           q_R_mul_R },
-        { qLatComplex,        qLatComplex,        q_C_mul_C },
-        { qLatComplex,        qComplex,           q_C_mul_c },
-        { qComplex,           qLatComplex,        q_c_mul_C },
-        { qLatComplex,        qReal,              q_C_mul_r },
-        { qReal,              qLatColVec,         q_r_mul_V },
-        { qLatColVec,         qReal,              q_V_mul_r },
-        { qComplex,           qLatColVec,         q_c_mul_V },
-        { qLatColVec,         qComplex,           q_V_mul_c },
-        { qLatColMat,         qLatColMat,         q_M_mul_M },
-        { qLatColMat,         qLatColVec,         q_M_mul_V },
-        { qReal,              qLatColMat,         q_r_mul_M },
-        { qLatColMat,         qReal,              q_M_mul_r },
-        { qComplex,           qLatColMat,         q_c_mul_M },
-        { qLatColMat,         qComplex,           q_M_mul_c },
-        { qLatColMat,         qLatDirFerm,        q_M_mul_D },
-        { qReal,              qLatDirFerm,        q_r_mul_D },
-        { qLatDirFerm,        qReal,              q_D_mul_r },
-        { qComplex,           qLatDirFerm,        q_c_mul_D },
-        { qLatDirFerm,        qComplex,           q_D_mul_c },
-        /* ZZZ other multiplications */
-        { qOther,   qOther,   NULL}
-    };
+    q_op op = qt_mul[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
 
-    return qlua_dispatch(L, qmul_table, "multiplication");
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for multiplication");
 }
 
-int
+static q_op qt_div[(qOther + 1) * (qOther + 1)];
+
+void
+qlua_reg_div(int ta, int tb, q_op op)
+{
+    qt_div[Op2Idx(ta, tb)] = op;
+}
+
+int 
 qlua_div(lua_State *L)
 {
-    static const q_Op2Table qdiv_table[] = {
-        { qReal,              qComplex,           q_r_div_c },
-        { qComplex,           qReal,              q_c_div_r },
-        { qComplex,           qComplex,           q_c_div_c },
-        { qLatInt,            qLatInt,            q_I_div_I },
-        { qLatReal,           qLatReal,           q_R_div_R },
-        { qLatComplex,        qLatComplex,        q_C_div_C },
-        /* ZZZ other divisions */
-        { qOther,             qOther,             NULL}
-    };
+    q_op op = qt_div[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
 
-    return qlua_dispatch(L, qdiv_table, "division");
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for division");
 }
 
-int
-q_dot(lua_State *L) /* local inner dot */
+static q_op qt_dot[(qOther + 1)];
+
+void
+qlua_reg_dot(int ta, q_op op)
 {
-    static const q_Op2Table t[] = {
-        { qLatComplex,   qLatComplex,     q_C_dot },
-        { qLatColVec,    qLatColVec,      q_V_dot },
-        { qLatColMat,    qLatColMat,      q_M_dot },
-        { qLatDirFerm,   qLatDirFerm,     q_D_dot },
-        /* ZZZ other dottable types here */
-        { qOther,        qOther,          NULL }
-    };
-    return qlua_dispatch(L, t, "dot");
+    qt_dot[Op1Idx(ta)] = op;
+}
+
+static int 
+q_dot(lua_State *L)
+{
+    q_op op = qt_dot[Op1Idx(qlua_gettype(L, 1))];
+
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for inner dot");
 }
 
 static struct luaL_Reg fQCD[] = {
@@ -290,6 +370,7 @@ qlua_init(lua_State *L)
         int (*init)(lua_State *L);
     } qcd_inits[] = {
         { init_complex },
+        { init_gamma },
         { init_vector },
         { init_latint },
         { init_latrandom },
@@ -330,6 +411,7 @@ qlua_fini(lua_State *L)
         { fini_latrandom },
         { fini_latint },
         { fini_vector },
+        { fini_gamma },
         { fini_complex },
         { NULL }
     };

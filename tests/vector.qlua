@@ -18,6 +18,6 @@ print("vc", vc)
 vc[5] = 25
 print("vc[5]", vc[5])
 print("vc.length", vc.length)
-vc[6] = vc[5] / qcd.complex(3,4)
+vc[6] = vc[5] / complex(3,4)
 print("vc[5,6]", vc[5], vc[6])
 
