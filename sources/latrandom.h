@@ -5,7 +5,7 @@ typedef struct {
     QDP_RandomState *ptr;
 } mLatRandom;
 
-extern const char *mtnLatRandom;
+extern const char mtnLatRandom[];
 
 mLatRandom *qlua_checkLatRandom(lua_State *L, int idx);
 mLatRandom *qlua_newLatRandom(lua_State *L);

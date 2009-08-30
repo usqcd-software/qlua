@@ -5,7 +5,7 @@ typedef struct {
     QDP_Int *ptr;
 } mLatInt;
 
-extern const char *mtnLatInt;
+extern const char mtnLatInt[];
 
 int init_latint(lua_State *L);
 int fini_latint(lua_State *L);

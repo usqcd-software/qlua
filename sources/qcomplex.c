@@ -2,7 +2,7 @@
 #include <math.h>
 #include <qcomplex.h>
 
-const char *mtnComplex = "qcd.mtComplex";
+const char mtnComplex[] = "qcd.mtComplex";
 
 QLA_Complex *
 qlua_checkComplex(lua_State *L, int idx)

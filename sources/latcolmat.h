@@ -5,7 +5,7 @@ typedef struct {
     QDP_ColorMatrix *ptr;
 } mLatColMat;
 
-extern const char *mtnLatColMat;
+extern const char mtnLatColMat[];
 
 int init_latcolmat(lua_State *L);
 int fini_latcolmat(lua_State *L);
@@ -24,6 +24,5 @@ int q_c_mul_M(lua_State *L);
 int q_M_mul_c(lua_State *L);
 int q_M_mul_V(lua_State *L);
 int q_M_mul_M(lua_State *L);
-
 
 #endif /* !defined(MARK_E53A3544_2065_4CA4_888F_72B524D3269B) */

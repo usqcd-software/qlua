@@ -5,7 +5,7 @@ typedef struct {
     QDP_Complex *ptr;
 } mLatComplex;
 
-extern const char *mtnLatComplex;
+extern const char mtnLatComplex[];
 
 int init_latcomplex(lua_State *L);
 int fini_latcomplex(lua_State *L);

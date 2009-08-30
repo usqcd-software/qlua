@@ -1,0 +1,37 @@
+d = 4
+qcd.lattice({d,d,d})
+rnd = qcd.RandomState(1, qcd.pcoord(0) * d * d +
+                         qcd.pcoord(1) * d +
+                         qcd.pcoord(2))
+
+crnd = rnd:gaussian_Complex()
+v0 = rnd:gaussian_ColorVector()
+
+x0 = qcd.DiracFermion()
+print("x0=", x0)
+
+x2 = qcd.DiracFermion(crnd, {c=0,d=1})
+print("x2=", x2)
+
+x3 = qcd.DiracFermion(v0, {d=3})
+print("x3=", x3)
+
+x6 = rnd:gaussian_DiracFermion()
+print("x6=", x6)
+
+w0 = x6[{d=2}]
+cc = x3[{c=1,d=0}]
+x0[{c=0,d=0}] = qcd.dot(w0, v0)
+
+print("element: " .. tostring(x3[{1,2,3,c=0,d=1}]))
+
+y = x0 + x2 * 6 + qcd.complex(2,3) * x3 + x6 * qcd.complex(5,4) + x0 * 5
+z = y:gamma{mu=0}
+t = y:gamma{n=13}
+
+print("y", y)
+print("z", z)
+print("t", t)
+print("y dot z", qcd.dot(z,y):sum())
+print("norm2(t)", t:norm2())
+

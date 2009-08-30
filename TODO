@@ -12,11 +12,12 @@ QDP types:
 *  Complex
 *  ColorVector
 *  ColorMatrix
-  DiracFermion
+*  DiracFermion
   DiracPropagator
 
 Constants
   Nc
+  Nf
   version.*
 
 QIO
@@ -43,3 +44,7 @@ NPR
 Smearing
 Sequential sources
 Sources
+
+Documentation
+  User guide
+  Programming guide

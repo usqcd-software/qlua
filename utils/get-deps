@@ -1,0 +1,11 @@
+#!/bin/sh
+grep '#include' sources/* \
+| grep -v qlua.h \
+| grep -v qlua.c \
+| grep -v qla.h \
+| grep -v string.h \
+| grep -v qdp.h \
+| grep -v qmp.h \
+| grep -v stdlib.h \
+| grep -v math.h \
+| sed -e 's/<//;s/>//;s?^sources/??;s?\.c:#include ?.o: sources/?'

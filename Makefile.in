@@ -54,7 +54,8 @@ libsrc = qvector.c \
          latreal.c \
          latcomplex.c \
          latcolvec.c \
-	 latcolmat.c
+	 latcolmat.c \
+         latdirferm.c
 
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
@@ -107,21 +108,45 @@ $(library): $(libobj)
 
 $(drvobj) $(libobj): Makefile
 $(drvobj) $(libobj): sources/qlua.h
-$(libsrc:%.c=%.o): %.o: sources/%.h
 qlua.o: $(libsrc:%.c=sources/%.h)
+
+### output from utils/get-deps
+latcolmat.o: sources/latcolmat.h
+latcolmat.o: sources/qcomplex.h
+latcolmat.o: sources/latint.h
+latcolmat.o: sources/latrandom.h
+latcolmat.o: sources/latcomplex.h
+latcolmat.o: sources/latcolvec.h
+latcolvec.o: sources/latcolvec.h
+latcolvec.o: sources/qcomplex.h
+latcolvec.o: sources/latint.h
+latcolvec.o: sources/latcomplex.h
+latcolvec.o: sources/latrandom.h
+latcomplex.o: sources/latcomplex.h
+latcomplex.o: sources/latreal.h
+latcomplex.o: sources/latint.h
+latcomplex.o: sources/latrandom.h
+latcomplex.o: sources/qcomplex.h
+latdirferm.o: sources/qcomplex.h
+latdirferm.o: sources/latint.h
+latdirferm.o: sources/latrandom.h
+latdirferm.o: sources/latcomplex.h
+latdirferm.o: sources/latcolvec.h
+latdirferm.o: sources/latcolmat.h
+latdirferm.o: sources/latdirferm.h
+latint.o: sources/latint.h
+latrandom.o: sources/latint.h
+latrandom.o: sources/latrandom.h
+latrandom.o: sources/latreal.h
+latrandom.o: sources/latcomplex.h
+latrandom.o: sources/latcolvec.h
+latrandom.o: sources/latcolmat.h
+latrandom.o: sources/latdirferm.h
+latreal.o: sources/latreal.h
+latreal.o: sources/latint.h
+latreal.o: sources/latrandom.h
+latreal.o: sources/latcomplex.h
+qcomplex.o: sources/qcomplex.h
 qvector.o: sources/qcomplex.h
-latrandom.o: sources/latint.h \
-             sources/latreal.h \
-             sources/latcomplex.h
-latreal.o: sources/latint.h \
-           sources/latcomplex.h \
-           sources/latrandom.h
-latcomplex.o: sources/latrandom.h \
-              sources/latreal.h
-latcolvec.o: sources/latint.h \
-             sources/latrandom.h \
-             sources/latcomplex.h
-latcolmac.o: sources/latint.h \
-             sources/latrandom.h \
-             sources/latcomplex.h \
-             sources/latcolvec.h
+qvector.o: sources/qvector.h
+### end of utils/get-deps output

@@ -3,9 +3,9 @@
 #include <qvector.h>
 #include <string.h>
 
-const char *mtnVecInt     = "qcd.mtVecInt";
-const char *mtnVecDouble  = "qcd.mtVecDouble";
-const char *mtnVecComplex = "qcd.mtVecComplex";
+const char mtnVecInt[]     = "qcd.mtVecInt";
+const char mtnVecDouble[]  = "qcd.mtVecDouble";
+const char mtnVecComplex[] = "qcd.mtVecComplex";
 
 #define VSIZE(s,n,t) (sizeof (s) + ((n)-1)*sizeof (t))
 

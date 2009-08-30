@@ -6,8 +6,8 @@
 #include <latrandom.h>
 #include <qmp.h>
 
-const char *mtnLatColVec = "qcd.lattice.colvec";
-static const char *opLatColVec = "qcd.lattice.colvec.op";
+const char mtnLatColVec[] = "qcd.lattice.colvec";
+static const char opLatColVec[] = "qcd.lattice.colvec.op";
 
 mLatColVec *
 qlua_newLatColVec(lua_State *L)
@@ -39,7 +39,7 @@ qlua_checkLatColVec(lua_State *L, int idx)
     return v;
 }
 
-int
+static int
 qLatColVec_fmt(lua_State *L)
 {
     char fmt[72];
@@ -51,7 +51,7 @@ qLatColVec_fmt(lua_State *L)
     return 1;
 }
 
-int
+static int
 qLatColVec_gc(lua_State *L)
 {
     mLatColVec *b = qlua_checkLatColVec(L, 1);
@@ -62,7 +62,7 @@ qLatColVec_gc(lua_State *L)
     return 0;
 }
 
-int
+static int
 qLatColVec_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
@@ -104,7 +104,7 @@ qLatColVec_get(lua_State *L)
     return luaL_error(L, "bad index");
 }
 
-int
+static int
 qLatColVec_put(lua_State *L)
 {
     mLatColVec *V = qlua_checkLatColVec(L, 1);
@@ -179,18 +179,6 @@ q_V_sub_V(lua_State *L)
 int
 q_V_mul_r(lua_State *L)
 {
-    QLA_Real a = luaL_checknumber(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    QDP_V_eq_r_times_V(c->ptr, &a, b->ptr, QDP_all);
-
-    return 1;
-}
-
-int
-q_r_mul_V(lua_State *L)
-{
     mLatColVec *a = qlua_checkLatColVec(L, 1);
     QLA_Real b = luaL_checknumber(L, 2);
     mLatColVec *c = qlua_newLatColVec(L);
@@ -201,19 +189,19 @@ q_r_mul_V(lua_State *L)
 }
 
 int
-q_V_mul_c(lua_State *L)
+q_r_mul_V(lua_State *L)
 {
-    QLA_Complex *a = qlua_checkComplex(L, 1);
+    QLA_Real a = luaL_checknumber(L, 1);
     mLatColVec *b = qlua_checkLatColVec(L, 2);
     mLatColVec *c = qlua_newLatColVec(L);
 
-    QDP_V_eq_c_times_V(c->ptr, a, b->ptr, QDP_all);
+    QDP_V_eq_r_times_V(c->ptr, &a, b->ptr, QDP_all);
 
     return 1;
 }
 
 int
-q_c_mul_V(lua_State *L)
+q_V_mul_c(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
     QLA_Complex *b = qlua_checkComplex(L, 2);
@@ -225,6 +213,18 @@ q_c_mul_V(lua_State *L)
 }
 
 int
+q_c_mul_V(lua_State *L)
+{
+    QLA_Complex *a = qlua_checkComplex(L, 1);
+    mLatColVec *b = qlua_checkLatColVec(L, 2);
+    mLatColVec *c = qlua_newLatColVec(L);
+
+    QDP_V_eq_c_times_V(c->ptr, a, b->ptr, QDP_all);
+
+    return 1;
+}
+
+static int
 q_V_norm2(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
@@ -236,7 +236,7 @@ q_V_norm2(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_V_shift(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
@@ -249,7 +249,7 @@ q_V_shift(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_V_conj(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
@@ -260,7 +260,7 @@ q_V_conj(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_neg_V(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
@@ -272,7 +272,7 @@ q_neg_V(lua_State *L)
     return 1;
 }
 
-int
+static int
 q_latcolvec(lua_State *L)
 {
     switch (lua_gettop(L)) {

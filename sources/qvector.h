@@ -16,9 +16,9 @@ typedef struct {
     QLA_D_Complex val[1];
 } tVecComplex;
 
-extern const char *mtnVecInt;
-extern const char *mtnVecDouble;
-extern const char *mtnVecComplex;
+extern const char mtnVecInt[];
+extern const char mtnVecDouble[];
+extern const char mtnVecComplex[];
 
 int init_vector(lua_State *L);
 int fini_vector(lua_State *L);

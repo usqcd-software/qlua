@@ -2,7 +2,7 @@
 #define MARK_91468699_C123_4148_86B5_3DAB4308E77E
 #include <qla.h>
 
-extern const char *mtnComplex;
+extern const char mtnComplex[];
 
 int init_complex(lua_State *L);
 int fini_complex(lua_State *L);

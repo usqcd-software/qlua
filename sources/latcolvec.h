@@ -5,7 +5,7 @@ typedef struct {
     QDP_ColorVector *ptr;
 } mLatColVec;
 
-extern const char *mtnLatColVec;
+extern const char mtnLatColVec[];
 
 int init_latcolvec(lua_State *L);
 int fini_latcolvec(lua_State *L);

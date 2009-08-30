@@ -6,8 +6,8 @@
 #include <qcomplex.h>
 #include <qmp.h>
 
-const char *mtnLatComplex = "qcd.lattice.complex";
-static const char *opLatComplex = "qcd.lattice.complex.op";
+const char mtnLatComplex[] = "qcd.lattice.complex";
+static const char opLatComplex[] = "qcd.lattice.complex.op";
 
 mLatComplex *
 qlua_newLatComplex(lua_State *L)

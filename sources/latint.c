@@ -8,8 +8,8 @@ static int qRank = 0;
 static int *qDim = NULL;
 
 /* lattice integers */
-const char *mtnLatInt = "qcd.lattice.int";
-static const char *opLatInt = "qcd.lattice.int.op";
+const char mtnLatInt[] = "qcd.lattice.int";
+static const char opLatInt[] = "qcd.lattice.int.op";
 
 int *
 qlua_latcoord(lua_State *L, int n)

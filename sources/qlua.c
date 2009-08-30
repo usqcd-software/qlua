@@ -8,6 +8,7 @@
 #include <latcomplex.h>
 #include <latcolvec.h>
 #include <latcolmat.h>
+#include <latdirferm.h>
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
@@ -118,26 +119,27 @@ qlua_gettype(lua_State *L, int idx)
         return qTable;
     case LUA_TUSERDATA: {
         static const struct {
-            const char **name;
+            const char *name;
             int ty;
         } t[] = {
-            { &mtnComplex,       qComplex },
-            { &mtnVecInt,        qVecInt },
-            { &mtnVecDouble,     qVecDouble },
-            { &mtnVecComplex,    qVecComplex },
-            { &mtnLatInt,        qLatInt },
-            { &mtnLatReal,       qLatReal },
-            { &mtnLatRandom,     qLatRandom },
-            { &mtnLatComplex,    qLatComplex },
-            { &mtnLatColVec,     qLatColVec },
-            { &mtnLatColMat,     qLatColMat },
+            { mtnComplex,       qComplex },
+            { mtnVecInt,        qVecInt },
+            { mtnVecDouble,     qVecDouble },
+            { mtnVecComplex,    qVecComplex },
+            { mtnLatInt,        qLatInt },
+            { mtnLatReal,       qLatReal },
+            { mtnLatRandom,     qLatRandom },
+            { mtnLatComplex,    qLatComplex },
+            { mtnLatColVec,     qLatColVec },
+            { mtnLatColMat,     qLatColMat },
+            { mtnLatDirFerm,    qLatDirFerm },
             /* ZZZ other types */
             { NULL,              qOther }
         };
         int i;
 
         for (i = 0; t[i].name; i++)
-            if (qlua_type(L, idx, *t[i].name)) return t[i].ty;
+            if (qlua_type(L, idx, t[i].name)) return t[i].ty;
         return qOther;
     }
     default:
@@ -178,6 +180,7 @@ qlua_add(lua_State *L)
         { qLatComplex,        qLatComplex,        q_C_add_C },
         { qLatColVec,         qLatColVec,         q_V_add_V },
         { qLatColMat,         qLatColMat,         q_M_add_M },
+        { qLatDirFerm,        qLatDirFerm,        q_D_add_D },
         /* ZZZ other additions */
         { qOther,             qOther,             NULL}
     };
@@ -196,6 +199,7 @@ qlua_sub(lua_State *L)
         { qLatComplex,        qLatComplex,        q_C_sub_C },
         { qLatColVec,         qLatColVec,         q_V_sub_V },
         { qLatColMat,         qLatColMat,         q_M_sub_M },
+        { qLatDirFerm,        qLatDirFerm,        q_D_sub_D },
         /* ZZZ other subtractions */
         { qOther,             qOther,             NULL}
     };
@@ -230,6 +234,11 @@ qlua_mul(lua_State *L)
         { qLatColMat,         qReal,              q_M_mul_r },
         { qComplex,           qLatColMat,         q_c_mul_M },
         { qLatColMat,         qComplex,           q_M_mul_c },
+        { qLatColMat,         qLatDirFerm,        q_M_mul_D },
+        { qReal,              qLatDirFerm,        q_r_mul_D },
+        { qLatDirFerm,        qReal,              q_D_mul_r },
+        { qComplex,           qLatDirFerm,        q_c_mul_D },
+        { qLatDirFerm,        qComplex,           q_D_mul_c },
         /* ZZZ other multiplications */
         { qOther,   qOther,   NULL}
     };
@@ -261,6 +270,7 @@ q_dot(lua_State *L) /* local inner dot */
         { qLatComplex,   qLatComplex,     q_C_dot },
         { qLatColVec,    qLatColVec,      q_V_dot },
         { qLatColMat,    qLatColMat,      q_M_dot },
+        { qLatDirFerm,   qLatDirFerm,     q_D_dot },
         /* ZZZ other dottable types here */
         { qOther,        qOther,          NULL }
     };
@@ -282,11 +292,12 @@ qlua_init(lua_State *L)
         { init_complex },
         { init_vector },
         { init_latint },
+        { init_latrandom },
         { init_latreal },
         { init_latcomplex },
         { init_latcolvec },
         { init_latcolmat },
-        { init_latrandom },
+        { init_latdirferm },
         /* ZZZ add other packages here */
         { NULL }
     };
@@ -311,11 +322,12 @@ qlua_fini(lua_State *L)
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
-        { fini_latrandom },
+        { fini_latdirferm },
         { fini_latcolmat },
         { fini_latcolvec },
         { fini_latcomplex },
         { fini_latreal },
+        { fini_latrandom },
         { fini_latint },
         { fini_vector },
         { fini_complex },

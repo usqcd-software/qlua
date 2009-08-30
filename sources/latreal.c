@@ -5,8 +5,8 @@
 #include <latcomplex.h>
 #include <qmp.h>
 
-const char *mtnLatReal = "qcd.lattice.real";
-const char *opLatReal = "qcd.lattice.real.op";
+const char mtnLatReal[] = "qcd.lattice.real";
+static const char opLatReal[] = "qcd.lattice.real.op";
 
 mLatReal *
 qlua_newLatReal(lua_State *L)

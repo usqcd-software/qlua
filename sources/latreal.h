@@ -5,7 +5,7 @@ typedef struct {
     QDP_Real *ptr;
 } mLatReal;
 
-extern const char *mtnLatReal;
+extern const char mtnLatReal[];
 
 int init_latreal(lua_State *L);
 int fini_latreal(lua_State *L);

@@ -9,11 +9,29 @@ v0 = rnd:gaussian_ColorVector()
 v1 = rnd:gaussian_ColorVector()
 
 x0 = qcd.ColorMatrix()
+print("x0=", x0)
+
 x1 = qcd.ColorMatrix(2.0)
+print("x1=", x1)
+
 x2 = qcd.ColorMatrix(qcd.complex(3,4))
-x3 = qcd.ColorMatrix(crnd, 1, 2)
-x4 = qcd.ColorMatrix(v0, 1)
+print("x2=", x2)
+
+x3 = qcd.ColorMatrix(crnd, {a=1, b=2})
+print("x3=", x3)
+
+x4 = qcd.ColorMatrix(v0, {b=1})
+print("x4=", x4)
+
 x5 = qcd.ColorMatrix(v1, v0)
+print("x5=", x5)
+
+x6 = rnd:gaussian_ColorMatrix()
+print("x6=", x6)
+
+w0 = x5[{b=2}]
+cc = x6[{b=1,a=0}]
+x5[{a=0,b=0}] = qcd.dot(w0, v1)
 
 print("element: " .. tostring(x5[{1,2,3,a=0,b=1}]))
 

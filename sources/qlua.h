@@ -3,6 +3,7 @@
 
 #define QDP_Precision 'D'
 #define QDP_Nc 3
+#define QDP_Nf 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -27,18 +28,14 @@ enum {
     qLatComplex,
     qLatColVec,
     qLatColMat,
-    qLatDiracFerm,
-    qLatDiracProp,
+    qLatDirFerm,
+    qLatDirProp,
     /* ZZZ add types for other packages here */
     qOther
 };
 
 extern const char *progname;
 extern const char *qcdlib;
-#if 0 /* XXX qdp parts to do */
-extern const char *mtnLatDiracFermion;
-extern const char *mtnLatDiracPropagator;
-#endif
 /* add metatable names for other types here */
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
