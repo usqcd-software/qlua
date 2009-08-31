@@ -203,6 +203,7 @@ build() {
 # build_modules
 ## Add other packages below
 build_modules() {
+  echo "#define QDP_VERSION \"$qdp\""
   [ -z "$aff" ] || echo "#define HAS_AFF"
   [ -z "$mdwf" ] || echo "#define HAS_MDWF"
   [ -z "$clover" ] || echo "#define HAS_CLOVER"

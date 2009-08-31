@@ -32,3 +32,8 @@ print("sum(pcoord(0))", qcd.pcoord(0):sum())
 print("sum(pcoord(1))", qcd.pcoord(1):sum())
 
 print("s2 is", qcd.Int(2):norm2() == 7 * 8 * 4)
+
+print("\nVersions:")
+for i, v in pairs(qcd.version) do
+  print("   " .. i .. " :  " .. v)
+end

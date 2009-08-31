@@ -72,7 +72,7 @@ else
    C=
 endif
 
-CCMD  = $(CC) -c $(COPTS) $(LUA:%=-I%/include) \
+CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
               $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
 LCMD  = $(LD) $(LDFALGS) $(LUA:%=-L%/lib) \
               $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)

@@ -11,10 +11,21 @@
 #include <latcolmat.h>
 #include <latdirferm.h>
 #include <latdirprop.h>
+#include <modules.h>
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
+
+static struct {
+    char *name;
+    char *value;
+} versions[] = {
+    {"qlua",  "$Id$"},
+    {"lua",    LUA_VERSION },
+    {"qdp",    QDP_VERSION },
+    {NULL,     NULL}
+};
 
 /* reporting */
 void
@@ -395,6 +406,18 @@ qlua_init(lua_State *L)
         lua_pushcfunction(L, qcd_inits[i].init);
         lua_call(L, 0, 0);
     }
+    lua_getglobal(L, qcdlib);
+    lua_pushnumber(L, QDP_Nc);
+    lua_setfield(L, -2, "Nc");
+    lua_pushnumber(L, QDP_Nf);
+    lua_setfield(L, -2, "Nf");
+    lua_newtable(L);
+    for (i = 0; versions[i].name; i++) {
+        lua_pushstring(L, versions[i].value);
+        lua_setfield(L, -2, versions[i].name);
+    }
+    lua_setfield(L, -2, "version");
+    lua_pop(L, 1);
     lua_gc(L, LUA_GCRESTART, 0);
 }
 

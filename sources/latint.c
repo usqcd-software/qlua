@@ -26,7 +26,7 @@ qlua_latcoord(lua_State *L, int n)
     for (i = 0; i < d; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, n);
-        idx[i] = luaL_checkinteger(L, -1);
+        idx[i] = luaL_checkint(L, -1);
         if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
             qlua_free(L, idx);
             return NULL;
@@ -129,7 +129,7 @@ q_I_norm2(lua_State *L)
 QDP_Shift
 qlua_checkShift(lua_State *L, int idx)
 {
-    int d = luaL_checkinteger(L, idx);
+    int d = luaL_checkint(L, idx);
 
     if ((d < 0) || (d >= qRank))
         luaL_error(L, "bad shift dimension");
@@ -219,7 +219,7 @@ q_I_put(lua_State *L)
     mLatInt *V = qlua_checkLatInt(L, 1);
     QLA_Int *locked;
     int *idx = 0;
-    int z = luaL_checkinteger(L, 3);
+    int z = luaL_checkint(L, 3);
 
     idx = qlua_checklatcoord(L, 2);
     locked = QDP_expose_I(V->ptr);
@@ -237,7 +237,7 @@ q_latint(lua_State *L)
 {
     switch (qlua_gettype(L, 1)) {
     case qReal: {
-        QLA_Int d = luaL_checkinteger(L, 1);
+        QLA_Int d = luaL_checkint(L, 1);
         mLatInt *v = qlua_newLatInt(L);
 
         QDP_I_eq_i(v->ptr, &d, QDP_all);
@@ -284,7 +284,7 @@ static int
 q_i_mul_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
-    QLA_Int a = luaL_checkinteger(L, 1);
+    QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
 
     QDP_I_eq_i_times_I(res->ptr, &a, b->ptr, QDP_all);
@@ -297,7 +297,7 @@ q_I_mul_i(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
     mLatInt *b = qlua_checkLatInt(L, 1);
-    QLA_Int a = luaL_checkinteger(L, 2);
+    QLA_Int a = luaL_checkint(L, 2);
 
     QDP_I_eq_i_times_I(res->ptr, &a, b->ptr, QDP_all);
 
@@ -371,7 +371,7 @@ q_lattice(lua_State *L)
     for (i = 0; i < r; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 1);
-        qDim[i] = luaL_checkinteger(L, -1);
+        qDim[i] = luaL_checkint(L, -1);
     }
     QDP_set_latsize(qRank, qDim);
     if (QDP_create_layout()) {

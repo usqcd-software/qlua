@@ -83,7 +83,7 @@ q_latrandom(lua_State *L)
     case 1:
         return q_S_eq_S(L);
     case 2: {
-        QLA_Int seed_i = luaL_checkinteger(L, 1);
+        QLA_Int seed_i = luaL_checkint(L, 1);
         mLatInt *seed_I = qlua_checkLatInt(L, 2);
         mLatRandom *state = qlua_newLatRandom(L);
         QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, QDP_all);

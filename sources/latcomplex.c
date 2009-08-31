@@ -103,6 +103,8 @@ q_C_get(lua_State *L)
         W = qlua_newComplex(L);
         QLA_real(*W) = z_re;
         QLA_imag(*W) = z_im;
+        if (QLA_imag(*W) == 0)
+            lua_pushnumber(L, QLA_real(*W));
 
         return 1;
     }
@@ -273,6 +275,8 @@ q_C_sum(lua_State *L)
     QLA_Complex *s = qlua_newComplex(L);
 
     QDP_c_eq_sum_C(s, a->ptr, QDP_all);
+    if (QLA_imag(*s) == 0)
+        lua_pushnumber(L, QLA_real(*s));
 
     return 1;
 }

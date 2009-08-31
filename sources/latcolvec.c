@@ -94,6 +94,8 @@ q_V_get(lua_State *L)
             QMP_sum_double(&z_im);
             QLA_real(*W) = z_re;
             QLA_imag(*W) = z_im;
+            if (QLA_imag(*W) == 0)
+                lua_pushnumber(L, QLA_real(*W));
         }
         qlua_free(L, idx);
         return 1;
@@ -321,7 +323,7 @@ q_latcolvec(lua_State *L)
     }
     case 2: {
         mLatComplex *c = qlua_checkLatComplex(L, 1);
-        int a = luaL_checkinteger(L, 2);
+        int a = luaL_checkint(L, 2);
         mLatColVec *r = qlua_newLatColVec(L);
 
         QDP_V_eq_elem_C(r->ptr, c->ptr, a, QDP_all);

@@ -15,12 +15,10 @@
 *  ColorMatrix
 *  DiracFermion
 *  DiracPropagator
-
-Constants
-  Nc
-  Nf
-  version.*
-
+*Constants
+*  Nc
+*  Nf
+*  version.*
 QIO
   writer
   reader

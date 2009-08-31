@@ -35,6 +35,8 @@ c_complex(lua_State *L)                                        /* (-2,+1,e) */
     
     QLA_real(*z) = x_re;
     QLA_imag(*z) = x_im;
+    if (QLA_imag(*z) == 0)
+        lua_pushnumber(L, QLA_real(*z));
 
     return 1;
 }
@@ -100,6 +102,7 @@ c_neg(lua_State *L)                                            /* (-1,+1,e) */
     QLA_Complex *q = qlua_newComplex(L);
 
     QLA_c_eqm_c(*q, *z);
+
     return 1;
 }
 
@@ -137,6 +140,8 @@ q_c_add_c(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_plus_c(*c, *a, *b);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
@@ -175,6 +180,8 @@ q_c_sub_c(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_minus_c(*c, *a, *b);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
@@ -187,6 +194,8 @@ q_r_mul_c(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_times_r(*c, *b, a);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
@@ -199,6 +208,8 @@ q_c_mul_r(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_times_r(*c, *b, a);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
@@ -211,6 +222,8 @@ q_c_mul_c(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_times_c(*c, *a, *b);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
@@ -252,6 +265,8 @@ q_c_div_c(lua_State *L)                                        /* (-2,+1,-) */
     QLA_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_div_c(*c, *a, *b);
+    if (QLA_imag(*c) == 0)
+        lua_pushnumber(L, QLA_real(*c));
 
     return 1;
 }
