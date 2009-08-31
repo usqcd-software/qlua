@@ -2,6 +2,7 @@
 #include <qcomplex.h>
 #include <qgamma.h>
 #include <latdirferm.h>
+#include <latdirprop.h>
 #include <qdp.h>
 #include <math.h>
 
@@ -602,7 +603,7 @@ q_g_div_c(lua_State *L)
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
-    double n = 1 / hypot(QLA_real(*a), QLA_imag(*a));
+    double n = 1 / (QLA_real(*a) * QLA_real(*a) + QLA_imag(*a) * QLA_imag(*a));
 
     v.t = qG_c;
     QLA_real(v.c) = n * QLA_real(*a);
@@ -647,8 +648,73 @@ q_g_mul_D(lua_State *L)
     return 1;
 }
 
-/* XXX */ static int q_g_mul_P(lua_State *L) { return 0; }
-/* XXX */ static int q_P_mul_g(lua_State *L) { return 0; }
+static int
+q_g_mul_P(lua_State *L)
+{
+    mClifford *m = qlua_checkClifford(L, 1);
+    mLatDirProp *f = qlua_checkLatDirProp(L, 2);
+    mLatDirProp *mf = qlua_newLatDirProp(L);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+    int i;
+
+    QDP_P_eq_zero(r->ptr, QDP_all);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_P(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_m:
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_meq_P(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_r:
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, QDP_all);
+            break;
+        case qG_c:
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, QDP_all);
+            break;
+        }
+    }
+    return 1;
+}
+
+static int
+q_P_mul_g(lua_State *L)
+{
+    mLatDirProp *f = qlua_checkLatDirProp(L, 1);
+    mClifford *m = qlua_checkClifford(L, 2);
+    mLatDirProp *mf = qlua_newLatDirProp(L);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+    int i;
+
+    QDP_P_eq_zero(r->ptr, QDP_all);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_P(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_m:
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_meq_P(r->ptr, mf->ptr, QDP_all);
+            break;
+        case qG_r:
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, QDP_all);
+            break;
+        case qG_c:
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, QDP_all);
+            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, QDP_all);
+            break;
+        }
+    }
+    return 1;
+}
 
 static int
 q_g_neg(lua_State *L)

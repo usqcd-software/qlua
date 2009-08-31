@@ -271,6 +271,34 @@ q_V_neg(lua_State *L)
 
     return 1;
 }
+static int
+q_V_div_r(lua_State *L)
+{
+    mLatColVec *a = qlua_checkLatColVec(L, 1);
+    QLA_Real b = 1 / luaL_checknumber(L, 2);
+    mLatColVec *c = qlua_newLatColVec(L);
+
+    QDP_V_eq_r_times_V(c->ptr, &b, a->ptr, QDP_all);
+
+    return 1;
+}
+
+static int
+q_V_div_c(lua_State *L)
+{
+    mLatColVec *a = qlua_checkLatColVec(L, 1);
+    QLA_Complex *b = qlua_checkComplex(L, 2);
+    mLatColVec *c = qlua_newLatColVec(L);
+    double n = 1 / (QLA_real(*b) * QLA_real(*b) + QLA_imag(*b) * QLA_imag(*b));
+    QLA_Complex s;
+
+    QLA_real(s) = n * QLA_real(*b);
+    QLA_imag(s) = -n * QLA_imag(*b);
+    QDP_V_eq_c_times_V(c->ptr, &s, a->ptr, QDP_all);
+
+    return 1;
+}
+
 
 static int
 q_latcolvec(lua_State *L)
@@ -341,6 +369,8 @@ init_latcolvec(lua_State *L)
     qlua_reg_mul(qLatColVec, qReal,      q_V_mul_r);
     qlua_reg_mul(qComplex,   qLatColVec, q_c_mul_V);
     qlua_reg_mul(qLatColVec, qComplex,   q_V_mul_c);
+    qlua_reg_div(qLatColVec, qReal,      q_V_div_r);
+    qlua_reg_div(qLatColVec, qComplex,   q_V_div_c);
     qlua_reg_dot(qLatColVec, q_V_dot);
 
     return 0;

@@ -6,6 +6,7 @@
 #include <latcolvec.h>
 #include <latcolmat.h>
 #include <latdirferm.h>
+#include <latdirprop.h>
 /* ZZZ other packages */
 
 const char mtnLatRandom[] = "qcd.lattice.random";
@@ -103,6 +104,7 @@ static struct luaL_Reg mtLatRandom[] = {
     { "gaussian_ColorVector",     q_V_gaussian },
     { "gaussian_ColorMatrix",     q_M_gaussian },
     { "gaussian_DiracFermion",    q_D_gaussian },
+    { "gaussian_DiracPropagator", q_P_gaussian },
     /* ZZZ other gaussian randoms */
     { NULL,          NULL}
 };

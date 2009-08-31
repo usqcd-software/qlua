@@ -1,10 +1,11 @@
 *Basic types (missing in the standard Lua)
 *  Complex
+*  Gamma
 *   Vectors
 *      Integer
 *      Double
 *      Complex
-QDP types:
+*QDP types:
 *  lattice
 *  Int
 *  RandomState
@@ -13,7 +14,7 @@ QDP types:
 *  ColorVector
 *  ColorMatrix
 *  DiracFermion
-  DiracPropagator
+*  DiracPropagator
 
 Constants
   Nc

@@ -10,6 +10,7 @@
 #include <latcolvec.h>
 #include <latcolmat.h>
 #include <latdirferm.h>
+#include <latdirprop.h>
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
@@ -244,6 +245,7 @@ qlua_gettype(lua_State *L, int idx)
             { mtnLatColVec,     qLatColVec },
             { mtnLatColMat,     qLatColMat },
             { mtnLatDirFerm,    qLatDirFerm },
+            { mtnLatDirProp,    qLatDirProp },
             /* ZZZ other types */
             { NULL,              qOther }
         };
@@ -379,6 +381,7 @@ qlua_init(lua_State *L)
         { init_latcolvec },
         { init_latcolmat },
         { init_latdirferm },
+        { init_latdirprop },
         /* ZZZ add other packages here */
         { NULL }
     };
@@ -403,6 +406,7 @@ qlua_fini(lua_State *L)
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
+        { fini_latdirprop },
         { fini_latdirferm },
         { fini_latcolmat },
         { fini_latcolvec },

@@ -1,0 +1,16 @@
+-- show of various operations on DiracPropagator
+
+qcd.lattice({4,6,2})
+s = qcd.RandomState(1, qcd.pcoord(0) + 6 * qcd.pcoord(1) + 70 * qcd.pcoord(2))
+
+M1 = s:gaussian_DiracPropagator()
+Mz = qcd.DiracPropagator()
+M2 = qcd.DiracPropagator(M1[{d=0,c=1}],{d=1,c=0})
+Mo = qcd.DiracPropagator(M1)
+
+q = M1 * M2 - M2 * 5.4 + complex(4,3) * s:gaussian_DiracPropagator()
+
+c = q:spintrace()
+
+q = gamma{mu=1} * q * gamma{mu=5}
+print("check", qcd.dot(q,M1):sum(), c:norm2())
