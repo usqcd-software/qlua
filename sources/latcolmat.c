@@ -1,7 +1,8 @@
 #include <qlua.h>
-#include <latcolmat.h>
 #include <qcomplex.h>
+#include <lattice.h>
 #include <latint.h>
+#include <latcolmat.h>
 #include <latrandom.h>
 #include <latcomplex.h>
 #include <latcolvec.h>

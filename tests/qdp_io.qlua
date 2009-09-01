@@ -1,0 +1,91 @@
+Lx = 4
+Lt = 8
+-- this is probably a bad (chroma) sample file, but it should read OK
+gfile = "/Users/avp/Sandbox/USQCD/qio/random-gauge"
+output = "xxx"
+
+-- start with some info about QLUA
+print("QDP I/O test")
+print("  Nc = " .. qcd.Nc)
+print("  Nf = " .. qcd.Nf)
+for i, v in pairs(qcd.version) do
+   print("  version[" .. i .. "] = " .. v)
+end
+print()
+print("Lx = " .. Lx)
+print("Lt = " .. Lt)
+print("gauge file: " .. gfile)
+
+print()
+-- setup gauge
+qcd.lattice({Lx, Lx, Lx, Lt})
+
+-- read the file
+r, finfo = qcd.qdpc.Reader(gfile)
+print("reader: ", r)
+print("info:", finfo)
+
+if not r then
+  os.exit(1)
+end
+
+U, rinfo = r:ColorMatrix(4)
+r:close()
+
+print("U info:", rinfo)
+print("U:",  U)
+if  not U then
+   print("error reading U")
+   os.exit(1)
+end
+
+for i, u in ipairs(U) do
+  print("  U[" .. i .. "]", u)
+end
+
+-- try writing now
+out = qcd.qdpc.Writer(output, finfo)
+print("out", out)
+
+if not out then
+   print("Error creating the writer")
+   os.exit(1)
+end
+
+if not out:ColorMatrix(U[1], "<?xml version=\"1.0\"?><colormatrix/>") then
+   print("Error writing a single ColorMatrix")
+   os.exit(1)
+end
+
+if not out:ColorMatrix(U, rinfo) then
+  print("Error writing a vector of ColorMatrix")
+  os.exit(1)
+end
+
+print("write complete")
+out:close()
+
+xx, xinfo = qcd.qdpc.Reader(output)
+print("xx: ", xx)
+print("info: ", xinfo)
+
+s = xx:skip()
+print("skip()=", s)
+
+s,f = xx:info()
+print("info().s=", s)
+print("info().f=", f)
+
+s = xx:skip()
+print("x skip=", s)
+
+s,f = xx:info()  -- no info, returns nil, nil
+print("x info().s=", s)
+print("x info().f=", f)
+
+s = xx:skip() -- should and does complain from QIO, returns nil
+print("y skip=", s)
+
+xx:close()
+
+print("All done")

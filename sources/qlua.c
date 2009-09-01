@@ -1,8 +1,9 @@
 #include <qlua.h>
-#include <string.h>
+#include <modules.h>
 #include <qcomplex.h>
 #include <qgamma.h>
 #include <qvector.h>
+#include <lattice.h>
 #include <latint.h>
 #include <latrandom.h>
 #include <latreal.h>
@@ -11,7 +12,10 @@
 #include <latcolmat.h>
 #include <latdirferm.h>
 #include <latdirprop.h>
-#include <modules.h>
+#include <qdpc_io.h>
+
+#include <string.h>
+
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
@@ -385,6 +389,7 @@ qlua_init(lua_State *L)
         { init_complex },
         { init_gamma },
         { init_vector },
+        { init_lattice },
         { init_latint },
         { init_latrandom },
         { init_latreal },
@@ -393,6 +398,7 @@ qlua_init(lua_State *L)
         { init_latcolmat },
         { init_latdirferm },
         { init_latdirprop },
+        { init_qdpc_io },
         /* ZZZ add other packages here */
         { NULL }
     };
@@ -429,6 +435,7 @@ qlua_fini(lua_State *L)
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
+        { fini_qdpc_io },
         { fini_latdirprop },
         { fini_latdirferm },
         { fini_latcolmat },
@@ -437,6 +444,7 @@ qlua_fini(lua_State *L)
         { fini_latreal },
         { fini_latrandom },
         { fini_latint },
+        { fini_lattice },
         { fini_vector },
         { fini_gamma },
         { fini_complex },

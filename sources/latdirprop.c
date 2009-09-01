@@ -1,5 +1,6 @@
 #include <qlua.h>
 #include <qcomplex.h>
+#include <lattice.h>
 #include <latcolmat.h>
 #include <latdirferm.h>
 #include <latdirprop.h>

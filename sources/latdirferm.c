@@ -1,5 +1,6 @@
 #include <qlua.h>
 #include <qcomplex.h>
+#include <lattice.h>
 #include <latint.h>
 #include <latrandom.h>
 #include <latcomplex.h>

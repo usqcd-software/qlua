@@ -31,6 +31,12 @@ enum {
     qLatColMat,
     qLatDirFerm,
     qLatDirProp,
+    qReader,
+    qWriter,
+    qAffReader,
+    qAffWriter,
+    qClover,
+    qMoebius,
     /* ZZZ add types for other packages here */
     qOther
 };

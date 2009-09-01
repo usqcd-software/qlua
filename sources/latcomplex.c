@@ -1,4 +1,5 @@
 #include <qlua.h>
+#include <lattice.h>
 #include <latcomplex.h>
 #include <latreal.h>
 #include <latint.h>
