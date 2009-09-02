@@ -225,6 +225,18 @@ q_M_trace(lua_State *L)
 }
 
 static int
+q_M_set(lua_State *L)
+{
+    mLatColMat *r = qlua_checkLatColMat(L, 1);
+    mLatColMat *a = qlua_checkLatColMat(L, 2);
+
+    QDP_M_eq_M(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_M_dot(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -477,6 +489,7 @@ static struct luaL_Reg LatColMatMethods[] = {
     { "transpose",  q_M_trans },
     { "adjoin",     q_M_adjoin },
     { "trace",      q_M_trace },
+    { "set",        q_M_set },
     { NULL,         NULL }
 };
 

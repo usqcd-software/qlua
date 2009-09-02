@@ -238,6 +238,18 @@ q_D_gamma(lua_State *L)
 }
 
 static int
+q_D_set(lua_State *L)
+{
+    mLatDirFerm *r = qlua_checkLatDirFerm(L, 1);
+    mLatDirFerm *a = qlua_checkLatDirFerm(L, 2);
+
+    QDP_D_eq_D(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_D_dot(lua_State *L)
 {
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
@@ -427,6 +439,7 @@ static struct luaL_Reg LatDirFermMethods[] = {
     { "shift",      q_D_shift },
     { "conj",       q_D_conj },
     { "gamma",      q_D_gamma },
+    { "set",        q_D_set },
     { NULL,         NULL }
 };
 

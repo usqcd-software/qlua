@@ -260,32 +260,12 @@ g_norm(mGamma *r)
 static int
 c_norm(lua_State *L, mClifford *x)
 {
-    int i, m;
+    int i;
 
-    for (m = -1, i = 16; i--;) {
+    for (i = 0; i < 16; i++) {
         g_norm(&x->g[i]);
-        if ((m == -1) && x->g[i].t != qG_z)
-            m = i;
     }
-    if (m < 1)
-        switch (x->g[0].t) {
-        case qG_z:
-            lua_pushnumber(L, 0);
-            break;
-        case qG_p:
-            lua_pushnumber(L, 1);
-            break;
-        case qG_m:
-            lua_pushnumber(L, -1);
-            break;
-        case qG_r:
-            lua_pushnumber(L, x->g[0].r);
-        case qG_c: {
-            QLA_Complex *z = qlua_newComplex(L);
-            QLA_c_eq_c(*z, x->g[0].c);
-            break;
-        }
-        }
+
     return 1;
 }
 

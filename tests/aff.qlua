@@ -18,17 +18,17 @@ function ch_path(x, p)
   print("chpath:", p, s)
 end
 
-lx = qcd.vec_int(4)
+lx = vector.int(4)
 for i = 0, 3 do
  lx[i] = 16 + i
 end
 
-dxx = qcd.vec_double(16)
+dxx = vector.real(16)
 for i = 0, 15 do
   dxx[i] = math.sin(i * math.pi / 16)
 end
 
-cxx = qcd.vec_complex(32)
+cxx = vector.complex(32)
 for i = 0, 31 do
    cxx[i] = complex(math.cos(i * math.pi / 32), math.exp(- i / 32))
 end

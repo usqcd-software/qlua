@@ -264,6 +264,18 @@ q_V_conj(lua_State *L)
 }
 
 static int
+q_V_set(lua_State *L)
+{
+    mLatColVec *r = qlua_checkLatColVec(L, 1);
+    mLatColVec *a = qlua_checkLatColVec(L, 2);
+
+    QDP_V_eq_V(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_V_neg(lua_State *L)
 {
     mLatColVec *a = qlua_checkLatColVec(L, 1);
@@ -339,6 +351,7 @@ static struct luaL_Reg LatColVecMethods[] = {
     { "norm2",      q_V_norm2 },
     { "shift",      q_V_shift },
     { "conj",       q_V_conj },
+    { "set",        q_V_set },
     { NULL,         NULL }
 };
 

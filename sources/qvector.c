@@ -7,6 +7,8 @@ const char mtnVecInt[]     = "qcd.mtVecInt";
 const char mtnVecReal[]    = "qcd.mtVecReal";
 const char mtnVecComplex[] = "qcd.mtVecComplex";
 
+static char vector_ns[] = "vector";
+
 #define VSIZE(s,n,t) (sizeof (s) + ((n)-1)*sizeof (t))
 
 static void *
@@ -75,7 +77,7 @@ vi_fmt(lua_State *L)                                           /* (-1,+1,e) */
     char fmt[72];
     tVecInt *v = qlua_checkVecInt(L, 1);
 
-    sprintf(fmt, "vec_int[%d]", v->size);
+    sprintf(fmt, "vector.int[%d]", v->size);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -92,7 +94,7 @@ vi_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vec_int[]");
+    return luaL_error(L, "bad index for vector.int[]");
 }
 
 static int
@@ -116,7 +118,7 @@ vi_put(lua_State *L)                                           /* (-3,+0,e) */
         v->val[idx] = x;
         return 0;
     }
-    return luaL_error(L, "bad index for vec_int[]");
+    return luaL_error(L, "bad index for vector.int[]");
 }
 
 static int
@@ -129,14 +131,14 @@ v_int(lua_State *L)                                            /* (-1,+1,e) */
     return 1;
 }
 
-/* double vectors */
+/* real vectors */
 static int
 vd_fmt(lua_State *L)                                           /* (-1,+1,e) */
 {
     char fmt[72];
     tVecReal *v = qlua_checkVecReal(L, 1);
 
-    sprintf(fmt, "vec_double[%d]", v->size);
+    sprintf(fmt, "vector.real[%d]", v->size);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -153,7 +155,7 @@ vd_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vec_double[]");
+    return luaL_error(L, "bad index for vector.real[]");
 }
 
 static int
@@ -177,11 +179,11 @@ vd_put(lua_State *L)                                           /* (-3,+0,e) */
         v->val[idx] = x;
         return 0;
     }
-    return luaL_error(L, "bad index for vec_double[]");
+    return luaL_error(L, "bad index for vector.real[]");
 }
 
 static int
-v_double(lua_State *L)                                         /* (-1,+1,e) */
+v_real(lua_State *L)                                         /* (-1,+1,e) */
 {
     int s = luaL_checkint(L, 1);
     tVecReal *v = qlua_newVecReal(L, s);
@@ -197,7 +199,7 @@ vc_fmt(lua_State *L)                                           /* (-1,+1,e) */
     char fmt[72];
     tVecComplex *v = qlua_checkVecComplex(L, 1);
 
-    sprintf(fmt, "vec_complex[%d]", v->size);
+    sprintf(fmt, "vector.complex[%d]", v->size);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -215,7 +217,7 @@ vc_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vec_complex[]");
+    return luaL_error(L, "bad index for vector.complex[]");
 }
 
 static int
@@ -250,7 +252,7 @@ vc_put(lua_State *L)                                           /* (-3,+0,e) */
         }
     }
 
-    return luaL_error(L, "bad index for vec_double[]");
+    return luaL_error(L, "bad index for vector.real[]");
 }
 
 static int
@@ -289,16 +291,16 @@ static const luaL_Reg mtVecComplex[] = {
 
 /* vector constructors */
 static const luaL_Reg fVector[] = {
-    { "vec_int",       v_int     },
-    { "vec_double",    v_double  },
-    { "vec_complex",   v_complex },
+    { "int",       v_int     },
+    { "real",      v_real    },
+    { "complex",   v_complex },
     { NULL,            NULL      }
 };
 
 int
 init_vector(lua_State *L)
 {
-    luaL_register(L, qcdlib, fVector);
+    luaL_register(L, vector_ns,      fVector);
     qlua_metatable(L, mtnVecInt,     mtVecInt);
     qlua_metatable(L, mtnVecReal,    mtVecReal);
     qlua_metatable(L, mtnVecComplex, mtVecComplex);

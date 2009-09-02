@@ -76,6 +76,18 @@ q_I_sum(lua_State *L)
 }
 
 static int
+q_I_set(lua_State *L)
+{
+    mLatInt *r = qlua_checkLatInt(L, 1);
+    mLatInt *a = qlua_checkLatInt(L, 2);
+
+    QDP_I_eq_I(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_I_norm2(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
@@ -167,13 +179,6 @@ q_I_get(lua_State *L)
 
     return luaL_error(L, "bad index");
 }
-
-static struct luaL_Reg LatIntMethods[] = {
-    { "norm2",  q_I_norm2 },
-    { "shift",  q_I_shift },
-    { "sum",    q_I_sum },
-    { NULL,     NULL}
-};
 
 static int
 q_I_put(lua_State *L)
@@ -314,6 +319,14 @@ q_I_dot(lua_State *L)
 
     return 1;
 }
+
+static struct luaL_Reg LatIntMethods[] = {
+    { "norm2",  q_I_norm2 },
+    { "shift",  q_I_shift },
+    { "sum",    q_I_sum },
+    { "set",    q_I_set },
+    { NULL,     NULL}
+};
 
 static struct luaL_Reg mtLatInt[] = {
     { "__tostring",   q_I_fmt },

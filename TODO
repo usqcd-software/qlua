@@ -1,11 +1,12 @@
 *Basic types (missing in the standard Lua)
 *  Complex
+* -- remove autoconversion to real
 *  Gamma
 *   Vectors
--- move from qcd namespace
+*    move from qcd namespace
 *      Integer
 *      Double
--- change to Real through out
+*        change to Real through out
 *      Complex
 *QDP types:
 *  lattice
@@ -27,13 +28,13 @@
 * -- qcd.qdpc:  do more draconian error detection
 -- other file formats
 -- Subset and Multisubsets
--- :set for all lattice types
+* -- :set for all lattice types
 -- move lattice data to lattice metatable and rearrange tests
 * annotate #includes and make utils/mkdeps understand them
 
-Miscallenious:
-  os.host
-  os.tick
+? Miscallenious:
+?  os.host
+?  os.tick
 
 Optional packages:
 

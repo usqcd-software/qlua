@@ -179,6 +179,18 @@ q_P_spintrace(lua_State *L)
 }
 
 static int
+q_P_set(lua_State *L)
+{
+    mLatDirProp *r = qlua_checkLatDirProp(L, 1);
+    mLatDirProp *a = qlua_checkLatDirProp(L, 2);
+
+    QDP_P_eq_P(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_P_add_P(lua_State *L)
 {
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
@@ -380,6 +392,7 @@ static struct luaL_Reg LatDirPropMethods[] = {
     { "transpose",  q_P_trans },
     { "adjoin",     q_P_adjoin },
     { "spintrace",  q_P_spintrace },
+    { "set",        q_P_set },
     { NULL,         NULL }
 };
 

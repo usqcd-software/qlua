@@ -353,6 +353,18 @@ q_R_round(lua_State *L)
 }
 
 static int
+q_R_set(lua_State *L)
+{
+    mLatReal *r = qlua_checkLatReal(L, 1);
+    mLatReal *a = qlua_checkLatReal(L, 2);
+
+    QDP_R_eq_R(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+static int
 q_R_get(lua_State *L)
 {
     switch (qlua_gettype(L, 2)) {
@@ -529,6 +541,7 @@ static const struct luaL_Reg LatRealMethods[] = {
     { "expi",      q_R_expi     },
     { "trunc",     q_R_trunc    },
     { "round",     q_R_round    },
+    { "set",       q_R_set      },
     { NULL,        NULL         }
 };
 

@@ -76,6 +76,20 @@ q_S_eq_S(lua_State *L)
 }
 
 static int
+q_S_set(lua_State *L)
+{
+    mLatRandom *r = qlua_checkLatRandom(L, 1);
+    mLatRandom *a = qlua_checkLatRandom(L, 2);
+
+    QDP_S_eq_S(r->ptr, a->ptr, qCurrent);
+    lua_pop(L, 1);
+
+    return 1;
+}
+
+
+
+static int
 q_latrandom(lua_State *L)
 {
     int b = lua_gettop(L);
@@ -106,6 +120,7 @@ static struct luaL_Reg mtLatRandom[] = {
     { "gaussian_ColorMatrix",     q_M_gaussian },
     { "gaussian_DiracFermion",    q_D_gaussian },
     { "gaussian_DiracPropagator", q_P_gaussian },
+    { "set",                      q_S_set },
     /* ZZZ other gaussian randoms */
     { NULL,          NULL}
 };
