@@ -223,3 +223,5 @@ build Makefile.in Makefile
 build_modules > modules.h
 show_config
 show_config > config.log
+utils/mkdeps > deps
+

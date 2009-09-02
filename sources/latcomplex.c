@@ -1,10 +1,10 @@
-#include <qlua.h>
-#include <lattice.h>
-#include <latcomplex.h>
-#include <latreal.h>
-#include <latint.h>
-#include <latrandom.h>
-#include <qcomplex.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
+#include <latcomplex.h>                                              /* DEPS */
+#include <latreal.h>                                                 /* DEPS */
+#include <latint.h>                                                  /* DEPS */
+#include <latrandom.h>                                               /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
 #include <qmp.h>
 
 const char mtnLatComplex[] = "qcd.lattice.complex";

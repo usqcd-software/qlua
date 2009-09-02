@@ -1,6 +1,6 @@
-#include <qlua.h>
-#include <lattice.h>
-#include <latint.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
+#include <latint.h>                                                  /* DEPS */
 
 int qRank = 0;
 int *qDim = NULL;

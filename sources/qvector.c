@@ -1,6 +1,6 @@
-#include <qlua.h>
-#include <qcomplex.h>
-#include <qvector.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <string.h>
 
 const char mtnVecInt[]     = "qcd.mtVecInt";

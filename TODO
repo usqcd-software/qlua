@@ -24,10 +24,12 @@
 *QPDC I/O
 *  qcd.qdpc.writer
 *  qcd.qdpc.reader
--- do more draconian error detection
+-- qcd.qdpc:  do more draconian error detection
 -- other file formats
 -- Subset and Multisubsets
+-- :set for all lattice types
 -- move lattice data to lattice metatable and rearrange tests
+* annotate #includes and make utils/mkdeps understand them
 
 Miscallenious:
   os.host

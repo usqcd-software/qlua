@@ -1,9 +1,9 @@
-#include <qlua.h>
-#include <lattice.h>
-#include <latreal.h>
-#include <latint.h>
-#include <latrandom.h>
-#include <latcomplex.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
+#include <latreal.h>                                                 /* DEPS */
+#include <latint.h>                                                  /* DEPS */
+#include <latrandom.h>                                               /* DEPS */
+#include <latcomplex.h>                                              /* DEPS */
 #include <qmp.h>
 
 const char mtnLatReal[] = "qcd.lattice.real";

@@ -1,0 +1,6 @@
+#!/bin/sh
+grep '#include' sources/*.c \
+| grep DEPS \
+| sed -e 's/<//;s/>.*$//;s?^sources/??;s?\.c:#include ?.o: sources/?' \
+| sort -u
+

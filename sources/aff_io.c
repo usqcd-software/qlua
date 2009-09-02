@@ -1,7 +1,7 @@
-#include <qlua.h>
-#include <qvector.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <lhpc-aff.h>
-#include <aff_io.h>
+#include <aff_io.h>                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
 

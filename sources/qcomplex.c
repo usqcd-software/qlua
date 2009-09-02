@@ -1,6 +1,6 @@
-#include <qlua.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
 #include <math.h>
-#include <qcomplex.h>
 
 const char mtnComplex[] = "qcd.mtComplex";
 

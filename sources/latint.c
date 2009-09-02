@@ -1,7 +1,7 @@
-#include <qlua.h>
-#include <lattice.h>
-#include <latint.h>
-#include <stdlib.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
+#include <latint.h>                                                  /* DEPS */
+#include <stdlib.h>  
 #include <qmp.h>
 #include <string.h>
 

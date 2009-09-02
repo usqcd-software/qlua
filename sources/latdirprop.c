@@ -1,12 +1,12 @@
-#include <qlua.h>
-#include <qcomplex.h>
-#include <lattice.h>
-#include <latcolmat.h>
-#include <latdirferm.h>
-#include <latdirprop.h>
-#include <latrandom.h>
-#include <latcomplex.h>
-#include <latint.h>
+#include <qlua.h>                                                    /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
+#include <latcolmat.h>                                               /* DEPS */
+#include <latdirferm.h>                                              /* DEPS */
+#include <latdirprop.h>                                              /* DEPS */
+#include <latrandom.h>                                               /* DEPS */
+#include <latcomplex.h>                                              /* DEPS */
+#include <latint.h>                                                  /* DEPS */
 #include <qmp.h>
 
 const char mtnLatDirProp[] = "qcd.lattice.DiracPropagator";
