@@ -47,7 +47,7 @@ q_M_fmt(lua_State *L)
     char fmt[72];
     mLatColMat *b = qlua_checkLatColMat(L, 1);
 
-    sprintf(fmt, "LatColMat(%p)", b->ptr);
+    sprintf(fmt, "QDP:ColorMatrix(%p)", b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -400,17 +400,17 @@ static int
 q_latcolmat(lua_State *L)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         mLatColMat *v = qlua_newLatColMat(L);
 
         QDP_M_eq_zero(v->ptr, qCurrent);
         
         return 1;
     }
-    case 1: {
-        switch (qlua_gettype(L, 1)) {
+    case 2: {
+        switch (qlua_gettype(L, 2)) {
         case qReal: {
-            QLA_Real x = luaL_checknumber(L, 1);
+            QLA_Real x = luaL_checknumber(L, 2);
             mLatColMat *v = qlua_newLatColMat(L);
             QLA_Complex z;
 
@@ -421,7 +421,7 @@ q_latcolmat(lua_State *L)
             return 1;
         }
         case qComplex: {
-            QLA_Complex *z = qlua_checkComplex(L, 1);
+            QLA_Complex *z = qlua_checkComplex(L, 2);
             mLatColMat *v = qlua_newLatColMat(L);
 
             QDP_M_eq_c(v->ptr, z, qCurrent);
@@ -429,7 +429,7 @@ q_latcolmat(lua_State *L)
             return 1;
         }
         case qLatColMat: {
-            mLatColMat *w = qlua_checkLatColMat(L, 1);
+            mLatColMat *w = qlua_checkLatColMat(L, 2);
             mLatColMat *v = qlua_newLatColMat(L);
 
             QDP_M_eq_M(v->ptr, w->ptr, qCurrent);
@@ -439,12 +439,12 @@ q_latcolmat(lua_State *L)
         }
         break;
     }
-    case 2: {
-        switch (qlua_gettype(L, 1)) {
+    case 3: {
+        switch (qlua_gettype(L, 2)) {
         case qLatComplex: {
-            mLatComplex *z = qlua_checkLatComplex(L, 1);
-            int a = qlua_checkleftindex(L, 2);
-            int b = qlua_checkrightindex(L, 2);
+            mLatComplex *z = qlua_checkLatComplex(L, 2);
+            int a = qlua_checkleftindex(L, 3);
+            int b = qlua_checkrightindex(L, 3);
             mLatColMat *v = qlua_newLatColMat(L);
 
             QDP_M_eq_zero(v->ptr, qCurrent);
@@ -453,10 +453,10 @@ q_latcolmat(lua_State *L)
             return 1;
         }
         case qLatColVec: {
-            mLatColVec *f = qlua_checkLatColVec(L, 1);
-            switch (qlua_gettype(L, 2)) {
+            mLatColVec *f = qlua_checkLatColVec(L, 2);
+            switch (qlua_gettype(L, 3)) {
             case qTable: {
-                int b = qlua_checkrightindex(L, 2);
+                int b = qlua_checkrightindex(L, 3);
                 mLatColMat *v = qlua_newLatColMat(L);
                 
                 QDP_M_eq_zero(v->ptr, qCurrent);
@@ -465,7 +465,7 @@ q_latcolmat(lua_State *L)
                 return 1;
             }
             case qLatColVec: {
-                mLatColVec *g = qlua_checkLatColVec(L, 2);
+                mLatColVec *g = qlua_checkLatColVec(L, 3);
                 mLatColMat *v = qlua_newLatColMat(L);
 
                 QDP_M_eq_V_times_Va(v->ptr, f->ptr, g->ptr, qCurrent);
@@ -479,7 +479,7 @@ q_latcolmat(lua_State *L)
         break;
     }
     }
-    return luaL_error(L, "bad arguments");
+    return qlua_badconstr(L, "ColorMatrix");
 }
 
 static struct luaL_Reg LatColMatMethods[] = {
@@ -514,7 +514,9 @@ static struct luaL_Reg fLatColMat[] = {
 int
 init_latcolmat(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatColMat);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatColMat);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatColMat, mtLatColMat);
     qlua_metatable(L, opLatColMat, LatColMatMethods);
     qlua_reg_add(qLatColMat, qLatColMat, q_M_add_M);

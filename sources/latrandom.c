@@ -48,7 +48,7 @@ q_S_fmt(lua_State *L)
     char fmt[72];
     mLatRandom *b = qlua_checkLatRandom(L, 1);
 
-    sprintf(fmt, "LatRandom(%p)", b->ptr);
+    sprintf(fmt, "QDP:RandomState(%p)", b->ptr);
     lua_pushstring(L, fmt);
    
     return 1;
@@ -66,16 +66,6 @@ q_S_gc(lua_State *L)
 }
 
 static int
-q_S_eq_S(lua_State *L)
-{
-    mLatRandom *a = qlua_checkLatRandom(L, 1);
-    mLatRandom *b = qlua_newLatRandom(L);
-
-    QDP_S_eq_S(b->ptr, a->ptr, qCurrent);
-    return 1;
-}
-
-static int
 q_S_set(lua_State *L)
 {
     mLatRandom *r = qlua_checkLatRandom(L, 1);
@@ -87,27 +77,30 @@ q_S_set(lua_State *L)
     return 1;
 }
 
-
-
 static int
 q_latrandom(lua_State *L)
 {
     int b = lua_gettop(L);
 
     switch (b) {
-    case 1:
-        return q_S_eq_S(L);
     case 2: {
-        QLA_Int seed_i = luaL_checkint(L, 1);
-        mLatInt *seed_I = qlua_checkLatInt(L, 2);
+        mLatRandom *a = qlua_checkLatRandom(L, 2);
+        mLatRandom *b = qlua_newLatRandom(L);
+
+        QDP_S_eq_S(b->ptr, a->ptr, qCurrent);
+
+        return 1;
+    }
+    case 3: {
+        QLA_Int seed_i = luaL_checkint(L, 2);
+        mLatInt *seed_I = qlua_checkLatInt(L, 3);
         mLatRandom *state = qlua_newLatRandom(L);
         QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, qCurrent);
-        break;
+
+        return 1;
     }
-    default:
-        return luaL_error(L, "bad arguments");
     }
-    return 1;
+    return qlua_badconstr(L, "RandomState");
 }
 
 static struct luaL_Reg mtLatRandom[] = {
@@ -133,7 +126,9 @@ static struct luaL_Reg fLatRandom[] = {
 int
 init_latrandom(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatRandom);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatRandom);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatRandom, mtLatRandom);
 
     return 0;

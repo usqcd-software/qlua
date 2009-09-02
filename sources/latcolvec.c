@@ -46,7 +46,7 @@ q_V_fmt(lua_State *L)
     char fmt[72];
     mLatColVec *b = qlua_checkLatColVec(L, 1);
 
-    sprintf(fmt, "LatColVec(%p)", b->ptr);
+    sprintf(fmt, "QDP:ColorVector(%p)", b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -319,24 +319,24 @@ static int
 q_latcolvec(lua_State *L)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         mLatColVec *v = qlua_newLatColVec(L);
 
         QDP_V_eq_zero(v->ptr, qCurrent);
 
         return 1;
     }
-    case 1: {
-        mLatColVec *a = qlua_checkLatColVec(L, 1);
+    case 2: {
+        mLatColVec *a = qlua_checkLatColVec(L, 2);
         mLatColVec *r = qlua_newLatColVec(L);
         
         QDP_V_eq_V(r->ptr, a->ptr, qCurrent);
         
         return 1;
     }
-    case 2: {
-        mLatComplex *c = qlua_checkLatComplex(L, 1);
-        int a = luaL_checkint(L, 2);
+    case 3: {
+        mLatComplex *c = qlua_checkLatComplex(L, 2);
+        int a = luaL_checkint(L, 3);
         mLatColVec *r = qlua_newLatColVec(L);
 
         QDP_V_eq_elem_C(r->ptr, c->ptr, a, qCurrent);
@@ -344,7 +344,7 @@ q_latcolvec(lua_State *L)
         return 1;
     }
     }
-    return luaL_error(L, "bad arguments");
+    return qlua_badconstr(L, "ColorVector");
 }
 
 static struct luaL_Reg LatColVecMethods[] = {
@@ -376,7 +376,9 @@ static struct luaL_Reg fLatColVec[] = {
 int
 init_latcolvec(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatColVec);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatColVec);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatColVec, mtLatColVec);
     qlua_metatable(L, opLatColVec, LatColVecMethods);
     qlua_reg_add(qLatColVec, qLatColVec, q_V_add_V);

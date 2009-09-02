@@ -104,6 +104,12 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
 }
 
 int
+qlua_badconstr(lua_State *L, const char *name)
+{
+    return luaL_error(L, "bad %s constructor", name);
+}
+
+int
 qlua_lookup(lua_State *L, int idx, const char *table)
 {
     const char *key = lua_tostring(L, idx);
@@ -111,7 +117,7 @@ qlua_lookup(lua_State *L, int idx, const char *table)
     luaL_getmetatable(L, table);
     lua_getfield(L, -1, key);
     if (lua_isnil(L, -1))
-        return luaL_error(L, "bad index");
+        return luaL_error(L, "bad index `%s' for ::%s", key, table);
     return 1;
 }
 

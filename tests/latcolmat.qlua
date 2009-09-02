@@ -1,29 +1,29 @@
 d = 4
-qcd.lattice({d,d,d})
-rnd = qcd.RandomState(1, qcd.pcoord(0) * d * d +
-                         qcd.pcoord(1) * d +
-                         qcd.pcoord(2))
+LAT = qcd.lattice({d,d,d})
+rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
+                         LAT:pcoord(1) * d +
+                         LAT:pcoord(2))
 
 crnd = rnd:gaussian_Complex()
 v0 = rnd:gaussian_ColorVector()
 v1 = rnd:gaussian_ColorVector()
 
-x0 = qcd.ColorMatrix()
+x0 = LAT:ColorMatrix()
 print("x0=", x0)
 
-x1 = qcd.ColorMatrix(2.0)
+x1 = LAT:ColorMatrix(2.0)
 print("x1=", x1)
 
-x2 = qcd.ColorMatrix(complex(3,4))
+x2 = LAT:ColorMatrix(complex(3,4))
 print("x2=", x2)
 
-x3 = qcd.ColorMatrix(crnd, {a=1, b=2})
+x3 = LAT:ColorMatrix(crnd, {a=1, b=2})
 print("x3=", x3)
 
-x4 = qcd.ColorMatrix(v0, {b=1})
+x4 = LAT:ColorMatrix(v0, {b=1})
 print("x4=", x4)
 
-x5 = qcd.ColorMatrix(v1, v0)
+x5 = LAT:ColorMatrix(v1, v0)
 print("x5=", x5)
 
 x6 = rnd:gaussian_ColorMatrix()

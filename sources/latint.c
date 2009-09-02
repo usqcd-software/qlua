@@ -45,7 +45,7 @@ q_I_fmt(lua_State *L)
     char fmt[72];
     mLatInt *b = qlua_checkLatInt(L, 1);
 
-    sprintf(fmt, "LatInt(%p)", b->ptr);
+    sprintf(fmt, "QDP:Integer(%p)", b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -163,30 +163,6 @@ q_I_put(lua_State *L)
 }
 
 static int
-q_latint(lua_State *L)
-{
-    switch (qlua_gettype(L, 1)) {
-    case qReal: {
-        QLA_Int d = luaL_checkint(L, 1);
-        mLatInt *v = qlua_newLatInt(L);
-
-        QDP_I_eq_i(v->ptr, &d, qCurrent);
-        break;
-    }
-    case qLatInt: {
-        mLatInt *res = qlua_newLatInt(L);
-        mLatInt *a = qlua_checkLatInt(L, 1);
-
-        QDP_I_eq_I(res->ptr, a->ptr, qCurrent);
-        break;
-    }
-    default:
-        return luaL_error(L, "bad argument");
-    }
-    return 1;
-}
-
-static int
 q_I_add_I(lua_State *L)
 {
     mLatInt *res = qlua_newLatInt(L);
@@ -283,6 +259,31 @@ q_I_dot(lua_State *L)
     return 1;
 }
 
+static int
+q_latint(lua_State *L)
+{
+    switch (qlua_gettype(L, 2)) {
+    case qReal: {
+        QLA_Int d = luaL_checkint(L, 2);
+        mLatInt *v = qlua_newLatInt(L);
+
+        QDP_I_eq_i(v->ptr, &d, qCurrent);
+
+        return 1;
+    }
+    case qLatInt: {
+        mLatInt *res = qlua_newLatInt(L);
+        mLatInt *a = qlua_checkLatInt(L, 2);
+
+        QDP_I_eq_I(res->ptr, a->ptr, qCurrent);
+
+        return 1;
+    }
+    }
+
+    return qlua_badconstr(L, "Int");
+}
+
 static struct luaL_Reg LatIntMethods[] = {
     { "norm2",  q_I_norm2 },
     { "shift",  q_I_shift },
@@ -312,7 +313,9 @@ static struct luaL_Reg fLatInt[] = {
 int
 init_latint(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatInt);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatInt);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatInt, mtLatInt);
     qlua_metatable(L, opLatInt, LatIntMethods);
     qlua_reg_add(qLatInt, qLatInt, q_I_add_I);

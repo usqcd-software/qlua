@@ -1,19 +1,19 @@
 d = 4
-qcd.lattice({d,d,d})
-rnd = qcd.RandomState(1, qcd.pcoord(0) * d * d +
-                         qcd.pcoord(1) * d +
-                         qcd.pcoord(2))
+LAT = qcd.lattice({d,d,d})
+rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
+                         LAT:pcoord(1) * d +
+                         LAT:pcoord(2))
 
 crnd = rnd:gaussian_Complex()
 v0 = rnd:gaussian_ColorVector()
 
-x0 = qcd.DiracFermion()
+x0 = LAT:DiracFermion()
 print("x0=", x0)
 
-x2 = qcd.DiracFermion(crnd, {c=0,d=1})
+x2 = LAT:DiracFermion(crnd, {c=0,d=1})
 print("x2=", x2)
 
-x3 = qcd.DiracFermion(v0, {d=3})
+x3 = LAT:DiracFermion(v0, {d=3})
 print("x3=", x3)
 
 x6 = rnd:gaussian_DiracFermion()

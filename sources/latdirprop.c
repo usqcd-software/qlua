@@ -48,7 +48,7 @@ q_P_fmt(lua_State *L)
     char fmt[72];
     mLatDirProp *b = qlua_checkLatDirProp(L, 1);
 
-    sprintf(fmt, "LatDirProp(%p)", b->ptr);
+    sprintf(fmt, "QDP:DiracPropagator(%p)", b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -355,25 +355,25 @@ static int
 q_latdirprop(lua_State *L)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         mLatDirProp *v = qlua_newLatDirProp(L);
 
         QDP_P_eq_zero(v->ptr, qCurrent);
         
         return 1;
     }
-    case 1: {
-        mLatDirProp *w = qlua_checkLatDirProp(L, 1);
+    case 2: {
+        mLatDirProp *w = qlua_checkLatDirProp(L, 2);
         mLatDirProp *v = qlua_newLatDirProp(L);
         
         QDP_P_eq_P(v->ptr, w->ptr, qCurrent);
         
         return 1;
     }
-    case 2: {
-        mLatDirFerm *z = qlua_checkLatDirFerm(L, 1);
-        int d = qlua_checkdiracindex(L, 2);
-        int c = qlua_checkcolorindex(L, 2);
+    case 3: {
+        mLatDirFerm *z = qlua_checkLatDirFerm(L, 2);
+        int d = qlua_checkdiracindex(L, 3);
+        int c = qlua_checkcolorindex(L, 3);
         mLatDirProp *v = qlua_newLatDirProp(L);
 
         QDP_P_eq_zero(v->ptr, qCurrent);
@@ -382,7 +382,7 @@ q_latdirprop(lua_State *L)
         return 1;
     }
     }
-    return luaL_error(L, "bad arguments");
+    return qlua_badconstr(L, "DiracPropagator");
 }
 
 static struct luaL_Reg LatDirPropMethods[] = {
@@ -417,7 +417,9 @@ static struct luaL_Reg fLatDirProp[] = {
 int
 init_latdirprop(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatDirProp);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatDirProp);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatDirProp, mtLatDirProp);
     qlua_metatable(L, opLatDirProp, LatDirPropMethods);
     qlua_reg_add(qLatDirProp, qLatDirProp, q_P_add_P);

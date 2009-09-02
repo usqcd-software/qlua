@@ -1,8 +1,8 @@
 d = 128
-qcd.lattice({d})
+LAT = qcd.lattice({d})
 
-j = qcd.pcoord(0)
-x = qcd.Real(qcd.pcoord(0)) * (math.pi / d)
+j = LAT:pcoord(0)
+x = LAT:Real(LAT:pcoord(0)) * (math.pi / d)
 s = x:sin() + x * x:cos(x)
 
 for i = 0, d - 1 do
@@ -13,7 +13,7 @@ print("sum(sin^2(x)), sum(x^2)", s:norm2(), x:norm2())
 
 print("\nrandom reals\n")
 
-r = qcd.RandomState(6, qcd.pcoord(0))
+r = LAT:RandomState(6, LAT:pcoord(0))
 
 print("generator: ", r)
 

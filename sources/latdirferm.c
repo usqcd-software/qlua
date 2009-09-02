@@ -48,7 +48,7 @@ q_D_fmt(lua_State *L)
     char fmt[72];
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 1);
 
-    sprintf(fmt, "LatDirFerm(%p)", b->ptr);
+    sprintf(fmt, "QDP:DiracFermion(%p)", b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -389,27 +389,27 @@ static int
 q_latdirferm(lua_State *L)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         mLatDirFerm *v = qlua_newLatDirFerm(L);
 
         QDP_D_eq_zero(v->ptr, qCurrent);
 
         return 1;
     }
-    case 1: {
-        mLatDirFerm *f = qlua_checkLatDirFerm(L, 1);
+    case 2: {
+        mLatDirFerm *f = qlua_checkLatDirFerm(L, 2);
         mLatDirFerm *v = qlua_newLatDirFerm(L);
 
         QDP_D_eq_D(v->ptr, f->ptr, qCurrent);
         
         return 1;
     }
-    case 2: {
-        switch (qlua_gettype(L, 1)) {
+    case 3: {
+        switch (qlua_gettype(L, 2)) {
         case qLatComplex: {
-            mLatComplex *z = qlua_checkLatComplex(L, 1);
-            int c = qlua_checkcolorindex(L, 2);
-            int d = qlua_checkdiracindex(L, 2);
+            mLatComplex *z = qlua_checkLatComplex(L, 2);
+            int c = qlua_checkcolorindex(L, 3);
+            int d = qlua_checkdiracindex(L, 3);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
             QDP_D_eq_zero(v->ptr, qCurrent);
@@ -418,8 +418,8 @@ q_latdirferm(lua_State *L)
             return 1;
         }
         case qLatColVec: {
-            mLatColVec *w = qlua_checkLatColVec(L, 1);
-            int d = qlua_checkdiracindex(L, 2);
+            mLatColVec *w = qlua_checkLatColVec(L, 2);
+            int d = qlua_checkdiracindex(L, 3);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
             QDP_D_eq_zero(v->ptr, qCurrent);
@@ -431,7 +431,7 @@ q_latdirferm(lua_State *L)
         break;
     }
     }
-    return luaL_error(L, "bad arguments");
+    return qlua_badconstr(L, "DiracFermion");
 }
 
 static struct luaL_Reg LatDirFermMethods[] = {
@@ -464,7 +464,9 @@ static struct luaL_Reg fLatDirFerm[] = {
 int
 init_latdirferm(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatDirFerm);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatDirFerm);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatDirFerm, mtLatDirFerm);
     qlua_metatable(L, opLatDirFerm, LatDirFermMethods);
     qlua_reg_add(qLatDirFerm, qLatDirFerm, q_D_add_D);

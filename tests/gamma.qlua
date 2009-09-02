@@ -56,8 +56,8 @@ print(1 + (gamma{mu=0} +
            gamma{mu=2} +
            gamma{mu=3}) / 2)
 
-qcd.lattice({6})
-S = qcd.RandomState(1, qcd.pcoord(0))
+LAT = qcd.lattice({6})
+S = LAT:RandomState(1, LAT:pcoord(0))
 
 f1 = S:gaussian_DiracFermion()
 f2 = S:gaussian_DiracFermion()

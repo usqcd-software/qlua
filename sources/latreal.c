@@ -489,32 +489,33 @@ q_R_div_R(lua_State *L)
 static int
 q_latreal(lua_State *L)
 {
-    switch (qlua_gettype(L, 1)) {
+    switch (qlua_gettype(L, 2)) {
     case qReal: {
-        QLA_Real d = luaL_checknumber(L, 1);
+        QLA_Real d = luaL_checknumber(L, 2);
         mLatReal *v = qlua_newLatReal(L);
 
         QDP_R_eq_r(v->ptr, &d, qCurrent);
-        break;
+        
+        return 1;
     }
     case qLatInt: {
-        mLatInt *d = qlua_checkLatInt(L, 1);
+        mLatInt *d = qlua_checkLatInt(L, 2);
         mLatReal *v = qlua_newLatReal(L);
 
         QDP_R_eq_I(v->ptr, d->ptr, qCurrent);
-        break;
+
+        return 1;
     }
     case qLatReal: {
-        mLatReal *d = qlua_checkLatReal(L, 1);
+        mLatReal *d = qlua_checkLatReal(L, 2);
         mLatReal *v = qlua_newLatReal(L);
         
         QDP_R_eq_R(v->ptr, d->ptr, qCurrent);
-        break;
+        
+        return 1;
     }
-    default:
-        return luaL_error(L, "bad argument");
     }
-    return 1;
+    return qlua_badconstr(L, "Real");
 }
 
 static const struct luaL_Reg LatRealMethods[] = {
@@ -566,7 +567,9 @@ static struct luaL_Reg fLatReal[] = {
 int
 init_latreal(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatReal);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatReal);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatReal, mtLatReal);
     qlua_metatable(L, opLatReal, LatRealMethods);
 

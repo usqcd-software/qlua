@@ -750,12 +750,12 @@ q_gamma(lua_State *L)
             
             x->g[n].t = qG_p;
 
-            return c_norm(L, x);
+            return 1;
         }
         break;
     }
     }
-    return luaL_error(L, "bad arguments");
+    return qlua_badconstr(L, "gamma");
 }
 
 static struct luaL_Reg mtGamma[] = {

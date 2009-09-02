@@ -1,12 +1,12 @@
 d = 128
-qcd.lattice({d})
+LAT = qcd.lattice({d})
 
-j = qcd.pcoord(0)
-x = qcd.Real(qcd.pcoord(0)) * (math.pi / d)
+j = LAT:pcoord(0)
+x = LAT:Real(LAT:pcoord(0)) * (math.pi / d)
 c = x:cos()
 s = x:sin()
 
-z = qcd.Complex(c,s)
+z = LAT:Complex(c,s)
 
 for i = 0, d - 1 do
    print(i, j[{i}], c[{i}], s[{i}], z[{i}])

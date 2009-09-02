@@ -408,10 +408,10 @@ static int
 q_latcomplex(lua_State *L)
 {
     switch (lua_gettop(L)) {
-    case 1:
-        switch (qlua_gettype(L, 1)) {
+    case 2:
+        switch (qlua_gettype(L, 2)) {
         case qReal: {
-            QLA_Real d = luaL_checknumber(L, 1);
+            QLA_Real d = luaL_checknumber(L, 2);
             QLA_Complex z;
             mLatComplex *v = qlua_newLatComplex(L);
             
@@ -422,7 +422,7 @@ q_latcomplex(lua_State *L)
             return 1;
         }
         case qComplex: {
-            QLA_Complex *z = qlua_checkComplex(L, 1);
+            QLA_Complex *z = qlua_checkComplex(L, 2);
             mLatComplex *v = qlua_newLatComplex(L);
 
             QDP_C_eq_c(v->ptr, z, qCurrent);
@@ -430,7 +430,7 @@ q_latcomplex(lua_State *L)
             return 1;
         }
         case qLatReal: {
-            mLatReal *d = qlua_checkLatReal(L, 1);
+            mLatReal *d = qlua_checkLatReal(L, 2);
             mLatComplex *v = qlua_newLatComplex(L);
             
             QDP_C_eq_R(v->ptr, d->ptr, qCurrent);
@@ -438,7 +438,7 @@ q_latcomplex(lua_State *L)
             return 1;
         }
         case qLatComplex: {
-            mLatComplex *d = qlua_checkLatComplex(L, 1);
+            mLatComplex *d = qlua_checkLatComplex(L, 2);
             mLatComplex *v = qlua_newLatComplex(L);
             
             QDP_C_eq_C(v->ptr, d->ptr, qCurrent);
@@ -448,16 +448,17 @@ q_latcomplex(lua_State *L)
         default:
             break;
         }
-    case 2: {
-        mLatReal *a = qlua_checkLatReal(L, 1);
-        mLatReal *b = qlua_checkLatReal(L, 2);
+    case 3: {
+        mLatReal *a = qlua_checkLatReal(L, 2);
+        mLatReal *b = qlua_checkLatReal(L, 3);
         mLatComplex *c = qlua_newLatComplex(L);
 
         QDP_C_eq_R_plus_i_R(c->ptr, a->ptr, b->ptr, qCurrent);
+
         return 1;
     }
     }
-    return luaL_error(L, "bad argument");
+    return qlua_badconstr(L, "Complex");
 }
 
 static struct luaL_Reg LatComplexMethods[] = {
@@ -497,7 +498,9 @@ static struct luaL_Reg fLatComplex[] = {
 int
 init_latcomplex(lua_State *L)
 {
-    luaL_register(L, qcdlib, fLatComplex);
+    luaL_getmetatable(L, opLattice);
+    luaL_register(L, NULL, fLatComplex);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnLatComplex, mtLatComplex);
     qlua_metatable(L, opLatComplex, LatComplexMethods);
     qlua_reg_add(qLatComplex, qLatComplex, q_C_add_C);
