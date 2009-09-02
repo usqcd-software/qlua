@@ -41,7 +41,7 @@ MDWF_CF      = @mdwf_cflags@
 MDWF_LF      = @mdwf_ldflags@
 MDWF_LIBS    = @mdwf_libs@
 
-## add other modules here
+## ZZZ add other modules here
 
 #############################################################################
 library = libqlua.a
@@ -61,6 +61,12 @@ libsrc = qvector.c \
          latdirprop.c \
          qdpc_io.c \
 
+###############################################################################
+ifneq ("$(AFF)", "")
+  libsrc += aff_io.c
+endif
+## ZZZ add other optional modules here
+###############################################################################
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
 program = $(driver:%.c=%)

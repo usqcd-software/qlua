@@ -1,0 +1,94 @@
+-- check aff writer first
+file = "/tmp/qlua/test-file.aff"
+
+w,m = qcd.aff.Writer(file)
+print("writer:", w, m)
+
+if not w then
+   os.exit(1)
+end
+
+function mk_path(x, p)
+  local s = x:mkpath(p)
+  print("mkpath:", p, s)
+end
+
+function ch_path(x, p)
+  local s = x:chpath(p)
+  print("chpath:", p, s)
+end
+
+lx = qcd.vec_int(4)
+for i = 0, 3 do
+ lx[i] = 16 + i
+end
+
+dxx = qcd.vec_double(16)
+for i = 0, 15 do
+  dxx[i] = math.sin(i * math.pi / 16)
+end
+
+cxx = qcd.vec_complex(32)
+for i = 0, 31 do
+   cxx[i] = complex(math.cos(i * math.pi / 32), math.exp(- i / 32))
+end
+
+mk_path(w, "/foo/barr/x")
+-- successful writes return with 0 results, force them to nils
+print("write string:", (w:write("/const/name", "Jaberwokky")))
+print("write ints", (w:write("/lattice/size", lx)))
+print("write doubles", (w:write("/data", dxx)))
+print("write complex", (w:write("/comlpex/angles", cxx)))
+mk_path(w, "/foo")
+ch_path(w, "bazz")
+mk_path(w, "fourth")
+-- ch_path(w, "..")
+
+s = w:close()
+print("w:close()", s)
+
+print()
+
+r,m = qcd.aff.Reader(file)
+
+if not r then
+   print("reader:", r, w)
+   os.exit(1)
+end
+
+print("reader:", r, m)
+
+x = r:read("/foo/barr/x")
+print("reading empty element:", x)
+
+x = r:read("/const/name")
+print("reading string:", x)
+
+x = r:read("/lattice/size")
+print("reading ints:", x)
+for i = 0, #x - 1 do
+  print("  x[" .. i .. "] = ", x[i])
+end
+
+x = r:read("/data")
+print("reading doubles:", x)
+for i = 0, #x - 1 do
+  print("  x[" .. i .. "] = ", x[i])
+end
+
+x = r:read("/comlpex/angles")
+print("reading complex:", x)
+for i = 0, #x - 1 do
+  print("  x[" .. i .. "] = ", x[i])
+end
+
+ch_path(r, "bazz")
+ch_path(r, "/foo")
+ch_path(r, "barr/x")
+ch_path(r, "/foo/barr")
+-- ch_path(r, "/usr/bin")
+-- ch_path(r, "/foo/barr")
+
+r:close()
+
+print("done")

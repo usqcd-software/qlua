@@ -9,7 +9,7 @@ typedef struct {
 typedef struct {
     int size;
     QLA_D_Real val[1];
-} tVecDouble;
+} tVecReal;
 
 typedef struct {
     int size;
@@ -17,7 +17,7 @@ typedef struct {
 } tVecComplex;
 
 extern const char mtnVecInt[];
-extern const char mtnVecDouble[];
+extern const char mtnVecReal[];
 extern const char mtnVecComplex[];
 
 int init_vector(lua_State *L);
@@ -25,8 +25,8 @@ int fini_vector(lua_State *L);
 
 tVecInt *qlua_checkVecInt(lua_State *L, int idx);
 tVecInt *qlua_newVecInt(lua_State *L, int size);
-tVecDouble *qlua_checkVecDouble(lua_State *L, int idx) ;
-tVecDouble *qlua_newVecDouble(lua_State *L, int size);
+tVecReal *qlua_checkVecReal(lua_State *L, int idx) ;
+tVecReal *qlua_newVecReal(lua_State *L, int size);
 tVecComplex *qlua_checkVecComplex(lua_State *L, int idx);
 tVecComplex *qlua_newVecComplex(lua_State *L, int size);
 

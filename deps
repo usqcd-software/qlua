@@ -44,6 +44,7 @@ latdirprop.o: sources/latcomplex.h
 latdirprop.o: sources/latint.h
 latint.o: sources/lattice.h
 latint.o: sources/latint.h
+latrandom.o: sources/lattice.h
 latrandom.o: sources/latint.h
 latrandom.o: sources/latrandom.h
 latrandom.o: sources/latreal.h
@@ -71,6 +72,7 @@ qdpc_io.o: sources/latrandom.h
 qdpc_io.o: sources/latreal.h
 qgamma.o: sources/qcomplex.h
 qgamma.o: sources/qgamma.h
+qgamma.o: sources/lattice.h
 qgamma.o: sources/latdirferm.h
 qgamma.o: sources/latdirprop.h
 qvector.o: sources/qcomplex.h

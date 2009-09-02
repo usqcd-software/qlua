@@ -8,6 +8,7 @@ c0 = qcd.pcoord(0)
 c1 = qcd.pcoord(1)
 
 print("pcoord(2)", c0)
+print("type(c0)", type(c0))
 
 c0[{1,2}] = -1
 

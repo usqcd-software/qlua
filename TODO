@@ -2,8 +2,10 @@
 *  Complex
 *  Gamma
 *   Vectors
+-- move from qcd namespace
 *      Integer
 *      Double
+-- change to Real through out
 *      Complex
 *QDP types:
 *  lattice
@@ -22,7 +24,10 @@
 *QPDC I/O
 *  qcd.qdpc.writer
 *  qcd.qdpc.reader
+-- do more draconian error detection
 -- other file formats
+-- Subset and Multisubsets
+-- move lattice data to lattice metatable and rearrange tests
 
 Miscallenious:
   os.host
@@ -30,9 +35,9 @@ Miscallenious:
 
 Optional packages:
 
-AFF
-  reader
-  writer
+*AFF
+*  reader
+*  writer
 
 CLOVER
   operator

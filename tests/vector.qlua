@@ -1,14 +1,14 @@
 vi = qcd.vec_int(64)
 print("vi", vi) 
 print("vi[0]", vi[0])
-print("vi.length", vi.length)
+print("#vi", #vi)
 vi[6] = vi[5] -32 
 print("vi[5,6]", vi[5], vi[6])
 
 vd = qcd.vec_double(32)
 print("vd", vd) 
 print("vd[0]", vd[0])
-print("vd.length", vd.length)
+print("#vd", #vd)
 vd[5] = math.pi
 vd[6] = vd[5] / 3
 print("vd[5,6]", vd[5], vd[6])
@@ -17,7 +17,7 @@ vc = qcd.vec_complex(7)
 print("vc", vc) 
 vc[5] = 25
 print("vc[5]", vc[5])
-print("vc.length", vc.length)
+print("#vc", vc)
 vc[6] = vc[5] / complex(3,4)
 print("vc[5,6]", vc[5], vc[6])
 

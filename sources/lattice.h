@@ -3,6 +3,7 @@
 
 extern int qRank;
 extern int *qDim;
+extern QDP_Subset qCurrent;
 
 int init_lattice(lua_State *L);
 int fini_lattice(lua_State *L);

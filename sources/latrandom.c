@@ -1,4 +1,5 @@
 #include <qlua.h>
+#include <lattice.h>
 #include <latint.h>
 #include <latrandom.h>
 #include <latreal.h>
@@ -70,7 +71,7 @@ q_S_eq_S(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatRandom *b = qlua_newLatRandom(L);
 
-    QDP_S_eq_S(b->ptr, a->ptr, QDP_all);
+    QDP_S_eq_S(b->ptr, a->ptr, qCurrent);
     return 1;
 }
 
@@ -86,7 +87,7 @@ q_latrandom(lua_State *L)
         QLA_Int seed_i = luaL_checkint(L, 1);
         mLatInt *seed_I = qlua_checkLatInt(L, 2);
         mLatRandom *state = qlua_newLatRandom(L);
-        QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, QDP_all);
+        QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, qCurrent);
         break;
     }
     default:

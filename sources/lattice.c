@@ -4,6 +4,7 @@
 
 int qRank = 0;
 int *qDim = NULL;
+QDP_Subset qCurrent;
 
 int *
 qlua_latcoord(lua_State *L, int n)
@@ -59,7 +60,7 @@ q_pcoord(lua_State *L)
     
     /* YYY global state */
     pcoord_d = d;
-    QDP_I_eq_func(v->ptr, pcoord_set, QDP_all);
+    QDP_I_eq_func(v->ptr, pcoord_set, qCurrent);
 
     return 1;
 }
@@ -87,6 +88,7 @@ q_lattice(lua_State *L)
     if (QDP_create_layout()) {
         return luaL_error(L, "can not create lattice");
     }
+    qCurrent = QDP_all;
     
     return 0;
 }

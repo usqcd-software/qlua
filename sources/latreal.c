@@ -69,7 +69,7 @@ q_R_neg(lua_State *L)
     mLatReal *res = qlua_newLatReal(L);
     QLA_Real m1 = -1;
 
-    QDP_R_eq_r_times_R(res->ptr, &m1, a->ptr, QDP_all);
+    QDP_R_eq_r_times_R(res->ptr, &m1, a->ptr, qCurrent);
     return 1;
 }
 
@@ -79,7 +79,7 @@ q_R_sum(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     QLA_Real sum;
 
-    QDP_r_eq_sum_R(&sum, a->ptr, QDP_all);
+    QDP_r_eq_sum_R(&sum, a->ptr, qCurrent);
     lua_pushnumber(L, sum);
 
     return 1;
@@ -91,7 +91,7 @@ q_R_norm2(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     QLA_Real n;
 
-    QDP_r_eq_norm2_R(&n, a->ptr, QDP_all);
+    QDP_r_eq_norm2_R(&n, a->ptr, qCurrent);
     lua_pushnumber(L, n);
 
     return 1;
@@ -105,7 +105,7 @@ q_R_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_sR(r->ptr, a->ptr, shift, dir, QDP_all);
+    QDP_R_eq_sR(r->ptr, a->ptr, shift, dir, qCurrent);
 
     return 1;
 }
@@ -116,7 +116,7 @@ q_R_sin(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_sin_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_sin_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -127,7 +127,7 @@ q_R_cos(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_cos_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_cos_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -138,7 +138,7 @@ q_R_tan(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_tan_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_tan_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -149,7 +149,7 @@ q_R_asin(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_asin_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_asin_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -160,7 +160,7 @@ q_R_acos(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_acos_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_acos_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -171,7 +171,7 @@ q_R_atan(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_atan_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_atan_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -182,7 +182,7 @@ q_R_sqrt(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_sqrt_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_sqrt_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -193,7 +193,7 @@ q_R_abs(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_fabs_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_fabs_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -204,7 +204,7 @@ q_R_exp(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_exp_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_exp_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -215,7 +215,7 @@ q_R_expi(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatComplex *r = qlua_newLatComplex(L);
 
-    QDP_C_eq_cexpi_R(r->ptr, a->ptr, QDP_all);
+    QDP_C_eq_cexpi_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -226,7 +226,7 @@ q_R_log(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_log_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_log_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -237,7 +237,7 @@ q_R_sign(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_sign_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_sign_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -248,7 +248,7 @@ q_R_floor(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_floor_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_floor_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -259,7 +259,7 @@ q_R_ceil(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_ceil_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_ceil_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -270,7 +270,7 @@ q_R_sinh(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_sinh_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_sinh_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -281,7 +281,7 @@ q_R_cosh(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_cosh_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_cosh_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -292,7 +292,7 @@ q_R_tanh(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_tanh_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_tanh_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -303,7 +303,7 @@ q_R_log10(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_log10_R(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_log10_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -314,7 +314,7 @@ q_R_random(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_random_S(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_random_S(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -325,7 +325,7 @@ q_R_gaussian(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatReal *r = qlua_newLatReal(L);
 
-    QDP_R_eq_gaussian_S(r->ptr, a->ptr, QDP_all);
+    QDP_R_eq_gaussian_S(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -336,7 +336,7 @@ q_R_trunc(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatInt *r = qlua_newLatInt(L);
 
-    QDP_I_eq_trunc_R(r->ptr, a->ptr, QDP_all);
+    QDP_I_eq_trunc_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -347,7 +347,7 @@ q_R_round(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1);
     mLatInt *r = qlua_newLatInt(L);
 
-    QDP_I_eq_round_R(r->ptr, a->ptr, QDP_all);
+    QDP_I_eq_round_R(r->ptr, a->ptr, qCurrent);
 
     return 1;
 }
@@ -409,7 +409,7 @@ q_R_add_R(lua_State *L)
     mLatReal *b = qlua_checkLatReal(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_R_plus_R(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_R_eq_R_plus_R(c->ptr, a->ptr, b->ptr, qCurrent);
 
     return 1;
 }
@@ -421,7 +421,7 @@ q_R_sub_R(lua_State *L)
     mLatReal *b = qlua_checkLatReal(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_R_minus_R(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_R_eq_R_minus_R(c->ptr, a->ptr, b->ptr, qCurrent);
 
     return 1;
 }
@@ -433,7 +433,7 @@ q_R_mul_R(lua_State *L)
     mLatReal *b = qlua_checkLatReal(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_R_times_R(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_R_eq_R_times_R(c->ptr, a->ptr, b->ptr, qCurrent);
 
     return 1;
 }
@@ -445,7 +445,7 @@ q_r_mul_R(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_r_times_R(c->ptr, &b, a->ptr, QDP_all);
+    QDP_R_eq_r_times_R(c->ptr, &b, a->ptr, qCurrent);
 
     return 1;
 }
@@ -457,7 +457,7 @@ q_R_mul_r(lua_State *L)
     QLA_Real b = luaL_checknumber(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_r_times_R(c->ptr, &b, a->ptr, QDP_all);
+    QDP_R_eq_r_times_R(c->ptr, &b, a->ptr, qCurrent);
 
     return 1;
 }
@@ -469,7 +469,7 @@ q_R_div_R(lua_State *L)
     mLatReal *b = qlua_checkLatReal(L, 2);
     mLatReal *c = qlua_newLatReal(L);
 
-    QDP_R_eq_R_divide_R(c->ptr, a->ptr, b->ptr, QDP_all);
+    QDP_R_eq_R_divide_R(c->ptr, a->ptr, b->ptr, qCurrent);
 
     return 1;
 }
@@ -482,21 +482,21 @@ q_latreal(lua_State *L)
         QLA_Real d = luaL_checknumber(L, 1);
         mLatReal *v = qlua_newLatReal(L);
 
-        QDP_R_eq_r(v->ptr, &d, QDP_all);
+        QDP_R_eq_r(v->ptr, &d, qCurrent);
         break;
     }
     case qLatInt: {
         mLatInt *d = qlua_checkLatInt(L, 1);
         mLatReal *v = qlua_newLatReal(L);
 
-        QDP_R_eq_I(v->ptr, d->ptr, QDP_all);
+        QDP_R_eq_I(v->ptr, d->ptr, qCurrent);
         break;
     }
     case qLatReal: {
         mLatReal *d = qlua_checkLatReal(L, 1);
         mLatReal *v = qlua_newLatReal(L);
         
-        QDP_R_eq_R(v->ptr, d->ptr, QDP_all);
+        QDP_R_eq_R(v->ptr, d->ptr, qCurrent);
         break;
     }
     default:

@@ -13,7 +13,10 @@
 #include <latdirferm.h>
 #include <latdirprop.h>
 #include <qdpc_io.h>
-
+#ifdef HAS_AFF
+#include <lhpc-aff.h>
+#include <aff_io.h>
+#endif
 #include <string.h>
 
 /* ZZZ include other package headers here */
@@ -28,6 +31,9 @@ static struct {
     {"qlua",  "$Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
+#ifdef HAS_AFF
+    {"aff",    AFF_VERSION },
+#endif
     {NULL,     NULL}
 };
 
@@ -251,7 +257,7 @@ qlua_gettype(lua_State *L, int idx)
             { mtnComplex,       qComplex },
             { mtnGamma,         qGamma },
             { mtnVecInt,        qVecInt },
-            { mtnVecDouble,     qVecDouble },
+            { mtnVecReal,       qVecReal },
             { mtnVecComplex,    qVecComplex },
             { mtnLatInt,        qLatInt },
             { mtnLatReal,       qLatReal },
@@ -399,6 +405,9 @@ qlua_init(lua_State *L)
         { init_latdirferm },
         { init_latdirprop },
         { init_qdpc_io },
+#ifdef HAS_AFF
+        { init_aff_io },
+#endif
         /* ZZZ add other packages here */
         { NULL }
     };
@@ -435,6 +444,9 @@ qlua_fini(lua_State *L)
         int (*fini)(lua_State *L);
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
+#ifdef HAS_AFF
+        { fini_aff_io },
+#endif
         { fini_qdpc_io },
         { fini_latdirprop },
         { fini_latdirferm },
