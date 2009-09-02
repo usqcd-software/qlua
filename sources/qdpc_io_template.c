@@ -10,6 +10,8 @@ X_ID(qdpc_r_)(lua_State *L)
 {
     mReader *reader = q_checkReader(L, 1);
 
+    check_reader(L, reader);
+
     /* collect garbage now */
     lua_gc(L, LUA_GCCOLLECT, 0);
     /* read either one or n lattice color matrices */
@@ -77,6 +79,8 @@ X_ID(qdpc_w_)(lua_State *L)
     mWriter *writer = q_checkWriter(L, 1);
     const char *info = luaL_checkstring(L, 3);
     QDP_String *xml;
+
+    check_writer(L, writer);
 
     /* collect garbage */
     lua_gc(L, LUA_GCCOLLECT, 0);

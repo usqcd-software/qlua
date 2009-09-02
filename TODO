@@ -24,7 +24,7 @@
 *QPDC I/O
 *  qcd.qdpc.writer
 *  qcd.qdpc.reader
--- qcd.qdpc:  do more draconian error detection
+* -- qcd.qdpc:  do more draconian error detection
 -- other file formats
 -- Subset and Multisubsets
 -- :set for all lattice types

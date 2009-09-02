@@ -21,6 +21,21 @@ const char qdp_io[] = "qdpc";
 static const char mtnReader[] = "qcd.qdpc.reader";
 static const char mtnWriter[] = "qcd.qdpc.writer";
 
+/* helpers */
+static void
+check_reader(lua_State *L, mReader *b)
+{
+    if (b->ptr == 0)
+        luaL_error(L, "closed QDP/C reader");
+}
+
+static void
+check_writer(lua_State *L, mWriter *b)
+{
+    if (b->ptr == 0)
+        luaL_error(L, "closed QDP/C writer");
+}
+
 /* allocation */
 static mReader *
 q_newReader(lua_State *L, QDP_Reader *reader)
@@ -134,6 +149,8 @@ qdpc_r_info(lua_State *L)
     int status;
     int rcount;
 
+    check_reader(L, reader);
+
     lua_gc(L, LUA_GCCOLLECT, 0);
     xml = QDP_string_create();
     status = QDP_read_record_info(reader->ptr, xml);
@@ -156,6 +173,8 @@ qdpc_r_skip(lua_State *L)
     int status;
     int rcount;
 
+    check_reader(L, reader);
+
     lua_gc(L, LUA_GCCOLLECT, 0);
     status = QDP_next_record(reader->ptr);
     if (status == 0) {
@@ -174,8 +193,9 @@ qdpc_r_close(lua_State *L)
 {
     mReader *b = q_checkReader(L, 1);
     
-    if (b->ptr)
-        QDP_close_read(b->ptr);
+    check_reader(L, b);
+
+    QDP_close_read(b->ptr);
     b->ptr = 0;
     
     return 0;
@@ -185,9 +205,10 @@ static int
 qdpc_w_close(lua_State *L)
 {
     mWriter *b = q_checkWriter(L, 1);
+
+    check_writer(L, b);
     
-    if (b->ptr)
-        QDP_close_write(b->ptr);
+    QDP_close_write(b->ptr);
     b->ptr = 0;
 
     return 0;

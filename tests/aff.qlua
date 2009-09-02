@@ -86,6 +86,11 @@ ch_path(r, "bazz")
 ch_path(r, "/foo")
 ch_path(r, "barr/x")
 ch_path(r, "/foo/barr")
+
+print("list of /")
+for i,f in ipairs(r:list("/")) do
+   print(i, f)
+end
 -- ch_path(r, "/usr/bin")
 -- ch_path(r, "/foo/barr")
 
