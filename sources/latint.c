@@ -99,43 +99,6 @@ q_I_norm2(lua_State *L)
     return 1;
 }
 
-
-QDP_Shift
-qlua_checkShift(lua_State *L, int idx)
-{
-    int d = luaL_checkint(L, idx);
-
-    if ((d < 0) || (d >= qRank))
-        luaL_error(L, "bad shift dimension");
-
-    return QDP_neighbor[d];
-}
-
-QDP_ShiftDir
-qlua_checkShiftDir(lua_State *L, int idx)
-{
-    static const struct {
-        char *name;
-        QDP_ShiftDir dir;
-    } t[] = {
-        { "from_forward",  QDP_forward },
-        { "from_backward", QDP_backward },
-        { "to_forward",    QDP_backward },
-        { "to_backward",   QDP_forward },
-        { NULL,            QDP_forward }
-    };
-    int i;
-    const char *d = luaL_checkstring(L, idx);
-
-    for (i = 0; t[i].name; i++) {
-        if (strcmp(d, t[i].name) == 0)
-            return t[i].dir;
-    }
-    luaL_error(L, "bad shift direction");
-    /* NEVER HAPPENS */
-    return QDP_forward;
-}
-
 static int
 q_I_shift(lua_State *L)
 {

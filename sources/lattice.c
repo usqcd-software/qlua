@@ -1,9 +1,10 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
+#include <string.h>
 
-int qRank = 0;
-int *qDim = NULL;
+static int qRank = 0;
+static int *qDim = NULL;
 QDP_Subset qCurrent;
 
 int *
@@ -23,7 +24,7 @@ qlua_latcoord(lua_State *L, int n)
         lua_gettable(L, n);
         idx[i] = luaL_checkint(L, -1);
         if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
-            qlua_free(L, idx);
+            qlua_free(L, idx);        
             return NULL;
         }
     }
@@ -40,6 +41,42 @@ qlua_checklatcoord(lua_State *L, int n)
         luaL_error(L, "bad lattice coordinates");
 
     return idx;
+}
+
+QDP_Shift
+qlua_checkShift(lua_State *L, int idx)
+{
+    int d = luaL_checkint(L, idx);
+
+    if ((d < 0) || (d >= qRank))
+        luaL_error(L, "bad shift dimension");
+
+    return QDP_neighbor[d];
+}
+
+QDP_ShiftDir
+qlua_checkShiftDir(lua_State *L, int idx)
+{
+    static const struct {
+        char *name;
+        QDP_ShiftDir dir;
+    } t[] = {
+        { "from_forward",  QDP_forward },
+        { "from_backward", QDP_backward },
+        { "to_forward",    QDP_backward },
+        { "to_backward",   QDP_forward },
+        { NULL,            QDP_forward }
+    };
+    int i;
+    const char *d = luaL_checkstring(L, idx);
+
+    for (i = 0; t[i].name; i++) {
+        if (strcmp(d, t[i].name) == 0)
+            return t[i].dir;
+    }
+    luaL_error(L, "bad shift direction");
+    /* NEVER HAPPENS */
+    return QDP_forward;
 }
 
 static int pcoord_d = -1; /* YYY global state */
