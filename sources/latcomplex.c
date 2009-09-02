@@ -110,7 +110,7 @@ q_C_get(lua_State *L)
     case qString:
         return qlua_lookup(L, 2, opLatComplex);
     }
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "Complex");
 }
 
 static int
@@ -132,7 +132,7 @@ q_C_put(lua_State *L)
         break;
     }
     default:
-        return luaL_error(L, "bad argument");
+        return luaL_error(L, "bad argument for complex put");
     }
     idx = qlua_checklatcoord(L, 2);
     locked = QDP_expose_C(V->ptr);

@@ -86,7 +86,7 @@ q_M_get(lua_State *L)
         } else {
             if (a == -1) {
                 qlua_free(L, idx);
-                return luaL_error(L, "bad index");
+                return qlua_badindex(L, "ColorMatrix");
             } else {
                 QLA_Complex *W = qlua_newComplex(L);
                 QLA_ColorMatrix *locked;
@@ -116,7 +116,7 @@ q_M_get(lua_State *L)
     case qString:
         return qlua_lookup(L, 2, opLatColMat);
     }
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "ColorMatrix");
 }
 
 static int
@@ -140,7 +140,7 @@ q_M_put(lua_State *L)
     } else {
         if (a == -1) {
             qlua_free(L, idx);
-            return luaL_error(L, "bad index");
+            return qlua_badindex(L, "ColorMatrix");
         } else {
             QLA_Complex *z = qlua_checkComplex(L, 3);
             if (QDP_node_number(idx) == QDP_this_node) {

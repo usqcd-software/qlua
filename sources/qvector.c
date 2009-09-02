@@ -94,7 +94,7 @@ vi_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vector.int[]");
+    return qlua_badindex(L, "vector.int[]");
 }
 
 static int
@@ -118,7 +118,7 @@ vi_put(lua_State *L)                                           /* (-3,+0,e) */
         v->val[idx] = x;
         return 0;
     }
-    return luaL_error(L, "bad index for vector.int[]");
+    return qlua_badindex(L, "vector.int[]");
 }
 
 static int
@@ -155,7 +155,7 @@ vd_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vector.real[]");
+    return qlua_badindex(L, "vector.real[]");
 }
 
 static int
@@ -179,7 +179,7 @@ vd_put(lua_State *L)                                           /* (-3,+0,e) */
         v->val[idx] = x;
         return 0;
     }
-    return luaL_error(L, "bad index for vector.real[]");
+    return qlua_badindex(L, "vector.real[]");
 }
 
 static int
@@ -217,7 +217,7 @@ vc_get(lua_State *L)                                           /* (-2,+1,e) */
         return 1;
     }
 
-    return luaL_error(L, "bad index for vector.complex[]");
+    return qlua_badindex(L, "vector.complex[]");
 }
 
 static int
@@ -252,7 +252,7 @@ vc_put(lua_State *L)                                           /* (-3,+0,e) */
         }
     }
 
-    return luaL_error(L, "bad index for vector.real[]");
+    return qlua_badindex(L, "vector.real[]");
 }
 
 static int

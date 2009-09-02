@@ -140,7 +140,7 @@ q_I_get(lua_State *L)
         return qlua_lookup(L, 2, opLatInt);
     }
 
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "Int");
 }
 
 static int

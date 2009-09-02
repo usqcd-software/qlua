@@ -54,7 +54,7 @@ q_L_get(lua_State *L)
         return qlua_lookup(L, 2, opLattice);
     }
 
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "Lattice");
 }
 
 static int

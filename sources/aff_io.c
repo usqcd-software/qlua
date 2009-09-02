@@ -407,7 +407,7 @@ qaff_r_read(lua_State *L)
 
 end:
     qlua_Aff_leave();
-    return luaL_error(L, "bad arguments");
+    return luaL_error(L, "bad arguments for AFF read");
 }
 
 static int
@@ -491,7 +491,7 @@ qaff_w_write(lua_State *L)
 end:
     qlua_Aff_leave();
 
-    return luaL_error(L, "bad arguments");
+    return luaL_error(L, "bad arguments for AFF write");
 }
 
 static int

@@ -87,7 +87,7 @@ q_D_get(lua_State *L)
         } else {
             if (c == -1) {
                 qlua_free(L, idx);
-                return luaL_error(L, "bad index");
+                return qlua_badindex(L, "DiracFermion");
             } else {
                 QLA_Complex *W = qlua_newComplex(L);
                 QLA_DiracFermion *locked;
@@ -117,7 +117,7 @@ q_D_get(lua_State *L)
     case qString:
         return qlua_lookup(L, 2, opLatDirFerm);
     }
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "DiracFermion");
 }
 
 static int
@@ -141,7 +141,7 @@ q_D_put(lua_State *L)
     } else {
         if (c == -1) {
             qlua_free(L, idx);
-            return luaL_error(L, "bad index");
+            return qlua_badindex(L, "DiracFermion");
         } else {
             QLA_Complex *z = qlua_checkComplex(L, 3);
             if (QDP_node_number(idx) == QDP_this_node) {
@@ -214,7 +214,7 @@ q_D_gamma(lua_State *L)
     int n = qlua_gammabinary(L, 2);
     
     if (((n == -1) && (mu == -1)) || ((n != -1) && (mu != -1)))
-        return luaL_error(L, "bad index");
+        return qlua_badindex(L, "DiracFermion");
     if (n == -1) {
         mLatDirFerm *r = qlua_newLatDirFerm(L);
 

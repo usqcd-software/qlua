@@ -82,5 +82,6 @@ int qlua_div(lua_State *L);
 void qlua_reg_dot(int ta, q_op op);
 
 int qlua_badconstr(lua_State *L, const char *name);
+int qlua_badindex(lua_State *L, const char *type);
 
 #endif /* !defined(MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F) */

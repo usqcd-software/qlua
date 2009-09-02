@@ -82,7 +82,7 @@ q_P_get(lua_State *L)
     case qString:
         return qlua_lookup(L, 2, opLatDirProp);
     }
-    return luaL_error(L, "bad index");
+    return qlua_badindex(L, "DiracPropagator");
 }
 
 static int

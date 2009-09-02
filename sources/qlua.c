@@ -110,6 +110,12 @@ qlua_badconstr(lua_State *L, const char *name)
 }
 
 int
+qlua_badindex(lua_State *L, const char *type)
+{
+    return luaL_error(L, "bad index for %s", type);
+}
+
+int
 qlua_lookup(lua_State *L, int idx, const char *table)
 {
     const char *key = lua_tostring(L, idx);
