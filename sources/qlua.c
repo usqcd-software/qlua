@@ -12,6 +12,8 @@
 #include <latcolmat.h>                                               /* DEPS */
 #include <latdirferm.h>                                              /* DEPS */
 #include <latdirprop.h>                                              /* DEPS */
+#include <latsubset.h>                                               /* DEPS */
+#include <latmulti.h>                                                /* DEPS */
 #include <qdpc_io.h>                                                 /* DEPS */
 #ifdef HAS_AFF
 #include <lhpc-aff.h>
@@ -416,6 +418,7 @@ qlua_init(lua_State *L)
         { init_latcolmat },
         { init_latdirferm },
         { init_latdirprop },
+        { init_latmulti },
         { init_qdpc_io },
 #ifdef HAS_AFF
         { init_aff_io },
@@ -460,6 +463,7 @@ qlua_fini(lua_State *L)
         { fini_aff_io },
 #endif
         { fini_qdpc_io },
+        { fini_latmulti },
         { fini_latdirprop },
         { fini_latdirferm },
         { fini_latcolmat },

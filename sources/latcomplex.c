@@ -1,10 +1,12 @@
 #include <qlua.h>                                                    /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latcomplex.h>                                              /* DEPS */
 #include <latreal.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <latrandom.h>                                               /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
+#include <latmulti.h>                                                /* DEPS */
 #include <qmp.h>
 
 const char mtnLatComplex[] = "qcd.lattice.complex";
@@ -271,11 +273,26 @@ static int
 q_C_sum(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
-    QLA_Complex *s = qlua_newComplex(L);
 
-    QDP_c_eq_sum_C(s, a->ptr, qCurrent);
+    switch (lua_gettop(L)) {
+    case 1: {
+        QLA_Complex *s = qlua_newComplex(L);
 
-    return 1;
+        QDP_c_eq_sum_C(s, a->ptr, qCurrent);
+
+        return 1;
+    }
+    case 2: {
+        mLatMulti *m = qlua_checkLatMulti(L, 2);
+        mVecComplex *r = qlua_newVecComplex(L, m->count);
+
+        r->size = m->count;
+        QDP_c_eq_sum_C_multi(r->val, a->ptr, m->subset, m->count);
+
+        return 1;
+    }
+    }
+    return luaL_error(L, "bad arguments for Complex:sum()");
 }
 
 static int

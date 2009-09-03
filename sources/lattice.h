@@ -2,6 +2,8 @@
 #define MARK_B3A3A85C_2C48_4B4C_B926_440CBD0CB411
 
 extern const char opLattice[];
+extern int qRank;
+extern int *qDim;
 extern QDP_Subset qCurrent;
 
 int *qlua_latcoord(lua_State *L, int idx);                   /* lc[] or NULL */

@@ -1,6 +1,8 @@
 #include <qlua.h>                                                    /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
+#include <latmulti.h>                                                /* DEPS */
 #include <stdlib.h>  
 #include <qmp.h>
 #include <string.h>
@@ -34,7 +36,7 @@ qlua_checkLatInt(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatInt);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.Int expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.Int expected");
     
     return v;
 }
@@ -66,13 +68,27 @@ static int
 q_I_sum(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
-    QLA_Real sum;
 
+    switch (lua_gettop(L)) {
+    case 1: {
+        QLA_Real sum;
 
-    QDP_r_eq_sum_I(&sum, a->ptr, qCurrent);
-    lua_pushnumber(L, sum);
+        QDP_r_eq_sum_I(&sum, a->ptr, qCurrent);
+        lua_pushnumber(L, sum);
+        
+        return 1;
+    }
+    case 2: {
+        mLatMulti *m = qlua_checkLatMulti(L, 2);
+        mVecReal *r = qlua_newVecReal(L, m->count);
 
-    return 1;
+        r->size = m->count;
+        QDP_r_eq_sum_I_multi(r->val, a->ptr, m->subset, m->count);
+
+        return 1;
+    }
+    }
+    return luaL_error(L, "bad arguments for Int:sum()");
 }
 
 static int

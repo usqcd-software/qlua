@@ -341,7 +341,7 @@ qaff_r_read(lua_State *L)
         uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
 
         if (aff_node_get_int(b->ptr, n, d, size) == 0) {
-            tVecInt *v = qlua_newVecInt(L, size);
+            mVecInt *v = qlua_newVecInt(L, size);
             int i;
 
             v->size = size;
@@ -361,7 +361,7 @@ qaff_r_read(lua_State *L)
         double *d = qlua_malloc(L, size * sizeof (double));
 
         if (aff_node_get_double(b->ptr, n, d, size) == 0) {
-            tVecReal *v = qlua_newVecReal(L, size);
+            mVecReal *v = qlua_newVecReal(L, size);
             int i;
 
             v->size = size;
@@ -381,7 +381,7 @@ qaff_r_read(lua_State *L)
         double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
 
         if (aff_node_get_complex(b->ptr, n, d, size) == 0) {
-            tVecComplex *v = qlua_newVecComplex(L, size);
+            mVecComplex *v = qlua_newVecComplex(L, size);
             int i;
 
             v->size = size;
@@ -436,7 +436,7 @@ qaff_w_write(lua_State *L)
         return 0;
     }
     case qVecInt: {
-        tVecInt *v = qlua_checkVecInt(L, 3);
+        mVecInt *v = qlua_checkVecInt(L, 3);
         int size = v->size;
         uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
         int i;
@@ -453,7 +453,7 @@ qaff_w_write(lua_State *L)
         return 0;
     }
     case qVecReal: {
-        tVecReal *v = qlua_checkVecReal(L, 3);
+        mVecReal *v = qlua_checkVecReal(L, 3);
         int size = v->size;
         double *d = qlua_malloc(L, size * sizeof (double));
         int i;
@@ -470,7 +470,7 @@ qaff_w_write(lua_State *L)
         return 0;
     }
     case qVecComplex: {
-        tVecComplex *v = qlua_checkVecComplex(L, 3);
+        mVecComplex *v = qlua_checkVecComplex(L, 3);
         int size = v->size;
         double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
         int i;

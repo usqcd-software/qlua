@@ -14,8 +14,8 @@ typedef struct {
 } mLattice;
 
 static const char mtnLattice[] = "qcd.lattice";
-static int qRank = 0;
-static int *qDim = NULL;
+int qRank = 0;
+int *qDim = NULL;
 
 static int
 q_L_fmt(lua_State *L)

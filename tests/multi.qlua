@@ -1,0 +1,41 @@
+Lx = 4
+LAT = qcd.lattice{Lx,Lx + 1,Lx + 2}
+
+VOLUME = 1
+for i = 0, #LAT - 1 do
+   VOLUME = VOLUME * LAT[i]
+end
+
+print("LAT:", #LAT, LAT)
+print("VOLUME:", VOLUME)
+
+function show_x(n, d, x)
+  print(n, x)
+  for i = 0, #x - 1 do
+    print("  [" .. i .. "] = ", x[i])
+  end
+end
+
+
+for mu = 0, #LAT - 1 do
+  for x = 0, #LAT - 1 do
+     show_x("axis" .. mu .. " on " .. x, x,
+              LAT:pcoord(mu):sum(LAT:MultiSet{d=x}))
+  end
+end
+
+S = LAT:RandomState(os.time(), LAT:pcoord(0) +
+                               LAT[0] * LAT:pcoord(1) + 
+                               LAT[0] * LAT[1] * LAT:pcoord(2))
+
+function check_X(m, x)
+   print("checkX:", m, x)
+   for d = 0, #LAT - 1 do
+     show_x("partial", d, x:sum(LAT:MultiSet{d=d}))
+   end
+   print("full:", x:sum())
+   print()
+end
+
+check_X("real", S:gaussian_Real())
+check_X("complex", S:gaussian_Complex())

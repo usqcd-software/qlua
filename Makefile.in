@@ -59,6 +59,8 @@ libsrc = qvector.c \
 	 latcolmat.c \
          latdirferm.c \
          latdirprop.c \
+	 latmulti.c \
+         latsubset.c \
          qdpc_io.c \
 
 ###############################################################################

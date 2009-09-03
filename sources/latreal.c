@@ -1,9 +1,11 @@
 #include <qlua.h>                                                    /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latreal.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <latrandom.h>                                               /* DEPS */
 #include <latcomplex.h>                                              /* DEPS */
+#include <latmulti.h>                                                /* DEPS */
 #include <qmp.h>
 
 const char mtnLatReal[] = "qcd.lattice.real";
@@ -77,12 +79,27 @@ static int
 q_R_sum(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1);
-    QLA_Real sum;
+    
+    switch (lua_gettop(L)) {
+    case 1: {
+        QLA_Real sum;
 
-    QDP_r_eq_sum_R(&sum, a->ptr, qCurrent);
-    lua_pushnumber(L, sum);
+        QDP_r_eq_sum_R(&sum, a->ptr, qCurrent);
+        lua_pushnumber(L, sum);
 
-    return 1;
+        return 1;
+    }
+    case 2: {
+        mLatMulti *m = qlua_checkLatMulti(L, 2);
+        mVecReal *r = qlua_newVecReal(L, m->count);
+
+        r->size = m->count;
+        QDP_r_eq_sum_R_multi(r->val, a->ptr, m->subset, m->count);
+
+        return 1;
+    }
+    }
+    return luaL_error(L, "bad arguments for Real:sum()");
 }
 
 static int
