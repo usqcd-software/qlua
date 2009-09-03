@@ -67,6 +67,15 @@ libsrc = qvector.c \
 ifneq ("$(AFF)", "")
   libsrc += aff_io.c
 endif
+
+ifneq ("$(CLOVER)", "")
+  libsrc += qclover.c
+endif
+
+ifneq ("$(MDWF)", "")
+  libsrc += qmdwf.c
+endif
+
 ## ZZZ add other optional modules here
 ###############################################################################
 drvobj = $(driver:%.c=%.o)

@@ -19,6 +19,12 @@
 #include <lhpc-aff.h>
 #include <aff_io.h>                                                  /* DEPS */
 #endif
+#ifdef HAS_CLOVER
+#include <qclover.h>                                                 /* DEPS */
+#endif
+#ifdef HAS_MDWF
+#include <qmdwf.h>                                                   /* DEPS */
+#endif
 #include <string.h>
 
 /* ZZZ include other package headers here */
@@ -35,6 +41,12 @@ static struct {
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
     {"aff",    AFF_VERSION },
+#endif
+#ifdef HAS_CLOVER
+    {"clover", CLOVER_VERSION },
+#endif
+#ifdef HAS_MDWF
+    {"mdwf",   MDWF_VERSION },
 #endif
     {NULL,     NULL}
 };
@@ -401,7 +413,7 @@ static struct luaL_Reg fQCD[] = {
 
 /* environment setup */
 void
-qlua_init(lua_State *L)
+qlua_init(lua_State *L, int argc, char *argv[])
 {
     static const struct {
         lua_CFunction init;
@@ -423,6 +435,12 @@ qlua_init(lua_State *L)
         { init_qdpc_io },
 #ifdef HAS_AFF
         { init_aff_io },
+#endif
+#ifdef HAS_CLOVER
+        { init_clover },
+#endif
+#ifdef HAS_MDWF
+        { init_mdwf },
 #endif
         /* ZZZ add other packages here */
         { NULL }};
@@ -448,6 +466,17 @@ qlua_init(lua_State *L)
     }
     lua_setfield(L, -2, "version");
     lua_pop(L, 1);
+
+    /* collect all script names */
+    {
+        int i;
+        lua_createtable(L, argc - 1, 0);
+        for (i = 1; i < argc; i++) {
+            lua_pushstring(L, argv[i]);
+            lua_rawseti(L, -2, i);
+        }
+        lua_setglobal(L, "scripts");
+    }
     lua_gc(L, LUA_GCRESTART, 0);
 }
 
@@ -459,6 +488,12 @@ qlua_fini(lua_State *L)
         lua_CFunction fini;
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
+#ifdef HAS_MDWF
+        { fini_mdwf },
+#endif
+#ifdef HAS_CLOVER
+        { fini_clover },
+#endif
 #ifdef HAS_AFF
         { fini_aff_io },
 #endif
@@ -504,7 +539,7 @@ main(int argc, char *argv[])
         message("can not create Lua state");
         goto end;
     }
-    qlua_init(L);  /* open libraries */
+    qlua_init(L, argc, argv);  /* open libraries */
 
     for (i = 1; i < argc; i++) {
         status = luaL_dofile(L, argv[i]);

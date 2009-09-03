@@ -7,6 +7,7 @@ typedef struct {
 } mAffReader;
 
 typedef struct {
+    int                  master;
     struct AffWriter_s  *ptr;
     struct AffNode_s    *dir;
 } mAffWriter;

@@ -46,8 +46,6 @@ extern const char *qcdlib;
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
 int qlua_lookup(lua_State *L, int idx, const char *table);
-void qlua_init(lua_State *L);
-void qlua_fini(lua_State *L);
 int qlua_gettype(lua_State *L, int idx);
 void *qlua_malloc(lua_State *L, int size);
 void qlua_free(lua_State *L, void *ptr);

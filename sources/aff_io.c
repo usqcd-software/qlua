@@ -5,6 +5,7 @@
 #include <string.h>
 #include <complex.h>
 #include <assert.h>
+#include <qmp.h>
 
 const char aff_io[] = "aff";
 static const char mtnReader[] = "qcd.aff.mtReader";
@@ -95,8 +96,13 @@ qlua_newAffWriter(lua_State *L, struct AffWriter_s *writer)
 {
     mAffWriter *h = lua_newuserdata(L, sizeof (mAffWriter));
 
-    h->ptr = writer;
-    h->dir = aff_writer_root(writer);
+    if (QDP_this_node == 0) {
+        h->master = 1;
+        h->ptr = writer;
+        h->dir = aff_writer_root(writer);
+    } else {
+        h->master = 0;
+    }
     luaL_getmetatable(L, mtnWriter);
     lua_setmetatable(L, -2);
 
@@ -146,11 +152,15 @@ qaff_w_fmt(lua_State *L)
 {
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     char fmt[72];
-    
-    if (b->ptr)
-        sprintf(fmt, "aff.Writer(%p)", b->ptr);
-    else
-        sprintf(fmt, "aff.Writer(closed)");
+
+    if (b->master) {
+        if (b->ptr)
+            sprintf(fmt, "aff.Writer(%p)", b->ptr);
+        else
+            sprintf(fmt, "aff.Writer(closed)");
+    } else {
+        sprintf(fmt, "aff.Writer(slave)");
+    }
 
     lua_pushstring(L, fmt);
 
@@ -179,9 +189,11 @@ qaff_w_gc(lua_State *L)
     mAffWriter *b = qlua_checkAffWriter(L, 1);
 
     qlua_Aff_enter(L);
-    if (b->ptr)
-        aff_writer_close(b->ptr);
-    b->ptr = 0;
+    if (b->master) {
+        if (b->ptr)
+            aff_writer_close(b->ptr);
+        b->ptr = 0;
+    }
     qlua_Aff_leave();
     
     return 0;
@@ -207,19 +219,28 @@ qaff_w_close(lua_State *L)
 {
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     const char *s;
+    int status;
 
     check_writer(L, b);
 
     qlua_Aff_enter(L);
-    s = aff_writer_close(b->ptr);
-    b->ptr = 0;
+    if (b->master) {
+        s = aff_writer_close(b->ptr);
+        b->ptr = 0;
+        status = (s == 0);
+    } else {
+        s = "generic writer error";
+        status = 0;
+    }
     qlua_Aff_leave();
+    QMP_sum_int(&status);
 
-    if (s == 0)
+    if (status == 1) {
         lua_pushnil(L);
-    else
-        lua_pushstring(L, s);
-    
+        return 1;
+    }
+
+    lua_pushstring(L, s);
     return 1;
 }
 
@@ -248,18 +269,27 @@ qaff_w_status(lua_State *L)
 {
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     const char *s;
+    int status;
     
     check_writer(L, b);
 
     qlua_Aff_enter(L);
-    s = aff_writer_errstr(b->ptr);
+    if (b->master) {
+        s = aff_writer_errstr(b->ptr);
+        status = s == NULL;
+    } else {
+        s = "generic writer error";
+        status = 0;
+    }
     qlua_Aff_leave();
+    QMP_sum_int(&status);
 
-    if (s == 0) 
+    if (status) {
         lua_pushnil(L);
-    else
-        lua_pushstring(L, s);
-        
+        return 1;
+    }
+
+    lua_pushstring(L, s);
     return 1;
 }
 
@@ -416,82 +446,95 @@ qaff_w_write(lua_State *L)
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     const char *p = luaL_checkstring(L, 2);
     struct AffNode_s *n;
+    int status;
 
     check_writer(L, b);
 
     qlua_Aff_enter(L);
 
-    n = qlua_AffWriterMkPath(b, p);
-    if (n == 0)
-        goto end;
+    if (b->master) {
+        status = 0;
+        n = qlua_AffWriterMkPath(b, p);
+        if (n == 0)
+            goto end;
 
-    switch (qlua_gettype(L, 3)) {
-    case qString: {
-        const char *str = luaL_checkstring(L, 3);
-
-        if (aff_node_put_char(b->ptr, n, str, strlen(str)))
-            return luaL_error(L, aff_writer_errstr(b->ptr));
-        qlua_Aff_leave();
-
-        return 0;
-    }
-    case qVecInt: {
-        mVecInt *v = qlua_checkVecInt(L, 3);
-        int size = v->size;
-        uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
-        int i;
-
-        for (i = 0; i < size; i++)
-            d[i] = v->val[i];
-
-        if (aff_node_put_int(b->ptr, n, d, size))
-            return luaL_error(L, aff_writer_errstr(b->ptr));
-
-        qlua_free(L, d);
-        qlua_Aff_leave();
-
-        return 0;
-    }
-    case qVecReal: {
-        mVecReal *v = qlua_checkVecReal(L, 3);
-        int size = v->size;
-        double *d = qlua_malloc(L, size * sizeof (double));
-        int i;
-
-        for (i = 0; i < size; i++)
-            d[i] = v->val[i];
-
-        if (aff_node_put_double(b->ptr, n, d, size))
-            return luaL_error(L, aff_writer_errstr(b->ptr));
-
-        qlua_free(L, d);
-        qlua_Aff_leave();
-
-        return 0;
-    }
-    case qVecComplex: {
-        mVecComplex *v = qlua_checkVecComplex(L, 3);
-        int size = v->size;
-        double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
-        int i;
-
-        for (i = 0; i < size; i++) {
-            d[i] = QLA_real(v->val[i]) + I * QLA_imag(v->val[i]);
+        switch (qlua_gettype(L, 3)) {
+        case qString: {
+            const char *str = luaL_checkstring(L, 3);
+            
+            if (aff_node_put_char(b->ptr, n, str, strlen(str)) == 0)
+                status = 1;
+            
+            break;
         }
+        case qVecInt: {
+            mVecInt *v = qlua_checkVecInt(L, 3);
+            int size = v->size;
+            uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
+            int i;
 
-        if (aff_node_put_complex(b->ptr, n, d, size))
-            return luaL_error(L, aff_writer_errstr(b->ptr));
+            for (i = 0; i < size; i++)
+                d[i] = v->val[i];
 
-        qlua_free(L, d);
-        qlua_Aff_leave();
+            if (aff_node_put_int(b->ptr, n, d, size) == 0)
+                status = 1;
+            
+            qlua_free(L, d);
 
-        return 0;
+            break;
+
+        }
+        case qVecReal: {
+            mVecReal *v = qlua_checkVecReal(L, 3);
+            int size = v->size;
+            double *d = qlua_malloc(L, size * sizeof (double));
+            int i;
+
+            for (i = 0; i < size; i++)
+                d[i] = v->val[i];
+
+            if (aff_node_put_double(b->ptr, n, d, size) == 0)
+                status = 1;
+
+            qlua_free(L, d);
+
+            break;
+        }
+        case qVecComplex: {
+            mVecComplex *v = qlua_checkVecComplex(L, 3);
+            int size = v->size;
+            double _Complex *d = qlua_malloc(L, size*sizeof (double _Complex));
+            int i;
+
+            for (i = 0; i < size; i++) {
+                d[i] = QLA_real(v->val[i]) + I * QLA_imag(v->val[i]);
+            }
+
+            if (aff_node_put_complex(b->ptr, n, d, size) == 0)
+                status = 1;
+
+            qlua_free(L, d);
+
+            break;
+        }
+        default:
+            break;
+        }
+    end:
+        ;
+    } else {
+        status = 0;
     }
-    }
-end:
     qlua_Aff_leave();
+    QMP_sum_int(&status);
 
-    return luaL_error(L, "bad arguments for AFF write");
+    if (status)
+        return 0;
+
+    if (b->master)
+        return luaL_error(L, aff_writer_errstr(b->ptr));
+    else
+        return luaL_error(L, "generic writer error");
 }
 
 static int
@@ -505,15 +548,13 @@ qaff_r_chpath(lua_State *L)
 
     qlua_Aff_enter(L);
     r = qlua_AffReaderChPath(b, p);
-    if (r == 0) {
-        qlua_Aff_leave();
-        return luaL_error(L, aff_reader_errstr(b->ptr));
-    }
-
     b->dir = r;
     qlua_Aff_leave();
 
-    return 0;
+    if (r != NULL)
+        return 0;
+    else
+        return luaL_error(L, aff_reader_errstr(b->ptr));
 }
 
 static int
@@ -522,19 +563,28 @@ qaff_w_chpath(lua_State *L)
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     const char *p = luaL_checkstring(L, 2);
     struct AffNode_s *r;
+    int status;
 
     check_writer(L, b);
 
     qlua_Aff_enter(L);
-    r = qlua_AffWriterMkPath(b, p);
+    if (b->master) {
+        r = qlua_AffWriterMkPath(b, p);
+        b->dir = r;
+        status = (r != NULL);
+    } else {
+        status = 0;
+    }
     qlua_Aff_leave();
+    QMP_sum_int(&status);
+    
+    if (status)
+        return 0;
 
-    if (r == NULL)
+    if (b->master)
         return luaL_error(L, aff_writer_errstr(b->ptr));
-
-    b->dir = r;
-
-    return 0;
+    else
+        return luaL_error(L, "generic writer error");
 }
 
 static int
@@ -543,17 +593,27 @@ qaff_w_mkpath(lua_State *L)
     mAffWriter *b = qlua_checkAffWriter(L, 1);
     const char *p = luaL_checkstring(L, 2);
     struct AffNode_s *r;
+    int status;
 
     check_writer(L, b);
 
     qlua_Aff_enter(L);
-    r = qlua_AffWriterMkPath(b, p);
+    if (b->master) {
+        r = qlua_AffWriterMkPath(b, p);
+        status = (r != NULL);
+    } else {
+        status = 0;
+    }
     qlua_Aff_leave();
+    QMP_sum_int(&status);
+    
+    if (status)
+        return 0;
 
-    if (r == NULL)
+    if (b->master)
         return luaL_error(L, aff_writer_errstr(b->ptr));
-
-    return 0;
+    else
+        return luaL_error(L, "generic writer error");
 }
 
 static int
@@ -585,21 +645,31 @@ q_aff_writer(lua_State *L)
     const char *name = luaL_checkstring(L, 1);
     struct AffWriter_s *w;
     const char *msg;
+    int status;
 
     qlua_Aff_enter(L);
-    w = aff_writer(name);
-    msg = aff_writer_errstr(w);
-    if (msg == NULL) {
-        qlua_newAffWriter(L, w);
-        qlua_Aff_leave();
-
-        return 1;
+    if (QDP_this_node == 0) {
+        w = aff_writer(name);
+        msg = aff_writer_errstr(w);
+        if (msg == NULL) {
+            qlua_newAffWriter(L, w);
+            status = 1;
+        } else {
+            aff_writer_close(w);
+            status = 0;
+        }
     } else {
-        aff_writer_close(w);
-        qlua_Aff_leave();
-
-        return luaL_error(L, msg);
+        qlua_newAffWriter(L, NULL);
+        msg = "generic writer error";
+        status = 0;
     }
+    qlua_Aff_leave();
+    QMP_sum_int(&status);
+
+    if (status)
+        return 1;
+
+    return luaL_error(L, msg);
 }
 
 /* metatables */
