@@ -7,8 +7,8 @@
 #include <latrandom.h>                                               /* DEPS */
 #include <qmp.h>
 
-const char mtnLatColVec[] = "qcd.lattice.colvec";
-static const char opLatColVec[] = "qcd.lattice.colvec.op";
+const char mtnLatColVec[] = "lattice.ColorVector";
+static const char opLatColVec[] = "lattice.ColorVector.ops";
 
 mLatColVec *
 qlua_newLatColVec(lua_State *L)
@@ -35,7 +35,7 @@ qlua_checkLatColVec(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatColVec);
     
-    luaL_argcheck(L, v != 0, idx, "qcd.ColorVector expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.ColorVector expected");
     
     return v;
 }

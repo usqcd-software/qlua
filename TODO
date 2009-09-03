@@ -27,7 +27,7 @@
 *  qcd.qdpc.reader
 * -- qcd.qdpc:  do more draconian error detection
 -- other file formats
--- Subset and Multisubsets
+* -- Subset and Multisubsets
 * -- :set for all lattice types
 * -- move lattice data to lattice metatable and rearrange tests
 * annotate #includes and make utils/mkdeps understand them

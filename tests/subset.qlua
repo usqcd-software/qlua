@@ -1,0 +1,21 @@
+L = qcd.lattice { 3, 4, 2, 4}
+
+print("Lattice: ", L)
+
+ALL = L.all
+Even = L.even
+
+print("ALL:", ALL)
+print("Even: ", Even)
+
+function volume()
+  local x = L:Int(1)
+  return x:sum()
+end
+
+print("total volume", volume())
+print("even volume", Even:where(volume))
+print("t0 volume", L:Subset{axis=0,position=0}:where(volume))
+
+print("all done")
+

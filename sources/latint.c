@@ -8,8 +8,8 @@
 #include <string.h>
 
 /* lattice integers */
-const char mtnLatInt[] = "qcd.lattice.int";
-static const char opLatInt[] = "qcd.lattice.int.op";
+const char mtnLatInt[] = "lattice.Int";
+static const char opLatInt[] = "lattice.Int.ops";
 
 mLatInt *
 qlua_newLatInt(lua_State *L)

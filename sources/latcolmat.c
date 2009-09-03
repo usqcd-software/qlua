@@ -8,8 +8,8 @@
 #include <latcolvec.h>                                               /* DEPS */
 #include <qmp.h>
 
-const char mtnLatColMat[] = "qcd.lattice.ColorMatrix";
-static char opLatColMat[] = "qcd.lattice.ColorMatrix.op";
+const char mtnLatColMat[] = "lattice.ColorMatrix";
+static char opLatColMat[] = "lattice.ColorMatrix.op";
 
 mLatColMat *
 qlua_newLatColMat(lua_State *L)
@@ -36,7 +36,7 @@ qlua_checkLatColMat(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatColMat);
     
-    luaL_argcheck(L, v != 0, idx, "qcd.ColorMatrix expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.ColorMatrix expected");
     
     return v;
 }

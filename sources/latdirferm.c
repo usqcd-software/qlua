@@ -9,8 +9,8 @@
 #include <latdirferm.h>                                              /* DEPS */
 #include <qmp.h>
 
-const char mtnLatDirFerm[] = "qcd.lattice.DiracFermion";
-static char opLatDirFerm[] = "qcd.lattice.DiracFermion.op";
+const char mtnLatDirFerm[] = "lattice.DiracFermion";
+static char opLatDirFerm[] = "lattice.DiracFermion.ops";
 
 mLatDirFerm *
 qlua_newLatDirFerm(lua_State *L)
@@ -37,7 +37,7 @@ qlua_checkLatDirFerm(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatDirFerm);
     
-    luaL_argcheck(L, v != 0, idx, "qcd.ColorMatrix expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.DiracFermion expected");
     
     return v;
 }

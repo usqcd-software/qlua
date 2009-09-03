@@ -8,8 +8,8 @@
 #include <latmulti.h>                                                /* DEPS */
 #include <qmp.h>
 
-const char mtnLatReal[] = "qcd.lattice.real";
-static const char opLatReal[] = "qcd.lattice.real.op";
+const char mtnLatReal[] = "lattice.Real";
+static const char opLatReal[] = "lattice.Real.ops";
 
 mLatReal *
 qlua_newLatReal(lua_State *L)
@@ -36,7 +36,7 @@ qlua_checkLatReal(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatReal);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.Real expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.Real expected");
 
     return v;
 }

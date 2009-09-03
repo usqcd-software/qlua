@@ -63,7 +63,12 @@ q_latmulti(lua_State *L)
     v->axis = axis;
     v->arg = arg;
     v->count = count;
+    lua_gc(L, LUA_GCCOLLECT, 0);
     v->subset = QDP_create_subset(multi_func, arg, sizeof (int), count);
+
+    if (v->subset == 0)
+        return luaL_error(L, "multiset creation failure");
+
     luaL_getmetatable(L, mtnLatMulti);
     lua_setmetatable(L, -2);
 

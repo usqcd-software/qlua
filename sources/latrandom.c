@@ -10,7 +10,7 @@
 #include <latdirprop.h>                                              /* DEPS */
 /* ZZZ other packages */
 
-const char mtnLatRandom[] = "qcd.lattice.random";
+const char mtnLatRandom[] = "lattice.RandomState";
 
 mLatRandom *
 qlua_newLatRandom(lua_State *L)
@@ -37,7 +37,7 @@ qlua_checkLatRandom(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatRandom);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.RandomState expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.RandomState expected");
     
     return v;
 }

@@ -7,7 +7,7 @@
 #include <qdp.h>
 #include <math.h>
 
-const char mtnGamma[] = "qcd.mtGamma";
+const char mtnGamma[] = "qlua.mtGamma";
 
 enum {
     qG_z,  /* zero */
@@ -150,7 +150,7 @@ qlua_checkClifford(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnGamma);
     
-    luaL_argcheck(L, v != 0, idx, "qcd.gamma expected");
+    luaL_argcheck(L, v != 0, idx, "gamma expected");
     
     return v;
 }

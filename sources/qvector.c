@@ -3,20 +3,24 @@
 #include <qvector.h>                                                 /* DEPS */
 #include <string.h>
 
-const char mtnVecInt[]     = "qcd.mtVecInt";
-const char mtnVecReal[]    = "qcd.mtVecReal";
-const char mtnVecComplex[] = "qcd.mtVecComplex";
+const char mtnVecInt[]     = "vector.mtInt";
+const char mtnVecReal[]    = "vector.mtReal";
+const char mtnVecComplex[] = "vector.mtComplex";
 
 static char vector_ns[] = "vector";
 
 #define VSIZE(s,n,t) (sizeof (s) + ((n)-1)*sizeof (t))
 
 static void *
-qlua_checkVector(lua_State *L, int idx, const char *mt)
+qlua_checkVector(lua_State *L, int idx, const char *mt, const char *name)
 {
     void *v = luaL_checkudata(L, idx, mt);
 
-    luaL_argcheck(L, v != NULL, idx, "qcd.vect_* expected");
+    if (v == 0) {
+        char fmt[72];
+        sprintf(fmt, "vector.%s expected", name);
+        luaL_argcheck(L, v != NULL, idx, name);
+    }
 
     return v;
 }
@@ -24,19 +28,19 @@ qlua_checkVector(lua_State *L, int idx, const char *mt)
 mVecInt *
 qlua_checkVecInt(lua_State *L, int idx)
 {
-    return (mVecInt *)qlua_checkVector(L, idx, mtnVecInt);
+    return (mVecInt *)qlua_checkVector(L, idx, mtnVecInt, "Int");
 }
 
 mVecReal *
 qlua_checkVecReal(lua_State *L, int idx)
 {
-    return (mVecReal *)qlua_checkVector(L, idx, mtnVecReal);
+    return (mVecReal *)qlua_checkVector(L, idx, mtnVecReal, "Real");
 }
 
 mVecComplex *
 qlua_checkVecComplex(lua_State *L, int idx)
 {
-    return (mVecComplex *)qlua_checkVector(L, idx, mtnVecComplex);
+    return (mVecComplex *)qlua_checkVector(L, idx, mtnVecComplex, "Complex");
 }
 
 static void *

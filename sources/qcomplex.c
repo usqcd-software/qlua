@@ -2,14 +2,14 @@
 #include <qcomplex.h>                                                /* DEPS */
 #include <math.h>
 
-const char mtnComplex[] = "qcd.mtComplex";
+const char mtnComplex[] = "qlua.mtComplex";
 
 QLA_Complex *
 qlua_checkComplex(lua_State *L, int idx)
 {
     void *ud = luaL_checkudata(L, idx, mtnComplex);
 
-    luaL_argcheck(L, ud != NULL, idx, "qcd.complex expected");
+    luaL_argcheck(L, ud != NULL, idx, "complex expected");
 
     return (QLA_Complex *)ud;
 }

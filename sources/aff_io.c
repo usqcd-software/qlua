@@ -7,8 +7,8 @@
 #include <assert.h>
 
 const char aff_io[] = "aff";
-static const char mtnReader[] = "qcd.aff.reader";
-static const char mtnWriter[] = "qcd.aff.writer";
+static const char mtnReader[] = "qcd.aff.mtReader";
+static const char mtnWriter[] = "qcd.aff.mtRriter";
 
 /* helpers */
 static void

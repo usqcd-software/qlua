@@ -404,7 +404,7 @@ void
 qlua_init(lua_State *L)
 {
     static const struct {
-        int (*init)(lua_State *L);
+        lua_CFunction init;
     } qcd_inits[] = {
         { init_complex },
         { init_gamma },
@@ -418,14 +418,14 @@ qlua_init(lua_State *L)
         { init_latcolmat },
         { init_latdirferm },
         { init_latdirprop },
+        { init_latsubset },
         { init_latmulti },
         { init_qdpc_io },
 #ifdef HAS_AFF
         { init_aff_io },
 #endif
         /* ZZZ add other packages here */
-        { NULL }
-    };
+        { NULL }};
 
     int i;
 
@@ -456,7 +456,7 @@ void
 qlua_fini(lua_State *L)
 {
     static struct {
-        int (*fini)(lua_State *L);
+        lua_CFunction fini;
     } qcd_finis[] = { /* keep it in the reverse order with respect to init */
         /* ZZZ add other packages here */
 #ifdef HAS_AFF
@@ -464,6 +464,7 @@ qlua_fini(lua_State *L)
 #endif
         { fini_qdpc_io },
         { fini_latmulti },
+        { fini_latsubset },
         { fini_latdirprop },
         { fini_latdirferm },
         { fini_latcolmat },

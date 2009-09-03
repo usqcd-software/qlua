@@ -9,8 +9,8 @@
 #include <latint.h>                                                  /* DEPS */
 #include <qmp.h>
 
-const char mtnLatDirProp[] = "qcd.lattice.DiracPropagator";
-static const char opLatDirProp[] = "qcd.lattice.DiracPropagator.op";
+const char mtnLatDirProp[] = "lattice.DiracPropagator";
+static const char opLatDirProp[] = "lattice.DiracPropagator.ops";
 
 mLatDirProp *
 qlua_newLatDirProp(lua_State *L)
@@ -37,7 +37,7 @@ qlua_checkLatDirProp(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatDirProp);
     
-    luaL_argcheck(L, v != 0, idx, "qcd.DiracPropagator expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.DiracPropagator expected");
     
     return v;
 }

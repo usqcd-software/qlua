@@ -9,8 +9,8 @@
 #include <latmulti.h>                                                /* DEPS */
 #include <qmp.h>
 
-const char mtnLatComplex[] = "qcd.lattice.complex";
-static const char opLatComplex[] = "qcd.lattice.complex.op";
+const char mtnLatComplex[] = "lattice.Complex";
+static const char opLatComplex[] = "lattice.Complex.ops";
 
 mLatComplex *
 qlua_newLatComplex(lua_State *L)
@@ -37,7 +37,7 @@ qlua_checkLatComplex(lua_State *L, int idx)
 {
     void *v = luaL_checkudata(L, idx, mtnLatComplex);
 
-    luaL_argcheck(L, v != 0, idx, "qcd.Complex expected");
+    luaL_argcheck(L, v != 0, idx, "lattice.Complex expected");
     
     return v;
 }
