@@ -123,7 +123,7 @@ q_V_put(lua_State *L)
         if (QDP_node_number(idx) == QDP_this_node) {
             QLA_ColorVector *locked = QDP_expose_V(V->ptr);
             QLA_Complex *zz = &QLA_elem_V(locked[QDP_index(idx)], c);
-            QLA_c_eq_c(*z, *zz);
+            QLA_c_eq_c(*zz, *z);
             QDP_reset_V(V->ptr);
         }
     }

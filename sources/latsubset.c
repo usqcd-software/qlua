@@ -4,6 +4,7 @@
 #include <string.h>
 
 const char mtnLatSubset[] = "lattice.subset";
+static const char LatSubsetStack[] = "lattice.subsetstack";
 
 typedef struct {
     int heap;
@@ -76,9 +77,32 @@ q_U_where(lua_State *L)
     QDP_Subset old_set = qCurrent;
 
     qCurrent = *v->s;
+
+    /* save old context from GC on the subset stack */
+    luaL_getmetatable(L, LatSubsetStack);
+    lua_createtable(L, 2, 0);
+    lua_rawgeti(L, -2, 1);
+    lua_rawseti(L, -2, 1);
+    lua_rawgeti(L, -2, 2);
+    lua_rawseti(L, -2, 2);
+    lua_rawseti(L, -2, 2);
+    lua_pushvalue(L, 1);
+    lua_rawseti(L, -2, 1);
+    lua_pop(L, 1);
+
     if (lua_pcall(L, argc, LUA_MULTRET, 0))
         return luaL_error(L, luaL_checkstring(L, -1));
     resc = lua_gettop(L) - 1;
+
+    /* pop old subset from the subset stack */
+    luaL_getmetatable(L, LatSubsetStack);
+    lua_rawgeti(L, -1, 2);
+    lua_rawgeti(L, -1, 1);
+    lua_rawseti(L, -3, 1);
+    lua_rawgeti(L, -1, 2);
+    lua_rawseti(L, -3, 2);
+    lua_pop(L, 2);
+
     qCurrent = old_set;
 
     return resc;
@@ -147,6 +171,7 @@ static struct luaL_Reg fLatSubset[] = {
 int
 init_latsubset(lua_State *L)
 {    
+    luaL_newmetatable(L, LatSubsetStack);
     qlua_metatable(L, mtnLatSubset, mtLatSubset);
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatSubset);

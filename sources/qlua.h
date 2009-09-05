@@ -43,6 +43,7 @@ enum {
 
 extern const char *progname;
 extern const char *qcdlib;
+extern int qlua_primary_node;
 
 void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table);
 int qlua_lookup(lua_State *L, int idx, const char *table);

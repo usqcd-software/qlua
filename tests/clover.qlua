@@ -1,0 +1,95 @@
+-- completely meaningless values of parameters just to make life interesting
+
+Lx = 6
+Lt = 12
+
+L = qcd.lattice {Lx, Lx, Lx, Lt}
+
+-- get a unique number of each lattice site
+do
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  S = L:RandomState(1984, l_id)
+end
+
+
+U = { S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix() }
+
+-- F = S:gaussian_DiracFermion()
+F = L:DiracFermion()
+F[{0,0,0,0,c=0,d=0}] = complex(1,0)
+
+CL = qcd.Clover(U, 0.081, 0.07)
+
+print("CLOVER", CL)
+
+Z = CL:D(F)
+print("CL:D(F)", Z, Z:norm2())
+
+solve_clover = CL:solver(1e-20, 1000)
+
+print("solver", solve_clover)
+
+Q, eps, iters, tx, fx = solve_clover(Z)
+
+print("cg:", Q, eps, iters, tx, fx)
+if not Q then
+   print("NO SOLUTION")
+   os.exit(1)
+end
+
+
+print("F:", F, F:norm2())
+print("Z:", Z, Z:norm2())
+print("Q:", Q, Q:norm2())
+
+print("CL:solve", eps, iters, tx, fx)
+
+if not Q then
+    print("no solution found")
+    os.exit(1)
+end
+
+print("computed eps:", (Q - F):norm2(), F:norm2())
+print("DE eps:", (CL:D(Q) - Z):norm2(), Z:norm2())
+
+P = S:gaussian_DiracPropagator()
+print("P norm", P, P:norm2())
+print("CL(P) norm", CL:D(P):norm2())
+
+X,eps,iters = solve_clover(P)
+
+print("solve-clover:", X, eps, iters)
+
+for c = 0, qcd.Nc - 1 do
+  for d = 0, qcd.Nf - 1 do
+     print("prop solver: ", c, d, eps[c+1][d+1], iters[c+1][d+1])
+  end
+end
+
+print("prop residue norm2",  (P - CL:D(X)):norm2() / P:norm2())
+
+os.exit(0)
+
+for x = 0, L[0] - 1 do
+  for y = 0, L[1] - 1 do
+    for z = 0, L[2] - 1 do
+      for t = 0, L[3] - 1 do
+        for cx = 0, qcd.Nc - 1 do
+          for dx = 0, qcd.Nf - 1 do
+            idx = {x,y,z,t,c=cx,d=dx}
+            print(x, y, z, t, cx, dx, Z[idx], F[idx], Q[idx])
+          end
+        end
+      end
+    end
+  end
+end
+

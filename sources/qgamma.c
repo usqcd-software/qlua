@@ -504,6 +504,8 @@ q_r_mul_g(lua_State *L)
 
     v.t = qG_r;
     v.r = a;
+    QLA_real(v.c) = 0;
+    QLA_imag(v.c) = 0;
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &v, &b->g[i]);
     
@@ -520,6 +522,8 @@ static int q_g_mul_r(lua_State *L)
 
     v.t = qG_r;
     v.r = a;
+    QLA_real(v.c) = 0;
+    QLA_imag(v.c) = 0;
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
@@ -535,6 +539,7 @@ static int q_c_mul_g(lua_State *L)
     mGamma v;
 
     v.t = qG_c;
+    v.r = 0;
     QLA_c_eq_c(v.c, *a);
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &v, &b->g[i]);
@@ -552,6 +557,7 @@ q_g_mul_c(lua_State *L)
     mGamma v;
 
     v.t = qG_c;
+    v.r = 0;
     QLA_c_eq_c(v.c, *a);
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
@@ -570,6 +576,8 @@ q_g_div_r(lua_State *L)
 
     v.t = qG_r;
     v.r = 1/a;
+    QLA_real(v.c) = 0;
+    QLA_imag(v.c) = 0;
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
@@ -587,6 +595,7 @@ q_g_div_c(lua_State *L)
     double n = 1 / (QLA_real(*a) * QLA_real(*a) + QLA_imag(*a) * QLA_imag(*a));
 
     v.t = qG_c;
+    v.r = 0;
     QLA_real(v.c) = n * QLA_real(*a);
     QLA_imag(v.c) = -n * QLA_imag(*a);
     for (i = 0; i < 16; i++)

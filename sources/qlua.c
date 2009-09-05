@@ -25,12 +25,15 @@
 #ifdef HAS_MDWF
 #include <qmdwf.h>                                                   /* DEPS */
 #endif
+
 #include <string.h>
+#include <qmp.h>
 
 /* ZZZ include other package headers here */
 
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
+int qlua_primary_node = 1;
 
 static struct {
     char *name;
@@ -534,6 +537,7 @@ main(int argc, char *argv[])
         fprintf(stderr, "QDP initialization failed\n");
         return 1;
     }
+    qlua_primary_node = QMP_is_primary_node();
     L = lua_open();
     if (L == NULL) {
         message("can not create Lua state");

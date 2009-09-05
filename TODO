@@ -1,36 +1,17 @@
-*Basic types (missing in the standard Lua)
-*  Complex
-* -- remove autoconversion to real
-*  Gamma
-*   Vectors
-*    move from qcd namespace
-*      Integer
-*      Double
-*        change to Real through out
-*      Complex
-*QDP types:
-*  lattice
-*  Int
-*  RandomState
-*  Real
-*  Complex
-*  ColorVector
-*  ColorMatrix
-*  DiracFermion
-*  DiracPropagator
-*Constants
-*  Nc
-*  Nf
-*  version.*
-*QPDC I/O
-*  qcd.qdpc.writer
-*  qcd.qdpc.reader
-* -- qcd.qdpc:  do more draconian error detection
+print -- disable it on slaves
+io.write -- disable it on slaves, or remove completely
+
+-- compute QDP_is_primary_node() once and use the result in i/o.
+-- add C and R multiplication to all lattice types
+
+* Subset:
+* -- fix the gc bug
+-- create subsets only when necessary
+-- create multisets only when necessary
+
+QIO
+*  qdpc
 -- other file formats
-* -- Subset and Multisubsets
-* -- :set for all lattice types
-* -- move lattice data to lattice metatable and rearrange tests
-* annotate #includes and make utils/mkdeps understand them
 
 ? Miscallenious:
 ?  os.host
@@ -38,11 +19,12 @@
 
 Optional packages:
 
-*AFF
-*  reader
-*  writer
+*CLOVER
+*  operator
+*  conjugate operator
+*  solvers
 
-CLOVER
+MDWF
   operator
   conjugate operator
   solvers

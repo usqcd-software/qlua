@@ -205,8 +205,14 @@ build() {
 build_modules() {
   echo "#define QDP_VERSION \"$qdp\""
   [ -z "$aff" ] || echo "#define HAS_AFF"
-  [ -z "$mdwf" ] || echo "#define HAS_MDWF"
-  [ -z "$clover" ] || echo "#define HAS_CLOVER"
+  if [ ! -z "$mdwf" ] ; then
+    echo "#define HAS_MDWF"
+    echo "#define MDWF_VERSION \"$mdwf\""
+  fi
+  if [ ! -z "$clover" ] ; then
+    echo "#define HAS_CLOVER"
+    echo "#define CLOVER_VERSION \"$clover\""
+  fi
 }
 
 ######

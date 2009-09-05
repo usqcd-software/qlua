@@ -146,7 +146,7 @@ q_M_put(lua_State *L)
             if (QDP_node_number(idx) == QDP_this_node) {
                 QLA_ColorMatrix *locked = QDP_expose_M(V->ptr);
                 QLA_Complex *zz = &QLA_elem_M(locked[QDP_index(idx)], a, b);
-                QLA_c_eq_c(*z, *zz);
+                QLA_c_eq_c(*zz, *z);
                 QDP_reset_M(V->ptr);
             }
         }

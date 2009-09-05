@@ -126,6 +126,7 @@ q_C_put(lua_State *L)
     switch (qlua_gettype(L, 3)) {
     case qReal:
         z_re = luaL_checknumber(L, 3);
+        z_im = 0;
         break;
     case qComplex: {
         QLA_Complex *z = qlua_checkComplex(L, 3);

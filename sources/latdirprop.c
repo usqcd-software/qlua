@@ -93,7 +93,7 @@ q_P_put(lua_State *L)
     int c = qlua_checkcolorindex(L, 2);
     mLatDirFerm *r = qlua_checkLatDirFerm(L, 3);
             
-    QDP_D_eq_diracvec_P(r->ptr, V->ptr, c, d, qCurrent);
+    QDP_P_eq_diracvec_D(V->ptr, r->ptr, c, d, qCurrent);
 
     return 0;
 }

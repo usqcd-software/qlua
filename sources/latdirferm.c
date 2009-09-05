@@ -107,8 +107,6 @@ q_D_get(lua_State *L)
                 QMP_sum_double(&z_im);
                 QLA_real(*W) = z_re;
                 QLA_imag(*W) = z_im;
-                if (QLA_imag(*W) == 0)
-                    lua_pushnumber(L, QLA_real(*W));
             }
         }
         qlua_free(L, idx);
@@ -148,7 +146,7 @@ q_D_put(lua_State *L)
                 QLA_DiracFermion *locked = QDP_expose_D(V->ptr);
                 QLA_Complex *zz = &QLA_elem_D(locked[QDP_index(idx)], c, d);
 
-                QLA_c_eq_c(*z, *zz);
+                QLA_c_eq_c(*zz, *z);
                 QDP_reset_D(V->ptr);
             }
         }

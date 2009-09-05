@@ -17,5 +17,14 @@ print("total volume", volume())
 print("even volume", Even:where(volume))
 print("t0 volume", L:Subset{axis=0,position=0}:where(volume))
 
+-- check that subset stack does not mangle the LUA state
+function check(w, ...)
+   print(w, ...)
+   return 1, 2, 3
+end
+
+check("results", Even:where(check, "args", 4, 3, 2, 1));
+
+
 print("all done")
 
