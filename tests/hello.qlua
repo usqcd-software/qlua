@@ -1,1 +1,25 @@
-print("hello")
+f = io.open("foo", "wt")
+
+f:write("hello\n")
+
+function dump_table(n, t)
+  f:write(n .. " table:\t" .. tostring(t) .. "\n")
+  if t then
+    for i, v in pairs(t) do
+       f:write("\t" .. tostring(i) .. "\t" .. tostring(v) .. "\n")
+    end
+  end
+  f:write("\n")
+end
+
+dump_table("_G", _G)
+dump_table("qcd", qcd)
+dump_table("scripts", scripts)
+dump_table("vector", vector)
+dump_table("table", table)
+if qcd then
+  dump_table("qcd.version", qcd.version)
+end
+
+dump_table("io", io)
+

@@ -96,7 +96,7 @@ qlua_newAffWriter(lua_State *L, struct AffWriter_s *writer)
 {
     mAffWriter *h = lua_newuserdata(L, sizeof (mAffWriter));
 
-    if (QDP_this_node == 0) {
+    if (qlua_primary_node) {
         h->master = 1;
         h->ptr = writer;
         h->dir = aff_writer_root(writer);
@@ -648,7 +648,7 @@ q_aff_writer(lua_State *L)
     int status;
 
     qlua_Aff_enter(L);
-    if (QDP_this_node == 0) {
+    if (qlua_primary_node) {
         w = aff_writer(name);
         msg = aff_writer_errstr(w);
         if (msg == NULL) {

@@ -75,7 +75,7 @@ q_P_get(lua_State *L)
         int c = qlua_checkcolorindex(L, 2);
         mLatDirFerm *r = qlua_newLatDirFerm(L);
                 
-        QDP_D_eq_diracvec_P(r->ptr, V->ptr, c, d, qCurrent);
+        QDP_D_eq_diracvec_P(r->ptr, V->ptr, c, d, *qCurrent);
 
         return 1;
     }
@@ -93,7 +93,7 @@ q_P_put(lua_State *L)
     int c = qlua_checkcolorindex(L, 2);
     mLatDirFerm *r = qlua_checkLatDirFerm(L, 3);
             
-    QDP_P_eq_diracvec_D(V->ptr, r->ptr, c, d, qCurrent);
+    QDP_P_eq_diracvec_D(V->ptr, r->ptr, c, d, *qCurrent);
 
     return 0;
 }
@@ -104,7 +104,7 @@ q_P_gaussian(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
-    QDP_P_eq_gaussian_S(r->ptr, a->ptr, qCurrent);
+    QDP_P_eq_gaussian_S(r->ptr, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -115,7 +115,7 @@ q_P_norm2(lua_State *L)
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
     QLA_Real n;
 
-    QDP_r_eq_norm2_P(&n, a->ptr, qCurrent);
+    QDP_r_eq_norm2_P(&n, a->ptr, *qCurrent);
     lua_pushnumber(L, n);
     
     return 1;
@@ -129,7 +129,7 @@ q_P_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
-    QDP_P_eq_sP(r->ptr, a->ptr, shift, dir, qCurrent);
+    QDP_P_eq_sP(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;
 }
@@ -140,7 +140,7 @@ q_P_conj(lua_State *L)
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
-    QDP_P_eq_conj_P(r->ptr, a->ptr, qCurrent);
+    QDP_P_eq_conj_P(r->ptr, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -151,7 +151,7 @@ q_P_trans(lua_State *L)
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
-    QDP_P_eq_transpose_P(r->ptr, a->ptr, qCurrent);
+    QDP_P_eq_transpose_P(r->ptr, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -162,7 +162,7 @@ q_P_adjoin(lua_State *L)
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
-    QDP_P_eq_Pa(r->ptr, a->ptr, qCurrent);
+    QDP_P_eq_Pa(r->ptr, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -173,7 +173,7 @@ q_P_spintrace(lua_State *L)
     mLatDirProp *a = qlua_checkLatDirProp(L, 1);
     mLatColMat *r = qlua_newLatColMat(L);
 
-    QDP_M_eq_spintrace_P(r->ptr, a->ptr, qCurrent);
+    QDP_M_eq_spintrace_P(r->ptr, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -184,7 +184,7 @@ q_P_set(lua_State *L)
     mLatDirProp *r = qlua_checkLatDirProp(L, 1);
     mLatDirProp *a = qlua_checkLatDirProp(L, 2);
 
-    QDP_P_eq_P(r->ptr, a->ptr, qCurrent);
+    QDP_P_eq_P(r->ptr, a->ptr, *qCurrent);
     lua_pop(L, 1);
 
     return 1;
@@ -197,7 +197,7 @@ q_P_add_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_P_plus_P(c->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_P_eq_P_plus_P(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -209,7 +209,7 @@ q_P_sub_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_P_minus_P(c->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_P_eq_P_minus_P(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -222,7 +222,7 @@ q_P_mul_r(lua_State *L)
     QLA_Real b = luaL_checknumber(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_r_times_P(c->ptr, &b, a->ptr, qCurrent);
+    QDP_P_eq_r_times_P(c->ptr, &b, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -234,7 +234,7 @@ q_r_mul_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_r_times_P(c->ptr, &a, b->ptr, qCurrent);
+    QDP_P_eq_r_times_P(c->ptr, &a, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -246,7 +246,7 @@ q_P_mul_c(lua_State *L)
     QLA_Complex *b = qlua_checkComplex(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_c_times_P(c->ptr, b, a->ptr, qCurrent);
+    QDP_P_eq_c_times_P(c->ptr, b, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -258,7 +258,7 @@ q_c_mul_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_c_times_P(c->ptr, a, b->ptr, qCurrent);
+    QDP_P_eq_c_times_P(c->ptr, a, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -270,7 +270,7 @@ q_P_neg(lua_State *L)
     mLatDirProp *r = qlua_newLatDirProp(L);
     QLA_Real m1 = -1;
 
-    QDP_P_eq_r_times_P(r->ptr, &m1, a->ptr, qCurrent);
+    QDP_P_eq_r_times_P(r->ptr, &m1, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -282,7 +282,7 @@ q_P_mul_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_P_times_P(c->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_P_eq_P_times_P(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -294,7 +294,7 @@ q_P_mul_M(lua_State *L)
     mLatColMat *b = qlua_checkLatColMat(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_P_times_M(c->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_P_eq_P_times_M(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -306,7 +306,7 @@ q_M_mul_P(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_M_times_P(c->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_P_eq_M_times_P(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -318,7 +318,7 @@ q_P_div_r(lua_State *L)
     QLA_Real b = 1 / luaL_checknumber(L, 2);
     mLatDirProp *c = qlua_newLatDirProp(L);
 
-    QDP_P_eq_r_times_P(c->ptr, &b, a->ptr, qCurrent);
+    QDP_P_eq_r_times_P(c->ptr, &b, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -334,7 +334,7 @@ q_P_div_c(lua_State *L)
 
     QLA_real(s) = n * QLA_real(*b);
     QLA_imag(s) = -n * QLA_imag(*b);
-    QDP_P_eq_c_times_P(c->ptr, &s, a->ptr, qCurrent);
+    QDP_P_eq_c_times_P(c->ptr, &s, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -346,7 +346,7 @@ q_P_dot(lua_State *L)
     mLatDirProp *b = qlua_checkLatDirProp(L, 2);
     mLatComplex *s = qlua_newLatComplex(L);
 
-    QDP_C_eq_P_dot_P(s->ptr, a->ptr, b->ptr, qCurrent);
+    QDP_C_eq_P_dot_P(s->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -358,7 +358,7 @@ q_latdirprop(lua_State *L)
     case 1: {
         mLatDirProp *v = qlua_newLatDirProp(L);
 
-        QDP_P_eq_zero(v->ptr, qCurrent);
+        QDP_P_eq_zero(v->ptr, *qCurrent);
         
         return 1;
     }
@@ -366,7 +366,7 @@ q_latdirprop(lua_State *L)
         mLatDirProp *w = qlua_checkLatDirProp(L, 2);
         mLatDirProp *v = qlua_newLatDirProp(L);
         
-        QDP_P_eq_P(v->ptr, w->ptr, qCurrent);
+        QDP_P_eq_P(v->ptr, w->ptr, *qCurrent);
         
         return 1;
     }
@@ -376,8 +376,8 @@ q_latdirprop(lua_State *L)
         int c = qlua_checkcolorindex(L, 3);
         mLatDirProp *v = qlua_newLatDirProp(L);
 
-        QDP_P_eq_zero(v->ptr, qCurrent);
-        QDP_P_eq_diracvec_D(v->ptr, z->ptr, c, d, qCurrent);
+        QDP_P_eq_zero(v->ptr, *qCurrent);
+        QDP_P_eq_diracvec_D(v->ptr, z->ptr, c, d, *qCurrent);
 
         return 1;
     }

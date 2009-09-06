@@ -613,25 +613,25 @@ q_g_mul_D(lua_State *L)
     mLatDirFerm *r = qlua_newLatDirFerm(L);
     int i;
 
-    QDP_D_eq_zero(r->ptr, qCurrent);
+    QDP_D_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
         case qG_p:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, qCurrent);
-            QDP_D_peq_D(r->ptr, mf->ptr, qCurrent);
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_D_peq_D(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_m:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, qCurrent);
-            QDP_D_meq_D(r->ptr, mf->ptr, qCurrent);
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_D_meq_D(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_r:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, qCurrent);
-            QDP_D_peq_r_times_D(r->ptr, &m->g[i].r, mf->ptr, qCurrent);
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_D_peq_r_times_D(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
             break;
         case qG_c:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, qCurrent);
-            QDP_D_peq_c_times_D(r->ptr, &m->g[i].c, mf->ptr, qCurrent);
+            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_D_peq_c_times_D(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
             break;
         }
     }
@@ -647,25 +647,25 @@ q_g_mul_P(lua_State *L)
     mLatDirProp *r = qlua_newLatDirProp(L);
     int i;
 
-    QDP_P_eq_zero(r->ptr, qCurrent);
+    QDP_P_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
         case qG_p:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_P(r->ptr, mf->ptr, qCurrent);
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_P(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_m:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_meq_P(r->ptr, mf->ptr, qCurrent);
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_meq_P(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_r:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, qCurrent);
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
             break;
         case qG_c:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, qCurrent);
+            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
             break;
         }
     }
@@ -681,25 +681,25 @@ q_P_mul_g(lua_State *L)
     mLatDirProp *r = qlua_newLatDirProp(L);
     int i;
 
-    QDP_P_eq_zero(r->ptr, qCurrent);
+    QDP_P_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
         case qG_p:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_P(r->ptr, mf->ptr, qCurrent);
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_P(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_m:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_meq_P(r->ptr, mf->ptr, qCurrent);
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_meq_P(r->ptr, mf->ptr, *qCurrent);
             break;
         case qG_r:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, qCurrent);
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
             break;
         case qG_c:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, qCurrent);
-            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, qCurrent);
+            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
+            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
             break;
         }
     }

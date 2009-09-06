@@ -4,7 +4,7 @@
 extern const char opLattice[];
 extern int qRank;
 extern int *qDim;
-extern QDP_Subset qCurrent;
+extern QDP_Subset *qCurrent;
 
 int *qlua_latcoord(lua_State *L, int idx);                   /* lc[] or NULL */
 int *qlua_checklatcoord(lua_State *L, int idx);

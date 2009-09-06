@@ -47,7 +47,8 @@ MDWF_LIBS    = @mdwf_libs@
 library = libqlua.a
 driver = qlua.c
 headers = qlua.h
-libsrc = qvector.c \
+libsrc = qlua_io.c \
+         qvector.c \
          qcomplex.c \
          qgamma.c \
          lattice.c \

@@ -1,13 +1,3 @@
-print -- disable it on slaves
-io.write -- disable it on slaves, or remove completely
-
--- compute QDP_is_primary_node() once and use the result in i/o.
--- add C and R multiplication to all lattice types
-
-* Subset:
-* -- fix the gc bug
--- create subsets only when necessary
--- create multisets only when necessary
 
 QIO
 *  qdpc
@@ -18,11 +8,6 @@ QIO
 ?  os.tick
 
 Optional packages:
-
-*CLOVER
-*  operator
-*  conjugate operator
-*  solvers
 
 MDWF
   operator
@@ -36,5 +21,6 @@ Sequential sources
 Sources
 
 Documentation
+  Examples in the distribution tree
   User guide
   Programming guide

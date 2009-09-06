@@ -1,5 +1,6 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <modules.h>
+#include <qlua_io.h>                                                 /* DEPS */
 #include <qcomplex.h>                                                /* DEPS */
 #include <qgamma.h>                                                  /* DEPS */
 #include <qvector.h>                                                 /* DEPS */
@@ -58,7 +59,7 @@ static struct {
 void
 message(const char *fmt, ...)
 {
-    if (QDP_this_node == 0) {
+    if (qlua_primary_node) {
         va_list va;
 
         va_start(va, fmt);
@@ -70,7 +71,7 @@ message(const char *fmt, ...)
 void
 report(lua_State *L, const char *fname, int status)
 {
-    if (QDP_this_node == 0) {
+    if (qlua_primary_node) {
         if (status && !lua_isnil(L, -1)) {
             const char *msg = lua_tostring(L, -1);
             if (msg == NULL) msg = "(error object is not a string)";
@@ -415,12 +416,35 @@ static struct luaL_Reg fQCD[] = {
 };
 
 /* environment setup */
+static void
+qlua_openlibs (lua_State *L) {
+    static const luaL_Reg lualibs[] = {
+        {"", luaopen_base},
+        {LUA_LOADLIBNAME, luaopen_package},
+        {LUA_TABLIBNAME, luaopen_table},
+        /* {LUA_IOLIBNAME, luaopen_io}, */
+        {LUA_OSLIBNAME, luaopen_os},
+        {LUA_STRLIBNAME, luaopen_string},
+        {LUA_MATHLIBNAME, luaopen_math},
+        {LUA_DBLIBNAME, luaopen_debug},
+        {NULL, NULL}
+    };
+    
+    const luaL_Reg *lib = lualibs;
+    for (; lib->func; lib++) {
+        lua_pushcfunction(L, lib->func);
+        lua_pushstring(L, lib->name);
+        lua_call(L, 1, 0);
+    }
+}
+
 void
 qlua_init(lua_State *L, int argc, char *argv[])
 {
     static const struct {
         lua_CFunction init;
     } qcd_inits[] = {
+        { init_qlua_io },
         { init_complex },
         { init_gamma },
         { init_vector },
@@ -451,7 +475,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
     int i;
 
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
-    luaL_openlibs(L);  /* open libraries */
+    qlua_openlibs(L);  /* open libraries */
     luaL_register(L, qcdlib, fQCD);
     for (i = 0; qcd_inits[i].init; i++) {
         lua_pushcfunction(L, qcd_inits[i].init);
@@ -515,6 +539,7 @@ qlua_fini(lua_State *L)
         { fini_vector },
         { fini_gamma },
         { fini_complex },
+        { fini_qlua_io },
         { NULL }
     };
     int i;

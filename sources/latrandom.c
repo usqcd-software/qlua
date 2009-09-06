@@ -71,7 +71,7 @@ q_S_set(lua_State *L)
     mLatRandom *r = qlua_checkLatRandom(L, 1);
     mLatRandom *a = qlua_checkLatRandom(L, 2);
 
-    QDP_S_eq_S(r->ptr, a->ptr, qCurrent);
+    QDP_S_eq_S(r->ptr, a->ptr, *qCurrent);
     lua_pop(L, 1);
 
     return 1;
@@ -87,7 +87,7 @@ q_latrandom(lua_State *L)
         mLatRandom *a = qlua_checkLatRandom(L, 2);
         mLatRandom *b = qlua_newLatRandom(L);
 
-        QDP_S_eq_S(b->ptr, a->ptr, qCurrent);
+        QDP_S_eq_S(b->ptr, a->ptr, *qCurrent);
 
         return 1;
     }
@@ -95,7 +95,7 @@ q_latrandom(lua_State *L)
         QLA_Int seed_i = luaL_checkint(L, 2);
         mLatInt *seed_I = qlua_checkLatInt(L, 3);
         mLatRandom *state = qlua_newLatRandom(L);
-        QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, qCurrent);
+        QDP_S_eq_seed_i_I(state->ptr, seed_i, seed_I->ptr, *qCurrent);
 
         return 1;
     }

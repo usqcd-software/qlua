@@ -5,7 +5,7 @@
 
 /* NB: This code works only for a single lattice */
 
-QDP_Subset qCurrent;
+QDP_Subset *qCurrent;
 const char opLattice[] = "lattice.ops";
 
 typedef struct {
@@ -83,7 +83,7 @@ q_pcoord(lua_State *L)
     
     /* YYY global state */
     pcoord_d = d;
-    QDP_I_eq_func(v->ptr, pcoord_set, qCurrent);
+    QDP_I_eq_func(v->ptr, pcoord_set, *qCurrent);
 
     return 1;
 }
@@ -112,7 +112,7 @@ q_lattice(lua_State *L)
     if (QDP_create_layout()) {
         return luaL_error(L, "can not create lattice");
     }
-    qCurrent = QDP_all;
+    qCurrent = &QDP_all;
 
     res = lua_newuserdata(L, sizeof (mLattice) + (qRank - 1) * sizeof (int));
     res->rank = qRank;
