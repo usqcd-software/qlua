@@ -601,7 +601,8 @@ static struct luaL_Reg mtClover[] = {
 };
 
 static struct luaL_Reg fClover[] = {
-    { "Clover",       q_clover }
+    { "Clover",       q_clover },
+    { NULL,           NULL }
 };
 
 int
