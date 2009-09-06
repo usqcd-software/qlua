@@ -1,5 +1,5 @@
 #include <qlua.h>                                                    /* DEPS */
-#include <qlua_io.h>                                                 /* DEPS */
+#include <fix.h>                                                     /* DEPS */
 #include <qmp.h>
 #include <string.h>
 
@@ -200,6 +200,17 @@ qlua_print(lua_State *L)
     return 0;
 }
 
+static int
+qlua_exit(lua_State *L)
+{
+    int c = lua_gettop(L) == 0? 0: luaL_checknumber(L, 1);
+    
+    QDP_finalize();
+    exit(c);
+    /* never happens */
+    return 0;
+}
+
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
@@ -235,6 +246,11 @@ init_qlua_io(lua_State *L)
     lua_pushcfunction(L, q_file);
     lua_setfield(L, -2, "open");
     lua_setglobal(L, "io");
+
+    /* fix os.exit() */
+    lua_getglobal(L, "os");
+    lua_pushcfunction(L, qlua_exit);
+    lua_setfield(L, -2, "exit");
     
     return 0;
 }

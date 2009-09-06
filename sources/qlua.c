@@ -1,6 +1,6 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <modules.h>
-#include <qlua_io.h>                                                 /* DEPS */
+#include <fix.h>                                                     /* DEPS */
 #include <qcomplex.h>                                                /* DEPS */
 #include <qgamma.h>                                                  /* DEPS */
 #include <qvector.h>                                                 /* DEPS */
