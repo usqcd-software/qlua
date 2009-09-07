@@ -2,6 +2,7 @@
 #include <fix.h>                                                     /* DEPS */
 #include <qmp.h>
 #include <string.h>
+#include <sys/time.h>
 
 static char self[72];
 
@@ -211,6 +212,17 @@ qlua_exit(lua_State *L)
     return 0;
 }
 
+static int
+qlua_timeofday(lua_State *L)
+{
+    struct timeval t;
+
+    gettimeofday(&t, NULL);
+    lua_pushnumber(L, t.tv_sec + 1e-6 * t.tv_usec);
+
+    return 1;
+}
+
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
@@ -251,6 +263,9 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, "os");
     lua_pushcfunction(L, qlua_exit);
     lua_setfield(L, -2, "exit");
+    lua_pushcfunction(L, qlua_timeofday);
+    lua_setfield(L, -2, "time");
+    lua_pop(L, 1);
     
     return 0;
 }
