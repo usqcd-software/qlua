@@ -3,5 +3,7 @@
    --with-lua=/Users/avp/Local/packages/lua-5.1.4 \
    --with-qdp=/usr/local/packages/qdp-1.8.0 \
    --with-lhpc-aff=/Users/avp/Local/test/aff-2.1.0x \
-   --with-clover=/Users/avp/Local/test/clover-1.0.1 \
-   --with-mdwf=/Users/avp/Local/test/mdwf-1.1.4
+   --with-clover=/Users/avp/Local/test/clover-test
+
+#   --with-clover=/Users/avp/Local/test/clover-1.0.1 \
+#   --with-mdwf=/Users/avp/Local/test/mdwf-1.1.4

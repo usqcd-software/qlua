@@ -1,0 +1,66 @@
+-- completely meaningless values of parameters just to make life interesting
+
+Lx = 6
+Lt = 12
+
+L = qcd.lattice {Lx, Lx, Lx, Lt}
+
+-- get a unique number of each lattice site
+function rnd_init(x)
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  return L:RandomState(x, l_id)
+end
+
+S = rnd_init(1984)
+
+U = { S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix(),
+      S:gaussian_ColorMatrix() }
+
+F = S:gaussian_DiracFermion()
+G = S:gaussian_DiracFermion()
+
+CL = qcd.Clover(U, 0.081, 0.07)
+
+io.stdout:write("CLOVER  " .. tostring(CL) .. "\n")
+
+X = CL:D(F)
+Y = CL:Dx(G)
+
+io.stdout:write("<G, D F> " .. tostring(qcd.dot(G, X):sum())  .. "\n")
+io.stdout:write("<DxG, F> " .. tostring(qcd.dot(Y, F):sum())  .. "\n")
+
+
+s0 = CL:solver(1e-20, 0)
+s1 = CL:solver(1e-20, 1000)
+
+Q0 = s0(F)
+Q1 = s1(F)
+
+io.stdout:write("<G Q0> " .. tostring(qcd.dot(G, Q0):sum()) .. "\n")
+io.stdout:write("<G Q1> " .. tostring(qcd.dot(G, Q1):sum()) .. "\n")
+io.stdout:write("res.n  " .. tostring((F - CL:D(Q1)):norm2()) .. "\n")
+
+os.exit(0)
+
+for x = 0, L[0] - 1 do
+  for y = 0, L[1] - 1 do
+    for z = 0, L[2] - 1 do
+      for t = 0, L[3] - 1 do
+        for cx = 0, qcd.Nc - 1 do
+          for dx = 0, qcd.Nf - 1 do
+            idx = {x,y,z,t,c=cx,d=dx}
+            print(x, y, z, t, cx, dx, Z[idx], F[idx], Q[idx])
+          end
+        end
+      end
+    end
+  end
+end
+
