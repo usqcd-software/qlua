@@ -96,7 +96,7 @@ CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
               $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
               $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
-LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) $(LIBS) -llua
+LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) -llua $(LIBS)
 
 ###############################################################################
 all: doc $(program)

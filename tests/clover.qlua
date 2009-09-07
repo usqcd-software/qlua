@@ -28,23 +28,34 @@ F[{0,0,0,0,c=0,d=0}] = complex(1,0)
 
 CL = qcd.Clover(U, 0.081, 0.07)
 
-print("CLOVER", CL)
+io.stdout:write("CLOVER" .. tostring(CL) .. "\n")
 
 Z = CL:D(F)
-print("CL:D(F)", Z, Z:norm2())
+io.stdout:write("CL:D(F)" .. tostring(Z) .. tostring(Z:norm2()) .. "\n")
+Zx = CL:Dx(F)
+io.stdout:write("CL:Dx(F)" .. tostring(Zx) .. tostring(Zx:norm2()) .. "\n")
+
 
 solve_clover = CL:solver(1e-20, 1000)
 
-print("solver", solve_clover)
+io.stdout:write("solver" .. tostring(solve_clover) .. "\n")
 
 Q, eps, iters, tx, fx = solve_clover(Z)
 
-print("cg:", Q, eps, iters, tx, fx)
+
+io.stdout:write("cg:" ..
+                 tostring(Q) .. "  " ..
+                 tostring(eps) .. " " ..
+                 tostring(iters) .. " " ..
+                 tostring(tx) .. " " ..
+                 tostring(fx) .. "\n")
 if not Q then
-   print("NO SOLUTION")
+   io.stderr:write("NO SOLUTION\n")
    os.exit(1)
 end
 
+io.stdout:write("------ stop here now ------\n")
+os.exit(0)
 
 print("F:", F, F:norm2())
 print("Z:", Z, Z:norm2())
