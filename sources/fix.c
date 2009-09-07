@@ -216,9 +216,16 @@ static int
 qlua_timeofday(lua_State *L)
 {
     struct timeval t;
-
-    gettimeofday(&t, NULL);
-    lua_pushnumber(L, t.tv_sec + 1e-6 * t.tv_usec);
+    double v;
+    
+    if (qlua_primary_node) {
+        gettimeofday(&t, NULL);
+        v = t.tv_sec + 1e-6 * t.tv_usec;
+    } else {
+        v = 0;
+    }
+    QMP_sum_double(&v);
+    lua_pushnumber(L, v);
 
     return 1;
 }
