@@ -1,0 +1,8 @@
+-- compute ij plaquette on each lattice site
+
+function plaquette(i, j, U)
+   return U[i+1] *
+          U[j+1]:shift(i, "from_forward") *
+          U[i+1]:shift(j, "from_forward"):adjoin() *
+          U[j+1]:adjoin()
+end

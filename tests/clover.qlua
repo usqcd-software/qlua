@@ -54,38 +54,57 @@ if not Q then
    os.exit(1)
 end
 
-io.stdout:write("------ stop here now ------\n")
-os.exit(0)
+-- io.stdout:write("------ stop here now ------\n")
+-- os.exit(0)
 
-print("F:", F, F:norm2())
-print("Z:", Z, Z:norm2())
-print("Q:", Q, Q:norm2())
+io.stdout:write("Q: " .. tostring(Q) .. " " .. tostring(Q:norm2()) .. "\n")
+io.stdout:write("F: " .. tostring(F) .. " " .. tostring(F:norm2()) .. "\n")
+io.stdout:write("Z: " .. tostring(Z) .. " " .. tostring(Z:norm2()) .. "\n")
 
-print("CL:solve", eps, iters, tx, fx)
+io.stdout:write("CL:solve " ..
+                tostring(eps) .. " " ..
+                tostring(iters) .. " " ..
+                tostring(tx) .. " " ..
+                tostring(fx) .. "\n")
 
 if not Q then
-    print("no solution found")
+    io.stdout:write("no solution found\n")
+    io.stderr:write("no solution found\n")
     os.exit(1)
 end
 
-print("computed eps:", (Q - F):norm2(), F:norm2())
-print("DE eps:", (CL:D(Q) - Z):norm2(), Z:norm2())
+io.stdout:write("computed eps: " ..
+                tostring((Q - F):norm2()) .. " " ..
+                tostring(F:norm2()) .. "\n")
+io.stdout:write("DE eps: " ..
+                tostring((CL:D(Q) - Z):norm2()) .. " " ..
+                tostring(Z:norm2()) .. "\n")
 
 P = S:gaussian_DiracPropagator()
-print("P norm", P, P:norm2())
-print("CL(P) norm", CL:D(P):norm2())
+io.stdout:write("P norm " .. 
+                tostring(P) .. " " ..
+                tostring(P:norm2()) .. "\n")
+io.stdout:write("CL(P) norm " .. tostring(CL:D(P):norm2()) .. "\n")
 
 X,eps,iters = solve_clover(P)
 
-print("solve-clover:", X, eps, iters)
+io.stdout:write("solve-clover: " ..
+                tostring(X) .. " " ..
+                tostring(eps) .. " " ..
+                tostring(iters) .. "\n")
 
 for c = 0, qcd.Nc - 1 do
   for d = 0, qcd.Nf - 1 do
-     print("prop solver: ", c, d, eps[c+1][d+1], iters[c+1][d+1])
+     io.stdout:write("prop solver: " ..
+                     tostring(c) .. " " ..
+                     tostring(d) .. " " ..
+                     tostring(eps[c+1][d+1]) .. " " ..
+                     tostring(iters[c+1][d+1]) .. "\n")
   end
 end
 
-print("prop residue norm2",  (P - CL:D(X)):norm2() / P:norm2())
+io.stdout:write("prop residue norm2 " ..
+                tostring((P - CL:D(X)):norm2() / P:norm2()) .. "\n")
 
 os.exit(0)
 
