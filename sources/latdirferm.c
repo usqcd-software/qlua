@@ -3,6 +3,7 @@
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <latrandom.h>                                               /* DEPS */
+#include <latreal.h>                                                 /* DEPS */
 #include <latcomplex.h>                                              /* DEPS */
 #include <latcolvec.h>                                               /* DEPS */
 #include <latcolmat.h>                                               /* DEPS */
@@ -343,6 +344,102 @@ q_c_mul_D(lua_State *L)
     return 1;
 }
 
+static struct {
+    QLA_Real *a;
+    QLA_DiracFermion *b;
+} RDmul_args; /* YYY global state */
+
+static void
+do_RDmul(QLA_DiracFermion *r, int idx)
+{
+    QLA_D_eq_r_times_D(r, &RDmul_args.a[idx], &RDmul_args.b[idx]);
+}
+
+static void
+X_D_eq_R_times_D(QDP_DiracFermion *r, QDP_Real *a, QDP_DiracFermion *b,
+                 QDP_Subset s)
+{
+    RDmul_args.a = QDP_expose_R(a);
+    RDmul_args.b = QDP_expose_D(b);
+    QDP_D_eq_funci(r, do_RDmul, s);
+    QDP_reset_R(a);
+    QDP_reset_D(b);
+    RDmul_args.a = 0;
+    RDmul_args.b = 0;
+}
+
+static int
+q_R_mul_D(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
+    mLatDirFerm *c = qlua_newLatDirFerm(L);
+
+    X_D_eq_R_times_D(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_D_mul_R(lua_State *L)
+{
+    mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatDirFerm *c = qlua_newLatDirFerm(L);
+
+    X_D_eq_R_times_D(c->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
+static struct {
+    QLA_Complex *a;
+    QLA_DiracFermion *b;
+} CDmul_args; /* YYY global state */
+
+static void
+do_CDmul(QLA_DiracFermion *r, int idx)
+{
+    QLA_D_eq_c_times_D(r, &CDmul_args.a[idx], &CDmul_args.b[idx]);
+}
+
+static void
+X_D_eq_C_times_D(QDP_DiracFermion *r, QDP_Complex *a, QDP_DiracFermion *b,
+                 QDP_Subset s)
+{
+    CDmul_args.a = QDP_expose_C(a);
+    CDmul_args.b = QDP_expose_D(b);
+    QDP_D_eq_funci(r, do_CDmul, s);
+    QDP_reset_C(a);
+    QDP_reset_D(b);
+    CDmul_args.a = 0;
+    CDmul_args.b = 0;
+}
+
+static int
+q_C_mul_D(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
+    mLatDirFerm *c = qlua_newLatDirFerm(L);
+
+    X_D_eq_C_times_D(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_D_mul_C(lua_State *L)
+{
+    mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
+    mLatComplex *b = qlua_checkLatComplex(L, 2);
+    mLatDirFerm *c = qlua_newLatDirFerm(L);
+
+    X_D_eq_C_times_D(c->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_M_mul_D(lua_State *L)
 {
@@ -467,16 +564,20 @@ init_latdirferm(lua_State *L)
     lua_pop(L, 1);
     qlua_metatable(L, mtnLatDirFerm, mtLatDirFerm);
     qlua_metatable(L, opLatDirFerm, LatDirFermMethods);
-    qlua_reg_add(qLatDirFerm, qLatDirFerm, q_D_add_D);
-    qlua_reg_sub(qLatDirFerm, qLatDirFerm, q_D_sub_D);
-    qlua_reg_mul(qReal,       qLatDirFerm, q_r_mul_D);
-    qlua_reg_mul(qLatDirFerm, qReal,       q_D_mul_r);
-    qlua_reg_mul(qComplex,    qLatDirFerm, q_c_mul_D);
-    qlua_reg_mul(qLatDirFerm, qComplex,    q_D_mul_c);
-    qlua_reg_mul(qLatColMat,  qLatDirFerm, q_M_mul_D);
-    qlua_reg_div(qLatDirFerm, qReal,       q_D_div_r);
-    qlua_reg_div(qLatDirFerm, qComplex,    q_D_div_c);
-    qlua_reg_dot(qLatDirFerm, q_D_dot);
+    qlua_reg_add(qLatDirFerm,  qLatDirFerm,  q_D_add_D);
+    qlua_reg_sub(qLatDirFerm,  qLatDirFerm,  q_D_sub_D);
+    qlua_reg_mul(qReal,        qLatDirFerm,  q_r_mul_D);
+    qlua_reg_mul(qLatDirFerm,  qReal,        q_D_mul_r);
+    qlua_reg_mul(qComplex,     qLatDirFerm,  q_c_mul_D);
+    qlua_reg_mul(qLatDirFerm,  qComplex,     q_D_mul_c);
+    qlua_reg_mul(qLatReal,     qLatDirFerm,  q_R_mul_D);
+    qlua_reg_mul(qLatDirFerm,  qLatReal,     q_D_mul_R);
+    qlua_reg_mul(qLatComplex,  qLatDirFerm,  q_C_mul_D);
+    qlua_reg_mul(qLatDirFerm,  qLatComplex,  q_D_mul_C);
+    qlua_reg_mul(qLatColMat,   qLatDirFerm,  q_M_mul_D);
+    qlua_reg_div(qLatDirFerm,  qReal,        q_D_div_r);
+    qlua_reg_div(qLatDirFerm,  qComplex,     q_D_div_c);
+    qlua_reg_dot(qLatDirFerm,  q_D_dot);
 
     return 0;
 }

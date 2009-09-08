@@ -8,7 +8,8 @@ crnd = rnd:gaussian_Complex()
 x = LAT:ColorVector(crnd, 0)
 print("V(c,0)", x)
 
-x = rnd:gaussian_ColorVector()
+x = rnd:gaussian_ColorVector() * rnd:gaussian_Real()
+y = rnd:gaussian_Real() * x
 
 print("consturcted ColVec: ", x)
 print(x[{1,0,3,c=1}])

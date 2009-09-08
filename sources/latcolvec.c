@@ -1,5 +1,6 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
+#include <latreal.h>                                                 /* DEPS */
 #include <latcolvec.h>                                               /* DEPS */
 #include <qcomplex.h>                                                /* DEPS */
 #include <latint.h>                                                  /* DEPS */
@@ -227,6 +228,102 @@ q_c_mul_V(lua_State *L)
     return 1;
 }
 
+static struct {
+    QLA_Real *a;
+    QLA_ColorVector *b;
+} RVmul_args; /* YYY global state */
+
+static void
+do_RVmul(QLA_ColorVector *r, int idx)
+{
+    QLA_V_eq_r_times_V(r, &RVmul_args.a[idx], &RVmul_args.b[idx]);
+}
+
+static void
+X_V_eq_R_times_V(QDP_ColorVector *r, QDP_Real *a, QDP_ColorVector *b,
+                 QDP_Subset s)
+{
+    RVmul_args.a = QDP_expose_R(a);
+    RVmul_args.b = QDP_expose_V(b);
+    QDP_V_eq_funci(r, do_RVmul, s);
+    QDP_reset_R(a);
+    QDP_reset_V(b);
+    RVmul_args.a = 0;
+    RVmul_args.b = 0;
+}
+
+static int
+q_R_mul_V(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatColVec *b = qlua_checkLatColVec(L, 2);
+    mLatColVec *r = qlua_newLatColVec(L);
+
+    X_V_eq_R_times_V(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_V_mul_R(lua_State *L)
+{
+    mLatColVec *a = qlua_checkLatColVec(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatColVec *r = qlua_newLatColVec(L);
+
+    X_V_eq_R_times_V(r->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
+static struct {
+    QLA_Complex *a;
+    QLA_ColorVector *b;
+} CVmul_args; /* YYY global state */
+
+static void
+do_CVmul(QLA_ColorVector *r, int idx)
+{
+    QLA_V_eq_c_times_V(r, &CVmul_args.a[idx], &CVmul_args.b[idx]);
+}
+
+static void
+X_V_eq_C_times_V(QDP_ColorVector *r, QDP_Complex *a, QDP_ColorVector *b,
+                 QDP_Subset s)
+{
+    CVmul_args.a = QDP_expose_C(a);
+    CVmul_args.b = QDP_expose_V(b);
+    QDP_V_eq_funci(r, do_CVmul, s);
+    QDP_reset_C(a);
+    QDP_reset_V(b);
+    CVmul_args.a = 0;
+    CVmul_args.b = 0;
+}
+
+static int
+q_C_mul_V(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatColVec *b = qlua_checkLatColVec(L, 2);
+    mLatColVec *r = qlua_newLatColVec(L);
+
+    X_V_eq_C_times_V(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_V_mul_C(lua_State *L)
+{
+    mLatColVec *a = qlua_checkLatColVec(L, 1);
+    mLatComplex *b = qlua_checkLatComplex(L, 2);
+    mLatColVec *r = qlua_newLatColVec(L);
+
+    X_V_eq_C_times_V(r->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_V_norm2(lua_State *L)
 {
@@ -381,15 +478,19 @@ init_latcolvec(lua_State *L)
     lua_pop(L, 1);
     qlua_metatable(L, mtnLatColVec, mtLatColVec);
     qlua_metatable(L, opLatColVec, LatColVecMethods);
-    qlua_reg_add(qLatColVec, qLatColVec, q_V_add_V);
-    qlua_reg_sub(qLatColVec, qLatColVec, q_V_sub_V);
-    qlua_reg_mul(qReal,      qLatColVec, q_r_mul_V);
-    qlua_reg_mul(qLatColVec, qReal,      q_V_mul_r);
-    qlua_reg_mul(qComplex,   qLatColVec, q_c_mul_V);
-    qlua_reg_mul(qLatColVec, qComplex,   q_V_mul_c);
-    qlua_reg_div(qLatColVec, qReal,      q_V_div_r);
-    qlua_reg_div(qLatColVec, qComplex,   q_V_div_c);
-    qlua_reg_dot(qLatColVec, q_V_dot);
+    qlua_reg_add(qLatColVec,  qLatColVec,  q_V_add_V);
+    qlua_reg_sub(qLatColVec,  qLatColVec,  q_V_sub_V);
+    qlua_reg_mul(qReal,       qLatColVec,  q_r_mul_V);
+    qlua_reg_mul(qLatColVec,  qReal,       q_V_mul_r);
+    qlua_reg_mul(qComplex,    qLatColVec,  q_c_mul_V);
+    qlua_reg_mul(qLatColVec,  qComplex,    q_V_mul_c);
+    qlua_reg_mul(qLatReal,    qLatColVec,  q_R_mul_V);
+    qlua_reg_mul(qLatColVec,  qLatReal,    q_V_mul_R);
+    qlua_reg_mul(qLatComplex, qLatColVec,  q_C_mul_V);
+    qlua_reg_mul(qLatColVec,  qLatComplex, q_V_mul_C);
+    qlua_reg_div(qLatColVec,  qReal,       q_V_div_r);
+    qlua_reg_div(qLatColVec,  qComplex,    q_V_div_c);
+    qlua_reg_dot(qLatColVec,  q_V_dot);
 
     return 0;
 }

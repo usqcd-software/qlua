@@ -1,11 +1,12 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <qcomplex.h>                                                /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
+#include <latrandom.h>                                               /* DEPS */
+#include <latreal.h>                                                 /* DEPS */
+#include <latcomplex.h>                                              /* DEPS */
 #include <latcolmat.h>                                               /* DEPS */
 #include <latdirferm.h>                                              /* DEPS */
 #include <latdirprop.h>                                              /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <qmp.h>
 
@@ -263,6 +264,102 @@ q_c_mul_P(lua_State *L)
     return 1;
 }
 
+static struct {
+    QLA_Real *a;
+    QLA_DiracPropagator *b;
+} RPmul_args; /* YYY global state */
+
+static void
+do_RPmul(QLA_DiracPropagator *r, int idx)
+{
+    QLA_P_eq_r_times_P(r, &RPmul_args.a[idx], &RPmul_args.b[idx]);
+}
+
+static void
+X_P_eq_R_times_P(QDP_DiracPropagator *r, QDP_Real *a, QDP_DiracPropagator *b,
+                 QDP_Subset s)
+{
+    RPmul_args.a = QDP_expose_R(a);
+    RPmul_args.b = QDP_expose_P(b);
+    QDP_P_eq_funci(r, do_RPmul, s);
+    QDP_reset_R(a);
+    QDP_reset_P(b);
+    RPmul_args.a = 0;
+    RPmul_args.b = 0;
+}
+
+static int
+q_R_mul_P(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatDirProp *b = qlua_checkLatDirProp(L, 2);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+
+    X_P_eq_R_times_P(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_P_mul_R(lua_State *L)
+{
+    mLatDirProp *a = qlua_checkLatDirProp(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+
+    X_P_eq_R_times_P(r->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
+static struct {
+    QLA_Complex *a;
+    QLA_DiracPropagator *b;
+} CPmul_args; /* YYY global state */
+
+static void
+do_CPmul(QLA_DiracPropagator *r, int idx)
+{
+    QLA_P_eq_c_times_P(r, &CPmul_args.a[idx], &CPmul_args.b[idx]);
+}
+
+static void
+X_P_eq_C_times_P(QDP_DiracPropagator *r, QDP_Complex *a, QDP_DiracPropagator *b,
+                 QDP_Subset s)
+{
+    CPmul_args.a = QDP_expose_C(a);
+    CPmul_args.b = QDP_expose_P(b);
+    QDP_P_eq_funci(r, do_CPmul, s);
+    QDP_reset_C(a);
+    QDP_reset_P(b);
+    CPmul_args.a = 0;
+    CPmul_args.b = 0;
+}
+
+static int
+q_C_mul_P(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatDirProp *b = qlua_checkLatDirProp(L, 2);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+
+    X_P_eq_C_times_P(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_P_mul_C(lua_State *L)
+{
+    mLatDirProp *a = qlua_checkLatDirProp(L, 1);
+    mLatComplex *b = qlua_checkLatComplex(L, 2);
+    mLatDirProp *r = qlua_newLatDirProp(L);
+
+    X_P_eq_C_times_P(r->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_P_neg(lua_State *L)
 {
@@ -422,18 +519,22 @@ init_latdirprop(lua_State *L)
     lua_pop(L, 1);
     qlua_metatable(L, mtnLatDirProp, mtLatDirProp);
     qlua_metatable(L, opLatDirProp, LatDirPropMethods);
-    qlua_reg_add(qLatDirProp, qLatDirProp, q_P_add_P);
-    qlua_reg_sub(qLatDirProp, qLatDirProp, q_P_sub_P);
-    qlua_reg_mul(qReal,       qLatDirProp, q_r_mul_P);
-    qlua_reg_mul(qLatDirProp, qReal,       q_P_mul_r);
-    qlua_reg_mul(qComplex,    qLatDirProp, q_c_mul_P);
-    qlua_reg_mul(qLatDirProp, qComplex,    q_P_mul_c);
-    qlua_reg_mul(qLatDirProp, qLatDirProp, q_P_mul_P);
-    qlua_reg_mul(qLatDirProp, qLatColMat,  q_P_mul_M);
-    qlua_reg_mul(qLatColMat,  qLatDirProp, q_M_mul_P);
-    qlua_reg_div(qLatDirProp, qReal,       q_P_div_r);
-    qlua_reg_div(qLatDirProp, qComplex,    q_P_div_c);
-    qlua_reg_dot(qLatDirProp, q_P_dot);
+    qlua_reg_add(qLatDirProp,  qLatDirProp,  q_P_add_P);
+    qlua_reg_sub(qLatDirProp,  qLatDirProp,  q_P_sub_P);
+    qlua_reg_mul(qReal,        qLatDirProp,  q_r_mul_P);
+    qlua_reg_mul(qLatDirProp,  qReal,        q_P_mul_r);
+    qlua_reg_mul(qComplex,     qLatDirProp,  q_c_mul_P);
+    qlua_reg_mul(qLatDirProp,  qComplex,     q_P_mul_c);
+    qlua_reg_mul(qLatReal,     qLatDirProp,  q_R_mul_P);
+    qlua_reg_mul(qLatDirProp,  qLatReal,     q_P_mul_R);
+    qlua_reg_mul(qLatComplex,  qLatDirProp,  q_C_mul_P);
+    qlua_reg_mul(qLatDirProp,  qLatComplex,  q_P_mul_C);
+    qlua_reg_mul(qLatDirProp,  qLatDirProp,  q_P_mul_P);
+    qlua_reg_mul(qLatDirProp,  qLatColMat,   q_P_mul_M);
+    qlua_reg_mul(qLatColMat,   qLatDirProp,  q_M_mul_P);
+    qlua_reg_div(qLatDirProp,  qReal,        q_P_div_r);
+    qlua_reg_div(qLatDirProp,  qComplex,     q_P_div_c);
+    qlua_reg_dot(qLatDirProp,  q_P_dot);
 
     return 0;
 }

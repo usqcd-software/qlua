@@ -8,6 +8,8 @@
 #include <qop-clover.h>
 #include <qmp.h>
 
+/* NB: Clover operator does not agrees with BMW conventions */
+
 static char mtnClover[] = "qcd.clover";
 
 typedef struct {
@@ -97,8 +99,11 @@ q_CL_D_reader(const int p[], int c, int d, int re_im, void *env)
     } else {
         QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
     }
-    
+
     return xx;
+#if 0 /* BMW conventions */    
+    return (2 * d < QDP_Nf) ? xx : -xx;
+#endif
 }
 
 static void
@@ -106,6 +111,10 @@ q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *env)
 {
     int i = QDP_index(p);
     QLA_DiracFermion *f = env;
+ 
+#if 0 /* BMW conventions */    
+    v = (2 * d < QDP_Nf) ? v : -v;
+#endif
 
     if (re_im == 0) {
         QLA_real(QLA_elem_D(f[i], c, d)) = v;
@@ -127,13 +136,23 @@ q_CL_P_reader(const int p[], int c, int d, int re_im, void *env)
     qCL_P_env *e = env;
     QLA_Real xx;
 
+#if 0 /* BMW conventions */    
+    int s;
+#endif
+
     if (re_im == 0) {
         QLA_r_eq_Re_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
     } else {
         QLA_r_eq_Im_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
     }
-    
+
     return xx;
+#if 0 /* BMW conventions */    
+    s = (2 * d < QDP_Nf)? +1 : -1;
+    s = (2 * e->d < QDP_Nf)? s: -s;
+    
+    return s * xx;
+#endif
 }
 
 static void
@@ -141,6 +160,14 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
 {
     int i = QDP_index(p);
     qCL_P_env *e = env;
+
+#if 0 /* BMW conventions */
+    int s;
+
+    s = (2 * d < QDP_Nf)? +1 : -1;
+    s = (2 * e->d < QDP_Nf)? s: -s;
+    v = s * v;
+#endif
 
     if (re_im == 0) {
         QLA_real(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;

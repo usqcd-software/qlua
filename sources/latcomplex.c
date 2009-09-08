@@ -258,6 +258,53 @@ q_r_mul_C(lua_State *L)
     return 1;
 }
 
+static struct {
+    QLA_Real *a;
+    QLA_Complex *b;
+} RCmul_args; /* YYY global state */
+
+static void
+do_RCmul(QLA_Complex *r, int idx)
+{
+    QLA_c_eq_r_times_c(*r, RCmul_args.a[idx], RCmul_args.b[idx]);
+}
+
+static void
+X_C_eq_R_times_C(QDP_Complex *r, QDP_Real *a, QDP_Complex *b, QDP_Subset s)
+{
+    RCmul_args.a = QDP_expose_R(a);
+    RCmul_args.b = QDP_expose_C(b);
+    QDP_C_eq_funci(r, do_RCmul, s);
+    QDP_reset_R(a);
+    QDP_reset_C(b);
+    RCmul_args.a = 0;
+    RCmul_args.b = 0;
+}
+
+static int
+q_R_mul_C(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    mLatComplex *b = qlua_checkLatComplex(L, 2);
+    mLatComplex *c = qlua_newLatComplex(L);
+
+    X_C_eq_R_times_C(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_C_mul_R(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatComplex *c = qlua_newLatComplex(L);
+
+    X_C_eq_R_times_C(c->ptr, b->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_C_div_C(lua_State *L)
 {
@@ -528,6 +575,8 @@ init_latcomplex(lua_State *L)
     qlua_reg_mul(qLatComplex, qLatComplex, q_C_mul_c);
     qlua_reg_mul(qReal,       qLatComplex, q_r_mul_C);
     qlua_reg_mul(qLatComplex, qReal,       q_C_mul_r);
+    qlua_reg_mul(qLatReal,    qLatComplex, q_R_mul_C);
+    qlua_reg_mul(qLatComplex, qLatReal,    q_C_mul_R);
     qlua_reg_div(qLatComplex, qLatComplex, q_C_div_C);
     qlua_reg_dot(qLatComplex, q_C_dot);
 

@@ -2,6 +2,7 @@
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <string.h>
+#include <qmp.h>
 
 /* NB: This code works only for a single lattice */
 
@@ -197,21 +198,22 @@ qlua_checkShiftDir(lua_State *L, int idx)
     return QDP_forward;
 }
 
-#if 0 /* XXX */
-
 static int
-q_dims(lua_State *L)
+q_network(lua_State *L)
 {
+    int n = QMP_get_logical_number_of_dimensions();
+    const int *d = QMP_get_logical_dimensions();
     int i;
 
-    lua_createtable(L, qRank, 0);
-    for (i = 0; i < qRank; i++) {
-        lua_pushnumber(L, qDim[i]);
+    lua_pushnumber(L, QMP_get_number_of_nodes());
+    lua_createtable(L, n, 0);
+    for (i = 0; i < n; i++) {
+        lua_pushnumber(L, d[i]);
         lua_rawseti(L, -2, i + 1);
     }
-    return 1;
+
+    return 2;
 }
-#endif
 
 static struct luaL_Reg LatticeMethods[] = {
     { "pcoord",       q_pcoord },
@@ -227,6 +229,7 @@ static struct luaL_Reg mtLattice[] = {
 
 static struct luaL_Reg fLattice[] = {
     { "lattice", q_lattice },
+    { "network", q_network },
     { NULL, NULL}
 };
 
