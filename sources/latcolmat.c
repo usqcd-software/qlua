@@ -8,6 +8,7 @@
 #include <latrandom.h>                                               /* DEPS */
 #include <latcolvec.h>                                               /* DEPS */
 #include <qmp.h>
+#include <math.h>
 
 const char mtnLatColMat[] = "lattice.ColorMatrix";
 static char opLatColMat[] = "lattice.ColorMatrix.op";
@@ -107,8 +108,6 @@ q_M_get(lua_State *L)
                 QMP_sum_double(&z_im);
                 QLA_real(*W) = z_re;
                 QLA_imag(*W) = z_im;
-                if (QLA_imag(*W) == 0)
-                    lua_pushnumber(L, QLA_real(*W));
             }
         }
         qlua_free(L, idx);
@@ -225,6 +224,83 @@ q_M_trace(lua_State *L)
     return 1;
 }
 
+struct {
+    QLA_ColorMatrix *a;
+} Mexp_args; /* YYY global state */
+
+static void
+do_Mexp(QLA_ColorMatrix *r, int idx)
+{
+    static const int n = 15; /* terms in the Taylor series */
+    QLA_Complex cone;
+    QLA_ColorMatrix mone;
+    QLA_ColorMatrix axs;
+    QLA_ColorMatrix v;
+    QLA_ColorMatrix *a = &Mexp_args.a[idx];
+    int i, j, k;
+    double max_el;
+    double s;
+    int pw;
+
+    for (max_el = 0, i = 0; i < QDP_Nc; i++) {
+        for (j = 0; j < QDP_Nc; j++) {
+            QLA_Complex z;
+            double v;
+            QLA_C_eq_elem_M(&z, a, i, j);
+            v = fabs(QLA_real(z));
+            if (max_el < v)
+                max_el = v;
+            v = fabs(QLA_imag(z));
+            if (max_el < v)
+                max_el = v;
+        }
+    }
+    pw = (int)(ceil(max_el * 2 * QDP_Nc));
+    QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
+    QLA_M_eq_c(&mone, &cone);
+
+    s = 1.0 / (n * pw);
+    QLA_M_eq_r_times_M_plus_M(&v, &s, a, &mone);
+    for (k = n; --k;) {
+        QLA_M_eq_M_times_M(&axs, a, &v);
+        s = 1.0 / (k * pw);
+        QLA_M_eq_r_times_M_plus_M(&v, &s, &axs, &mone);
+    }
+
+    QLA_M_eq_M(r, &mone);
+    while (pw) {
+        if (pw & 1) {
+            QLA_M_eq_M_times_M(&axs, r, &v);
+            QLA_M_eq_M(r, &axs);
+        }
+        pw >>= 1;
+        if (pw > 0) {
+            QLA_M_eq_M_times_M(&axs, &v, &v);
+            QLA_M_eq_M(&v, &axs);
+        }
+    }
+}
+
+static void
+X_M_eq_exp_M(QDP_ColorMatrix *r, QDP_ColorMatrix *a, QDP_Subset s)
+{
+    Mexp_args.a = QDP_expose_M(a);
+    QDP_M_eq_funci(r, do_Mexp, s);
+    QDP_reset_M(a);
+    Mexp_args.a = 0;
+}
+
+static int
+q_M_exp(lua_State *L)
+{
+    mLatColMat *a = qlua_checkLatColMat(L, 1);
+    mLatColMat *r = qlua_newLatColMat(L);
+
+    X_M_eq_exp_M(r->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_M_set(lua_State *L)
 {
@@ -281,6 +357,18 @@ q_M_sub_M(lua_State *L)
     mLatColMat *c = qlua_newLatColMat(L);
 
     QDP_M_eq_M_minus_M(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_M_neg(lua_State *L)
+{
+    mLatColMat *a = qlua_checkLatColMat(L, 1);
+    mLatColMat *r = qlua_newLatColMat(L);
+    QLA_Real m1 = -1;
+
+    QDP_M_eq_r_times_M(r->ptr, &m1, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -454,18 +542,6 @@ q_M_mul_C(lua_State *L)
 }
 
 static int
-q_M_neg(lua_State *L)
-{
-    mLatColMat *a = qlua_checkLatColMat(L, 1);
-    mLatColMat *r = qlua_newLatColMat(L);
-    QLA_Real m1 = -1;
-
-    QDP_M_eq_r_times_M(r->ptr, &m1, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
 q_M_div_r(lua_State *L)
 {
     mLatColMat *a = qlua_checkLatColMat(L, 1);
@@ -587,6 +663,7 @@ static struct luaL_Reg LatColMatMethods[] = {
     { "adjoin",     q_M_adjoin },
     { "trace",      q_M_trace },
     { "set",        q_M_set },
+    { "exp",        q_M_exp },
     { NULL,         NULL }
 };
 
