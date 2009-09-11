@@ -47,12 +47,29 @@ print("trace: " .. tostring(yy:trace():sum()))
 -- x9 = LAT:ColorMatrix(1)
 x9 = yy - yy:adjoin()
 ey = x9:exp()
-u = (ey * ey:adjoin()):trace()
+yey = ey * ey:adjoin()
+u = yey:trace()
 
 for x = 0, LAT[0] - 1 do
   for y = 0, LAT[1] - 1 do
     print(x, y, u[{x,y}])
   end
 end
+
+print()
+
+z1 = complex(1,1)
+
+for x = 0, LAT[0] - 1 do
+  for y = 0, LAT[1] - 1 do
+    for i = 0, qcd.Nc - 1 do
+      for j = 0, qcd.Nc - 1 do
+         print(x, y, i, j, z1 + yey[{x,y,a=i,b=j}] - z1)
+      end
+    end
+  end
+end
+
+
 
 print("--------------- done ------------")

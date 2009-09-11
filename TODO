@@ -1,6 +1,7 @@
 
 QIO
 *  qdpc
++  NERSC reader done
 -- other file formats
 
 ? Miscallenious:
@@ -21,6 +22,6 @@ Sequential sources
 Sources
 
 Documentation
-  Examples in the distribution tree
++  Examples in the distribution tree  -- started
   User guide
   Programming guide

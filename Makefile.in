@@ -63,6 +63,7 @@ libsrc = fix.c \
 	 latmulti.c \
          latsubset.c \
          qdpc_io.c \
+	 nersc_io.c \
 
 ###############################################################################
 ifneq ("$(AFF)", "")
