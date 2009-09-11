@@ -1,7 +1,10 @@
 Lx = 4
 Lt = 8
 -- this is probably a bad (chroma) sample file, but it should read OK
-gfile = "/Users/avp/Sandbox/USQCD/qio/random-gauge"
+gfile = os.getenv("QDP_FILE")
+if not gfile then 
+  gfile = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge"
+end
 output = "xxx"
 
 -- start with some info about QLUA

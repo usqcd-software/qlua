@@ -1,0 +1,51 @@
+-- useful iterators
+
+
+-- iterator [lo, hi]
+function interval(lo, hi)
+  local function f(_, x)
+    if x < hi then
+      return x + 1
+    else
+      return nil
+    end
+  end
+  return f, nil, lo - 1
+end
+
+-- exclude a value from an iterator
+function all_but(excl, ...)
+  local f,fs,k = ...
+  local function g(gs, x)
+    local y = gs[1](gs[2], x)
+    if y == excl then
+      return g(gs, y)
+    else
+      return y
+    end
+  end
+  return g, {f, fs}, k
+end
+
+-- tests
+print("Simple iterator [1,10]")
+for mu in interval(1, 10) do
+  print(mu)
+end
+
+print("Composite:", all_but(3, interval(1,10)))
+print("Excluded 4:")
+for mu in all_but(4, interval(1, 7)) do
+   print(mu)
+end
+
+print("level 3, qcd")
+for mu in interval(1,4) do
+  print("Loop mu", mu)
+  for nu in all_but(mu, interval(1,4)) do
+    print(" Loop nu", mu, nu)
+    for sigma in all_but(mu, all_but(nu, interval(1, 4))) do
+      print("   Loop s", mu, nu, sigma)
+    end
+  end
+end 

@@ -240,22 +240,19 @@ do_Mexp(QLA_ColorMatrix *r, int idx)
     int i, j, k;
     double max_el;
     double s;
-    int pw;
+    unsigned int pw;
 
     for (max_el = 0, i = 0; i < QDP_Nc; i++) {
         for (j = 0; j < QDP_Nc; j++) {
             QLA_Complex z;
             double v;
             QLA_C_eq_elem_M(&z, a, i, j);
-            v = fabs(QLA_real(z));
-            if (max_el < v)
-                max_el = v;
-            v = fabs(QLA_imag(z));
+            v = hypot(QLA_real(z), QLA_imag(z));
             if (max_el < v)
                 max_el = v;
         }
     }
-    pw = (int)(ceil(max_el * 2 * QDP_Nc));
+    pw = (unsigned int)(ceil(max_el * 2 * QDP_Nc));
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
     QLA_M_eq_c(&mone, &cone);
 

@@ -1,0 +1,227 @@
+-- compute HEX smearing of the gauge links according to Stefan's notes.
+
+-------------------------------------------------------------------------------
+-- generally useful iterators
+-- iterator [lo, hi]
+function qcd.interval(lo, hi)
+  local function f(_, x)
+    if x < hi then
+      return x + 1
+    else
+      return nil
+    end
+  end
+  return f, nil, lo - 1
+end
+
+-- exclude a value from an iterator
+function qcd.exclude(excl, ...)
+  local f,fs,k = ...
+  local function g(gs, x)
+    local y = gs[1](gs[2], x)
+    if y == excl then
+      return g(gs, y)
+    else
+      return y
+    end
+  end
+  return g, {f, fs}, k
+end
+
+-------
+function
+dump_M(n, X)
+  io.stdout:write(string.format("DUMP: %s\n", n))
+  for a=0,2 do
+    for b = 0,2 do
+      local z = X[{1,2,3,4,a=a,b=b}]
+      io.stdout:write(string.format(" [%d, %d] %20.10f %20.10f\n",
+                                    a, b, z:real(), z:imag()))
+    end
+  end
+  io.stdout:write("\n")
+end
+
+-------------------------------------------------------------------------------
+-- BMW HEX smearing (section 1.3.3 of Stefan's notes)
+function bmw_hex(L, U)
+  local alpha = { 0.95, 0.76, 0.38 }
+  local dim = #U
+ 
+  assert(dim == 4, "only 4-d lattice is supported")
+
+  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc,0))
+  function alg_exp(X)
+    -- dump_M("alg_exp: X", X)
+    local ah = ((X - X:adjoin()) / 2) -- 
+    local pr = ah - ah:trace() * ScaledOne
+    -- dump_M("alg_exp: pr", pr)
+    local res = pr:exp()
+    -- dump_M("alg_exp: res", res)
+    return res
+  end
+
+  -- compute V1
+  local V1 = {}
+  for mu in qcd.interval(1, dim) do
+    V1[mu] = {}
+  end
+  for mu in qcd.interval(1, dim) do
+    for nu in qcd.exclude(mu, qcd.interval(1, dim)) do
+      V1[mu][nu] = {}
+      V1[nu][mu] = {}
+    end
+  end
+  for mu in qcd.interval(1, dim) do
+    local Um = U[mu]
+    for nu in qcd.exclude(mu, qcd.interval(1,dim)) do
+      for rho in qcd.exclude(nu, qcd.exclude(mu, qcd.interval(1,dim))) do
+        C1 = L:ColorMatrix()
+        for sigma in qcd.exclude(mu,
+                         qcd.exclude(nu,
+                             qcd.exclude(rho,
+                                 qcd.interval(1, dim)))) do
+          local Us = U[sigma]
+          C1 = C1 +
+                    Us *
+                    Um:shift(sigma - 1, "from_forward") *
+                    Us:shift(mu - 1, "from_forward"):adjoin() +
+                     (Us:adjoin() *
+                      Um *
+                      Us:shift(mu - 1, "from_forward")):
+                           shift(sigma - 1, "from_backward")
+        end
+        -- dump_M(string.format("C1[%d,%d,%d]", mu, nu, rho), C1)
+        local X = alg_exp(alpha[3] / 2 * C1 * Um:adjoin()) * Um
+        -- dump_M(string.format("V1[%d,%d,%d]", mu, nu, rho), X)
+        V1[mu][nu][rho] = X
+        V1[mu][rho][nu] = X
+      end
+    end
+  end
+
+  -- compute V2
+  local V2 = {}
+  for mu in qcd.interval(1,dim) do
+    V2[mu] = {}
+  end
+  for mu in qcd.interval(1,dim) do
+    for nu in qcd.exclude(mu, qcd.interval(1,dim)) do
+      local C2 = L:ColorMatrix()
+      for sigma in qcd.exclude(mu, qcd.exclude(nu, qcd.interval(1,dim))) do
+        local Vsmn = V1[sigma][mu][nu]
+        local Vmsn = V1[mu][sigma][nu]
+        C2 = C2 +
+               Vsmn *
+               Vmsn:shift(sigma - 1, "from_forward") *
+               Vsmn:shift(mu - 1, "from_forward"):adjoin() +
+                (Vsmn:adjoin() *
+                 Vmsn *
+                 Vsmn:shift(mu - 1, "from_forward")):
+                        shift(sigma - 1, "from_backward")
+      end
+      V2[mu][nu] = alg_exp(alpha[2] / 4 * C2 * U[mu]:adjoin()) * U[mu]
+    end
+  end
+
+  -- compute V3
+  local V3 = {}
+  for mu in qcd.interval(1,dim) do
+    local C3 = L:ColorMatrix()
+    for sigma in qcd.exclude(mu, qcd.interval(1,dim)) do
+      local Vsm = V2[sigma][mu]
+      local Vms = V2[mu][sigma]
+      C3 = C3 + 
+             Vsm *
+             Vms:shift(sigma - 1, "from_forward") *
+             Vsm:shift(mu - 1, "from_forward"):adjoin() +
+              (Vsm:adjoin() *
+               Vms *
+               Vsm:shift(mu - 1, "from_forward")):
+                      shift(sigma - 1, "from_backward")
+    end
+    V3[mu] = alg_exp(alpha[1]/6 * C3 * U[mu]:adjoin()) * U[mu]
+  end
+
+  return V3
+end
+
+-------------------------------------------------------------------------------
+-- test code starts here
+L = qcd.lattice{4,4,4,8}
+
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+if false then
+  -- read a random gauge
+  file_name = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge.nersc"
+  U = qcd.NERSC_gauge(file_name)
+  io.stdout:write(string.format("Using gauge field from \"%s\"\n", file_name))
+end
+
+if false then
+  U = { L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0))}
+  io.stdout:write("Using unit gauge field\n")
+end
+
+if true then
+  local idx = L:Int(0)
+  for d = 0, #L - 1 do
+    idx = idx * L[d] + L:pcoord(d)
+  end
+  local S = L:RandomState(1984, idx)
+  local function toSU3(X)
+    local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
+    local ahX = (X - X:adjoin()) / 2
+    local algX = ahX - ScaledOne * ahX:trace()
+    return algX:exp()
+  end
+  U = { toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()) }
+
+  io.stdout:write("Using gaussian random field\n")
+end
+
+
+-- compute and print plaquetts
+function check_plaquettes(name, U)
+  local function plaq(i, j)
+     local P = (U[i] *
+                U[j]:shift(i - 1, "from_forward") *
+                U[i]:shift(j - 1, "from_forward"):adjoin() *
+                U[j]:adjoin()):trace():real()
+     local px = P:sum() / volume
+     local z = (P - L:Real(px))
+     local dp = (z*z):sum() / volume
+     return px / qcd.Nc , dp / (qcd.Nc * qcd.Nc)
+  end
+
+  io.stdout:write(string.format("Plaquettes of %s\n", name))
+  for mu in qcd.interval(1, #L) do
+    for nu in qcd.interval(mu+1, #L) do
+       local p, dp = plaq(mu, nu)
+       io.stdout:write(string.format(" [%d,%d] %30.20f %8.2e\n",
+                                     mu, nu, p, dp))
+    end
+  end
+  io.stdout:write("\n")
+end
+
+check_plaquettes("U", U)
+
+V = U
+for i = 1, 10 do
+  V = bmw_hex(L, V)
+  check_plaquettes(string.format("V step %d", i), V)
+end
+
+io.stdout:write("------ all done -----\n")
+
