@@ -1,7 +1,7 @@
 -- tests for naive topological charge
 
 require("stdlib")
-require("topology")
+require("gauge")
 
 -------------------------------------------------------------------------------
 -- test code starts here
@@ -41,18 +41,15 @@ if true then
     idx = idx * L[d] + L:pcoord(d)
   end
   local S = L:RandomState(1984, idx)
-  local function toSU3(X)
-    local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-    local ahX = (X - X:adjoin()) / 2
-    local algX = ahX - ScaledOne * ahX:trace()
-    return algX:exp()
-  end
-  U = { toSU3(S:gaussian_ColorMatrix()),
-        toSU3(S:gaussian_ColorMatrix()),
-        toSU3(S:gaussian_ColorMatrix()),
-        toSU3(S:gaussian_ColorMatrix()) }
+
+  U = { toSUn(L, S:gaussian_ColorMatrix()),
+        toSUn(L, S:gaussian_ColorMatrix()),
+        toSUn(L, S:gaussian_ColorMatrix()),
+        toSUn(L, S:gaussian_ColorMatrix()) }
 
   check_Q("gaussian", U)
+  g = toSUn(L, 5 * S:gaussian_ColorMatrix())
+  check_Q("gauge transformed", gauge_transform_U(g, U))
 end
 
 io.stdout:write("------ all done -----\n")

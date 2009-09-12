@@ -44,6 +44,8 @@ MDWF_LIBS    = @mdwf_libs@
 ## ZZZ add other modules here
 
 #############################################################################
+docfiles = COPYRIGHT README INSTALL config.log
+
 library = libqlua.a
 driver = qlua.c
 headers = qlua.h
@@ -114,7 +116,15 @@ realclean: clean
 	$ECLEAN executables
 	$C$(RM) $(program)
 
-install:
+install: all doc
+	$EINSTALL
+	$C mkdir -p $(BINDIR)
+	$C cp $(program) $(program)-config $(BINDIR)/
+	$C mkdir -p $(LIBDIR)
+	$C cp -r qlib/* $(LIBDIR)/
+	$C mkdir -p $(DOCDIR)
+	$C cp $(docfiles) $(DOCDIR)/
+
 ###############################################################################
 $(program): $(drvobj) $(library)
 	$ELD $(program)

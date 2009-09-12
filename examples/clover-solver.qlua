@@ -1,0 +1,48 @@
+require("stdlib")
+require("gauge")
+
+rnd_f       = 0.5
+Lx          = 4
+Lt          = 8
+
+kappa       = 0.27 -- 0.27 is better
+c_sw        = 1.0
+
+inn_iters   = 300
+max_iters   = 10000
+eps         = 1e-12
+
+L = qcd.lattice{Lx, Lx, Lx, Lt}
+
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+do
+  local idx = L:Int(0)
+  for d = 0, #L - 1 do
+    idx = idx * L[d] + L:pcoord(d)
+  end
+  S = L:RandomState(1984, idx)
+end
+
+U = { toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(L, rnd_f * S:gaussian_ColorMatrix()) }
+
+CL = qcd.Clover(U, kappa, c_sw)
+mixed_solver = CL:mixed_solver(eps, inn_iters, max_iters)
+full_solver = CL:solver(eps, max_iters)
+
+F = S:gaussian_DiracPropagator()
+
+printf("mixed solver\n")
+mixed_solver(F)
+printf("\n")
+printf("max solver\n")
+full_solver(F)
+
+
+printf("--------------------- end ---------------------- \n")

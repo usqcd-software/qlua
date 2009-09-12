@@ -11,7 +11,6 @@ end
 ---- iterators
 -- interval [lo, hi]
 function interval(lo, hi)
-  assert(lo <= hi, "bad interval iterator")
   local function f(_, x)
     if x < hi then
       return x + 1
