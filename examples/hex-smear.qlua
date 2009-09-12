@@ -123,6 +123,7 @@ function bmw_hex(L, U)
       V2[mu][nu] = alg_exp(alpha[2] / 4 * C2 * U[mu]:adjoin()) * U[mu]
     end
   end
+  V1 = nil
 
   -- compute V3
   local V3 = {}

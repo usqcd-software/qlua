@@ -1,0 +1,59 @@
+-- tests for naive topological charge
+
+require("stdlib")
+require("topology")
+
+-------------------------------------------------------------------------------
+-- test code starts here
+L = qcd.lattice{4,4,4,8}
+
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+function check_Q(name, U)
+   printf("Q(%-20s) = %10.5f\n", name, naive_q(U):sum())
+end
+
+
+if true then
+  -- read a random gauge
+  file_name = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge.nersc"
+  U = qcd.NERSC_gauge(file_name)
+  printf("\n\n\n>>>> Using gauge field from \"%s\"\n\n", file_name)
+  check_Q("CHROMA random", U)
+end
+
+if true then
+  U = { L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0)),
+        L:ColorMatrix(complex(1,0))}
+  printf("\n\n\n>>>> Using unit gauge field\n\n")
+  check_Q("U=1", U)
+end
+
+if true then
+  printf("\n\n\n>>>> Using gaussian random field\n\n")
+  local idx = L:Int(0)
+  for d = 0, #L - 1 do
+    idx = idx * L[d] + L:pcoord(d)
+  end
+  local S = L:RandomState(1984, idx)
+  local function toSU3(X)
+    local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
+    local ahX = (X - X:adjoin()) / 2
+    local algX = ahX - ScaledOne * ahX:trace()
+    return algX:exp()
+  end
+  U = { toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()),
+        toSU3(S:gaussian_ColorMatrix()) }
+
+  check_Q("gaussian", U)
+end
+
+io.stdout:write("------ all done -----\n")
+

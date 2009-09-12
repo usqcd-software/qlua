@@ -1,0 +1,13 @@
+-- show how to load a library
+require("stdlib") -- qlua standard library
+
+for i in interval(0, 6) do
+  for j in skip(i+3, interval(i + 1, 8)) do
+    printf("interval(%d,%d)\n", i, j)
+  end
+end
+
+-- list all packages loaded
+for i, v in pairs(package.loaded) do
+  print(i, v)
+end

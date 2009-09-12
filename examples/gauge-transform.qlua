@@ -1,0 +1,17 @@
+-- gauge transformations
+
+function gauge_transform_U(g, U)
+   local V = {}
+   for i = 1, #U do
+      V[i] = g * U[i] * g:shift(i - 1, "from_forward"):adjoin()
+   end
+   return V
+end
+
+function gauge_transform_D(g, F)
+  return g * F
+end
+
+function gauge_transform_P(g, P)
+  return g * P * g:adjoin()
+end

@@ -1,5 +1,6 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <fix.h>                                                     /* DEPS */
+#include <modules.h>
 #include <qmp.h>
 #include <string.h>
 #include <sys/time.h>
@@ -7,6 +8,8 @@
 static char self[72];
 
 static const char mtnFile[] = "qlua.file";
+
+static char qlib_path[] = "./?.qlua;" QLUA_LIB "/?.qlua;./qlib/?.qlua";
 
 enum {
     qf_closed,
@@ -272,6 +275,12 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "exit");
     lua_pushcfunction(L, qlua_timeofday);
     lua_setfield(L, -2, "time");
+    lua_pop(L, 1);
+
+    /* fix package.path */
+    lua_getglobal(L, "package");
+    lua_pushstring(L, qlib_path);
+    lua_setfield(L, -2, "path");
     lua_pop(L, 1);
     
     return 0;

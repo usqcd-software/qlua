@@ -1,6 +1,10 @@
 #!/bin/sh
 PACKTOP=/Users/avp/Local/packages
+
+TARGET=`(cd ..; pwd)`/install
+
 ./configure \
+   --prefix=$TARGET \
    --with-lua=$PACKTOP/lua-5.1.4 \
    --with-qdp=$PACKTOP/qdp-1.8.1 \
    --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \

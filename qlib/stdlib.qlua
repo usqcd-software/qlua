@@ -1,0 +1,37 @@
+---- printf() and eprintf() available
+
+function printf(fmt, ...)
+  return io.stdout:write(string.format(fmt, ...))
+end
+
+function eprintf(fmt, ...)
+  return io.stderr:write(string.format(fmt, ...))
+end
+
+---- iterators
+-- interval [lo, hi]
+function interval(lo, hi)
+  assert(lo <= hi, "bad interval iterator")
+  local function f(_, x)
+    if x < hi then
+      return x + 1
+    else
+      return nil
+    end
+  end
+  return f, nil, lo - 1
+end
+
+-- exclude a value from an iterator
+function skip(excl, ...)
+  local f,fs,k = ...
+  local function g(gs, x)
+    local y = gs[1](gs[2], x)
+    if y == excl then
+      return g(gs, y)
+    else
+      return y
+    end
+  end
+  return g, {f, fs}, k
+end

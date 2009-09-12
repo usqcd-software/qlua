@@ -10,7 +10,7 @@ show_help() {
      --help                   show this help and exit
      --prefix=DIR             installation prefix
      --bindir=DIR             use DIR instead of PREFIX/bin for executables
-     --libdir=DIR             use DIR instead of PREFIX/lib for libraries
+     --libdir=DIR             use DIR instead of PREFIX/lib/qlua for libraries
      --incdir=DIR             use DIR instead of PREFIX/include for headers
      --docdir=DIR             use DIR instead of PREFIX/share/doc/mdwf for docs
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
@@ -51,7 +51,7 @@ docdir=
 default_prefix=/usr/local
 # rest is relative to prefix by default
 bindir_loc=bin
-libdir_loc=lib
+libdir_loc=lib/qlua
 incdir_loc=include
 docdir_loc=share/doc/qlua
 default_cc=gcc
@@ -213,6 +213,7 @@ build_modules() {
     echo "#define HAS_CLOVER"
     echo "#define CLOVER_VERSION \"$clover\""
   fi
+  echo "#define QLUA_LIB \"$libdir\""
 }
 
 ######
