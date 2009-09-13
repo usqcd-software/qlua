@@ -470,8 +470,8 @@ q_CL_mixed_solve(lua_State *L)
         status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
                                        c_psi, c->gauge, c_psi,
                                        inner_iters, max_iters, eps,
-                                       QOP_CLOVER_FINAL_DIRAC_RESIDUAL);
-        /* 0);  options */
+                                       0);
+        /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
         QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
         if (qlua_primary_node)
             printf("CLOVER mCG solver: status = %d,"
@@ -524,6 +524,7 @@ q_CL_mixed_solve(lua_State *L)
                                                c_psi, c->gauge, c_psi,
                                                inner_iters, max_iters, eps,
                                                0);
+                /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
                 
                 if (qlua_primary_node)
@@ -712,8 +713,8 @@ q_clover(lua_State *L)
             QDP_M_eq_sM(UF[Nt+2], UF[Nt+5], QDP_neighbor[mu], QDP_backward,
                         QDP_all);
             QDP_M_peq_M(UF[Nt+4], UF[Nt+2], QDP_all);
-            QDP_M_eq_M(UF[Nf+i], UF[Nt+4], QDP_all);
-            QDP_M_meq_Ma(UF[Nf+i], UF[Nt+4], QDP_all);
+            QDP_M_eq_M(UF[Nu+i], UF[Nt+4], QDP_all);
+            QDP_M_meq_Ma(UF[Nu+i], UF[Nt+4], QDP_all);
         }
     }
 
@@ -728,7 +729,7 @@ q_clover(lua_State *L)
         return luaL_error(L, "CLOVER_init() failed");
     
     /* import the gauge field */
-    for (i = 0; i < Nu + Nf; i++)
+    for (i = 0; i < Nt; i++)
         uf[i] = QDP_expose_M(UF[i]); /* QDP requires all UF to be distinct */
 
     q_CL_u_lattice = args.lattice;
@@ -739,7 +740,7 @@ q_clover(lua_State *L)
     }
     q_CL_u_lattice = 0;
 
-    for (i = 0; i < Nu + Nf; i++)
+    for (i = 0; i < Nt; i++)
         QDP_reset_M(UF[i]);
 
     /* clean up temporaries */
