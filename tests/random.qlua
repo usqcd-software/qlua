@@ -1,0 +1,10 @@
+function printf(fmt, ...)
+  io.stdout:write(string.format(fmt, ...))
+end
+
+for j = 0, 31 do
+  for i = 0, 8 do
+     printf(" %08x", os.random())
+  end
+  printf("\n")
+end
