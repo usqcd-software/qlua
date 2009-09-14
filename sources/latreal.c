@@ -443,6 +443,52 @@ q_R_add_R(lua_State *L)
     return 1;
 }
 
+static struct {
+    QLA_Real a;
+    QLA_Real *b;
+} Rop_args; /* YYY global state */
+
+static void
+do_rRadd(QLA_Real *r, int idx)
+{
+    *r = Rop_args.a + Rop_args.b[idx];
+}
+
+static void
+X_R_eq_r_plus_R(QDP_Real *r, double a, QDP_Real *b, QDP_Subset s)
+{
+    Rop_args.a = a;
+    Rop_args.b = QDP_expose_R(b);
+    QDP_R_eq_funci(r, do_rRadd, s);
+    QDP_reset_R(b);
+    Rop_args.a = 0;
+    Rop_args.b = 0;
+}
+
+static int
+q_r_add_R(lua_State *L)
+{
+    double a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    X_R_eq_r_plus_R(c->ptr, a, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_R_add_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    double b = luaL_checknumber(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    X_R_eq_r_plus_R(c->ptr, b, a->ptr, *qCurrent);
+
+    return 1;
+}
+
 static int
 q_R_sub_R(lua_State *L)
 {
@@ -451,6 +497,47 @@ q_R_sub_R(lua_State *L)
     mLatReal *c = qlua_newLatReal(L);
 
     QDP_R_eq_R_minus_R(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static void
+do_rRsub(QLA_Real *r, int idx)
+{
+    *r = Rop_args.a - Rop_args.b[idx];
+}
+
+static void
+X_R_eq_r_minus_R(QDP_Real *r, double a, QDP_Real *b, QDP_Subset s)
+{
+    Rop_args.a = a;
+    Rop_args.b = QDP_expose_R(b);
+    QDP_R_eq_funci(r, do_rRsub, s);
+    QDP_reset_R(b);
+    Rop_args.a = 0;
+    Rop_args.b = 0;
+}
+
+static int
+q_r_sub_R(lua_State *L)
+{
+    double a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    X_R_eq_r_minus_R(c->ptr, a, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_R_sub_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    double b = luaL_checknumber(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    X_R_eq_r_plus_R(c->ptr, -b, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -499,6 +586,47 @@ q_R_div_R(lua_State *L)
     mLatReal *c = qlua_newLatReal(L);
 
     QDP_R_eq_R_divide_R(c->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static int
+q_R_div_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1);
+    double b = 1/luaL_checknumber(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    QDP_R_eq_r_times_R(c->ptr, &b, a->ptr, *qCurrent);
+
+    return 1;
+}
+
+static void
+do_rRdiv(QLA_Real *r, int idx)
+{
+    *r = Rop_args.a / Rop_args.b[idx];
+}
+
+static void
+X_R_eq_r_divide_R(QDP_Real *r, double a, QDP_Real *b, QDP_Subset s)
+{
+    Rop_args.a = a;
+    Rop_args.b = QDP_expose_R(b);
+    QDP_R_eq_funci(r, do_rRdiv, s);
+    QDP_reset_R(b);
+    Rop_args.a = 0;
+    Rop_args.b = 0;
+}
+
+static int
+q_r_div_R(lua_State *L)
+{
+    double a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2);
+    mLatReal *c = qlua_newLatReal(L);
+
+    X_R_eq_r_divide_R(c->ptr, a, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -591,11 +719,17 @@ init_latreal(lua_State *L)
     qlua_metatable(L, opLatReal, LatRealMethods);
 
     qlua_reg_add(qLatReal, qLatReal, q_R_add_R);
+    qlua_reg_add(qReal,    qLatReal, q_r_add_R);
+    qlua_reg_add(qLatReal, qReal,    q_R_add_r);
     qlua_reg_sub(qLatReal, qLatReal, q_R_sub_R);
+    qlua_reg_sub(qReal,    qLatReal, q_r_sub_R);
+    qlua_reg_sub(qLatReal, qReal,    q_R_sub_r);
     qlua_reg_mul(qLatReal, qLatReal, q_R_mul_R);
     qlua_reg_mul(qReal,    qLatReal, q_r_mul_R);
     qlua_reg_mul(qLatReal, qReal,    q_R_mul_r);
     qlua_reg_div(qLatReal, qLatReal, q_R_div_R);
+    qlua_reg_div(qReal,    qLatReal, q_r_div_R);
+    qlua_reg_div(qLatReal, qReal,    q_R_div_r);
     qlua_reg_dot(qLatReal, q_R_mul_R);
 
     return 0;

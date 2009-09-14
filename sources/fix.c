@@ -4,12 +4,15 @@
 #include <qmp.h>
 #include <string.h>
 #include <sys/time.h>
+#include <stdio.h>
 
 static char self[72];
 
 static const char mtnFile[] = "qlua.file";
 
 static char qlib_path[] = "./?.qlua;" QLUA_LIB "/?.qlua;./qlib/?.qlua";
+
+static FILE *rf = 0;
 
 enum {
     qf_closed,
@@ -233,6 +236,18 @@ qlua_timeofday(lua_State *L)
     return 1;
 }
 
+static int
+qlua_random(lua_State *L)
+{
+    uint32_t v;
+
+    if (fread(&v, sizeof (v), 1, rf) != 1)
+        return luaL_error(L, "error reading random source");
+    lua_pushnumber(L, v);
+
+    return 1;
+}
+
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
@@ -275,6 +290,12 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "exit");
     lua_pushcfunction(L, qlua_timeofday);
     lua_setfield(L, -2, "time");
+    rf = fopen("/dev/urandom", "rb");
+    if (rf) {
+        lua_pushcfunction(L, qlua_random);
+        lua_setfield(L, -2, "random");
+    }
+    
     lua_pop(L, 1);
 
     /* fix package.path */
@@ -282,12 +303,16 @@ init_qlua_io(lua_State *L)
     lua_pushstring(L, qlib_path);
     lua_setfield(L, -2, "path");
     lua_pop(L, 1);
-    
+
     return 0;
 }
 
 int
 fini_qlua_io(lua_State *L)
 {
+    if (rf) {
+        fclose(rf);
+        rf = 0;
+    }
     return 0;
 }
