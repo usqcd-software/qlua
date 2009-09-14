@@ -101,9 +101,6 @@ q_CL_D_reader(const int p[], int c, int d, int re_im, void *env)
     }
 
     return xx;
-#if 0 /* BMW conventions */    
-    return (2 * d < QDP_Nf) ? xx : -xx;
-#endif
 }
 
 static void
@@ -112,10 +109,6 @@ q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *env)
     int i = QDP_index(p);
     QLA_DiracFermion *f = env;
  
-#if 0 /* BMW conventions */    
-    v = (2 * d < QDP_Nf) ? v : -v;
-#endif
-
     if (re_im == 0) {
         QLA_real(QLA_elem_D(f[i], c, d)) = v;
     } else {
@@ -136,10 +129,6 @@ q_CL_P_reader(const int p[], int c, int d, int re_im, void *env)
     qCL_P_env *e = env;
     QLA_Real xx;
 
-#if 0 /* BMW conventions */    
-    int s;
-#endif
-
     if (re_im == 0) {
         QLA_r_eq_Re_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
     } else {
@@ -147,12 +136,6 @@ q_CL_P_reader(const int p[], int c, int d, int re_im, void *env)
     }
 
     return xx;
-#if 0 /* BMW conventions */    
-    s = (2 * d < QDP_Nf)? +1 : -1;
-    s = (2 * e->d < QDP_Nf)? s: -s;
-    
-    return s * xx;
-#endif
 }
 
 static void
@@ -160,14 +143,6 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
 {
     int i = QDP_index(p);
     qCL_P_env *e = env;
-
-#if 0 /* BMW conventions */
-    int s;
-
-    s = (2 * d < QDP_Nf)? +1 : -1;
-    s = (2 * e->d < QDP_Nf)? s: -s;
-    v = s * v;
-#endif
 
     if (re_im == 0) {
         QLA_real(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
@@ -391,7 +366,8 @@ q_CL_solve(lua_State *L)
                     return luaL_error(L, "CLOVER_import_fermion() failed");
                 status = QOP_CLOVER_D_CG(c_eta, &out_iters, &out_eps,
                                          c_psi, c->gauge, c_psi, max_iters, eps,
-                                         0 /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL */);
+                                         0);
+                /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
 
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
                 
@@ -435,6 +411,7 @@ q_CL_make_solver(lua_State *L)
 
     return 1;
 }
+
 /* the solver */
 static int
 q_CL_mixed_solve(lua_State *L)
