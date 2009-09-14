@@ -41,7 +41,7 @@ function clover_std(U, k, c, F)
   end
 
   -- antiperiodic bc in d=3 !!!
-  local U4 = U[4]
+  local U4 = L:ColorMatrix(U[4])
   L:Subset{axis=3, position=L[3]-1}:where(function () U4:set(-U[4]) end)
   X = X - kappa * 
        ((1-gamma{mu=3}) * (U4 * (F:shift(3, "from_forward"))) +
