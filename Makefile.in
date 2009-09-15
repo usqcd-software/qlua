@@ -64,7 +64,10 @@ libsrc = fix.c \
          latdirprop.c \
 	 latmulti.c \
          latsubset.c \
+	 qio_utils.c \
          qdpc_io.c \
+         qdpcc_io.c \
+         ddpairs_io.c \
 	 nersc_io.c \
 
 ###############################################################################

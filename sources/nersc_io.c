@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <math.h>
 
+static const char nersc_io[] = "nersc";
+
 enum {
     nerscERROR,  /* B: +size ++errstr[size] -- any error from the master */
     nerscOK,     /* B: +any -- file read successfully */
@@ -701,14 +703,24 @@ q_nersc_read(lua_State *L)
 }
 
 static const struct luaL_Reg fNERSC[] = {
-    { "NERSC_gauge",    q_nersc_read},
+    { "read_gauge",     q_nersc_read},
     { NULL,             NULL}
 };
 
 int
 init_nersc_io(lua_State *L)
 {
-    luaL_register(L, qcdlib, fNERSC);
+    int i;
+
+    lua_getglobal(L, qcdlib);
+    lua_newtable(L);
+    for (i = 0; fNERSC[i].name; i++) {
+        lua_pushcfunction(L, fNERSC[i].func);
+        lua_setfield(L, -2, fNERSC[i].name);
+    }
+    lua_setfield(L, -2, nersc_io);
+    lua_pop(L, 1);
+
     return 0;
 }
 

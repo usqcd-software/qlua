@@ -353,10 +353,7 @@ static const struct luaL_Reg mtWriter[] = {
 };
 
 /* names and routines for qcd.qdpc table */
-static const struct {
-    char *name;
-    int (*func)(lua_State *L);
-} fQDPio[] = {
+static const struct luaL_Reg fQDPio[] = {
     { "Reader",   q_qdpc_reader},
     { "Writer",   q_qdpc_writer},
     { NULL,       NULL }

@@ -20,3 +20,5 @@ end
 dump_table("_G", _G)
 dump_table("package", package)
 dump_table("package.loaded", package.loaded)
+dump_table("qcd", qcd)
+dump_table("vector", vector)

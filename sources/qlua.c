@@ -16,6 +16,8 @@
 #include <latsubset.h>                                               /* DEPS */
 #include <latmulti.h>                                                /* DEPS */
 #include <qdpc_io.h>                                                 /* DEPS */
+#include <qdpcc_io.h>                                                /* DEPS */
+#include <ddpairs_io.h>                                              /* DEPS */
 #include <nersc_io.h>                                                /* DEPS */
 #ifdef HAS_AFF
 #include <lhpc-aff.h>
@@ -461,6 +463,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         { init_latsubset },
         { init_latmulti },
         { init_qdpc_io },
+        { init_qdpcc_io },
+        { init_ddpairs_io },
         { init_nersc_io },
 #ifdef HAS_AFF
         { init_aff_io },
@@ -527,6 +531,8 @@ qlua_fini(lua_State *L)
         { fini_aff_io },
 #endif
         { fini_nersc_io },
+        { fini_ddpairs_io },
+        { fini_qdpcc_io },
         { fini_qdpc_io },
         { fini_latmulti },
         { fini_latsubset },
