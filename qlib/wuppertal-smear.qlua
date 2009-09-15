@@ -1,0 +1,20 @@
+-- perform wuppertal smear of the fermion
+require("stdlib")
+
+function wuppertal_smear(U, sigma, N, F, axis, subset)
+  local scale = 1 - 3 * sigma * sigma / (2 * N)
+  local factor = sigma * sigma / (4 * N)
+
+  local G = F
+  subset:where(function()
+                 for k = 1, N do
+                   local H = scale * G
+                   for i in skip(axis + 1, interval(1, #U)) do
+                      G = G + factor *
+                               (U[i] * G:shift(i-1, "from_forward") +
+                                U[i]:adjoin() * G):shift(i-1, "from_backward")
+                   end
+                 end
+               end)
+  return G -- valid only on the subset
+end

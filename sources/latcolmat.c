@@ -13,6 +13,14 @@
 const char mtnLatColMat[] = "lattice.ColorMatrix";
 static char opLatColMat[] = "lattice.ColorMatrix.op";
 
+#if QDP_Precision == 'F'
+#define COLOR_EPS 1e-5
+#elif QDP_Precision == 'D'
+#define COLOR_EPS 1e-10
+#elif
+/*  define COLOR_EPS for other QDP_Precision's here */
+#endif
+
 mLatColMat *
 qlua_newLatColMat(lua_State *L)
 {
@@ -224,9 +232,9 @@ q_M_trace(lua_State *L)
     return 1;
 }
 
-struct {
+static struct {
     QLA_ColorMatrix *a;
-} Mexp_args; /* YYY global state */
+} Mop_arg; /* YYY global state */
 
 static void
 do_Mexp(QLA_ColorMatrix *r, int idx)
@@ -236,7 +244,7 @@ do_Mexp(QLA_ColorMatrix *r, int idx)
     QLA_ColorMatrix mone;
     QLA_ColorMatrix axs;
     QLA_ColorMatrix v;
-    QLA_ColorMatrix *a = &Mexp_args.a[idx];
+    QLA_ColorMatrix *a = &Mop_arg.a[idx];
     int i, j, k;
     double max_el;
     double s;
@@ -281,10 +289,10 @@ do_Mexp(QLA_ColorMatrix *r, int idx)
 static void
 X_M_eq_exp_M(QDP_ColorMatrix *r, QDP_ColorMatrix *a, QDP_Subset s)
 {
-    Mexp_args.a = QDP_expose_M(a);
+    Mop_arg.a = QDP_expose_M(a);
     QDP_M_eq_funci(r, do_Mexp, s);
     QDP_reset_M(a);
-    Mexp_args.a = 0;
+    Mop_arg.a = 0;
 }
 
 static int
@@ -294,6 +302,187 @@ q_M_exp(lua_State *L)
     mLatColMat *r = qlua_newLatColMat(L);
 
     X_M_eq_exp_M(r->ptr, a->ptr, *qCurrent);
+
+    return 1;
+}
+
+/* M_eq_proj_M is adopted from Sergey's qdp-work */
+static void
+X_sun_proj_step(QLA_ColorMatrix *u, QLA_ColorMatrix *w)
+{
+    QLA_ColorMatrix v;
+    QLA_ColorMatrix tmp;
+    double r0, r1, r2, r3;
+    int i1, i2;
+
+    for (i1 = 1; i1 < QDP_Nc; i1++) {
+        for (i2 = 0; i2 < i1; i2++) {
+            int j;
+            double r_l;
+            double a0, a1, a2, a3;
+
+            QLA_M_eq_M_times_Ma(&v, u, w);
+            /* extract su(2) part at (i,j) */
+            r0 = QLA_real(QLA_elem_M(v,i1,i1)) + QLA_real(QLA_elem_M(v,i2,i2));
+            r1 = QLA_imag(QLA_elem_M(v,i1,i2)) + QLA_imag(QLA_elem_M(v,i2,i1));
+            r2 = QLA_real(QLA_elem_M(v,i1,i2)) - QLA_real(QLA_elem_M(v,i2,i1));
+            r3 = QLA_imag(QLA_elem_M(v,i1,i1)) - QLA_imag(QLA_elem_M(v,i2,i2)); 
+            r_l = hypot(hypot(r0, r1), hypot(r2, r3));
+            if (r_l > COLOR_EPS) {
+                r_l = 1.0 / r_l;
+                a0 = r0 * r_l;
+                a1 = -r1 * r_l;
+                a2 = -r2 * r_l;
+                a3 = -r3 * r_l;
+            } else {
+                a0 = 1.0; a1 = a2 = a3 = 0.0;
+            }
+            /* put a's back into v */
+            QLA_M_eq_zero(&v);
+            for (j = 0; j < QDP_Nc; j++)
+                QLA_c_eq_r_plus_ir(QLA_elem_M(v,j,j), 1.0, 0.0);
+            QLA_c_eq_r_plus_ir(QLA_elem_M(v,i1,i1),  a0,  a3);
+            QLA_c_eq_r_plus_ir(QLA_elem_M(v,i1,i2),  a2,  a1);
+            QLA_c_eq_r_plus_ir(QLA_elem_M(v,i2,i1), -a2,  a1);
+            QLA_c_eq_r_plus_ir(QLA_elem_M(v,i2,i2),  a0, -a3);
+            
+            QLA_M_eq_M_times_M(&tmp, &v, u);
+            QLA_M_eq_M(u, &tmp);
+        }
+    }
+}
+
+#if QDP_Nc == 2
+static void
+X_reunit(QLA_ColorMatrix *u)
+{
+    QLA_Complex *u00 = &QLA_elem_M(*u, 0, 0);
+    QLA_Complex *u10 = &QLA_elem_M(*u, 1, 0);
+    double t = 1.0 / hypot(hypot(QLA_real(*u00), QLA_imag(*u00)),
+                           hypot(QLA_real(*u10), QLA_imag(*u10)));
+    double u00r = QLA_real(*u00) * t;
+    double u00i = QLA_imag(*u00) * t;
+    double u10r = QLA_real(*u10) * t;
+    double u10i = QLA_imag(*u10) * t;
+
+    QLA_c_eq_r_plus_ir(QLA_elem_M(*u, 0, 0),  u00r,  u00i);
+    QLA_c_eq_r_plus_ir(QLA_elem_M(*u, 1, 0),  u10r,  u10i);
+    QLA_c_eq_r_plus_ir(QLA_elem_M(*u, 0, 1), -u10r,  u10i);
+    QLA_c_eq_r_plus_ir(QLA_elem_M(*u, 1, 1),  u00r, -u00i);
+}
+#elif QDP_Nc == 3
+static void
+X_reunit(QLA_ColorMatrix *u)
+{
+    QLA_Complex t0k;
+    double t;
+    int i;
+
+#define Mu(i,j)   QLA_elem_M(*u, i, j)
+    /* norm of the first column */
+    for (t = 0, i = 0; i < QDP_Nc; i++) {
+        QLA_Complex *ui0 = &Mu(i, 0);
+        t = hypot(t, QLA_real(*ui0));
+        t = hypot(t, QLA_imag(*ui0));
+    }
+    t = 1.0 / t;
+    /* rescale the first column */
+    for (i = 0; i < QDP_Nc; i++) {
+        QLA_Complex *ui0 = &Mu(i, 0);
+
+        QLA_real(*ui0) *= t;
+        QLA_imag(*ui0) *= t;
+    }
+    /* compute u[0]* . u[1] */
+    QLA_c_eq_r_plus_ir(t0k, 0.0, 0.0);
+    for (i = 0; i < QDP_Nc; i++)
+        QLA_c_peq_ca_times_c(t0k, Mu(i, 0), Mu(i, 1));
+
+    /* make u[1] orthogonal to u[0]: u[1] = u[1] - t0k * u[0] */
+    for (i = 0; i < QDP_Nc; i++)
+        QLA_c_meq_c_times_c(Mu(i, 1), t0k, Mu(i, 0));
+
+    /* normalize u[1] */
+    for (t = 0, i = 0; i < QDP_Nc; i++) {
+        QLA_Complex *ui1 = &Mu(i, 1);
+        t = hypot(t, QLA_real(*ui1));
+        t = hypot(t, QLA_imag(*ui1));
+    }
+    t = 1.0 / t;
+    for (i = 0; i < QDP_Nc; i++) {
+        QLA_Complex *ui1 = &Mu(i, 1);
+
+        QLA_real(*ui1) *= t;
+        QLA_imag(*ui1) *= t;
+    }
+
+    /* u[2] is a vector product of u[0]* and u[1]* */
+    QLA_c_eq_ca_times_ca (Mu(0,2), Mu(1,0), Mu(2,1));
+    QLA_c_meq_ca_times_ca(Mu(0,2), Mu(2,0), Mu(1,1));
+    
+    QLA_c_eq_ca_times_ca (Mu(1,2), Mu(2,0), Mu(0,1));
+    QLA_c_meq_ca_times_ca(Mu(1,2), Mu(0,0), Mu(2,1));
+
+    QLA_c_eq_ca_times_ca (Mu(2,2), Mu(0,0), Mu(1,1));
+    QLA_c_meq_ca_times_ca(Mu(2,2), Mu(1,0), Mu(0,1));
+#undef Mu
+}
+#elif
+/* define X_reunit(u) for other number of colors here */
+#endif
+
+static struct {
+    QLA_ColorMatrix *a;
+    double BlkAccu;
+    int BlkMax;
+} Mproj_args;
+
+static void
+do_Mproj(QLA_ColorMatrix *r, int idx)
+{
+    int cnt = Mproj_args.BlkMax;
+    double BlkAccu = Mproj_args.BlkAccu;
+    double conver = 1.0;
+    QLA_Real new_tr, old_tr;
+    QLA_ColorMatrix *w = &Mproj_args.a[idx];
+
+    QLA_M_eq_M(r, w);
+    QLA_r_eq_re_M_dot_M(&new_tr, r, w);
+    new_tr = new_tr / QDP_Nc;
+
+    while (conver > BlkAccu  && cnt-- > 0) {
+        old_tr = new_tr;
+        X_sun_proj_step(r, w);
+        X_reunit(r);
+        QLA_r_eq_re_M_dot_M(&new_tr, r, w);
+        new_tr = new_tr / QDP_Nc;
+        conver = fabs((new_tr - old_tr) / old_tr);
+    }
+}
+
+static void
+X_M_eq_proj_M(QDP_ColorMatrix *r, QDP_ColorMatrix *a,
+              double BlkAccu, int BlkMax, QDP_Subset s)
+{
+    Mproj_args.a = QDP_expose_M(a);
+    Mproj_args.BlkAccu = BlkAccu;
+    Mproj_args.BlkMax = BlkMax;
+    QDP_M_eq_funci(r, do_Mproj, s);
+    QDP_reset_M(a);
+    Mop_arg.a = 0;
+    Mproj_args.BlkAccu = 0;
+    Mproj_args.BlkMax = 0;
+}
+
+static int
+q_M_proj(lua_State *L)
+{
+    mLatColMat *a = qlua_checkLatColMat(L, 1);
+    double BlkAccu = luaL_checknumber(L, 2);
+    int BlkMax = luaL_checkint(L, 3);
+    mLatColMat *r = qlua_newLatColMat(L);
+
+    X_M_eq_proj_M(r->ptr, a->ptr, BlkAccu, BlkMax, *qCurrent);
 
     return 1;
 }
@@ -661,6 +850,7 @@ static struct luaL_Reg LatColMatMethods[] = {
     { "trace",      q_M_trace },
     { "set",        q_M_set },
     { "exp",        q_M_exp },
+    { "proj",       q_M_proj },
     { NULL,         NULL }
 };
 

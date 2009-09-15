@@ -1,0 +1,18 @@
+-- check the su(n) projection
+
+L = qcd.lattice{4}
+S = L:RandomState(1, L:pcoord(0))
+
+function run_test(name, U)
+   local p = U:proj(1e-9, 1000)
+   local pp = qcd.dot(p,p)
+   local pU = qcd.dot(p, U)
+
+   for i = 0, L[0] - 1 do
+     print(name, i, pp[{i}], pU[{i}])
+   end
+   return p
+end
+
+p = run_test("random", S:gaussian_ColorMatrix())
+run_test("fixed point", p)

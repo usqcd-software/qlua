@@ -124,6 +124,8 @@ install: all doc
 	$C cp -r qlib/* $(LIBDIR)/
 	$C mkdir -p $(DOCDIR)
 	$C cp $(docfiles) $(DOCDIR)/
+	$C mkdir -p $(DOCDIR)/examples
+	$C examples/* $(DOCDIR)/examples/
 
 ###############################################################################
 $(program): $(drvobj) $(library)
