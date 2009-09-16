@@ -1,6 +1,7 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <qdpcc_io.h>                                                /* DEPS */
 #include <qio_utils.h>                                               /* DEPS */
+#include <lattice.h>                                                 /* DEPS */
 #include <latdirferm.h>                                              /* DEPS */
 #include <latdirprop.h>                                              /* DEPS */
 #include <qio.h>
@@ -17,13 +18,13 @@ typedef QLA_D_Complex qdpcc_Dt[QDP_Ns][QDP_Ns][QDP_Nc][QDP_Nc];
 typedef struct {
     lua_State *L;
     QLA_DiracPropagator *P;
-} ReaderArg;
+} QDPCCArgs;
 
 static void
 float_P_put(char *buf, size_t index, int count, void *arg0)
 {
     qdpcc_Ft *src = (qdpcc_Ft *)buf;
-    ReaderArg *arg = (ReaderArg *)arg0;
+    QDPCCArgs *arg = (QDPCCArgs *)arg0;
     int ic, jc, is, js;
     QLA_DiracPropagator *P = arg->P + index;
 
@@ -48,7 +49,7 @@ static void
 double_P_put(char *buf, size_t index, int count, void *arg0)
 {
     qdpcc_Dt *src = (qdpcc_Dt *)buf;
-    ReaderArg *arg = (ReaderArg *)arg0;
+    QDPCCArgs *arg = (QDPCCArgs *)arg0;
     int ic, jc, is, js;
     QLA_DiracPropagator *P = arg->P + index;
 
@@ -92,7 +93,7 @@ qdpcc_read_P(lua_State *L)
     Putter *putter = 0;
     size_t datum_size = 0;
     int word_size = 0;
-    ReaderArg data;
+    QDPCCArgs data;
     int i, fmt;
 
     lua_gc(L, LUA_GCCOLLECT, 0);
@@ -130,10 +131,135 @@ qdpcc_read_P(lua_State *L)
     return 3;
 }
 
+static void
+float_P_get(char *buf, size_t index, int count, void *arg0)
+{
+    QDPCCArgs *arg = (QDPCCArgs *)arg0;
+    QLA_DiracPropagator *P = arg->P + index;
+    qdpcc_Ft *dst = (qdpcc_Ft *)buf;
+    int ic, jc, is, js;
+
+    if (count != 1)
+        luaL_error(arg->L, "qcd.qdpcc.write_prop() count != 1");
+
+    for (is = 0; is < QDP_Ns; is++) {
+        for (js = 0; js < QDP_Ns; js++) {
+            for (ic = 0; ic < QDP_Nc; ic++) {
+                for (jc = 0; jc < QDP_Nc; jc++) {
+                    QLA_Complex *z = &QLA_elem_P(*P, ic, is, jc, is);
+                    QLA_c_eq_r_plus_ir((*dst)[is][js][ic][jc],
+                                       QLA_real(*z), QLA_imag(*z));
+                }
+            }
+        }
+    }
+}
+
+static void
+double_P_get(char *buf, size_t index, int count, void *arg0)
+{
+    QDPCCArgs *arg = (QDPCCArgs *)arg0;
+    QLA_DiracPropagator *P = arg->P + index;
+    qdpcc_Dt *dst = (qdpcc_Dt *)buf;
+    int ic, jc, is, js;
+
+    if (count != 1)
+        luaL_error(arg->L, "qcd.qdpcc.write_prop() count != 1");
+
+    for (is = 0; is < QDP_Ns; is++) {
+        for (js = 0; js < QDP_Ns; js++) {
+            for (ic = 0; ic < QDP_Nc; ic++) {
+                for (jc = 0; jc < QDP_Nc; jc++) {
+                    QLA_Complex *z = &QLA_elem_P(*P, ic, is, jc, is);
+                    QLA_c_eq_r_plus_ir((*dst)[is][js][ic][jc],
+                                       QLA_real(*z), QLA_imag(*z));
+                }
+            }
+        }
+    }
+}
+
 static int
 qdpcc_write_P(lua_State *L)
 {
-    return luaL_error(L, "XXX qcd.qdpcc.write_prop() not implemented");
+    typedef void Getter(char *buf, size_t index, int count, void *arg);
+#if QDP_Nc == 3
+    static const struct {
+        char *fmt;
+        Getter *getter;
+        char *datatype;
+        int word_size;
+        int datum_size;
+    } write_P_fmt[] = {
+        {"F", float_P_get, "QDP_F3_DiracPropagator",
+         sizeof (QLA_F_Real), sizeof (QLA_F_DiracPropagator)},
+        {"D", double_P_get, "QDP_D3_DiracPropagator",
+         sizeof (QLA_D_Real), sizeof (QLA_D_DiracPropagator)},
+        { 0, NULL, NULL,
+          0, 0}
+    };
+#else
+    /* define write_P_fmt here */
+#endif
+    const char *fmt = luaL_checkstring(L, 1);
+    const char *fname = luaL_checkstring(L, 2);
+    const char *file_xml = luaL_checkstring(L, 3);
+    mLatDirProp *P = qlua_checkLatDirProp(L, 4);
+    const char *record_xml = luaL_checkstring(L, 5);
+    QIO_Writer *writer = NULL;
+    Getter *getter = NULL;
+    char *prec;
+    int typesize;
+    int datacount;
+    int datum_size;
+    int word_size;
+    char *datatype = NULL;
+    QIO_String *f_xml = NULL;
+    QIO_String *r_xml = NULL;
+    QIO_RecordInfo *record_info = NULL;
+    QDPCCArgs data;
+    int i;
+
+    lua_gc(L, LUA_GCCOLLECT, 0);
+    for (i = 0; write_P_fmt[i].getter; i++) {
+        if (fmt[0] == write_P_fmt[i].fmt[0]) {
+            prec = write_P_fmt[i].fmt;
+            getter = write_P_fmt[i].getter;
+            datatype = write_P_fmt[i].datatype;
+            datum_size = write_P_fmt[i].datum_size;
+            word_size = write_P_fmt[i].word_size;
+            datacount = 1;
+            typesize = datum_size;
+            break;
+        }
+    }
+    if (getter == 0)
+        return luaL_error(L, "qcd.qdpcc.write_prop(): Unknown precission");
+    f_xml = QIO_string_create();
+    QIO_string_set(f_xml, file_xml);
+    r_xml = QIO_string_create();
+    QIO_string_set(r_xml, record_xml);
+    writer = qlua_qio_std_writer(fname, f_xml);
+    if (writer == 0)
+        return luaL_error(L, "qcd.qdpcc.write_prop(): open error");
+    record_info = QIO_create_record_info(QIO_FIELD, NULL, NULL, qRank,
+                                         datatype, prec, QDP_Nc, QDP_Ns,
+                                         typesize, datacount);
+    data.P = QDP_expose_P(P->ptr);
+    data.L = L;
+    if (QIO_write(writer, record_info, r_xml, getter,
+                  datum_size, word_size, &data))
+        return luaL_error(L, "qcd.qdpcc.write_prop(): record writing error");
+        
+    if (QIO_close_write(writer))
+        return luaL_error(L, "qcd.qdpcc.write_prop(): closing error");
+
+    QDP_reset_P(P->ptr);
+    QIO_destroy_record_info(record_info);
+    QIO_string_destroy(f_xml);
+    QIO_string_destroy(r_xml);
+
+    return 0;
 }
 
 static struct luaL_Reg fQDPCCio[] = {

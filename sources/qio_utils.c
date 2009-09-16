@@ -26,11 +26,30 @@ qlua_qio_std_reader(const char *fname, QIO_String *file_xml)
     QIO_Filesystem   fs;
 
     init_layout(&layout);
-    iflag.serpar = QIO_SERIAL;
-    iflag.volfmt = QIO_SINGLEFILE;
-    fs.my_io_node = NULL;
-    fs.master_io_node = NULL;
+    iflag.serpar       = QIO_SERIAL;
+    iflag.volfmt       = QIO_SINGLEFILE;
+    fs.my_io_node      = NULL;
+    fs.master_io_node  = NULL;
     QIO_string_set(file_xml, "");
 
     return QIO_open_read(file_xml, fname, &layout, &fs, &iflag);
+}
+
+QIO_Writer *
+qlua_qio_std_writer(const char *fname, QIO_String *file_xml)
+{
+    QIO_Layout       layout;
+    QIO_Oflag        oflag;
+    QIO_Filesystem   fs;
+
+    init_layout(&layout);
+    oflag.serpar       = QIO_SERIAL;
+    oflag.mode         = QIO_TRUNC;
+    oflag.ildgstyle    = QIO_ILDGNO;
+    oflag.ildgLFN      = NULL;
+    fs.my_io_node      = NULL;
+    fs.master_io_node  = NULL;
+
+    return QIO_open_write(file_xml, fname, QIO_SINGLEFILE,
+                          &layout, &fs, &oflag);
 }

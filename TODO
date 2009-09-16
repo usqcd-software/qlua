@@ -1,12 +1,12 @@
 QIO
 * QDP/C++ reader
-QDP/C++ writer
+* QDP/C++ writer
 DD pairs reader
 DD pairs writer
 
-Optional packages:
+XML handling
 
-MDWF
+MDWF (optional)
   operator
   conjugate operator
   solvers
