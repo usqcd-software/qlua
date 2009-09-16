@@ -7,9 +7,9 @@
 
 static const char qdpcc_io[] = "qdpcc";
 
-#if QDP_Nf == 4
-typedef QLA_F_Complex qdpcc_Ft[QDP_Nf][QDP_Nf][QDP_Nc][QDP_Nc];
-typedef QLA_D_Complex qdpcc_Dt[QDP_Nf][QDP_Nf][QDP_Nc][QDP_Nc];
+#if QDP_Ns == 4
+typedef QLA_F_Complex qdpcc_Ft[QDP_Ns][QDP_Ns][QDP_Nc][QDP_Nc];
+typedef QLA_D_Complex qdpcc_Dt[QDP_Ns][QDP_Ns][QDP_Nc][QDP_Nc];
 #else
 /* define respective Chroma type here */
 #endif
@@ -30,8 +30,8 @@ float_P_put(char *buf, size_t index, int count, void *arg0)
     if (count != 1)
         luaL_error(arg->L, "qcd.qdpcc.read_prop() count != 1");
 
-    for (is = 0; is < QDP_Nf; is++) {
-        for (js = 0; js < QDP_Nf; js++) {
+    for (is = 0; is < QDP_Ns; is++) {
+        for (js = 0; js < QDP_Ns; js++) {
             for (ic = 0; ic < QDP_Nc; ic++) {
                 for (jc = 0; jc < QDP_Nc; jc++) {
                     QLA_F_Complex *z = &(*src)[is][js][ic][jc];
@@ -55,8 +55,8 @@ double_P_put(char *buf, size_t index, int count, void *arg0)
     if (count != 1)
         luaL_error(arg->L, "qcd.qdpcc.read_prop() count != 1");
 
-    for (is = 0; is < QDP_Nf; is++) {
-        for (js = 0; js < QDP_Nf; js++) {
+    for (is = 0; is < QDP_Ns; is++) {
+        for (js = 0; js < QDP_Ns; js++) {
             for (ic = 0; ic < QDP_Nc; ic++) {
                 for (jc = 0; jc < QDP_Nc; jc++) {
                     QLA_D_Complex *z = &(*src)[is][js][ic][jc];

@@ -27,7 +27,7 @@ typedef struct {
 static int
 nersc_error(lua_State *L, const char *errmsg)
 {
-    return luaL_error(L, "NERSC_gauge() error: %s", errmsg);
+    return luaL_error(L, "qcd.nersc.read_gauge() error: %s", errmsg);
 }
 
 static int
@@ -677,7 +677,7 @@ q_nersc_read(lua_State *L)
     int i;
     
     if (qRank == 0)
-        return luaL_error(L, "NERSC_read: lattice not set");
+        return luaL_error(L, "qcd.nersc.read_gauge(): lattice not set");
 
     lua_createtable(L, qRank, 0);
     M = qlua_malloc(L, qRank * sizeof (QDP_ColorMatrix *));

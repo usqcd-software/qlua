@@ -61,7 +61,7 @@ g = toSUn(L, S:gaussian_ColorMatrix())
 if false then
   -- read a random gauge
   file_name = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge.nersc"
-  U, msg = qcd.NERSC_gauge(file_name)
+  U, msg = qcd.nersc.read_gauge(file_name)
   check_hex("std file", L, U, g)
 end
 

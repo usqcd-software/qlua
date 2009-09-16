@@ -650,8 +650,8 @@ q_clover(lua_State *L)
         return luaL_error(L, "clover is not implemented for #L=%d", qRank);
     if (QDP_Nc != QOP_CLOVER_COLORS)
         return luaL_error(L, "clover does not support Nc=%d", QDP_Nc);
-    if (QDP_Nf != QOP_CLOVER_FERMION_DIM)
-        return luaL_error(L, "clover does not support Nf=%d", QDP_Nf);
+    if (QDP_Ns != QOP_CLOVER_FERMION_DIM)
+        return luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
 
     c->kappa = kappa;
     c->c_sw = c_sw;

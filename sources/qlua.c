@@ -179,13 +179,13 @@ qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
 int
 qlua_diracindex(lua_State *L, int n)
 {
-    return qlua_index(L, n, "d", QDP_Nf);
+    return qlua_index(L, n, "d", QDP_Ns);
 }
 
 int
 qlua_checkdiracindex(lua_State *L, int n)
 {
-    return qlua_checkindex(L, n, "d", QDP_Nf);
+    return qlua_checkindex(L, n, "d", QDP_Ns);
 }
 
 int
@@ -490,8 +490,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
     lua_getglobal(L, qcdlib);
     lua_pushnumber(L, QDP_Nc);
     lua_setfield(L, -2, "Nc");
-    lua_pushnumber(L, QDP_Nf);
-    lua_setfield(L, -2, "Nf");
+    lua_pushnumber(L, QDP_Ns);
+    lua_setfield(L, -2, "Ns");
     lua_newtable(L);
     for (i = 0; versions[i].name; i++) {
         lua_pushstring(L, versions[i].value);
@@ -579,11 +579,17 @@ main(int argc, char *argv[])
     }
     qlua_init(L, argc, argv);  /* open libraries */
 
-    for (i = 1; i < argc; i++) {
-        status = luaL_dofile(L, argv[i]);
-        report(L, argv[i], status);
-        if (status)
-            break;
+    if (argc < 2) {
+        message("QLUA component versions:\n");
+        for (i = 0; versions[i].name; i++)
+            message(" %10s: %s\n", versions[i].name, versions[i].value);
+    } else {
+        for (i = 1; i < argc; i++) {
+            status = luaL_dofile(L, argv[i]);
+            report(L, argv[i], status);
+            if (status)
+                break;
+        }
     }
     qlua_fini(L);
     lua_close(L);

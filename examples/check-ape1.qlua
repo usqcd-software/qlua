@@ -17,8 +17,8 @@ for i = 0, #L - 1 do
 end
 
 
-U, um = qcd.NERSC_gauge("input/gauge_disord_4c8.NERSC")
-V, vm = qcd.NERSC_gauge("input/gauge_disord_ape2.85x1_4c8.NERSC")
+U, um = qcd.nersc.read_gauge("input/gauge_disord_4c8.NERSC")
+V, vm = qcd.nersc.read_gauge("input/gauge_disord_ape2.85x1_4c8.NERSC")
 
 Z = APE_smear(U, 2.85, 1, 1e-8, 150, 3, L.all)
 

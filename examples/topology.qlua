@@ -20,7 +20,7 @@ end
 if true then
   -- read a random gauge
   file_name = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge.nersc"
-  U = qcd.NERSC_gauge(file_name)
+  U = qcd.nersc.read_gauge(file_name)
   printf("\n\n\n>>>> Using gauge field from \"%s\"\n\n", file_name)
   check_Q("CHROMA random", U)
 end

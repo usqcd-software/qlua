@@ -89,6 +89,15 @@ q_pcoord(lua_State *L)
     return 1;
 }
 
+static void
+set_Nd(lua_State *L)
+{
+    lua_getglobal(L, qcdlib);
+    lua_pushnumber(L, qRank);
+    lua_setfield(L, -2, "Nd");
+    lua_pop(L, 1);
+}
+
 static int
 q_lattice(lua_State *L)
 {
@@ -122,6 +131,8 @@ q_lattice(lua_State *L)
     }
     luaL_getmetatable(L, mtnLattice);
     lua_setmetatable(L, -2);
+
+    set_Nd(L);
     
     return 1;
 }
@@ -239,6 +250,8 @@ init_lattice(lua_State *L)
     luaL_register(L, qcdlib, fLattice);
     qlua_metatable(L, mtnLattice, mtLattice);
     qlua_metatable(L, opLattice, LatticeMethods);
+
+    set_Nd(L);
 
     return 0;
 }

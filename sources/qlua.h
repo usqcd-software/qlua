@@ -3,7 +3,7 @@
 
 #define QDP_Precision 'D'
 #define QDP_Nc 3
-#define QDP_Nf 4 /* fermion dimension, seems undefined in QDP */
+#define QDP_Ns 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
 #include <stdio.h>
 
