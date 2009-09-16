@@ -9,7 +9,7 @@ L = qcd.lattice {Lx, Lx, Lx, Lt}
 do
   local l_s = 1
   l_id = L:Int(0)
-  for d = 0, #L - 1 do
+  for d = 0, qcd.Nd - 1 do
     l_id = l_id + l_s * L:pcoord(d)
     l_s = l_s * L[d]
   end
@@ -36,7 +36,7 @@ Zx = CL:Dx(F)
 io.stdout:write("CL:Dx(F)" .. tostring(Zx) .. tostring(Zx:norm2()) .. "\n")
 
 
-solve_clover = CL:solver(1e-20, 1000)
+solve_clover = CL:solver(1e-20, 10000)
 
 io.stdout:write("solver" .. tostring(solve_clover) .. "\n")
 
@@ -94,7 +94,7 @@ io.stdout:write("solve-clover: " ..
                 tostring(iters) .. "\n")
 
 for c = 0, qcd.Nc - 1 do
-  for d = 0, qcd.Nf - 1 do
+  for d = 0, qcd.Ns - 1 do
      io.stdout:write("prop solver: " ..
                      tostring(c) .. " " ..
                      tostring(d) .. " " ..
@@ -113,7 +113,7 @@ for x = 0, L[0] - 1 do
     for z = 0, L[2] - 1 do
       for t = 0, L[3] - 1 do
         for cx = 0, qcd.Nc - 1 do
-          for dx = 0, qcd.Nf - 1 do
+          for dx = 0, qcd.Ns - 1 do
             idx = {x,y,z,t,c=cx,d=dx}
             print(x, y, z, t, cx, dx, Z[idx], F[idx], Q[idx])
           end

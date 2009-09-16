@@ -10,7 +10,7 @@ output = "xxx"
 -- start with some info about QLUA
 print("QDP I/O test")
 print("  Nc = " .. qcd.Nc)
-print("  Nf = " .. qcd.Nf)
+print("  Ns = " .. qcd.Ns)
 for i, v in pairs(qcd.version) do
    print("  version[" .. i .. "] = " .. v)
 end

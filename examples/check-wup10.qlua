@@ -33,7 +33,7 @@ end
 L = qcd.lattice{4,4,4,8}
 
 volume = 1
-for i = 0, #L - 1 do
+for i = 0, qcd.Nd - 1 do
   volume = volume * L[i]
 end
 

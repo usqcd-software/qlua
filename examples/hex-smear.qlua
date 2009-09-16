@@ -9,7 +9,7 @@ rnd_f = 0.5
 L = qcd.lattice{4,4,4,8}
 
 volume = 1
-for i = 0, #L - 1 do
+for i = 0, qcd.Nd - 1 do
   volume = volume * L[i]
 end
 
@@ -24,8 +24,8 @@ function check_hex(name, L, U, g)
        return px / qcd.Nc , dp / (qcd.Nc * qcd.Nc)
     end
     printf("Plaquettes of %s\n", name)
-    for mu in interval(0, #L-1) do
-      for nu in interval(mu+1, #L-1) do
+    for mu in interval(0, qcd.Nd - 1) do
+      for nu in interval(mu+1, qcd.Nd - 1) do
         local p, dp = plaq(mu, nu)
          printf("  [%d,%d] %30.20f %8.2e\n", mu, nu, p, math.sqrt(dp))
       end
@@ -50,7 +50,7 @@ end
 
 do
   local idx = L:Int(0)
-  for d = 0, #L - 1 do
+  for d = 0, qcd.Nd - 1 do
     idx = idx * L[d] + L:pcoord(d)
   end
   S = L:RandomState(1984, idx)

@@ -1,8 +1,8 @@
 QIO
 * QDP/C++ reader
 * QDP/C++ writer
-DD pairs reader
-DD pairs writer
+* DD pairs reader
+* DD pairs writer
 
 XML handling
 

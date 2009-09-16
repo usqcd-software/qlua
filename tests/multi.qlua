@@ -2,7 +2,7 @@ Lx = 4
 LAT = qcd.lattice{Lx,Lx + 1,Lx + 2}
 
 VOLUME = 1
-for i = 0, #LAT - 1 do
+for i = 0, qcd.Nd - 1 do
    VOLUME = VOLUME * LAT[i]
 end
 
@@ -17,8 +17,8 @@ function show_x(n, d, x)
 end
 
 
-for mu = 0, #LAT - 1 do
-  for x = 0, #LAT - 1 do
+for mu = 0, qcd.Nd - 1 do
+  for x = 0, qcd.Nd - 1 do
      show_x("axis" .. mu .. " on " .. x, x,
               LAT:pcoord(mu):sum(LAT:MultiSet{d=x}))
   end
@@ -30,7 +30,7 @@ S = LAT:RandomState(os.time(), LAT:pcoord(0) +
 
 function check_X(m, x)
    print("checkX:", m, x)
-   for d = 0, #LAT - 1 do
+   for d = 0, qcd.Nd - 1 do
      show_x("partial", d, x:sum(LAT:MultiSet{d=d}))
    end
    print("full:", x:sum())

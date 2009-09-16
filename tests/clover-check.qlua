@@ -9,7 +9,7 @@ L = qcd.lattice {Lx, Lx, Lx, Lt}
 function rnd_init(x)
   local l_s = 1
   l_id = L:Int(0)
-  for d = 0, #L - 1 do
+  for d = 0, qcd.Nd - 1 do
     l_id = l_id + l_s * L:pcoord(d)
     l_s = l_s * L[d]
   end
@@ -24,10 +24,10 @@ end
 
 S = rnd_init(1984)
 
-U = { almost_su3(S, 0.9),
-      almost_su3(S, 0.9),
-      almost_su3(S, 0.9),
-      almost_su3(S, 0.9) }
+U = { almost_su3(S, 0.5),
+      almost_su3(S, 0.5),
+      almost_su3(S, 0.5),
+      almost_su3(S, 0.5) }
 
 F = S:gaussian_DiracFermion()
 G = S:gaussian_DiracFermion()
@@ -42,7 +42,7 @@ Y = CL:Dx(G)
 io.stdout:write("<G, D F> " .. tostring(qcd.dot(G, X):sum())  .. "\n")
 io.stdout:write("<DxG, F> " .. tostring(qcd.dot(Y, F):sum())  .. "\n")
 
-s1 = CL:solver(1e-20, 1000)
+s1 = CL:solver(1e-20, 10000)
 
 Q1 = s1(F)
 

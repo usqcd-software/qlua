@@ -3,7 +3,7 @@ require("stdlib")
 -- naive topological charge density
 
 function naive_q(U)
-  assert(#L == 4, "only 4-d lattice is supported")
+  assert(qcd.Nd == 4, "only 4-d lattice is supported")
   local function clovF(i,j)
     local Ujp = U[j]:shift(i - 1, "from_forward")
     local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
@@ -34,7 +34,7 @@ end
 -- gauge transformations
 function gauge_transform_U(g, U)
    local V = {}
-   for i = 1, #U do
+   for i = 1, qcd.Nd do
       V[i] = g * U[i] * g:shift(i - 1, "from_forward"):adjoin()
    end
    return V
@@ -59,13 +59,12 @@ end
 -- BMW HEX smearing (section 1.3.3 of Stefan's notes)
 function bmw_hex(L, U)
   local alpha = { 0.95, 0.76, 0.38 }
-  local dim = #U
  
-  assert(dim == 4, "only 4-d lattice is supported")
+  assert(dcd.Nd == 4, "only 4-d lattice is supported")
 
   -- compute V1
   local V1 = {}
-  for mu in interval(1, dim) do
+  for mu in interval(1, qcd.Nd) do
     V1[mu] = {}
   end
   for mu in interval(1, dim) do

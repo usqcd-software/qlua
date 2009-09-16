@@ -1,15 +1,12 @@
 -- perform wuppertal smear of the fermion or propagator
 require("stdlib")
 
-function wuppertal_smear(U, sigma, N, F, axis)
-  local scale = 1 - 3 * sigma * sigma / (2 * N)
-  local factor = sigma * sigma / (4 * N)
-
+function wuppertal_smear(U, alpha, N, F, axis)
   local G = F
   for k = 1, N do
-    local H = scale * G
-    for i in skip(axis + 1, interval(1, #U)) do
-      H = H + factor *
+    local H = G
+    for i in skip(axis + 1, interval(1, qcd.Nd)) do
+      H = H + alpha *
                 (U[i] * G:shift(i-1, "from_forward") +
                  (U[i]:adjoin() * G):shift(i-1, "from_backward"))
     end

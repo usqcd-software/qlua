@@ -12,7 +12,7 @@ U, msg = qcd.nersc.read_gauge(file_name)
 print("NERSC read:", U, msg)
 
 volume = 1
-for i = 0, #L - 1 do
+for i = 0, qcd.Nd - 1 do
   volume = volume * L[i]
 end
 
@@ -30,10 +30,10 @@ end
 print("")
 
 ltr = 0;
-for i = 1, #L do
+for i = 1, qcd.Nd do
   ltr = ltr + U[i]:trace():sum():real()
 end
-ltr = ltr / (qcd.Nc * #L * volume)
+ltr = ltr / (qcd.Nc * qcd.Nd * volume)
 print("link trace:" , volume, ltr, (ltr - msg.LINK_TRACE) / ltr)
 
 function plaquette(i, j, U)
@@ -43,12 +43,12 @@ function plaquette(i, j, U)
           U[j+1]:adjoin()
 end
 pl = 0
-for i = 0, #L - 1 do
-  for j = i + 1, #L - 1 do
+for i = 0, qcd.Nd - 1 do
+  for j = i + 1, qcd.Nd - 1 do
     pl = pl + plaquette(i, j, U):trace():sum():real()
   end
 end
-pl = pl * 2.0 / (qcd.Nc * #L * (#L - 1) * volume)
+pl = pl * 2.0 / (qcd.Nc * qcd.Nd * (qcd.Nd - 1) * volume)
 print("plaquette", volume, pl, (pl - msg.PLAQUETTE) / pl)
 
 print("------- end ----------")
