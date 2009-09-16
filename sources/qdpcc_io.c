@@ -208,11 +208,11 @@ qdpcc_write_P(lua_State *L)
     const char *record_xml = luaL_checkstring(L, 5);
     QIO_Writer *writer = NULL;
     Getter *getter = NULL;
-    char *prec;
-    int typesize;
-    int datacount;
-    int datum_size;
-    int word_size;
+    char *prec = NULL;
+    int typesize = 0;
+    int datacount = 0;
+    int datum_size = 0;
+    int word_size = 0;
     char *datatype = NULL;
     QIO_String *f_xml = NULL;
     QIO_String *r_xml = NULL;

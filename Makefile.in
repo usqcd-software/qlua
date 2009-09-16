@@ -128,7 +128,7 @@ install: all doc
 	$C mkdir -p $(DOCDIR)
 	$C cp $(docfiles) $(DOCDIR)/
 	$C mkdir -p $(DOCDIR)/examples
-	$C examples/* $(DOCDIR)/examples/
+	$C cp examples/* $(DOCDIR)/examples/
 
 ###############################################################################
 $(program): $(drvobj) $(library)
