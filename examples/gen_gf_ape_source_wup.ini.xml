@@ -1,0 +1,136 @@
+<?xml version="1.0"?>
+
+<chroma>
+<Param> 
+  <InlineMeasurements>
+    <elem>
+      <Name>NERSC_WRITE_NAMED_OBJECT</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <object_id>default_gauge_field</object_id>
+      </NamedObject>
+      <File>
+        <file_name>gauge_disord_4c8.NERSC</file_name>
+      </File>
+    </elem>
+    
+    
+    <elem>
+      <Name>LINK_SMEAR</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+	<gauge_id>default_gauge_field</gauge_id>
+	<linksmear_id>gauge_ape</linksmear_id>
+      </NamedObject>
+      <Param>
+	<LinkSmearingType>APE_SMEAR</LinkSmearingType>
+	<link_smear_fact>2.85</link_smear_fact>
+	<link_smear_num>10</link_smear_num>
+	<no_smear_dir>3</no_smear_dir>
+	<BlkMax>150</BlkMax>
+	<BlkAccu>1.0e-8</BlkAccu>
+      </Param>
+    </elem>
+    <elem>
+      <Name>NERSC_WRITE_NAMED_OBJECT</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <object_id>gauge_ape</object_id>
+      </NamedObject>
+      <File>
+        <file_name>gauge_disord_ape2.85x10_4c8.NERSC</file_name>
+      </File>
+    </elem>
+
+    
+    <elem>
+      <Name>MAKE_SOURCE</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <gauge_id>default_gauge_field</gauge_id>
+        <source_id>source_x0y0z0t0</source_id>
+      </NamedObject>
+      <Param>
+	<version>6</version>
+	<Source>
+	  <version>2</version>
+	  <SourceType>POINT_SOURCE</SourceType>
+	  <j_decay>3</j_decay>
+	  <t_srce>0 0 0 0</t_srce>
+	</Source>
+      </Param>
+    </elem>
+    <elem>
+      <Name>QIO_WRITE_NAMED_OBJECT</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <object_id>source_x0y0z0t0</object_id>
+        <object_type>LatticePropagatorD</object_type>
+      </NamedObject>
+      <File>
+        <file_name>source_x0y0z0t0.qdpcc.D</file_name>
+	<file_volfmt>SINGLEFILE</file_volfmt>
+      </File>
+    </elem> 
+
+    
+    <elem>
+      <Name>MAKE_SOURCE</Name>
+      <Frequency>1</Frequency>
+      <Param>
+        <version>6</version>
+        <Source>
+          <version>2</version>
+          <SourceType>SHELL_SOURCE</SourceType>
+          <j_decay>3</j_decay>
+          <t_srce>0 0 0 0</t_srce>
+          <SmearingParam>
+            <wvf_kind>GAUGE_INV_GAUSSIAN</wvf_kind>
+            <wvf_param>4.35</wvf_param>
+            <wvfIntPar>10</wvfIntPar>
+            <no_smear_dir>3</no_smear_dir>
+          </SmearingParam>
+        </Source>
+      </Param>
+      <NamedObject>
+        <gauge_id>default_gauge_field</gauge_id>
+        <source_id>source_x0y0z0t0_wup</source_id>
+      </NamedObject>
+    </elem>
+    <elem>
+      <Name>QIO_WRITE_NAMED_OBJECT</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <object_id>source_x0y0z0t0_wup</object_id>
+        <object_type>LatticePropagatorD</object_type>
+      </NamedObject>
+      <File>
+        <file_name>source_x0y0z0t0_wup4.35x10.qdpcc.D</file_name>
+	<file_volfmt>SINGLEFILE</file_volfmt>
+      </File>
+    </elem>
+
+    
+    <elem>
+      <Name>QIO_READ_NAMED_OBJECT</Name>
+      <Frequency>1</Frequency>
+      <NamedObject>
+        <object_id>source_x0y0z0t0_wup_copy</object_id>
+        <object_type>LatticePropagator</object_type>
+      </NamedObject>
+      <File>
+        <file_name>source_x0y0z0t0_wup4.35x1.qdpcc.D</file_name>
+	<file_volfmt>SINGLEFILE</file_volfmt>
+      </File>
+    </elem>
+    
+
+
+    
+  </InlineMeasurements>
+  <nrow>4  4  4  8  </nrow>
+</Param> 
+<Cfg>
+ <cfg_type>DISORDERED</cfg_type>
+</Cfg>
+</chroma>

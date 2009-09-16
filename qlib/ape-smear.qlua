@@ -1,12 +1,13 @@
 -- perform APE smearing
 require("stdlib")
 
-function APE_smear(U, A, N, accu, imax, axis, subset)
+function APE_smear(U, A, N, accu, imax, axis)
   local function ape_step(u)
      local w = {}
-     for i in skip(axis, interval(1, #u)) do
+     for i, v in pairs(u) do w[i] = v end
+     for i in skip(axis+1, interval(1, #u)) do
        local v = A * u[i]
-       for j in skip(i, skip(axis, interval(1, #u))) do
+       for j in skip(i, skip(axis+1, interval(1, #u))) do
          local ux = u[j]:shift(i - 1, "from_forward")
          v = v + u[j] * u[i]:shift(j-1, "from_forward") * ux:adjoin() +
                  (u[j]:adjoin() * u[i] * ux):shift(j-1, "from_backward")
@@ -17,7 +18,9 @@ function APE_smear(U, A, N, accu, imax, axis, subset)
   end
  
   local v = U 
-  subset:where(function() for i = 1, N do v = ape_step(v) end end)
+  for i = 1, N do
+    v = ape_step(v)
+  end
 
-  return v -- valid only on subset
+  return v
 end

@@ -31,11 +31,11 @@ float_P_put(char *buf, size_t index, int count, void *arg0)
         luaL_error(arg->L, "qcd.qdpcc.read_prop() count != 1");
 
     for (is = 0; is < QDP_Nf; is++) {
-        for (js = 0; is < QDP_Nf; js++) {
+        for (js = 0; js < QDP_Nf; js++) {
             for (ic = 0; ic < QDP_Nc; ic++) {
                 for (jc = 0; jc < QDP_Nc; jc++) {
                     QLA_F_Complex *z = &(*src)[is][js][ic][jc];
-                    QLA_c_eq_r_plus_ir(QLA_elem_P(*P, ic, is, jc, is),
+                    QLA_c_eq_r_plus_ir(QLA_elem_P(*P, ic, is, jc, js),
                                        QLA_real(*z), QLA_imag(*z));
                                
                 }
@@ -56,11 +56,11 @@ double_P_put(char *buf, size_t index, int count, void *arg0)
         luaL_error(arg->L, "qcd.qdpcc.read_prop() count != 1");
 
     for (is = 0; is < QDP_Nf; is++) {
-        for (js = 0; is < QDP_Nf; js++) {
+        for (js = 0; js < QDP_Nf; js++) {
             for (ic = 0; ic < QDP_Nc; ic++) {
                 for (jc = 0; jc < QDP_Nc; jc++) {
                     QLA_D_Complex *z = &(*src)[is][js][ic][jc];
-                    QLA_c_eq_r_plus_ir(QLA_elem_P(*P, ic, is, jc, is),
+                    QLA_c_eq_r_plus_ir(QLA_elem_P(*P, ic, is, jc, js),
                                        QLA_real(*z), QLA_imag(*z));
                                
                 }

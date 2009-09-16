@@ -1,0 +1,62 @@
+require("stdlib")
+require("wuppertal-smear")
+
+function show_gauge(name, nt)
+  printf("Gauge read: %s\n", name)
+  for i, v in pairs(nt) do
+    printf("  %s: %s\n", tostring(i), tostring(v))
+  end
+  printf("\n")
+end
+
+function show_F(name, f, x)
+  local y = {}
+  for i, v in pairs(x) do y[i] = v end
+  for c1 = 0, qcd.Nc - 1 do
+    for d1 = 0, qcd.Nf - 1 do
+      for c = 0, qcd.Nc - 1 do
+        y.c = c
+        for d = 0, qcd.Nf - 1 do
+          y.d = d
+          local Z = f[{c=c1,d=d1}][y]
+          printf("  %s[%d,%d,%d,%d] =  %20.10e  %20.10e\n",
+                name, c1, d1, c, d, Z:real(), Z:imag())
+        end
+      end
+    end
+  end
+  printf("\n")
+end
+
+-------------------------------------
+
+L = qcd.lattice{4,4,4,8}
+
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+
+U, um = qcd.nersc.read_gauge("input/gauge_disord_4c8.NERSC")
+S, sfx, srx = qcd.qdpcc.read_prop("input/source_x0y0z0t0.qdpcc.D")
+F, ffx, frx = qcd.qdpcc.read_prop("input/source_x0y0z0t0_wup4.35x10.qdpcc.D")
+G = wuppertal_smear(U, 4.35, 10, S, 3, L.all)
+
+show_gauge("disord", um)
+
+printf("S: %g\n", S:norm2())
+-- show_F("chroma source{0,0,0,0}", S, {0,0,0,0})
+-- show_F("F{0,0,0,0}", F, {0,0,0,0})
+-- show_F("G{0,0,0,0}", G, {0,0,0,0})
+-- show_F("F{1,0,0,0}", F, {1,0,0,0})
+-- show_F("F{1,0,0,0}", F, {1,0,0,0})
+-- show_F("G{1,0,0,0}", G, {1,0,0,0})
+-- show_F("d{1,0,0,0}", (F-G), {1,0,0,0})
+-- show_F("d{0,0,0,0}", (F-G), {0,0,0,0})
+
+printf("F: %g\n", F:norm2())
+printf("G: %g\n", G:norm2())
+printf("d: %g\n", (F-G):norm2())
+
+printf("----------\n")

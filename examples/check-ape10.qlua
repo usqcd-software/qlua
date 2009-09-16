@@ -1,0 +1,42 @@
+require("stdlib")
+require("ape-smear")
+
+function show_gauge(name, nt)
+  printf("Gauge read: %s\n", name)
+  for i, v in pairs(nt) do
+    printf("  %s: %s\n", tostring(i), tostring(v))
+  end
+  printf("\n")
+end
+
+L = qcd.lattice{4,4,4,8}
+
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+U, um = qcd.NERSC_gauge("input/gauge_disord_4c8.NERSC")
+V, vm = qcd.NERSC_gauge("input/gauge_disord_ape2.85x10_4c8.NERSC")
+
+Z = APE_smear(U, 2.85, 10, 1e-8, 150, 3, L.all)
+
+show_gauge("disord", um)
+show_gauge("ape", vm)
+
+printf("APE_smear output: %s\n", tostring(Z))
+
+function compare(name, u, v)
+  for i in interval(1,#U) do
+     printf("diff (%s[%d]): %e\n",
+              name, i,
+              (u[i] - v[i]):norm2() / volume)
+  end
+  printf("\n")
+end
+
+compare("U-V", U, V)
+compare("U-Z", U, Z)
+compare("V-Z", V, Z)
+
+printf("----------\n")
