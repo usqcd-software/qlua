@@ -5,6 +5,10 @@ QIO
 * DD pairs writer
 
 XML handling
+-- massage expat 1.2 sources to fit (ascii only, not DTD etc)
+
+CLOVER
+-- expose boundary conditions
 
 MDWF (optional)
   operator
@@ -19,5 +23,5 @@ Sources
 
 Documentation
 +  Examples in the distribution tree  -- started
-  User guide
++  User guide - started in wiki
   Programming guide
