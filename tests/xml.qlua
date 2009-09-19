@@ -88,6 +88,13 @@ str3 = [=[
 <qlua args='&#x6a;&#x7B;'>
   <rp z='alpha' q="fyvaoldg"/>
   <?ABRa?>
+  <empty></empty>
+  <short/>
+  <undelitable>
+  </undelitable>
+  <x>
+    <packed/>
+  </x>
 </qlua>
 <!-- comment in misc -->
 ]=]

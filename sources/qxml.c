@@ -8,6 +8,12 @@ typedef const char *(parse_func)(lua_State *, const char*, const char*, char *);
 
 /* predicates */
 static int
+is_whitespace(const char *s)
+{
+    return s[strspn(s, " \t\r\n")] == 0;
+}
+
+static int
 is_doctypedecl(const char *s, const char *e)
 {
     return ((e > s + 9) && (strncmp(s, "<!DOCTYPE", 9) == 0));
@@ -109,7 +115,7 @@ parse_Comment(lua_State *L,
         return pos + 3;
     }
     luaL_error(L, err);
-    return NULL; /* can not happen */
+    return NULL; /* never happens */
 }
 
 static const char *
@@ -287,7 +293,7 @@ parse_Misc(lua_State *L,
         return parse_S(L, s, e, buf);
 
     luaL_error(L, "xml.parse(): illformed Misc");
-    return NULL; /* can not happen */
+    return NULL; /* never happens */
 }
 
 static const char *
@@ -461,7 +467,7 @@ parse_AttValue(lua_State *L,
         luaL_error(L, err);
         break;
     }
-    return NULL; /* can not happen */
+    return NULL; /* never happens */
 }
 
 static const char *
@@ -548,8 +554,7 @@ parse_CDSect(lua_State *L,
         *buf = *s;
     }
     luaL_error(L, "xml.parse() expecting CDSect");
-
-    return NULL;
+    return NULL; /* never happens */
 }
 
 static parse_func parse_element;
@@ -574,8 +579,16 @@ parse_content(lua_State *L, /* [-1] = tag, [-2] = table */
             else if (is_ETag(pos, e))
                 return pos;
             else {
+                int len = lua_objlen(L, -2);
                 pos = parse_element(L, pos, e, buf);
-                lua_rawseti(L, -3, lua_objlen(L, -3) + 1);
+                if (len > 0) {
+                    lua_rawgeti(L, -3, len);
+                    if ((lua_type(L, -1) == LUA_TSTRING) &&
+                        is_whitespace(luaL_checkstring(L, -1)))
+                        len = len - 1;
+                    lua_pop(L, 1);
+                }
+                lua_rawseti(L, -3, len + 1);
             }
             pos = parse_CharData_opt(L, pos, e, buf);
             break;
@@ -592,7 +605,7 @@ parse_content(lua_State *L, /* [-1] = tag, [-2] = table */
     }
 error:
     luaL_error(L, "xml.parse() expecting content");
-    return NULL;
+    return NULL; /* never happens */
 }
 
 static const char *
@@ -603,6 +616,7 @@ parse_element(lua_State *L,
 {
     const char err[] = "xml.parse() expecting element";
     const char *pos;
+    int len;
 
     if ((s >= e) || (*s != '<'))
         luaL_error(L, err);
@@ -619,7 +633,18 @@ parse_element(lua_State *L,
         switch (*pos) {
         case '>':
             pos = parse_content(L, pos + 1, e, buf);
-            return parse_ETag(L, pos, e, buf);
+            pos = parse_ETag(L, pos, e, buf);
+            len = lua_objlen(L, -1);
+            if (len > 1) {
+                lua_rawgeti(L, -1, len);
+                if ((lua_type(L, -1) == LUA_TSTRING) &&
+                    is_whitespace(luaL_checkstring(L, -1))) {
+                    lua_pushnil(L);
+                    lua_rawseti(L, -3, len);
+                }
+                lua_pop(L, 1);
+            }
+            return pos;
         case '/':
             if ((pos + 1 >= e) || (pos[1] != '>'))
                 luaL_error(L, err);
