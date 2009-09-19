@@ -1,0 +1,130 @@
+require "stdlib"
+
+str = [[<?xml version="1.0" ?>
+<Propagator>
+  <version>1</version>
+  <ForwardProp>
+    <version>9</version>
+    <quarkSpinType>FULL</quarkSpinType>
+  </ForwardProp>
+</Propagator>
+]]
+
+str2=[=[
+<?xml version="1.0"?>
+
+
+<Propagator>
+  <version atag="simple tag">1</version>
+  <ForwardProp>
+    <version>9</version>
+    <quarkSpinType>FULL</quarkSpinType>
+    <obsvP>false</obsvP><FermionAction>
+      <FermAct>DWF</FermAct>
+      <OverMass>1.8</OverMass>
+      <N5>16</N5>
+      <Mass>0.006</Mass>
+      <AnisoParam>
+        <anisoP>false</anisoP>
+        <t_dir>3</t_dir>
+        <xi_0>2.464</xi_0>
+        <nu>0.95</nu>
+      </AnisoParam>
+      <FermionBC>
+        <FermBC>SIMPLE_FERMBC</FermBC>
+        <boundary>1 1 1 1</boundary>
+      </FermionBC>
+    </FermionAction>
+<InvertParam>
+      <invType>CG_INVERTER</invType>
+      <RsdCG>3e-09</RsdCG>
+      <MaxCG>20000</MaxCG>
+    </InvertParam>
+</ForwardProp>
+  <PropSource>
+    <version>6</version><Source>
+      <version>1</version>
+      <SourceType>MOMENTUM_VOLUME_SOURCE</SourceType>
+      <j_decay>3</j_decay>
+      <mom>3
+               3
+               2
+               2</mom>
+      <av_mom>false</av_mom>
+      <t_srce>0
+                  0
+                  0
+                  0</t_srce>
+    </Source>
+
+    <j_decay>3</j_decay>
+    <t_source>0</t_source>
+  </PropSource>
+  <Config_info><NERSC>
+      <mat_size>12</mat_size>
+      <float_size>8</float_size>
+      <nrow>32 32 32 64</nrow>
+      <boundary>1 1 1 1</boundary>
+      <w_plaq>0.6156315785</w_plaq>
+      <link>1.136146405e-05</link>
+      <ensemble_id>142</ensemble_id>
+      <ensemble_label>IWASAKI_Nf2p1_32c64s16_b2.25M1.80mu0.006ms0.03_quo_hasenbusch</ensemble_label>
+  <!--    <creator>UKQCD</creator>
+      <creator_hardware>QCDOC</creator_hardware> -->
+    <![CDATA[  <creation_date>Sat Jan 10 07:39:05 1970</creation_date>  yy]]>xx
+      <archive_date>Thu Mar 27 17:39:53 EDT 2008</archive_date>
+      <sequence_number>1200</sequence_number>
+      <checksum>990f40e6</checksum>
+    </NERSC>&lt;&#x32;&amp;&gt;&quot;&apos;&#123;&#000054;&#x0000000033;
+</Config_info>
+</Propagator>
+
+]=]
+
+function show_tree(x)
+  function skip(n)
+     if n > 0 then
+        printf("  ")
+        skip(n-1)
+     end
+  end
+  function show(x, n)
+    skip(n)
+    printf("<%s", x["$tag"])
+    for i, v in pairs(x) do
+      if type(i) ~= "number" and i ~= "$tag" then
+         printf(" %s=\"%s\"", i, v)
+      end
+    end
+    printf(">\n")
+    for i, v in ipairs(x) do
+      if type(v) == "string" then
+        skip(n + 1)
+        printf("[%d] = \"%s\"\n", i, v)
+      else
+        skip(n + 1)
+        printf("[%d]: %s\n", i, type(v)) 
+        show(v, n + 1)
+      end
+    end
+    skip(n)
+    printf("</%s>\n", x["$tag"])
+  end
+
+  printf("parsed XML:\n")
+  show(x, 0)
+end
+
+function test_xml(s)
+  printf("input:\n%s", s)
+  local x = xml.parse(s)
+  show_tree(x)
+  -- local r=xml.unparse(x)
+  -- printf("\n\nunparsed:\n%s\n\n", r)
+  printf("\n\n\n")
+end
+
+test_xml(str)
+test_xml(str2)
+
+printf("------------- done\n")

@@ -19,6 +19,7 @@
 #include <qdpcc_io.h>                                                /* DEPS */
 #include <ddpairs_io.h>                                              /* DEPS */
 #include <nersc_io.h>                                                /* DEPS */
+#include <qxml.h>                                                    /* DEPS */
 #ifdef HAS_AFF
 #include <lhpc-aff.h>
 #include <aff_io.h>                                                  /* DEPS */
@@ -444,47 +445,46 @@ qlua_openlibs (lua_State *L) {
 void
 qlua_init(lua_State *L, int argc, char *argv[])
 {
-    static const struct {
-        lua_CFunction init;
-    } qcd_inits[] = {
-        { init_qlua_io },
-        { init_complex },
-        { init_gamma },
-        { init_vector },
-        { init_lattice },
-        { init_latint },
-        { init_latrandom },
-        { init_latreal },
-        { init_latcomplex },
-        { init_latcolvec },
-        { init_latcolmat },
-        { init_latdirferm },
-        { init_latdirprop },
-        { init_latsubset },
-        { init_latmulti },
-        { init_qdpc_io },
-        { init_qdpcc_io },
-        { init_ddpairs_io },
-        { init_nersc_io },
+    static const lua_CFunction qcd_inits[] = {
+        init_qlua_io,
+        init_complex,
+        init_gamma,
+        init_vector,
+        init_lattice,
+        init_latint,
+        init_latrandom,
+        init_latreal,
+        init_latcomplex,
+        init_latcolvec,
+        init_latcolmat,
+        init_latdirferm,
+        init_latdirprop,
+        init_latsubset,
+        init_latmulti,
+        init_qdpc_io,
+        init_qdpcc_io,
+        init_ddpairs_io,
+        init_nersc_io,
+        init_xml,
 #ifdef HAS_AFF
-        { init_aff_io },
+        init_aff_io,
 #endif
 #ifdef HAS_CLOVER
-        { init_clover },
+        init_clover,
 #endif
 #ifdef HAS_MDWF
-        { init_mdwf },
+        init_mdwf,
 #endif
         /* ZZZ add other packages here */
-        { NULL }};
+        NULL };
 
     int i;
 
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     qlua_openlibs(L);  /* open libraries */
     luaL_register(L, qcdlib, fQCD);
-    for (i = 0; qcd_inits[i].init; i++) {
-        lua_pushcfunction(L, qcd_inits[i].init);
+    for (i = 0; qcd_inits[i]; i++) {
+        lua_pushcfunction(L, qcd_inits[i]);
         lua_call(L, 0, 0);
     }
     lua_getglobal(L, qcdlib);
@@ -517,44 +517,42 @@ qlua_init(lua_State *L, int argc, char *argv[])
 void
 qlua_fini(lua_State *L)
 {
-    static struct {
-        lua_CFunction fini;
-    } qcd_finis[] = { /* keep it in the reverse order with respect to init */
+    const static lua_CFunction qcd_finis[] = {
         /* ZZZ add other packages here */
 #ifdef HAS_MDWF
-        { fini_mdwf },
+        fini_mdwf,
 #endif
 #ifdef HAS_CLOVER
-        { fini_clover },
+        fini_clover,
 #endif
 #ifdef HAS_AFF
-        { fini_aff_io },
+        fini_aff_io,
 #endif
-        { fini_nersc_io },
-        { fini_ddpairs_io },
-        { fini_qdpcc_io },
-        { fini_qdpc_io },
-        { fini_latmulti },
-        { fini_latsubset },
-        { fini_latdirprop },
-        { fini_latdirferm },
-        { fini_latcolmat },
-        { fini_latcolvec },
-        { fini_latcomplex },
-        { fini_latreal },
-        { fini_latrandom },
-        { fini_latint },
-        { fini_lattice },
-        { fini_vector },
-        { fini_gamma },
-        { fini_complex },
-        { fini_qlua_io },
-        { NULL }
-    };
+        fini_xml,
+        fini_nersc_io,
+        fini_ddpairs_io,
+        fini_qdpcc_io,
+        fini_qdpc_io,
+        fini_latmulti,
+        fini_latsubset,
+        fini_latdirprop,
+        fini_latdirferm,
+        fini_latcolmat,
+        fini_latcolvec,
+        fini_latcomplex,
+        fini_latreal,
+        fini_latrandom,
+        fini_latint,
+        fini_lattice,
+        fini_vector,
+        fini_gamma,
+        fini_complex,
+        fini_qlua_io,
+        NULL };
     int i;
 
-    for (i = 0; qcd_finis[i].fini; i++) {
-        lua_pushcfunction(L, qcd_finis[i].fini);
+    for (i = 0; qcd_finis[i]; i++) {
+        lua_pushcfunction(L, qcd_finis[i]);
         lua_call(L, 0, 0);
     }
 }

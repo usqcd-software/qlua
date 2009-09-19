@@ -1,0 +1,3 @@
+require("stdlib")
+
+printf("now: %s\n", os.date())
