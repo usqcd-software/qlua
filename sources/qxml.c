@@ -274,17 +274,6 @@ parse_XMLDecl(lua_State *L,
 }
 
 static const char *
-parse_doctypedecl(lua_State *L,
-                  const char *s,
-                  const char *e,
-                  char *buf)
-{
-    luaL_error(L, "xml.parse() doctypedecl is not supported");
-
-    return NULL; /* never happens */
-}
-
-static const char *
 parse_Misc(lua_State *L,
            const char *s,
            const char *e,
@@ -462,6 +451,7 @@ parse_AttValue(lua_State *L,
                 buf++;
                 break;
             default:
+                check_valid_char(L, *pos);
                 *buf++ = *pos;
                 break;
             }
@@ -532,6 +522,7 @@ parse_CharData_opt(lua_State *L,
             break;
         if ((*s == ']') && (s + 3 < e) && (strncmp(s, "]]>", 3) == 0))
             luaL_error(L, "xml.parse() expecting CharData");
+        check_valid_char(L, *s);
         *buf = *s;
     }
     *buf = 0;
@@ -653,11 +644,8 @@ parse_prolog(lua_State *L,
         pos = parse_XMLDecl(L, pos, e, buf);
     while (is_Misc(pos, e))
         pos = parse_Misc(L, pos, e, buf);
-    if (is_doctypedecl(pos, e)) {
-        pos = parse_doctypedecl(L, pos, e, buf);
-        while (is_Misc(pos, e))
-            pos = parse_Misc(L, pos, e, buf);
-    }
+    if (is_doctypedecl(pos, e))
+        luaL_error(L, "xml.parse() doctypedecl is not supported");
 
     return pos;
 }

@@ -62,10 +62,10 @@ str2=[=[
   </PropSource>
   <Config_info><NERSC>
       <mat_size>12</mat_size>
-      <float_size>8</float_size>
+      <float_size z='&lt;&gt;'>8</float_size>
       <nrow>32 32 32 64</nrow>
       <boundary>1 1 1 1</boundary>
-      <w_plaq>0.6156315785</w_plaq>
+      <:w_plaq>0.6156315785</:w_plaq>
       <link>1.136146405e-05</link>
       <ensemble_id>142</ensemble_id>
       <ensemble_label>IWASAKI_Nf2p1_32c64s16_b2.25M1.80mu0.006ms0.03_quo_hasenbusch</ensemble_label>
@@ -79,6 +79,17 @@ str2=[=[
 </Config_info>
 </Propagator>
 
+]=]
+
+str3 = [=[
+<?xml version='1.234' ?>
+<?QLUA processing arguments are 'here ?>
+<?USQCD?>
+<qlua args='&#x6a;&#x7B;'>
+  <rp z='alpha' q="fyvaoldg"/>
+  <?ABRa?>
+</qlua>
+<!-- comment in misc -->
 ]=]
 
 function show_tree(x)
@@ -126,5 +137,6 @@ end
 
 test_xml(str)
 test_xml(str2)
+test_xml(str3)
 
 printf("------------- done\n")

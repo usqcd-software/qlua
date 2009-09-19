@@ -9,6 +9,7 @@ INCDIR       = @incdir@
 DOCDIR       = @docdir@
 
 CC           = @cc@
+# add -fprofile-arcs -ftest-coverage to COPTS for coverage tests
 COPTS        = @copts@
 CFLAGS       = @cflags@
 
