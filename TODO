@@ -1,11 +1,4 @@
-QIO
-* QDP/C++ reader
-* QDP/C++ writer
-* DD pairs reader
-* DD pairs writer
-
-XML handling
--- massage expat 1.2 sources to fit (ascii only, not DTD etc)
+* XML homegrown parse & unparse
 
 CLOVER
 -- expose boundary conditions

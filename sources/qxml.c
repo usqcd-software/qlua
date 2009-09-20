@@ -451,7 +451,7 @@ parse_AttValue(lua_State *L,
             switch (*pos) {
             case '<':
                 luaL_error(L, err);
-                break;
+                break; /* never happens */
             case '&':
                 pos = parse_Reference(L, pos + 1, e, buf) - 1;
                 buf++;
@@ -703,10 +703,157 @@ q_xml_parse(lua_State *L)
     return 1;
 }
 
+static void
+skip(lua_State *L, int level, int nested)
+{
+    if (nested) {
+        int i;
+    
+        for (i = 0; i < level; i++)
+            lua_pushstring(L, "  ");
+        lua_concat(L, level + 1);
+    }
+}
+
+static void
+unparse_string(lua_State *L, int idx, int in_attr)
+{
+    size_t i, len;
+    const char *str = lua_tolstring(L, idx, &len);
+    int v;
+
+    lua_pushstring(L, "");
+    for (i = 0; i < len; i++, str++) {
+        v = *str & 0xff;
+        switch(v) {
+        case 0x9:
+        case 0xa:
+        case 0xd:
+            lua_pushlstring(L, str, 1);
+            break;
+        case '&':
+            lua_pushstring(L, "&amp;");
+            break;
+        case '\"':
+            lua_pushstring(L, in_attr? "&quot;": "\"");
+            break;
+        case '\'':
+            lua_pushstring(L, in_attr? "&apos;": "\'");
+            break;
+        case '<':
+            lua_pushstring(L, in_attr? "<": "&lt;");
+            break;
+        case '>':
+            lua_pushstring(L, in_attr? ">": "&gt;");
+            break;
+        default:
+            if ((v < 0x20) || (v > 0x7f))
+                luaL_error(L, "xml.unparse(): character out of repertoire");
+            lua_pushlstring(L, str, 1);
+            break;
+        }
+        lua_concat(L, 2);
+    }
+}
+
+static void
+unparse(lua_State *L, int level, int nested)
+{
+    static const char tag_key[] = "$tag";
+    int count = 0;
+    int unmixed = nested;
+    const char *tag;
+    int i;
+
+    skip(L, level, nested);
+    lua_pushstring(L, "<");
+    lua_getfield(L, -3, tag_key);
+    tag = luaL_checkstring(L, -1);
+    lua_concat(L, 3);
+    lua_pushnil(L);
+    while (lua_next(L, -3)) {
+        switch (lua_type(L, -2)) {
+        case LUA_TNUMBER:
+            switch (lua_type(L, -1)) {
+            case LUA_TSTRING:
+                unmixed = 0;
+                count++;
+                break;
+            case LUA_TTABLE:
+                count++;
+                break;
+            default:
+                luaL_error(L, "xml.unparse(): bad value type in the table");
+            }
+            break;
+        case LUA_TSTRING:
+            switch (lua_type(L, -1)) {
+            case LUA_TSTRING:
+                if (strcmp(luaL_checkstring(L, -2), tag_key) != 0) { 
+                    lua_pushstring(L, luaL_checkstring(L, -3));
+                    lua_pushstring(L, " ");
+                    lua_pushstring(L, luaL_checkstring(L, -4));
+                    lua_pushstring(L, "=\"");
+                    lua_concat(L, 4);
+                    unparse_string(L, -2, 1);
+                    lua_pushstring(L, "\"");
+                    lua_concat(L, 3);
+                    lua_replace(L, -4);
+                }
+                break;
+            default:
+                luaL_error(L, "xml.unparse(): bad value in the table");
+                break;
+            }
+            break;
+        default:
+            luaL_error(L, "xml.unparse(): bad index in the table");
+            break;
+        }
+        lua_pop(L, 1);
+    }
+    
+    lua_pushstring(L, count == 0? "/>": ">");
+    lua_pushstring(L, unmixed? "\n": "");
+    lua_concat(L, 3);
+    for (i = 1; i <= count; i++) {
+        lua_pushnumber(L, i);
+        lua_gettable(L, -3);
+        switch (lua_type(L, -1)) {
+        case LUA_TTABLE:
+            lua_insert(L, -2);
+            unparse(L, level + 1, unmixed);
+            lua_replace(L, -2);
+            break;
+        case LUA_TSTRING:
+            unparse_string(L, -1, 0);
+            lua_replace(L, -2);
+            lua_concat(L, 2);
+            break;
+        default:
+            luaL_error(L, "xml.unparse(): internal error: type[%d]=%s",
+                       i, lua_typename(L, lua_type(L, -1)));
+        }
+    }
+        
+    if (count != 0) {
+        skip(L, level, unmixed);
+        lua_pushstring(L, "</");
+        lua_pushstring(L, tag);
+        lua_pushstring(L, ">");
+        lua_pushstring(L, nested? "\n": "");
+        lua_concat(L, 5);
+    }
+}
+
 static int
 q_xml_unparse(lua_State *L)
 {
-    return luaL_error(L, "XXX xml.unparse() not implemented");
+    luaL_checktype(L, 1, LUA_TTABLE);
+    lua_pushstring(L, "<?xml version='1.0' ?>\n");
+    unparse(L, 0, 1);
+
+    return 1;
 }
 
 static struct luaL_Reg fXML[] = {

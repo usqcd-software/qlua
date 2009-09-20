@@ -62,7 +62,7 @@ str2=[=[
   </PropSource>
   <Config_info><NERSC>
       <mat_size>12</mat_size>
-      <float_size z='&lt;&gt;'>8</float_size>
+      <float_size z='&lt;&gt;&amp;&quot;&apos;'>8</float_size>
       <nrow>32 32 32 64</nrow>
       <boundary>1 1 1 1</boundary>
       <:w_plaq>0.6156315785</:w_plaq>
@@ -71,7 +71,7 @@ str2=[=[
       <ensemble_label>IWASAKI_Nf2p1_32c64s16_b2.25M1.80mu0.006ms0.03_quo_hasenbusch</ensemble_label>
   <!--    <creator>UKQCD</creator>
       <creator_hardware>QCDOC</creator_hardware> -->
-    <![CDATA[  <creation_date>Sat Jan 10 07:39:05 1970</creation_date>  yy]]>xx
+    <![CDATA[ & " ' <creation_date>Sat Jan 10 07:39:05 1970</creation_date>  yy]]>xx
       <archive_date>Thu Mar 27 17:39:53 EDT 2008</archive_date>
       <sequence_number>1200</sequence_number>
       <checksum>990f40e6</checksum>
@@ -136,10 +136,9 @@ end
 function test_xml(s)
   printf("input:\n%s", s)
   local x = xml.parse(s)
-  show_tree(x)
-  -- local r=xml.unparse(x)
-  -- printf("\n\nunparsed:\n%s\n\n", r)
-  printf("\n\n\n")
+  --  show_tree(x)
+  local r=xml.unparse(x)
+  printf("\nunparsed:%s\n\n\n", r)
 end
 
 test_xml(str)
