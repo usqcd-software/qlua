@@ -1,9 +1,9 @@
 * XML homegrown parse & unparse
 
-CLOVER
--- expose boundary conditions
+*CLOVER
+* expose boundary conditions
 
-MDWF (optional)
+MDWF
   operator
   conjugate operator
   solvers
