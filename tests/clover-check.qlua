@@ -32,7 +32,7 @@ U = { almost_su3(S, 0.5),
 F = S:gaussian_DiracFermion()
 G = S:gaussian_DiracFermion()
 
-CL = qcd.Clover(U, 0.081, 0.07)
+CL = qcd.Clover(U, 0.081, 0.07, {1, 1, 1, 0})
 
 io.stdout:write("CLOVER  " .. tostring(CL) .. "\n")
 

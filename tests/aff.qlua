@@ -1,5 +1,6 @@
 -- check aff writer first
-file = "/tmp/qlua/test-file.aff"
+-- file = "/tmp/qlua/test-file.aff"
+file = "test-file.aff"
 
 w,m = qcd.aff.Writer(file)
 print("writer:", w, m)

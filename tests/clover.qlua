@@ -26,7 +26,7 @@ U = { S:gaussian_ColorMatrix(),
 F = L:DiracFermion()
 F[{0,0,0,0,c=0,d=0}] = complex(1,0)
 
-CL = qcd.Clover(U, 0.081, 0.07)
+CL = qcd.Clover(U, 0.071, 0.02, {1, 1, 1, 0})
 
 io.stdout:write("CLOVER" .. tostring(CL) .. "\n")
 

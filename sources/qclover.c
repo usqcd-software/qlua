@@ -1,5 +1,6 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <qclover.h>                                                 /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latcolmat.h>                                               /* DEPS */
 #include <latdirferm.h>                                              /* DEPS */
@@ -546,15 +547,22 @@ q_CL_make_mixed_solver(lua_State *L)
     return 1;
 }
 
+#define Nu  QOP_CLOVER_DIM
+#define Nf  ((QOP_CLOVER_DIM * (QOP_CLOVER_DIM - 1)) / 2)
+#define Nt  (Nu + Nf)
+#define Nz  (Nu + Nf + 6)
+
 typedef struct {
     int lattice[QOP_CLOVER_DIM];
     int network[QOP_CLOVER_DIM];
-} SublatticeArgs;
+    QLA_Complex bf[QOP_CLOVER_DIM];
+    QLA_ColorMatrix *uf[Nu + Nf];
+} QCArgs;
 
 static void
 q_clover_sublattice(int lo[], int hi[], const int node[], void *env)
 {
-    SublatticeArgs *args = env;
+    QCArgs *args = env;
     int i;
 
     for (i = 0; i < QOP_CLOVER_DIM; i++) {
@@ -574,39 +582,30 @@ get_vector(int v[], int def, int dim, const int d[])
         v[i] = def;
 }
 
-#define Nu  QOP_CLOVER_DIM
-#define Nf  ((QOP_CLOVER_DIM * (QOP_CLOVER_DIM - 1)) / 2)
-#define Nt  (Nu + Nf)
-#define Nz  (Nu + Nf + 6)
-
-static int *q_CL_u_lattice; /* ZZZ global state for gauge import */
-
 static double
 q_CL_u_reader(int d, const int p[], int a, int b, int re_im, void *env)
 {
-    QLA_Real xx;
-    QLA_ColorMatrix **m = env;
+    QLA_Complex z;
+    QCArgs *args = env;
     int i = QDP_index(p);
 
-    if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_M(m[d][i], a, b));
+    if (p[d] == (args->lattice[d] - 1)) {
+        QLA_c_eq_c_times_c(z, args->bf[d], QLA_elem_M(args->uf[d][i], a, b));
     } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_M(m[d][i], a, b));
+        QLA_c_eq_c(z, QLA_elem_M(args->uf[d][i], a, b));
     }
 
-    /* antiperiodic in the last dimension */
-    if ((d == QOP_CLOVER_DIM - 1) &&
-        (p[QOP_CLOVER_DIM - 1] == q_CL_u_lattice[QOP_CLOVER_DIM - 1] - 1))
-        xx = -xx;
-
-    return xx;
+    if (re_im == 0) 
+        return QLA_real(z);
+    else
+        return QLA_imag(z);
 }
 
 static double
 q_CL_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
 {
     QLA_Real xx;
-    QLA_ColorMatrix **m = env;
+    QCArgs *args = env;
     int i = QDP_index(p);
     int d, xm, xn;
 
@@ -621,10 +620,10 @@ q_CL_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
 found:
     /* NB:m stores F * 8i */
     if (re_im == 0) {
-        QLA_r_eq_Im_c(xx, QLA_elem_M(m[Nu + d][i], a, b));
+        QLA_r_eq_Im_c(xx, QLA_elem_M(args->uf[Nu + d][i], a, b));
         xx = xx / 8;
     } else {
-        QLA_r_eq_Re_c(xx, QLA_elem_M(m[Nu + d][i], a, b));
+        QLA_r_eq_Re_c(xx, QLA_elem_M(args->uf[Nu + d][i], a, b));
         xx = -xx / 8;
     }
 
@@ -638,10 +637,31 @@ q_clover(lua_State *L)
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
     QDP_ColorMatrix *UF[Nz];
-    QLA_ColorMatrix *uf[Nu + Nf];
     int mu, nu, i;
-    SublatticeArgs args;
+    QCArgs args;
     int node[QOP_CLOVER_DIM];
+
+    /* args set BC factors */
+    if (lua_gettop(L) == 5) { /* (U, kappa, c_sw, bc), c */
+        for (i = 0; i < QOP_CLOVER_DIM; i++) {
+            lua_pushnumber(L, i + 1);
+            lua_gettable(L, 4);
+            switch (qlua_gettype(L, -1)) {
+            case qReal:
+                QLA_c_eq_r_plus_ir(args.bf[i], luaL_checknumber(L, -1), 0);
+                break;
+            case qComplex:
+                QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
+                break;
+            default:
+                luaL_error(L, "bad clover boundary condition type");
+            }
+        lua_pop(L, 1);
+        }
+    } else {
+        for (i = 0; i < QOP_CLOVER_DIM; i++)
+            QLA_c_eq_r_plus_ir(args.bf[i], 1.0, 0.0);
+    }
 
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_gc(L, LUA_GCCOLLECT, 0);
@@ -655,6 +675,7 @@ q_clover(lua_State *L)
 
     c->kappa = kappa;
     c->c_sw = c_sw;
+
 
     /* create a temporary U, F, and temp M */
     for (i = 0; i < Nz; i++)
@@ -706,16 +727,15 @@ q_clover(lua_State *L)
         return luaL_error(L, "CLOVER_init() failed");
     
     /* import the gauge field */
-    for (i = 0; i < Nt; i++)
-        uf[i] = QDP_expose_M(UF[i]); /* QDP requires all UF to be distinct */
+    for (i = 0; i < Nt; i++) {
+        /* NB: QDP requires all UF to be distinct */ 
+        args.uf[i] = QDP_expose_M(UF[i]);
+    }
 
-    q_CL_u_lattice = args.lattice;
     if (QOP_CLOVER_import_gauge(&c->gauge, c->state, kappa, c_sw,
-                                q_CL_u_reader, q_CL_f_reader, uf)) {
-        q_CL_u_lattice = 0;
+                                q_CL_u_reader, q_CL_f_reader, &args)) {
         return luaL_error(L, "CLOVER_import_gauge() failed");
     }
-    q_CL_u_lattice = 0;
 
     for (i = 0; i < Nt; i++)
         QDP_reset_M(UF[i]);

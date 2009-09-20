@@ -3,8 +3,7 @@
 #include <string.h>
 
 static const char xml_lib[] = "xml";
-
-typedef const char *(parse_func)(lua_State *, const char*, const char*, char *);
+static const char tag_key[] = "$tag";
 
 /* predicates */
 static int
@@ -557,7 +556,7 @@ parse_CDSect(lua_State *L,
     return NULL; /* never happens */
 }
 
-static parse_func parse_element;
+static const char *parse_element(lua_State *, const char*, const char*, char *);
 
 static const char *
 parse_content(lua_State *L, /* [-1] = tag, [-2] = table */
@@ -624,7 +623,7 @@ parse_element(lua_State *L,
     pos = parse_Name(L, s + 1, e, buf);
     lua_newtable(L);
     lua_pushstring(L, buf);
-    lua_setfield(L, -2, "$tag");
+    lua_setfield(L, -2, tag_key);
     lua_pushstring(L, buf);
     for (;;) {
         pos = parse_S_opt(L, pos, e, buf);
@@ -759,16 +758,14 @@ unparse_string(lua_State *L, int idx, int in_attr)
 static void
 unparse(lua_State *L, int level, int nested)
 {
-    static const char tag_key[] = "$tag";
     int count = 0;
     int unmixed = nested;
-    const char *tag;
     int i;
 
     skip(L, level, nested);
     lua_pushstring(L, "<");
     lua_getfield(L, -3, tag_key);
-    tag = luaL_checkstring(L, -1);
+    luaL_checkstring(L, -1);
     lua_concat(L, 3);
     lua_pushnil(L);
     while (lua_next(L, -3)) {
@@ -839,7 +836,7 @@ unparse(lua_State *L, int level, int nested)
     if (count != 0) {
         skip(L, level, unmixed);
         lua_pushstring(L, "</");
-        lua_pushstring(L, tag);
+        lua_getfield(L, -3, tag_key);
         lua_pushstring(L, ">");
         lua_pushstring(L, nested? "\n": "");
         lua_concat(L, 5);

@@ -78,7 +78,7 @@ end
 
 F = S:gaussian_DiracFermion()
 
-CL = qcd.Clover(U, kappa, c_sw)
+CL = qcd.Clover(U, kappa, c_sw, {1, 1, 1, -1})
 
 G3 = CL:D(F)
 Gs = clover_std(U, kappa, c_sw, F)
