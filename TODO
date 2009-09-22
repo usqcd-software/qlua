@@ -1,7 +1,4 @@
-* XML homegrown parse & unparse
-
-*CLOVER
-* expose boundary conditions
+-- QDP/C QIO: writing sections of the fields -- extend the interface.
 
 MDWF
   operator
