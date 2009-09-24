@@ -263,38 +263,35 @@ q_I_neg(lua_State *L)
 }
 
 static int
-q_I_dot(lua_State *L)
-{
-    mLatInt *a = qlua_checkLatInt(L, 1);
-    mLatInt *b = qlua_checkLatInt(L, 2);
-    QLA_Real s;
-
-    QDP_r_eq_I_dot_I(&s, a->ptr, b->ptr, *qCurrent);
-    lua_pushnumber(L, s);
-
-    return 1;
-}
-
-static int
 q_latint(lua_State *L)
 {
-    switch (qlua_gettype(L, 2)) {
-    case qReal: {
-        QLA_Int d = luaL_checkint(L, 2);
+    switch (lua_gettop(L)) {
+    case 1:{
         mLatInt *v = qlua_newLatInt(L);
 
-        QDP_I_eq_i(v->ptr, &d, *qCurrent);
+        QDP_I_eq_zero(v->ptr, *qCurrent);
 
         return 1;
     }
-    case qLatInt: {
-        mLatInt *res = qlua_newLatInt(L);
-        mLatInt *a = qlua_checkLatInt(L, 2);
-
-        QDP_I_eq_I(res->ptr, a->ptr, *qCurrent);
-
-        return 1;
-    }
+    case 2:
+        switch (qlua_gettype(L, 2)) {
+        case qReal: {
+            QLA_Int d = luaL_checkint(L, 2);
+            mLatInt *v = qlua_newLatInt(L);
+            
+            QDP_I_eq_i(v->ptr, &d, *qCurrent);
+            
+            return 1;
+        }
+        case qLatInt: {
+            mLatInt *res = qlua_newLatInt(L);
+            mLatInt *a = qlua_checkLatInt(L, 2);
+            
+            QDP_I_eq_I(res->ptr, a->ptr, *qCurrent);
+            
+            return 1;
+        }
+        }
     }
 
     return qlua_badconstr(L, "Int");
@@ -340,7 +337,6 @@ init_latint(lua_State *L)
     qlua_reg_mul(qReal,   qLatInt, q_i_mul_I);
     qlua_reg_mul(qLatInt, qReal,   q_I_mul_i);
     qlua_reg_div(qLatInt, qLatInt, q_I_div_I);
-    qlua_reg_dot(qLatInt, q_I_dot);
 
     return 0;
 }

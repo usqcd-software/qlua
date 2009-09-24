@@ -11,4 +11,6 @@ RANLIB='xranlib' \
    --with-lhpc-aff=/opt/SciDAC/bgl/lhpc-aff-2.1.0rc1 \
    --with-clover=/opt/SciDAC/bgl/clover-1.0.3
 
+# MDWF part is not fully implemented yet
+
 #   --with-mdwf=/Users/avp/Local/test/mdwf-1.1.4

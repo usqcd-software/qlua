@@ -229,7 +229,10 @@ q_g_fmt(lua_State *L)
         luaL_addstring(&b, gn[i]);
     }
 
-    luaL_addstring(&b, "]");
+    if (fst)
+        luaL_addstring(&b, "0]");
+    else
+        luaL_addstring(&b, "]");
     luaL_pushresult(&b);
     qlua_checkClifford(L, 1);
 

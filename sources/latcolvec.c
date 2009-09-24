@@ -431,7 +431,7 @@ q_latcolvec(lua_State *L)
     }
     case 3: {
         mLatComplex *c = qlua_checkLatComplex(L, 2);
-        int a = luaL_checkint(L, 3);
+        int a = qlua_checkcolorindex(L, 3);
         mLatColVec *r = qlua_newLatColVec(L);
 
         QDP_V_eq_elem_C(r->ptr, c->ptr, a, *qCurrent);

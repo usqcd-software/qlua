@@ -7,5 +7,6 @@ CC='gcc -m64' \
    --with-lhpc-aff=/opt/SciDAC/fen64/lhpc-aff-2.1.0rc1 \
    --with-clover=/opt/SciDAC/fen64/clover-1.0.3
 
-#   --with-clover=/Users/avp/Local/test/clover-1.0.1 \
+# MDWF part is not fully implemented yet
+
 #   --with-mdwf=/Users/avp/Local/test/mdwf-1.1.4

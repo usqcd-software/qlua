@@ -986,6 +986,13 @@ static int
 q_latcomplex(lua_State *L)
 {
     switch (lua_gettop(L)) {
+    case 1: {
+        mLatComplex *v = qlua_newLatComplex(L);
+        
+        QDP_C_eq_zero(v->ptr, *qCurrent);
+
+        return 1;
+    }
     case 2:
         switch (qlua_gettype(L, 2)) {
         case qReal: {

@@ -34,3 +34,21 @@ function skip(excl, ...)
   end
   return g, {f, fs}, k
 end
+
+-- access an element of parsed XML
+function xml.get(x, n, ...)
+  if n == nil then
+     return x
+  end
+  if type(n) == "number" then
+     return x[n]
+  else
+    for i = 1, #x do
+       local y = x[i]
+       if type(y) == "table" and y["$tag"] == n then
+         return xml.get(y, ...)
+       end
+    end
+    return nil    
+  end
+end

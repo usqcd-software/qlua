@@ -634,31 +634,41 @@ q_r_div_R(lua_State *L)
 static int
 q_latreal(lua_State *L)
 {
-    switch (qlua_gettype(L, 2)) {
-    case qReal: {
-        QLA_Real d = luaL_checknumber(L, 2);
+    switch (lua_gettop(L)) {
+    case 1: {
         mLatReal *v = qlua_newLatReal(L);
 
-        QDP_R_eq_r(v->ptr, &d, *qCurrent);
-        
-        return 1;
-    }
-    case qLatInt: {
-        mLatInt *d = qlua_checkLatInt(L, 2);
-        mLatReal *v = qlua_newLatReal(L);
-
-        QDP_R_eq_I(v->ptr, d->ptr, *qCurrent);
+        QDP_R_eq_zero(v->ptr, *qCurrent);
 
         return 1;
     }
-    case qLatReal: {
-        mLatReal *d = qlua_checkLatReal(L, 2);
-        mLatReal *v = qlua_newLatReal(L);
-        
-        QDP_R_eq_R(v->ptr, d->ptr, *qCurrent);
-        
-        return 1;
-    }
+    case 2:
+        switch (qlua_gettype(L, 2)) {
+        case qReal: {
+            QLA_Real d = luaL_checknumber(L, 2);
+            mLatReal *v = qlua_newLatReal(L);
+            
+            QDP_R_eq_r(v->ptr, &d, *qCurrent);
+            
+            return 1;
+        }
+        case qLatInt: {
+            mLatInt *d = qlua_checkLatInt(L, 2);
+            mLatReal *v = qlua_newLatReal(L);
+            
+            QDP_R_eq_I(v->ptr, d->ptr, *qCurrent);
+            
+            return 1;
+        }
+        case qLatReal: {
+            mLatReal *d = qlua_checkLatReal(L, 2);
+            mLatReal *v = qlua_newLatReal(L);
+            
+            QDP_R_eq_R(v->ptr, d->ptr, *qCurrent);
+            
+            return 1;
+        }
+        }
     }
     return qlua_badconstr(L, "Real");
 }
@@ -681,7 +691,7 @@ static const struct luaL_Reg LatRealMethods[] = {
     { "ceil",      q_R_ceil     },
     { "floor",     q_R_floor    },
     { "sinh",      q_R_sinh     },
-    { "consh",     q_R_cosh     },
+    { "cosh",      q_R_cosh     },
     { "tanh",      q_R_tanh     },
     { "log10",     q_R_log10    },
     { "expi",      q_R_expi     },

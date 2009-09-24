@@ -5,7 +5,7 @@ rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
                          LAT:pcoord(2))
 
 crnd = rnd:gaussian_Complex()
-x = LAT:ColorVector(crnd, 0)
+x = LAT:ColorVector(crnd, {c=0})
 print("V(c,0)", x)
 
 x = rnd:gaussian_ColorVector() * rnd:gaussian_Real()

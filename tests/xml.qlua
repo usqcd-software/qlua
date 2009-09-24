@@ -145,4 +145,41 @@ test_xml(str)
 test_xml(str2)
 test_xml(str3)
 
+function xml.get(x, n, ...)
+  if n == nil then
+     return x
+  end
+  if type(n) == "number" then
+     return x[n]
+  else
+    for i = 1, #x do
+       local y = x[i]
+       if type(y) == "table" and y["$tag"] == n then
+         return xml.get(y, ...)
+       end
+    end
+    return nil    
+  end
+end
+
+for i,v in pairs(xml) do
+  printf(" xml[%s] = %s\n", tostring(i), tostring(v))
+end
+
+-- accessing an element in the XML:
+printf("str2[Config_info, NERSC, boundary, 1]=%q\n",
+          tostring(xml.get(xml.parse(str2), "Config_info",
+                                            "NERSC", 
+                                            "boundary",
+                                            1)))
+
+-- constructing XML from a table:
+xml_sample = {
+  ["$tag"] = "contructed",
+  {["$tag"] = "first", "the first element"},
+  {["$tag"] = "second", "1 2 3 4"}
+}
+
+printf("\n\nUnparsed xml_sample:\n%s\n", xml.unparse(xml_sample))
+
 printf("------------- done\n")
