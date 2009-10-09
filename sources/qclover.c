@@ -33,11 +33,16 @@ qlua_newClover(lua_State *L)
 }
 
 static mClover *
-qlua_checkClover(lua_State *L, int idx)
+qlua_checkClover(lua_State *L, int idx, int live)
 {
     void *v = luaL_checkudata(L, idx, mtnClover);
+    mClover *c = (mClover *)v;
+
 
     luaL_argcheck(L, v != 0, idx, "qcd.Clover expected");
+
+    if (live && (c->state == 0 || c->gauge == 0))
+        luaL_error(L, "using closed qcd.Clover");
 
     return v;
 }
@@ -46,9 +51,13 @@ static int
 q_CL_fmt(lua_State *L)
 {
     char fmt[72];
-    mClover *c = qlua_checkClover(L, 1);
+    mClover *c = qlua_checkClover(L, 1, 0);
 
-    sprintf(fmt, "Clover[%g,%g]", c->kappa, c->c_sw);
+    if (c->state)
+        sprintf(fmt, "Clover[%g,%g]", c->kappa, c->c_sw);
+    else
+        sprintf(fmt, "Clover(closed)");
+
     lua_pushstring(L, fmt);
 
     return 1;
@@ -57,7 +66,7 @@ q_CL_fmt(lua_State *L)
 static int
 q_CL_gc(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, 1);
+    mClover *c = qlua_checkClover(L, 1, 0);
 
     if (c->gauge) {
         QOP_CLOVER_free_gauge(&c->gauge);
@@ -74,7 +83,7 @@ q_CL_gc(lua_State *L)
 static int
 q_CL_close(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, 1);
+    mClover *c = qlua_checkClover(L, 1, 1);
 
     if (c->gauge) {
         QOP_CLOVER_free_gauge(&c->gauge);
@@ -155,7 +164,7 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
 static int
 q_CL_D(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, 1);
+    mClover *c = qlua_checkClover(L, 1, 1);
 
     lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 2)) {
@@ -221,7 +230,7 @@ q_CL_D(lua_State *L)
 static int
 q_CL_Dx(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, 1);
+    mClover *c = qlua_checkClover(L, 1, 1);
 
     lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 2)) {
@@ -287,7 +296,7 @@ q_CL_Dx(lua_State *L)
 static int
 q_CL_solve(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, lua_upvalueindex(1));
+    mClover *c = qlua_checkClover(L, lua_upvalueindex(1), 1);
     double eps = luaL_checknumber(L, lua_upvalueindex(2));
     int max_iters = luaL_checkint(L, lua_upvalueindex(3));
     long long fl1;
@@ -405,7 +414,7 @@ static int
 q_CL_make_solver(lua_State *L)
 {
 
-    qlua_checkClover(L, 1);   /* mClover *c */
+    qlua_checkClover(L, 1, 1);   /* mClover *c */
     luaL_checknumber(L, 2);   /* double epsilon */
     luaL_checkint(L, 3);      /* int max_iter */
     lua_pushcclosure(L, q_CL_solve, 3);
@@ -417,7 +426,7 @@ q_CL_make_solver(lua_State *L)
 static int
 q_CL_mixed_solve(lua_State *L)
 {
-    mClover *c      = qlua_checkClover(L, lua_upvalueindex(1));
+    mClover *c      = qlua_checkClover(L, lua_upvalueindex(1), 1);
     double eps      = luaL_checknumber(L, lua_upvalueindex(2));
     int inner_iters = luaL_checkint(L, lua_upvalueindex(3));
     int max_iters   = luaL_checkint(L, lua_upvalueindex(4));
@@ -538,7 +547,7 @@ static int
 q_CL_make_mixed_solver(lua_State *L)
 {
 
-    qlua_checkClover(L, 1);   /* mClover *c */
+    qlua_checkClover(L, 1, 1);   /* mClover *c */
     luaL_checknumber(L, 2);   /* double epsilon */
     luaL_checkint(L, 3);      /* int inner_iter */
     luaL_checkint(L, 4);      /* int max_iter */
@@ -641,26 +650,21 @@ q_clover(lua_State *L)
     QCArgs args;
     int node[QOP_CLOVER_DIM];
 
-    /* args set BC factors */
-    if (lua_gettop(L) == 5) { /* (U, kappa, c_sw, bc), c */
-        for (i = 0; i < QOP_CLOVER_DIM; i++) {
-            lua_pushnumber(L, i + 1);
-            lua_gettable(L, 4);
-            switch (qlua_gettype(L, -1)) {
-            case qReal:
-                QLA_c_eq_r_plus_ir(args.bf[i], luaL_checknumber(L, -1), 0);
-                break;
-            case qComplex:
-                QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
-                break;
-            default:
-                luaL_error(L, "bad clover boundary condition type");
-            }
-        lua_pop(L, 1);
+    luaL_checktype(L, 4, LUA_TTABLE);
+    for (i = 0; i < QOP_CLOVER_DIM; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, 4);
+        switch (qlua_gettype(L, -1)) {
+        case qReal:
+            QLA_c_eq_r_plus_ir(args.bf[i], luaL_checknumber(L, -1), 0);
+            break;
+        case qComplex:
+            QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
+            break;
+        default:
+            luaL_error(L, "bad clover boundary condition type");
         }
-    } else {
-        for (i = 0; i < QOP_CLOVER_DIM; i++)
-            QLA_c_eq_r_plus_ir(args.bf[i], 1.0, 0.0);
+        lua_pop(L, 1);
     }
 
     luaL_checktype(L, 1, LUA_TTABLE);
