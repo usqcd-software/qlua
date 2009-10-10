@@ -518,6 +518,23 @@ q_latdirprop(lua_State *L)
     return qlua_badconstr(L, "DiracPropagator");
 }
 
+/* [4SNS] eePPnn implementation */
+static int
+q_eeppnn(lua_State *L)
+{
+    mLatDirProp *a = qlua_checkLatDirProp(L, 1); /* the first argument */
+    mLatDirProp *b = qlua_checkLatDirProp(L, 2); /* the second argument */
+    mLatDirProp *r = qlua_newLatDirProp(L); /* the result */
+
+    /* [4SNS] if it were r = a - b, the QDP call here would be.
+       Use *qCurrent QDP subset to make this function work properly with
+       QLUA subsetting.
+
+      QDP_P_eq_P_minus_P(r->ptr, a->ptr, b->ptr, *qCurrent)
+     */
+    return 1;
+}
+
 static struct luaL_Reg LatDirPropMethods[] = {
     { "norm2",           q_P_norm2 },
     { "shift",           q_P_shift },
@@ -548,9 +565,15 @@ static struct luaL_Reg fLatDirProp[] = {
     { NULL,                NULL }
 };
 
+static struct luaL_Reg fQCDDirProp[] = {
+    { "eePPnn",            q_eeppnn }, /* [4SNS] qcd.eePPnn is the QLUA name */
+    { NULL,                NULL }
+};
+
 int
 init_latdirprop(lua_State *L)
 {
+    luaL_register(L, qcdlib, fQCDDirProp);
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatDirProp);
     lua_pop(L, 1);
