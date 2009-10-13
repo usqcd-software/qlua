@@ -1,6 +1,7 @@
 -- compute HEX smearing of the gauge links according to Stefan's notes.
 require("stdlib")
 require("gauge")
+require("hex-smear")
 
 hex_steps = 10
 rnd_f = 0.5

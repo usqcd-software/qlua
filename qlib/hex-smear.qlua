@@ -4,12 +4,14 @@ require "gauge"
 -- BMW HEX smearing (section 1.3.3 of Stefan's notes)
 function bmw_hex(L, U)
   local alpha = { 0.95, 0.76, 0.38 }
- 
-  assert(dcd.Nd == 4, "only 4-d lattice is supported")
+  local dim = qcd.Nd 
+
+  assert(dim == 4, "only 4-d lattice is supported")
+  
 
   -- compute V1
   local V1 = {}
-  for mu in interval(1, qcd.Nd) do
+  for mu in interval(1, dim) do
     V1[mu] = {}
   end
   for mu in interval(1, dim) do

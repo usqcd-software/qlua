@@ -1,0 +1,39 @@
+require "stdlib"
+require "baryon"
+
+L = qcd.lattice {4,4,4,8}
+
+do
+  local x = L:Int(0)
+  for i = 0, #L - 1 do
+    x = x * L[i] + L:pcoord(i)
+  end
+  S = L:RandomState(23456, x)
+end
+
+u_prop = S:gaussian_DiracPropagator()
+d_prop = S:gaussian_DiracPropagator()
+lib_n = qcd.proton3(d_prop, u_prop)
+
+-- just for fun: get a fixed momentum nucleon 2pt 
+function planewave_d3(p3)
+  local px = 2 * math.pi * p3[1] / L[0]
+  local py = 2 * math.pi * p3[2] / L[1]
+  local pz = 2 * math.pi * p3[3] / L[2]
+  return    (L:Real(L:pcoord(0)) * px +
+             L:Real(L:pcoord(1)) * py +
+             L:Real(L:pcoord(2)) * pz):expi()  
+end
+
+function c2pt_print_mom_proj(c, id, p3)
+  local w = planewave_d3(p3)
+  local pt2 = (c * w):sum(L:MultiSet{d=3})  -- 2pt function for each time slice
+  printf("# %s p=(%d,%d,%d)\n", id, p3[1], p3[2], p3[3]);
+  for i = 0, #pt2 - 1 do
+    local q = pt2[i]
+    printf("%d %15.8e %15.8e\n", i, q:real(), q:imag())
+  end
+end
+
+c2pt_print_mom_proj(lib_n, "proton3(qlua)", {1,2,3})
+printf("all done\n")

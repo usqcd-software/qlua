@@ -518,20 +518,69 @@ q_latdirprop(lua_State *L)
     return qlua_badconstr(L, "DiracPropagator");
 }
 
-/* [4SNS] eePPnn implementation */
+static struct {
+    QLA_DiracPropagator *a;
+    QLA_DiracPropagator *b;
+} QQ_args;
+
+static void
+do_QQc13(QLA_DiracPropagator *x_r, int idx)
+{
+    QLA_DiracPropagator *x_a = &QQ_args.a[idx];
+    QLA_DiracPropagator *x_b = &QQ_args.b[idx];
+    int p_a, p_b;
+    static const int eps[3][3] = {
+        { 0, 1, 2},
+        { 1, 2, 0},
+        { 2, 0, 1}};
+
+#define QLA_SU3_CONTRACT13(k1,i1,j1,k2,i2,j2,q1,q2,q3) { \
+        int a, b, c; \
+        for (a = 0; a < QDP_Ns; a++) { \
+            for (b = 0; b < QDP_Ns; b++) { \
+                QLA_Complex s3; \
+                QLA_c_eq_r(s3, 0.0); \
+                for (c = 0; c < QDP_Ns; c++) { \
+                    QLA_c_peq_c_times_c(s3, QLA_elem_P(q1,i1,c,i2,a),   \
+                                        QLA_elem_P(q2,j1,c,j2,b));      \
+                    QLA_c_meq_c_times_c(s3, QLA_elem_P(q1,i1,c,j2,a),   \
+                                        QLA_elem_P(q2,j1,c,i2,b));      \
+                    QLA_c_meq_c_times_c(s3, QLA_elem_P(q1,j1,c,i2,a),   \
+                                        QLA_elem_P(q2,i1,c,j2,b));      \
+                    QLA_c_peq_c_times_c(s3, QLA_elem_P(q1,j1,c,j2,a),   \
+                                        QLA_elem_P(q2,i1,c,i2,b));      \
+                }                                                       \
+                QLA_c_eq_c(QLA_elem_P(q3,k2,a,k1,b), s3);               \
+            }}}
+   
+    for (p_a = 0; p_a < QDP_Nc; p_a++) {
+        for (p_b = 0; p_b < QDP_Nc; p_b++) {
+            QLA_SU3_CONTRACT13(eps[p_a][0], eps[p_a][1], eps[p_a][2], 
+                               eps[p_b][0], eps[p_b][1], eps[p_b][2],
+                               *x_a, *x_b, *x_r);
+        }
+    }
+#undef QLA_SU3_CONTRACT13
+}
+
 static int
-q_eeppnn(lua_State *L)
+q_su3contract13(lua_State *L)
 {
     mLatDirProp *a = qlua_checkLatDirProp(L, 1); /* the first argument */
     mLatDirProp *b = qlua_checkLatDirProp(L, 2); /* the second argument */
-    mLatDirProp *r = qlua_newLatDirProp(L); /* the result */
+    mLatDirProp *r = qlua_newLatDirProp(L); 
 
-    /* [4SNS] if it were r = a - b, the QDP call here would be.
-       Use *qCurrent QDP subset to make this function work properly with
-       QLUA subsetting.
+    if (QDP_Nc != 3)
+        return luaL_error(L, "Bad value of qcd.Nc");
 
-      QDP_P_eq_P_minus_P(r->ptr, a->ptr, b->ptr, *qCurrent)
-     */
+    QQ_args.a = QDP_expose_P(a->ptr);
+    QQ_args.b = QDP_expose_P(b->ptr);
+    QDP_P_eq_funci(r->ptr, do_QQc13, *qCurrent);
+    QDP_reset_P(a->ptr);
+    QDP_reset_P(b->ptr);
+    QQ_args.a = 0;
+    QQ_args.b = 0;
+
     return 1;
 }
 
@@ -566,7 +615,7 @@ static struct luaL_Reg fLatDirProp[] = {
 };
 
 static struct luaL_Reg fQCDDirProp[] = {
-    { "eePPnn",            q_eeppnn }, /* [4SNS] qcd.eePPnn is the QLUA name */
+    { "quarkContract13",   q_su3contract13 },      /* [SNS] */
     { NULL,                NULL }
 };
 
