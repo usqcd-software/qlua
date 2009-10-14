@@ -47,7 +47,7 @@ src = L:DiracPropagator()
 for ic = 0, qcd.Nc - 1 do
   for is = 0, qcd.Ns - 1 do
     local dv = L:DiracFermion()
-    dv[{0,0,0,0,c=ic,d=is}] = complex(1,0)
+    dv[{0,0,0,4,c=ic,d=is}] = complex(1,0)
     src[{c=ic,d=is}] = dv
   end
 end

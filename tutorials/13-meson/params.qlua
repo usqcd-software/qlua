@@ -1,6 +1,6 @@
 -- lattice size
 Lx = 8
-Lt = 16
+Lt = 24
 
 -- random state
 r = {}

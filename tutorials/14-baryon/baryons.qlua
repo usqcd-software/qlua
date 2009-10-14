@@ -48,7 +48,7 @@ src = L:DiracPropagator()
 for ic = 0, qcd.Nc - 1 do
   for is = 0, qcd.Ns - 1 do
     local dv = L:DiracFermion()
-    dv[{0,0,0,0,c=ic,d=is}] = complex(1,0)
+    dv[{0,0,0,5,c=ic,d=is}] = complex(1,0)
     src[{c=ic,d=is}] = dv
   end
 end
@@ -56,8 +56,10 @@ end
 -- get the quark and antiquark propagators
 q_prop = solve(src)
 
+
 -- construct nucleon
-qqq = qcd.proton3(q_prop, q_prop)
+bx = {{name="proton", qcd.proton3(q_prop, q_prop)},
+      {name="antiproton", qcd.antiproton3(q_prop, q_prop)}}
 
 -- write moment projections
 aw = qcd.aff.Writer("nucleon2pt.aff") 
@@ -81,9 +83,13 @@ function baryon2pt(qq_c, id, p3)
            pt2)  
 end
 
-for m = 1, #moments do
-  baryon2pt(qqq, "proton3", moments[m])    
+--for m = 1, #moments do
+--  baryon2pt(qqq, "proton3", moments[m])    
+--end
+for b = 1, #bx do
+   baryon2pt(bx[b][1], bx[b].name, {0,0,0})
 end
+
 
 -- end
 printf("done\n")
