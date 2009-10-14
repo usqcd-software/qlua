@@ -131,6 +131,8 @@ install: all doc
 	$C cp $(docfiles) $(DOCDIR)/
 	$C mkdir -p $(DOCDIR)/examples
 	$C cp examples/* $(DOCDIR)/examples/
+	$C for f in tutorials/*; do \
+           mkdir -p $(DOCDIR)/$$f; cp $$f/* $(DOCDIR)/$$f; done
 
 ###############################################################################
 $(program): $(drvobj) $(library)

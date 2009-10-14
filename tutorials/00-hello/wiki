@@ -1,0 +1,38 @@
+Following a venerable tradition, here is a "Hello World" in QLUA:
+
+  require "stdlib"
+  printf("Hello World\n")
+
+To run this program, save the above code into a file, say <code>hello.qlua</code> and say in your shell:
+
+  $ qlua hello.qlua
+
+QLUA treats its arguments as a list of files to load and execute in order. If an error is encountered during executing, QLUA prints an error message on <code>stderr</code> and exits with a non-zero status. It does not attempt any error recovery nor tries to execute remaining files. If no arguments are given, QLUA prints versions of its components on <code>stderr</code> and exits with a non-zero status:
+
+  $ qlua
+  QLUA component versions:
+         qlua: QLUA version 0.9.4 $Id: qlua.c 1094 2009-09-24 22:46:35Z avp $
+          lua: Lua 5.1
+          qdp: /Users/avp/Local/packages/qdp-1.8.1
+          aff: Version 2.1.0 $Id: aff.h 1028 2009-09-07 23:12:15Z avp $
+       clover: /Users/avp/Local/packages/clover-1.0.3
+
+== Line by line explanation ==
+The first line,
+
+  require "stdlib"
+
+instructs QLUA to find and load file <code>stdlib.qlua</code> unless it has already done some. QLUA searches for a file in the the following there places in this order:
+
+* The current directory
+* The qlua library directory in the installation
+* Directory <code>./qlib</code>
+
+This order is controlled by the value of <code>package.path</code>.
+
+The second line
+
+  printf("Hello World\n")
+
+calls function <code>printf</code> from the standard library. See [http://www.lua.org/manual/5.1/manual.html#pdf-string.format string.format] in the LUA documentation for available formatting specifiers and flags. Remember that <code>string.format</code> does not know how to format many of QLUA types, but any object could be converted to a string with <code>tostring(x)</code>, which in turn could be printed with <code>%s</code>.
+[[Category:Code]]

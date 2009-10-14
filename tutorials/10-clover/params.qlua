@@ -1,0 +1,10 @@
+rnd_f       = 0.5
+Lx          = 4
+Lt          = 8
+
+kappa       = 0.20
+c_sw        = 1.0
+
+inn_iters   = 100
+max_iters   = 10000
+eps         = 1e-20

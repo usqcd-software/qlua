@@ -1,0 +1,16 @@
+require "stdlib"
+
+ z = complex(3,4)
+ y = z * complex(0,1) - 6 * math.sin(4 * math.pi / 12)
+ printf("z= %g + %gi\ny=%g + %gi\n", z:real(), z:imag(), y:real(), y:imag())
+ printf("|z|=%g\n", z:abs())
+
+printf("\n\n---- gamma matrices\n\n")
+ P_plus = (1 + gamma{mu=5}) / 2
+ P_minus = (1 - gamma{mu=5}) / 2
+ printf("P+        = %s\n", tostring(P_plus))
+ printf("P-        = %s\n", tostring(P_minus))
+ printf("P+P-      = %s\n", tostring(P_plus * P_minus))
+ printf("P+ + P-   = %s\n", tostring(P_plus + P_minus))
+ printf("P+1 * P+  = %s\n", tostring(P_plus * (1 + gamma{mu=1})/ 2))
+

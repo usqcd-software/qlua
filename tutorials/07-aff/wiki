@@ -1,0 +1,59 @@
+QLUA supports both reading and writing AFF files. The interface follows the design logic of the AFF library and it is rather different from the XML interface. The reason is that AFF targets handling large data sets fast, and therefore does not keep the image of the whole file in memory, but instead provides a of of operations with a file system like semantics. It is expected that QLUA will mostly write AFF files, however, both writers and readers are provided.
+
+=Opening and closing AFF files=
+Much like QDP/C files, AFF files are represented by special objects in QLUA. Here we open file <code>input.aff</code> for reading and <code>results.aff</code> for writing
+  aff_reader = qcd.aff.Reader("input.aff")
+  aff_writer = qcd.aff.Writer("results.aff")
+Note that unlike in <code>qcd.qdpc.Writer()</code> there is one argument in <code>qcd.aff.Writer()</code>.
+
+QLUA will close AFF objects when it detects that they may no longer be used. However, it is a good practice not to wait and close them explicitly when you are done:
+  aff_reader:close()
+  aff_writer:close()
+If you do this, QLUA free internal state associated with the object and will guard for attempts to use them in the closed state.
+
+=Changing and creating nodes=
+In the reader, one can change the current position in the file with the following method. In the example we move to the node "/two-point/nucleon". If it does not exist in the file, QLUA will report and error and exit.
+  aff_reader:chpath("/two-point/nucleon")
+The reader object remembers its current directory, so one can change the directory relative to the current one:
+  aff_reader:chpath("px2py-3px4")
+If the path starts with the slash, AFF interpret it as an asbolute path, the last two calls may be combined into one as follows:
+  aff_reader:chpath("/two-point/nucleon/px2py-3px4")
+
+In the AFF writer, one can either change the path, or create a new node. The difference is in what the current path is becomes after the call. In either case, if the path does not exist, all its components are created. In case of <code>:chpath()</code> the current path is changed to the new location, <code>:mkpath()</code> leaves the current path unchanged.
+  aff_writer:chpath("/some/strange/path") -- now current path is /some/strange/path
+  aff_writer:mkpath("and/stranger") -- now the current path is still  /some/strange/path
+
+=Reading data=
+The data is read from an AFF reader with the <code>:read()</code> method.
+  foo = aff_reader:read("/two-point/nucleon/px0py0pz-1")
+After this call, <code>foo</code> will contain one of the following:
+* a QLUA string if a byte array was stored in the AFF file
+* an integer vector, if an integer vector was stored in the AFF file
+* a double vector, if a double vector was stored in the AFF file
+* a complex vector, if a complex vector was stored in the AFF file.
+Here vectors are new QLUA data type. They support two operations:
+* indexing, which is zero-based:
+  f1 = foo[0] + foo[5]
+* indexed stores, also zero-based:
+  foo[1] = sin(0.1)
+In addition to the AFF interface vector data types are used in global operations on lattice subsets, see the [[QLUA Tutorial:Subsets|subset tutorial]] for more details.
+
+One can also create vectors:
+  v_int = vector.int(17)
+  v_real = vector.real(5)
+  v_complex = vector.complex(32)
+
+=Listing components of the tree=
+It is possible to get a list of subnodes of a given reader node. E.g.,
+  dir_root = aff_reader:list("/")
+returns a table of top level elements of the AFF file.
+
+=Writing data=
+To write data, one specifies a path and provides data to the writer:
+  aff_writer:write("/lattice", v_int)
+  aff_writer:write("/info", "A sample of AFF")
+  aff_writer:write("/data/real", v_real)
+  aff_writer:write("/two-point/nucleon/px-1py0pz7", v_complex)
+QLUA sets the node type from the type of the second argument. It also detects attempts to write to a given node more than once (and, of course, reports an error and exists if this is the case.)
+
+[[Category:Code]]

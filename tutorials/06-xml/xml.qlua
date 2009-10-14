@@ -1,0 +1,37 @@
+require "stdlib"
+ s = [=[<?xml version="1.0"?>
+ <configuration>
+   <creator>USQCD collaboration</creator>
+   <ensemble>fake</ensemble>
+   <serial>2790</serial>
+   <action>
+      <name>Clover</name>
+      <kappa>0.1234</kappa>
+      <c_sw>1.0</c_sw>
+      <m_l>-0.001</m_l>
+      <m_h>0.1</m_h>
+   </action>
+ </configuration>]=]
+
+-- convert string s into a tree
+ x_s = xml.parse(s)
+
+-- get /action/kappa from x_s
+k = xml.get(x_s, "action", "kappa", 1)
+printf("kappa=%s\n", k)
+
+-- get the last element as a tree
+k_tree = xml.get(x_s, "action", "kappa")
+printf("k_tree=%s\n", tostring(k_tree))
+
+
+-- build a tree convert it to string
+x_out = {["$tag"] = "output_example",
+         {["$tag"] = "cg",
+          kind = "mixed",
+          {["$tag"] = "iterations", "2405"},
+          {["$tag"] = "epsilon", string.format("%.10e", 9.761e-16)}},
+          xml.get(x_s, "action") }
+  
+s_out = xml.unparse(x_out)
+printf("s_out=%s\n", s_out)

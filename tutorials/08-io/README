@@ -1,0 +1,18 @@
+This tutorial contains two runnable scripts. Saying
+
+  $ qlua lattice.qlua make-input.qlua
+
+will generate file input-file in the current directory. This file is used by
+the second script, qio-example.qlua, which could be ran as follows:
+
+  $ qlua lattice.qlua qio-example.qlua
+
+Notice that lattice.qlua is used in both runs, so one needs to edit place
+only to change lattice geometry.
+
+
+FILES
+  lattice.qlua      -- lattice definition and the random state initializer
+  make-input.qlua   -- auxillary script to generate input-file
+  qio-example.qlua  -- QDP/C io example
+  wiki              -- mediawiki source

@@ -1,0 +1,405 @@
+=QLUA parallel objects=
+The real convenience of QLUA lies in its interface to QDP, QIO and Level III routines.
+
+When QLUA process starts, it calls QDP/C initialization routine and passes argc and argv to it in the usual way
+
+  if (QDP_initialize(&argc, &argv)) report_error_and_exit();
+
+If you want to change the default QDP/C behavior, you may do it by giving QLUA the QDP/C switches as usual.
+
+== Lattice object==
+You still need to setup lattice geometry before you can use any of QDP/C routines. QLUA does it by providing a function called <code>lattice</code> in the <code>qcd</code> table. This function takes a table of lattice dimensions (it does not have to be 4-d, by the way), does necessary QDP/C calls to set up lattice geometry and returns a "lattice object". Note, that you may only call <code>qcd.lattice</code> once in the QLUA application. The lattice object it used to create fields, so we give it a name:
+
+  L = qcd.lattice{2,3,4}
+
+One can query the number of dimensions on the lattice and their extends as follows:
+
+  printf("Lattice rank=%d\n", #L)
+  for i = 0, #L - 1 do
+    printf("Lattice dim[%d]=%d\n", i, L[i])
+  end
+
+==Network geometry==
+One can query the network geometry QDP has chosen with <code>qcd.network</code> as follows:
+
+  require("stdlib")
+  
+  L = qcd.lattice{4,4,4}
+  n, d = qcd.network()
+  
+  printf("network: %d notes total\n", n)
+  for i = 1, #d  do
+    printf("network[%d] = %d\n", i, d[i])
+  end
+
+Several points worth noticing:
+* Function <code>qcd.network()</code> returns two values: a total number of nodes, and a table of the configured virtual geometry.
+* If called before the lattice is defined with <code>qcd.lattice()</code>, <code>qcd.network()</code> will be unable to obtain the virtual geometry from QDP/C. In this case the second result will be an empty table. However, the first result will still be a valid total number of nodes in the process.
+
+== Lattice fields==
+With the lattice object, one can create any of QDP/C lattice fields. In a table below we assume that the lattice object is bound to variable <code>L</code> 
+
+{| class="wikitable"
+|-
+|
+|
+! QDP/C type
+! QLUA constructors
+|-
+| i
+| I
+| QDP_Int
+| L:Int(), L:Int(r), L:Int(I), L:pcoord(d)
+|-
+|
+| S
+| QDP_RandomState
+| L:RandomState(i, I)
+|-
+| r
+| R
+| QDP_Real
+| L:Real(), L:Real(r), L:Real(I), L:Real(R)
+|-
+| c
+| C
+| QDP_Complex
+| L:Complex(), L:Complex(r), L:Complex(c), L:Complex(R), L:Complex(C), L:Complex(R,R)
+|-
+|
+| V
+| QDP_ColorVector
+| L:ColorVector(), L:ColorVector(V), L:ColorVector(C,n)
+|-
+|
+| M
+| QDP_ColorMatrix
+| L:ColorMatrix(), L:ColorMatrix(c), L:ColorMatrix(M), L:ColorMatrix(C,{a=n,b=m}), L:ColorMatrix(V,{c=n}), L:ColorMatrix(V,V)
+|-
+|
+| D
+| QDP_DiracFermion
+| L:DiracFermion(), L:DiracFermion(D), L:DiracFermion(C,{c=n,d=m}), L:DiracFermion(V,{c=n})
+|-
+|
+| P
+| QDP_DiracPropagator
+| L:DiracPropagator(), L:DiracPropagator(P), L:DiracPropagator(D,{c=n,d=m})
+|-
+|}
+Function <code>L:pcoord(n)</code> creates a lattice integer field equal to the value of the n<sup>th</sup> coordinate on a site. It is useful in several cases, e.g., to initialize a lattice random state, one needs to provide a unique integer on each lattice site. This could be done as follows:
+
+  do
+    local x = L:Int(0)
+    for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+    end
+    S = L:RandomState(1234,x)
+  end
+
+Once a lattice field is created, one can access to its values at a given site by giving a table index, e.g.,
+
+  require("stdlib")
+  L = qcd.lattice{2,3}
+  v = L:Int(0)
+  for i = 0, #L - 1 do
+    v = v * L[i] + L:pcoord(i)
+  end
+  v[{1,2}] = -1
+  printf("v=%s\n", tostring(v))
+  for x = 0, L[0] - 1 do
+    for y = 0, L[1] - 1 do
+      printf("v[%d,%d]= %2d\n", x, y, v[{x,y}])
+    end
+  end
+
+We will cover acceptable indices for colored objects in more details later.
+
+=Operations and Functions=
+There a both arithmetic operations and functions applicable to lattice fields.
+==Parallel Arithmetics==
+Most admissible, though not all, arithmetic operations can be performed on lattice fields. Here is a complete list of implemented operations with the result type in the left column:
+{| class="wikitable"
+|-
+! I
+| -I, I+I, I-I, I*I, I*i, i*I, I/I
+|-
+! R
+| -R, R+R, R+r, r+R, R-R, R-r, r-R, R*R, R*r, r*R, R/R, R/r, r/R
+|-
+! C
+| -C, C+C, C+c, c+C, C+R, R+C, C+r, r+C, R+c, c+R, C-C, C-c, c-C, C-R, R-C, C-r, r-C, R-c, c-R, C*C, C*c, c*C, C*R, R*C, C*r, r*C, R*c, c*R, C/C, C/c, c/C, C/R, R/C, C/r, r/C, R/c, c/R
+|-
+! V
+| -V, V+V, V-V, V*r, r*V, V*c, c*V, V*R, R*V, V*C, C*V, V/r, V/c, M*V
+|-
+! M
+| -M, M+M, M-M, M*r, r*M, M*c, c*M, M*R, R*M, M*C, C*M, M/r, M/c, M*M
+|-
+! D
+| -D, D+D, D-D, D*r, r*D, D*c, c*D, D*R, R*D, D*C, C*D, M*D, D/r, D/c, g*D
+|-
+! P
+| -P, P+P, P-P, P*r, r*P, P*c, c*P, P*R, R*P, P*C, C*P, M*P, P*M, P*P, P/r, P/c, g*P, P*g
+|-
+|}
+
+Here <code>g</code> stands for a Clifford gamma matrix expression. Some of the operations do not have corresponding QDP/C functions, there are provided because of the aesthetic appeals of symmetry and convenience.
+
+One can clearly see that the operation set is tilted toward QCD applications.
+
+==Parallel Functions==
+Most of functions dealing with lattice fields are implemented as methods of parallel objects. They could be roughly divided into
+* Parallel functions take one or more lattice field in addition to other arguments and produce a lattice field which depends on the values of arguments at a given site. Serial arguments could be considered replicated across the lattice (of course, the implementation does not create a copy of a serial data on a lattice, but it is convenient to think that it does.)
+* Communication functions. Theses are various shifts of lattice fields. These are covered in a [[QLUA Tutorial:Plaquette|plaquette tutorial]].
+* Global functions compute a scalar value from lattice fields. These are covered in a [[QLUA Tutorial:Two-point meson functions|tutorial on meson two-point functions]].
+
+There are also ways to restrict parallel computations (both operations and functions) to a subset of lattice sites. It will be covered later in a [[QLUA Tutorial:Subsets|tutorial on subsets]].
+
+Note, that since all operations and functions produce values, and assignments ''bind'' names to values, we need a way to combine computations on parts of lattice. This is done with a set of methods <code>X:set(X)</code>, that modify the object they were called from. In QDP this behavior is controlled by the subset argument to most of QDP/C functions. QLUA does it differently. See the [[QLUA Tutorial:Subsets|tutorial on subsets]] for details on subsetting.
+
+Here is a table of available QLUA functions. We use abbreviated type names to indicate types of arguments and results.
+{| class="wikitable"
+|-
+| r = c:real()
+| real part of scalar complex
+|-
+| r = c:imag()
+| imaginary part of scalar complex
+|-
+| r = c:conj()
+| scalar complex conjugate
+|-
+| r = c:abs()
+| absolute value of scalar complex
+|-
+| I:set(I)
+| store the value on active sites
+|-
+| R = R:sin()
+| sine
+|-
+| R = R:cos()
+| cosine
+|-
+| R = R:tan()
+| tangent
+|-
+| R = R:asin()
+| arcsine
+|-
+| R = R:acos()
+| arccosine
+|-
+| R = R:atan()
+| arctangent
+|-
+| R = R:sqrt()
+| square root
+|-
+| R = R:abs()
+| absolute value
+|-
+| R = R:exp()
+| exponent
+|-
+| R = R:log()
+| natural logarithm
+|-
+| R = R:sign()
+| sign
+|-
+| R = R:ceil()
+| round upward
+|-
+| R = R:floor()
+| round downward
+|-
+| R = R:sinh()
+| hyperbolic sine
+|-
+| R = R:cosh()
+| hyporbolic cosine
+|-
+| R = R:tanh()
+| hyperbolic tangent
+|-
+| R = R:log10()
+| base 10 logarithm
+|-
+| C = R:expi()
+| compute L:Complex(cos(R),sin(R))
+|-
+| R = R:trunc()
+| truncation
+|-
+| R = R:round()
+| rounding
+|-
+| R:set(R)
+| store the value on active sites.
+|-
+| R = S:random_Real()
+| uniform random in [0,1]
+|-
+| R = S:gaussian_Real()
+| normally distributed real random
+|-
+| C = S:gaussian_Complex()
+| normally distributed complex random
+|-
+| V = S:gaussian_ColorVector()
+| normally distributed random color vector
+|-
+| M = S:gaussian_ColorMatrix()
+| normally distributed random color matrix
+|-
+| D = S:gaussian_DiracFermion()
+| normally distributed random Dirac fermion
+|-
+| P = S:gaussian_DiracPropagator()
+| normally distributed random Dirac propagator
+|-
+| S:set(S)
+| store the value of the random generator on active sites
+|-
+| R = C:real()
+| real part
+|-
+| R = C:imag()
+| imaginary part
+|-
+| C = C:conj()
+| complex conjugate
+|-
+| R = C:abs()
+| absolute value
+|-
+| R = C:arg()
+| argument
+|-
+| C = C:sqrt()
+| square root
+|-
+| C = C:exp()
+| exponent
+|-
+| C = C:log()
+| natural logarithm
+|-
+| C:set(C)
+| store the value on active sites 
+|-
+| V = V:conj()
+| complex conjugate
+|-
+| V:set(V)
+| store the value on active sites
+|-
+| M = M:conj()
+| complex conjugate
+|-
+| M = M:transpose()
+| matrix transposition
+|-
+| M = M:adjoin()
+| Hermitian conjugation
+|-
+| C = M:trace()
+| trace
+|-
+| M = M:exp()
+| matrix exponentiation
+|-
+| M = M:proj(r,i)
+| project to SU(3) the way Chroma does. Chroma calls parameters <code>BlkAccu</code> and <code>BlkMax</code>. Consult Chroma sources for details.
+|-
+| M:set(M)
+| store the value on active sites
+|-
+| D = D:conj()
+| complex conjugation
+|-
+| D:set(D)
+| store the value on active sites
+|-
+| P = P:conj()
+| complex conjugate
+|-
+| P = P:transpose()
+| transposition
+|-
+| P = P:adjoin()
+| Hermitian conjugation
+|-
+| M = P:spintrace()
+| trace over spinor indices
+|-
+| P = P:spintranspose()
+| transpose spinor indices
+|-
+| P:set(P)
+| store the value on active sites
+|-
+|}
+
+=Example=
+As an example, let us write a function to build a noisy plane wave.
+
+To be a well-behaved top level function, it does not rely on external variables, and takes three arguments: a lattice object, a table of momenta, a lattice random state, and a noise scale. The only return value is a complex lattice field containing the plane wave with gaussian noise added.
+
+  function noisy_wave(L, S, p, scale)
+    local m = L:Real(0)
+    for i = 0, #L - 1 do
+      m = m + 2 * math.pi * L:Real(L:pcoord(i)) * p[i+1] / L[i]
+    end
+    return m:expi() + scale * S:gaussian_Real()
+  end
+
+Here is a complete QLUA program that uses the above function and prints the plane ware in a form suitable for gnuplot
+
+  require("stdlib")
+  
+  L = qcd.lattice{64,30}
+  -- init the random state
+  do
+    local z = L:Int(0)
+    for i = 0, #L - 1 do
+       z = z * L[i] + L:pcoord(i)
+    end
+    S = L:RandomState(1, z)
+  end
+  
+  -- plane wave generator
+  function noisy_wave(L, S, p, scale)
+    local m = L:Real(0)
+    for i = 0, #L - 1 do
+      m = m + 2 * math.pi * L:Real(L:pcoord(i)) * p[i+1] / L[i]
+    end
+    return m:expi() + scale * S:gaussian_Real()
+  end
+  
+  -- make the wave
+  z = noisy_wave(L, S, {3,1}, 0.1)
+  -- print the wave in x-blocks
+  for y = 0, L[1] - 1 do
+    for x = 0, L[0] - 1 do
+      printf("%d %d %g %g\n", x, y, z[{x,y}]:real(), z[{x,y}]:imag())
+    end
+    printf("\n")
+  end
+
+Several points to note:
+* LUA comments start with <code>--</code> and last until the end of line.
+* <code>p</code> is a LUA table, hence indexing is off by one. This is an unfortunate feature one has to watch for.
+* The random state is initialized into differently on each lattice site, but it will produce the same results on different runs and on different machines. We will see how to make it truly random in [[QLUA Tutorial:Random|tutorial on random numbers]].
+* Almost all usual C formating directives apply to QLUA <code>printf()</code>. It is defined in stdlib.qlua as
+  function printf(fmt,...)
+    io.stdout(string.format(fmt, ...))
+  end
+see LUA entry for <code>[http://www.lua.org/manual/5.1/manual.html#pdf-string.format string.format]</code> for fine print.
+
+=Remarks=
+The above tables list constructors and functions available in version 0.9.4. Other functions may be added in future releases as well. When in doubt, consult the sources.
+
+[[Category:Code]]

@@ -1,0 +1,76 @@
+require("stdlib")
+
+-- compute lattice volume
+L = qcd.lattice{4,4,4,8}
+volume = 1
+for i = 0, #L - 1 do
+  volume = volume * L[i]
+end
+
+-- make random state S
+do
+  local r = L:Int(os.random())
+  for i = 0, #L - 1 do
+    r = r * L[i] + L:pcoord(i)
+  end
+  S = L:RandomState(os.random(), r)
+end
+
+-- project ColorMatrix to SU(n)
+function toSUn(L, X)
+  local Y = (X - X:adjoin()) / 2
+  return (Y - Y:trace() / qcd.Nc * L:ColorMatrix(complex(1,0))):exp()
+end
+
+-- make weak field
+function weak_SUn(L, S)
+  return toSUn(L, 0.2 * S:gaussian_ColorMatrix())
+end
+
+-- make strong field
+function strong_SUn(L, S)
+  local v = weak_SUn(L, S)
+  for i = 1, 100 do
+    v = v * weak_SUn(L, S)
+  end
+  return v:proj(1e-6, 150)
+end
+
+-- compute (i,j) plaquette
+function plaquette(U, i, j)
+  local Ui = U[j+1]:shift(i, "from_forward")
+  local Uj = U[i+1]:shift(j, "from_forward")
+  local Pij = (U[i+1] * Ui * Uj:adjoin() * U[j+1]:adjoin()):trace():real()
+ 
+  return Pij:sum() / (volume * qcd.Nc)
+end
+
+-- test: compute all plaquettes and their average, print values
+function run_test(name, U)
+  printf("plaquette test case: %s\n", name)
+  local s = 0
+  local k = 0
+  for i in interval(0, #L-1) do
+    for j in skip(i, interval(0, #L-1)) do
+      local sij = plaquette(U, i, j)
+      printf("  plaq[%d, %d] = %20.10f\n", i, j, sij)
+      s = s + sij
+      k = k + 1
+    end
+  end
+  printf("average plaquette %20.10f\n\n", s / k);
+end
+
+--   Weak gauge field test case
+W = {}
+for i = 0, #L - 1 do
+  W[i+1] = weak_SUn(L, S)
+end
+run_test("weak field", W)
+
+-- Strong gauge field test case
+U = {}
+for i = 0, #L - 1 do
+  U[i+1] = strong_SUn(L, S)
+end
+run_test("strong field", U)

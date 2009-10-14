@@ -1,0 +1,11 @@
+To run this tutorial's code code, say
+
+  $ qlua params.qlua clover.qlua
+
+Note, that Level III inverter requires 4-d lattice. In addition, the lattice
+size should be even in even in every dimension.
+
+FILES
+params.qlua    -- various constants for the sample
+clover.qlua    -- sample code for the solver
+wiki           -- mediawiki source

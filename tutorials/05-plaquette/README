@@ -1,0 +1,8 @@
+To run the code in this tutorial, say
+
+  $ qlua plaquette.qlua
+
+
+FILES
+   plaquette.qlua    -- computing SU(n) plaqutte
+   wiki                 mediawiki source

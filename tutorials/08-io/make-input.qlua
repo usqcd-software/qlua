@@ -1,0 +1,18 @@
+require "stdlib"
+require "gauge"
+
+U = {}
+for i = 0, #L - 1 do
+  U[i+1] = toSUn(L, S:gaussian_ColorMatrix())
+end
+
+F = S:gaussian_DiracFermion()
+
+finfo = {["$tag"] = "test",
+         "QDP/C test file (some funny characters: &<>\"\')"}
+
+w = qcd.qdpc.Writer("input-file", xml.unparse(finfo))
+
+w:DiracFermion(F, xml.unparse({["$tag"] = "fermion"}))
+w:RandomState(S, "")
+w:ColorMatrix(U, xml.unparse({["$tag"] = "gauge_field", "weak radnom"}))

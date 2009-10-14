@@ -1,0 +1,8 @@
+To run this tutorial code, say
+
+  $ qlua xml.qlua
+
+
+FILES:
+   xml.qlua      -- sample code
+   wiki          -- mediawiki source

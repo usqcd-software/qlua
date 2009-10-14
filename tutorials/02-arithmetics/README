@@ -1,0 +1,8 @@
+This tutorial shows how QLUA extends standard LUA arithmetics. To run, say
+
+  qlua arith.qlua
+
+
+FILES
+  arith.qlua      -- sample code
+  wiki            -- mediawiki for this tutorial
