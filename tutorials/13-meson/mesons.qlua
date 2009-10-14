@@ -59,7 +59,7 @@ a_prop = gamma{mu=5} * q_prop:conj() * gamma{mu=5}
 -- construct mesons
 qq = {}
 for i = 0, qcd.Ns * qcd.Ns - 1 do
-  qq[i+1] = (a_prop * gamma{n=i} * q_prop * gamma{n=i}):spintrace():trace()
+  qq[i+1] = qcd.dot(a_prop, gamma{n=i} * q_prop * gamma{n=i})
 end
 
 -- write moment projections

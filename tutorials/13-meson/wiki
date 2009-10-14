@@ -77,7 +77,7 @@ Collect the mesons in <code>qq</code>
 
  qq = {}
  for i = 0, qcd.Ns * qcd.Ns - 1 do
-   qq[i+1] = (a_prop * gamma{n=i} * q_prop * gamma{n=i}):spintrace():trace()
+   qq[i+1] = qcd.dot(a_prop, gamma{n=i} * q_prop * gamma{n=i})
  end
 
 At this point we have 16 complex fields for each of 16 mesons. We are going to extract momentum projected two point functions from them in the [[QLUA Tutorial:Momentum projection|tutorial on momentum projection]].
