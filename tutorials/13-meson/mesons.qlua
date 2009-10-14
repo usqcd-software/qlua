@@ -54,7 +54,7 @@ end
 
 -- get the quark and antiquark propagators
 q_prop = solve(src)
-a_prop = gamma{mu=5} * q_prop:conj() * gamma{mu=5}
+a_prop = gamma{mu=5} * q_prop * gamma{mu=5}
 
 -- construct mesons
 qq = {}
