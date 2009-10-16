@@ -396,7 +396,6 @@ q_CL_solve(lua_State *L)
             return 5;
         }
         rhs_n = sqrt(rhs_norm2);
-        eps = eps / rhs_norm2;
         env.f = QDP_expose_D(psi->ptr);
         env.s = 1 / rhs_n;
         if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
@@ -453,7 +452,6 @@ q_CL_solve(lua_State *L)
             return 1;
         }
         rhs_n = sqrt(rhs_norm2);
-        eps = eps / rhs_norm2;
         env.in = QDP_expose_P(psi->ptr);
         env.out = QDP_expose_P(eta->ptr);
         lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
@@ -550,7 +548,6 @@ q_CL_mixed_solve(lua_State *L)
             return 5;
         }
         rhs_n = sqrt(rhs_norm2);
-        eps = eps / rhs_norm2;
         env.f = QDP_expose_D(psi->ptr);
         env.s = 1 / rhs_n;
         if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
@@ -609,7 +606,6 @@ q_CL_mixed_solve(lua_State *L)
             return 1;
         }
         rhs_n = sqrt(rhs_norm2);
-        eps = eps / rhs_norm2;
         env.in = QDP_expose_P(psi->ptr);
         env.out = QDP_expose_P(eta->ptr);
         lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */

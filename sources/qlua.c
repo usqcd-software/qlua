@@ -36,6 +36,8 @@
 
 /* ZZZ include other package headers here */
 
+/* Small fix: clover epsilon is relative, not absolute! */
+
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
 int qlua_primary_node = 1;
