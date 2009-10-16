@@ -585,8 +585,10 @@ main(int argc, char *argv[])
         for (i = 1; i < argc; i++) {
             status = luaL_dofile(L, argv[i]);
             report(L, argv[i], status);
-            if (status)
+            if (status) {
+                QDP_abort(1);
                 break;
+            }
         }
     }
     qlua_fini(L);

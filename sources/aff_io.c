@@ -22,8 +22,10 @@ check_reader(lua_State *L, mAffReader *r)
 static void
 check_writer(lua_State *L, mAffWriter *r)
 {
-    if (r->ptr == 0)
-        luaL_error(L, "closed aff writer");
+    if (qlua_primary_node) {
+        if (r->ptr == 0)
+            luaL_error(L, "closed aff writer");
+    }
 }
 
 /* aff replacement allocator */
@@ -102,6 +104,8 @@ qlua_newAffWriter(lua_State *L, struct AffWriter_s *writer)
         h->dir = aff_writer_root(writer);
     } else {
         h->master = 0;
+        h->ptr = 0;
+        h->dir = 0;
     }
     luaL_getmetatable(L, mtnWriter);
     lua_setmetatable(L, -2);

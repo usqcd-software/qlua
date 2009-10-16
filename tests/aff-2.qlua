@@ -1,0 +1,38 @@
+require "stdlib"
+
+-- check aff writer first
+file_root = "test"
+
+Lt = 64
+
+function mk_data()
+  local x = vector.complex(Lt)
+  for i = 0, Lt - 1 do
+    x[i] = complex(os.random(), os.random())
+  end
+  return x
+end 
+
+function put_data(id, state, x, aw)
+  aw:write(string.format("/two-point/%s/id%s", state, id), x)
+end
+
+function do_id(id)
+  local aw = qcd.aff.Writer(string.format("data-%s.%s.aff", file_root, id))
+  put_data(id, "proton", mk_data(), aw)
+  put_data(id, "pion", mk_data(), aw)
+  aw:close()
+end
+
+confs = {
+ "12345_43564",
+ "34564_85678",
+ "86742_35462"}
+
+
+for i = 1, #confs do
+  printf("do %s\n", confs[i])
+  do_id(confs[i])
+end
+
+printf("---- done\n")
