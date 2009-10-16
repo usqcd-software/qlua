@@ -130,6 +130,7 @@ q_P_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatDirProp *r = qlua_newLatDirProp(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_P_eq_sP(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

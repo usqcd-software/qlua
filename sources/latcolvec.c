@@ -342,6 +342,7 @@ q_V_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatColVec *r = qlua_newLatColVec(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_V_eq_sV(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

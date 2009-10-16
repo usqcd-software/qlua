@@ -42,12 +42,24 @@ Y = CL:Dx(G)
 io.stdout:write("<G, D F> " .. tostring(qcd.dot(G, X):sum())  .. "\n")
 io.stdout:write("<DxG, F> " .. tostring(qcd.dot(Y, F):sum())  .. "\n")
 
-s1 = CL:solver(1e-20, 10000)
+function check_clover(Z)
+  io.stdout:write("check_clover Z=" .. tostring(Z) .. "\n")
+  local F = CL:D(Z)
+  local A = CL:solver(1e-20,10000)(F)
+  io.stdout:write("|Z| = " .. tostring(Z:norm2()) .."\n")
+  io.stdout:write("|F| = " .. tostring(F:norm2()) .."\n")
+  io.stdout:write("|A| = " .. tostring(A:norm2()) .."\n")
+  io.stdout:write("|d| = " .. tostring((A - Z):norm2()) .."\n")
+  local A = CL:mixed_solver(1e-20,10, 10000)(F)
+  io.stdout:write("m|Z| = " .. tostring(Z:norm2()) .."\n")
+  io.stdout:write("m|F| = " .. tostring(F:norm2()) .."\n")
+  io.stdout:write("m|A| = " .. tostring(A:norm2()) .."\n")
+  io.stdout:write("m|d| = " .. tostring((A - Z):norm2()) .."\n")
 
-Q1 = s1(F)
+end
 
-io.stdout:write("<G Q1> " .. tostring(qcd.dot(G, Q1):sum()) .. "\n")
-io.stdout:write("res.n  " .. tostring((F - CL:D(Q1)):norm2()) .. "\n")
+check_clover(S:gaussian_DiracFermion())
+check_clover(S:gaussian_DiracPropagator())
 
 os.exit(0)
 

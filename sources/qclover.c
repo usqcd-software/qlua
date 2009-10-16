@@ -8,6 +8,7 @@
 #define QOP_CLOVER_DEFAULT_PRECISION QDP_Precision
 #include <qop-clover.h>
 #include <qmp.h>
+#include <math.h>
 
 /* NB: Clover operator does not agrees with BMW conventions */
 
@@ -126,11 +127,81 @@ q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *env)
     }
 }
 
+struct CL_D_env {
+    QLA_DiracFermion *f;
+    double s;
+};
+
+static double
+q_CL_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
+{
+    int i = QDP_index(p);
+    struct CL_D_env *env = (struct CL_D_env *)e;
+    QLA_DiracFermion *f = env->f;
+    double s = env->s;
+    QLA_Real xx;
+
+    if (re_im == 0) {
+        QLA_r_eq_Re_c(xx, QLA_elem_D(f[i], c, d));
+    } else {
+        QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
+    }
+
+    return xx * s;
+}
+
+static void
+q_CL_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
+{
+    int i = QDP_index(p);
+    struct CL_D_env *env = (struct CL_D_env *)e;
+    QLA_DiracFermion *f = env->f;
+    double s = env->s;
+ 
+    v = v * s;
+    if (re_im == 0) {
+        QLA_real(QLA_elem_D(f[i], c, d)) = v;
+    } else {
+        QLA_imag(QLA_elem_D(f[i], c, d)) = v;
+    }
+}
+
 typedef struct {
     int c, d;
     QLA_DiracPropagator *in;
     QLA_DiracPropagator *out;
+    double s;
 } qCL_P_env;
+
+static double
+q_CL_P_reader_scaled(const int p[], int c, int d, int re_im, void *env)
+{
+    int i = QDP_index(p);
+    qCL_P_env *e = env;
+    QLA_Real xx;
+
+    if (re_im == 0) {
+        QLA_r_eq_Re_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+    } else {
+        QLA_r_eq_Im_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+    }
+
+    return xx * e->s;
+}
+
+static void
+q_CL_P_writer_scaled(const int p[], int c, int d, int re_im, double v, void *env)
+{
+    int i = QDP_index(p);
+    qCL_P_env *e = env;
+
+    v = v * e->s;
+    if (re_im == 0) {
+        QLA_real(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+    } else {
+        QLA_imag(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+    }
+}
 
 static double
 q_CL_P_reader(const int p[], int c, int d, int re_im, void *env)
@@ -160,7 +231,6 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
         QLA_imag(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
     }
 }
-
 static int
 q_CL_D(lua_State *L)
 {
@@ -311,12 +381,25 @@ q_CL_solve(lua_State *L)
         mLatDirFerm *eta = qlua_newLatDirFerm(L);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
-        QLA_DiracFermion *e_psi;
-        QLA_DiracFermion *e_eta;
+        struct CL_D_env env;
+        QLA_Real rhs_norm2 = 0;
+        double rhs_n;
         int status;
 
-        e_psi = QDP_expose_D(psi->ptr);
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
+        QDP_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
+        if (rhs_norm2 == 0) {
+            QDP_D_eq_zero(eta->ptr, QDP_all);
+            lua_pushnumber(L, 0.0);
+            lua_pushnumber(L, 0);
+            lua_pushnumber(L, 0);
+            lua_pushnumber(L, 0);
+            return 5;
+        }
+        rhs_n = sqrt(rhs_norm2);
+        eps = eps / rhs_norm2;
+        env.f = QDP_expose_D(psi->ptr);
+        env.s = 1 / rhs_n;
+        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
         QDP_reset_D(psi->ptr);
 
@@ -336,8 +419,9 @@ q_CL_solve(lua_State *L)
         if (status)
             return luaL_error(L, QOP_CLOVER_error(c->state));
 
-        e_eta = QDP_expose_D(eta->ptr);
-        QOP_CLOVER_export_fermion(q_CL_D_writer, e_eta, c_eta);
+        env.f = QDP_expose_D(eta->ptr);
+        env.s = rhs_n;
+        QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
         QDP_reset_D(eta->ptr);
         
         QOP_CLOVER_free_fermion(&c_eta);
@@ -358,10 +442,18 @@ q_CL_solve(lua_State *L)
         struct QOP_CLOVER_Fermion *c_eta;
         int status;
         qCL_P_env env;
+        QLA_Real rhs_norm2 = 0;
+        double rhs_n;
 
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
+        QDP_r_eq_norm2_P(&rhs_norm2, psi->ptr, QDP_all);
+        if (rhs_norm2 == 0) {
+            return 1;
+        }
+        rhs_n = sqrt(rhs_norm2);
+        eps = eps / rhs_norm2;
         env.in = QDP_expose_P(psi->ptr);
         env.out = QDP_expose_P(eta->ptr);
         lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
@@ -371,8 +463,9 @@ q_CL_solve(lua_State *L)
             lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
 
             for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
+                env.s = 1 / rhs_n;
                 if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader, &env))
+                                              q_CL_P_reader_scaled, &env))
                     return luaL_error(L, "CLOVER_import_fermion() failed");
                 status = QOP_CLOVER_D_CG(c_eta, &out_iters, &out_eps,
                                          c_psi, c->gauge, c_psi, max_iters, eps,
@@ -391,7 +484,8 @@ q_CL_solve(lua_State *L)
                 if (status)
                     return luaL_error(L, QOP_CLOVER_error(c->state));
 
-                QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
+                env.s = rhs_n;
+                QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
                 lua_pushnumber(L, out_eps);
                 lua_rawseti(L, -3, env.d + 1);
                 lua_pushnumber(L, out_iters);
@@ -442,12 +536,24 @@ q_CL_mixed_solve(lua_State *L)
         mLatDirFerm *eta = qlua_newLatDirFerm(L);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
-        QLA_DiracFermion *e_psi;
-        QLA_DiracFermion *e_eta;
+        struct CL_D_env env;
+        QLA_Real rhs_norm2;
+        double rhs_n;
         int status;
 
-        e_psi = QDP_expose_D(psi->ptr);
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
+        QDP_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
+        if (rhs_norm2 == 0) {
+            lua_pushnumber(L, 0);
+            lua_pushnumber(L, 0);
+            lua_pushnumber(L, 0);
+            lua_pushnumber(L, 0);
+            return 5;
+        }
+        rhs_n = sqrt(rhs_norm2);
+        eps = eps / rhs_norm2;
+        env.f = QDP_expose_D(psi->ptr);
+        env.s = 1 / rhs_n;
+        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
         QDP_reset_D(psi->ptr);
 
@@ -469,8 +575,9 @@ q_CL_mixed_solve(lua_State *L)
         if (status)
             return luaL_error(L, QOP_CLOVER_error(c->state));
 
-        e_eta = QDP_expose_D(eta->ptr);
-        QOP_CLOVER_export_fermion(q_CL_D_writer, e_eta, c_eta);
+        env.f = QDP_expose_D(eta->ptr);
+        env.s = rhs_n;
+        QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
         QDP_reset_D(eta->ptr);
         
         QOP_CLOVER_free_fermion(&c_eta);
@@ -489,12 +596,20 @@ q_CL_mixed_solve(lua_State *L)
         mLatDirProp *eta = qlua_newLatDirProp(L);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
+        QLA_Real rhs_norm2;
+        double rhs_n;
         int status;
         qCL_P_env env;
 
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
+        QDP_r_eq_norm2_P(&rhs_norm2, psi->ptr, QDP_all);
+        if (rhs_norm2 == 0) {
+            return 1;
+        }
+        rhs_n = sqrt(rhs_norm2);
+        eps = eps / rhs_norm2;
         env.in = QDP_expose_P(psi->ptr);
         env.out = QDP_expose_P(eta->ptr);
         lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
@@ -504,8 +619,9 @@ q_CL_mixed_solve(lua_State *L)
             lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
 
             for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
+                env.s = 1 / rhs_n;
                 if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader, &env))
+                                              q_CL_P_reader_scaled, &env))
                     return luaL_error(L, "CLOVER_import_fermion() failed");
                 status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
                                                c_psi, c->gauge, c_psi,
@@ -524,7 +640,8 @@ q_CL_mixed_solve(lua_State *L)
                 if (status)
                     return luaL_error(L, QOP_CLOVER_error(c->state));
 
-                QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
+                env.s = rhs_n;
+                QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
                 lua_pushnumber(L, out_eps);
                 lua_rawseti(L, -3, env.d + 1);
                 lua_pushnumber(L, out_iters);

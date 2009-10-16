@@ -189,6 +189,7 @@ q_D_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatDirFerm *r = qlua_newLatDirFerm(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_D_eq_sD(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

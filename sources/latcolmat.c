@@ -183,6 +183,7 @@ q_M_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatColMat *r = qlua_newLatColMat(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_M_eq_sM(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

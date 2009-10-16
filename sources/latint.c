@@ -73,6 +73,7 @@ q_I_sum(lua_State *L)
     case 1: {
         QLA_Real sum;
 
+        lua_gc(L, LUA_GCCOLLECT, 0);
         QDP_r_eq_sum_I(&sum, a->ptr, *qCurrent);
         lua_pushnumber(L, sum);
         
@@ -82,6 +83,7 @@ q_I_sum(lua_State *L)
         mLatMulti *m = qlua_checkLatMulti(L, 2);
         mVecReal *r = qlua_newVecReal(L, m->count);
 
+        lua_gc(L, LUA_GCCOLLECT, 0);
         r->size = m->count;
         QDP_r_eq_sum_I_multi(r->val, a->ptr, m->subset, m->count);
 
@@ -123,6 +125,7 @@ q_I_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatInt *b = qlua_newLatInt(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_I_eq_sI(b->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

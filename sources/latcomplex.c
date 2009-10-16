@@ -839,6 +839,7 @@ q_C_sum(lua_State *L)
     case 1: {
         QLA_Complex *s = qlua_newComplex(L);
 
+        lua_gc(L, LUA_GCCOLLECT, 0);
         QDP_c_eq_sum_C(s, a->ptr, *qCurrent);
 
         return 1;
@@ -847,6 +848,7 @@ q_C_sum(lua_State *L)
         mLatMulti *m = qlua_checkLatMulti(L, 2);
         mVecComplex *r = qlua_newVecComplex(L, m->count);
 
+        lua_gc(L, LUA_GCCOLLECT, 0);
         r->size = m->count;
         QDP_c_eq_sum_C_multi(r->val, a->ptr, m->subset, m->count);
 
@@ -876,6 +878,7 @@ q_C_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatComplex *r = qlua_newLatComplex(L);
 
+    lua_gc(L, LUA_GCCOLLECT, 0);
     QDP_C_eq_sC(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;

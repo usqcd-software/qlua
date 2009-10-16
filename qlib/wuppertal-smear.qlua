@@ -2,11 +2,17 @@
 require("stdlib")
 
 function wuppertal_smear(U, alpha, N, F, axis)
+  local v = 1
+  for i in skip(axis + 1, interval(1, qcd.Nd)) do
+    v = v + 2 * alpha
+  end
+  local a = 1 / v
+  local b = alpha / v
   local G = F
   for k = 1, N do
-    local H = G
+    local H = a * G
     for i in skip(axis + 1, interval(1, qcd.Nd)) do
-      H = H + alpha *
+      H = H + b *
                 (U[i] * G:shift(i-1, "from_forward") +
                  (U[i]:adjoin() * G):shift(i-1, "from_backward"))
     end
