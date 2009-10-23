@@ -451,6 +451,7 @@ qaff_w_write(lua_State *L)
     const char *p = luaL_checkstring(L, 2);
     struct AffNode_s *n;
     int status;
+    const char *msg = NULL;
 
     check_writer(L, b);
 
@@ -459,9 +460,12 @@ qaff_w_write(lua_State *L)
     if (b->master) {
         status = 0;
         n = qlua_AffWriterMkPath(b, p);
-        if (n == 0)
+        if (n == 0) {
+            msg = aff_writer_errstr(b->ptr);
             goto end;
+        }
 
+        msg = "Write error";
         switch (qlua_gettype(L, 3)) {
         case qString: {
             const char *str = luaL_checkstring(L, 3);
@@ -522,6 +526,7 @@ qaff_w_write(lua_State *L)
             break;
         }
         default:
+            msg = "Unsupported data type";
             break;
         }
     end:
@@ -536,7 +541,7 @@ qaff_w_write(lua_State *L)
         return 0;
 
     if (b->master)
-        return luaL_error(L, aff_writer_errstr(b->ptr));
+        return luaL_error(L, msg);
     else
         return luaL_error(L, "generic writer error");
 }

@@ -155,6 +155,76 @@ qf_write(lua_State *L)
 }
 
 static int
+read_line(lua_State *L, FILE *f)
+{
+    luaL_Buffer b;
+
+    luaL_buffinit(L, &b);
+    for (;;) {
+        size_t l;
+        char *p = luaL_prepbuffer(&b);
+        if (fgets(p, LUAL_BUFFERSIZE, f) == NULL) {  /* eof? */
+            luaL_pushresult(&b);  /* close buffer */
+            return (lua_objlen(L, -1) > 0);  /* check whether read something */
+        }
+        l = strlen(p);
+        if (l == 0 || p[l-1] != '\n')
+            luaL_addsize(&b, l);
+        else {
+            luaL_addsize(&b, l - 1);  /* do not include `eol' */
+            luaL_pushresult(&b);  /* close buffer */
+            return 1;  /* read at least an `eol' */
+        }
+    }
+}
+
+static int
+q_readline(lua_State *L)
+{
+    mFile *v = (mFile *)lua_touserdata(L, lua_upvalueindex(1));
+    int success;
+
+    if (v->file == 0)
+        luaL_error(L, "file is already closed");
+    success = read_line(L, v->file);
+    if (ferror(v->file))
+        return luaL_error(L, "line reading error");
+    if (success)
+        return 1;
+    if (lua_toboolean(L, lua_upvalueindex(2))) {
+        lua_settop(L, 0);
+        lua_pushvalue(L, lua_upvalueindex(1));
+        qf_close(L);
+    }
+    return 0;
+}
+
+static int
+qf_lines(lua_State *L)
+{
+    qlua_checkFile(L, 1);
+    lua_pushboolean(L, 0);
+    lua_pushcclosure(L, q_readline, 2);
+    return 1;
+}
+
+static int
+q_lines(lua_State *L)
+{
+    const char *n = luaL_checkstring(L, 1);
+    mFile *v = qlua_newFile(L);
+
+    v->file = fopen(n, "rt");
+    v->kind = qf_other;
+    if (v->file == 0)
+        return luaL_error(L, "file open failed");
+
+    lua_pushboolean(L, 1);
+    lua_pushcclosure(L, q_readline, 2);
+    return 1;
+}
+
+static int
 q_file(lua_State *L)
 {
     mFile *f = qlua_newFile(L);
@@ -253,6 +323,7 @@ static struct luaL_Reg mtFile[] = {
     { "__gc",       qf_gc },
     { "close",      qf_close },
     { "write",      qf_write },
+    { "lines",      qf_lines },
     { "flush",      qf_flush },
     { NULL,         NULL}
 };
@@ -274,7 +345,7 @@ init_qlua_io(lua_State *L)
     lua_pushcfunction(L, qlua_print);
     lua_setglobal(L, "print");
 
-    qlua_metatable(L, mtnFile, mtFile); 
+    qlua_metatable(L, mtnFile, mtFile);
     lua_createtable(L, 0, 3);
     qlua_newFile(L)->kind = qf_stdout;
     lua_setfield(L, -2, "stdout");
@@ -282,6 +353,8 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "stderr");
     lua_pushcfunction(L, q_file);
     lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, q_lines);
+    lua_setfield(L, -2, "lines");
     lua_setglobal(L, "io");
 
     /* fix os.exit() */
