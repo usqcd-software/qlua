@@ -616,6 +616,7 @@ q_g_mul_D(lua_State *L)
     mLatDirFerm *r = qlua_newLatDirFerm(L);
     int i;
 
+    CALL_QDP(L);
     QDP_D_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
@@ -650,6 +651,7 @@ q_g_mul_P(lua_State *L)
     mLatDirProp *r = qlua_newLatDirProp(L);
     int i;
 
+    CALL_QDP(L);
     QDP_P_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
@@ -684,6 +686,7 @@ q_P_mul_g(lua_State *L)
     mLatDirProp *r = qlua_newLatDirProp(L);
     int i;
 
+    CALL_QDP(L);
     QDP_P_eq_zero(r->ptr, *qCurrent);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {

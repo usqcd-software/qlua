@@ -83,6 +83,7 @@ q_pcoord(lua_State *L)
         return luaL_error(L, "coordinate out of range");
     
     /* YYY global state */
+    CALL_QDP(L);
     pcoord_d = d;
     QDP_I_eq_func(v->ptr, pcoord_set, *qCurrent);
 
@@ -118,6 +119,7 @@ q_lattice(lua_State *L)
         lua_gettable(L, 1);
         qDim[i] = luaL_checkint(L, -1);
     }
+    CALL_QDP(L);
     QDP_set_latsize(qRank, qDim);
     if (QDP_create_layout()) {
         return luaL_error(L, "can not create lattice");

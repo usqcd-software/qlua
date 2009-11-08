@@ -151,7 +151,7 @@ qdpc_r_info(lua_State *L)
 
     check_reader(L, reader);
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     xml = QDP_string_create();
     status = QDP_read_record_info(reader->ptr, xml);
     if (status == 0) {
@@ -175,7 +175,7 @@ qdpc_r_skip(lua_State *L)
 
     check_reader(L, reader);
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     status = QDP_next_record(reader->ptr);
     if (status == 0) {
         lua_pushboolean(L, 1);
@@ -266,7 +266,7 @@ q_qdpc_reader (lua_State *L)
     int rcount;
 
     /* first collect garbage */
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
 
     /* go through the motions of opening a QDP reader */
     xml = QDP_string_create();
@@ -298,7 +298,7 @@ q_qdpc_writer (lua_State *L)
     int rcount;
 
     /* first collect garbage */
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     
     /* open the QDP writer */
     xml = QDP_string_create();

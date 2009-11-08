@@ -126,7 +126,7 @@ ddpairs_read(lua_State *L)
     QLA_DiracPropagator *xP;
     QLA_DiracPropagator *xS;
     
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     file_xml = QIO_string_create();
     record_xml = QIO_string_create();
     record_info = QIO_create_record_info(0, NULL, NULL, 0, "", "", 0, 0, 0, 0);
@@ -234,7 +234,7 @@ ddpairs_write(lua_State *L)
     int *lo = qlua_malloc(L, qRank * sizeof (int));
     int *hi = qlua_malloc(L, qRank * sizeof (int));
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     for (i = 0; i < qRank; i++) {
         lo[i] = 0;
         hi[i] = qDim[i] - 1;

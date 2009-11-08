@@ -96,7 +96,7 @@ qdpcc_read_P(lua_State *L)
     QDPCCArgs data;
     int i, fmt;
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     file_xml = QIO_string_create();
     record_xml = QIO_string_create();
     reader = qlua_qio_std_reader(fname, file_xml);
@@ -220,7 +220,7 @@ qdpcc_write_P(lua_State *L)
     QDPCCArgs data;
     int i;
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     for (i = 0; write_P_fmt[i].getter; i++) {
         if (fmt[0] == write_P_fmt[i].fmt[0]) {
             prec = write_P_fmt[i].fmt;

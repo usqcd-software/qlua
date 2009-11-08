@@ -682,6 +682,7 @@ q_nersc_read(lua_State *L)
     lua_createtable(L, qRank, 0);
     M = qlua_malloc(L, qRank * sizeof (QDP_ColorMatrix *));
     U = qlua_malloc(L, qRank * sizeof (QLA_ColorMatrix *));
+    CALL_QDP(L);
     for (i = 0; i < qRank; i++) {
         M[i] = qlua_newLatColMat(L)->ptr;
         U[i] = QDP_expose_M(M[i]);
@@ -693,6 +694,7 @@ q_nersc_read(lua_State *L)
     } else {
         status = nersc_read_slave(L, U, name);
     }
+    CALL_QDP(L);
     for (i = 0; i < qRank; i++) {
         QDP_reset_M(M[i]);
     }

@@ -13,7 +13,7 @@ X_ID(qdpc_r_)(lua_State *L)
     check_reader(L, reader);
 
     /* collect garbage now */
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     /* read either one or n lattice color matrices */
     switch (lua_gettop(L)) {
     case 1: {
@@ -83,7 +83,7 @@ X_ID(qdpc_w_)(lua_State *L)
     check_writer(L, writer);
 
     /* collect garbage */
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
 
     /* prepare info string */
     xml = QDP_string_create();

@@ -79,10 +79,12 @@ q_D_get(lua_State *L)
             if (c == -1) {
                 mLatColVec *r = qlua_newLatColVec(L);
 
+                CALL_QDP(L);
                 QDP_V_eq_colorvec_D(r->ptr, V->ptr, d, *qCurrent);
             } else {
                 mLatComplex *r = qlua_newLatComplex(L);
 
+                CALL_QDP(L);
                 QDP_C_eq_elem_D(r->ptr, V->ptr, c, d, *qCurrent);
             }
         } else {
@@ -94,6 +96,7 @@ q_D_get(lua_State *L)
                 QLA_DiracFermion *locked;
                 double z_re, z_im;
 
+                CALL_QDP(L);
                 locked = QDP_expose_D(V->ptr);
                 if (QDP_node_number(idx) == QDP_this_node) {
                     QLA_Complex *zz = &QLA_elem_D(locked[QDP_index(idx)], c, d);
@@ -131,10 +134,12 @@ q_D_put(lua_State *L)
         if (c == -1) {
             mLatColVec *z = qlua_checkLatColVec(L, 3);
 
+            CALL_QDP(L);
             QDP_D_eq_colorvec_V(V->ptr, z->ptr, d, *qCurrent);
         } else {
             mLatComplex *z = qlua_checkLatComplex(L, 3);
 
+            CALL_QDP(L);
             QDP_D_eq_elem_C(V->ptr, z->ptr, c, d, *qCurrent);
         }
     } else {
@@ -143,6 +148,7 @@ q_D_put(lua_State *L)
             return qlua_badindex(L, "DiracFermion");
         } else {
             QLA_Complex *z = qlua_checkComplex(L, 3);
+            CALL_QDP(L);
             if (QDP_node_number(idx) == QDP_this_node) {
                 QLA_DiracFermion *locked = QDP_expose_D(V->ptr);
                 QLA_Complex *zz = &QLA_elem_D(locked[QDP_index(idx)], c, d);
@@ -164,6 +170,7 @@ q_D_neg(lua_State *L)
     mLatDirFerm *r = qlua_newLatDirFerm(L);
     QLA_Real m1 = -1;
 
+    CALL_QDP(L);
     QDP_D_eq_r_times_D(r->ptr, &m1, a->ptr, *qCurrent);
 
     return 1;
@@ -175,6 +182,7 @@ q_D_norm2(lua_State *L)
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
     QLA_Real n;
 
+    CALL_QDP(L);
     QDP_r_eq_norm2_D(&n, a->ptr, *qCurrent);
     lua_pushnumber(L, n);
     
@@ -189,7 +197,7 @@ q_D_shift(lua_State *L)
     QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
     mLatDirFerm *r = qlua_newLatDirFerm(L);
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
+    CALL_QDP(L);
     QDP_D_eq_sD(r->ptr, a->ptr, shift, dir, *qCurrent);
 
     return 1;
@@ -201,6 +209,7 @@ q_D_conj(lua_State *L)
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 1);
     mLatDirFerm *r = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_conj_D(r->ptr, a->ptr, *qCurrent);
 
     return 1;
@@ -218,6 +227,7 @@ q_D_gamma(lua_State *L)
     if (n == -1) {
         mLatDirFerm *r = qlua_newLatDirFerm(L);
 
+        CALL_QDP(L);
         if (mu < 5) {
             QDP_D_eq_gamma_times_D(r->ptr, f->ptr, 1 << mu, *qCurrent);
         } else {
@@ -229,6 +239,7 @@ q_D_gamma(lua_State *L)
     if (mu == -1) {
         mLatDirFerm *r = qlua_newLatDirFerm(L);
 
+        CALL_QDP(L);
         QDP_D_eq_gamma_times_D(r->ptr, f->ptr, n, *qCurrent);
         
         return 1;
@@ -243,6 +254,7 @@ q_D_set(lua_State *L)
     mLatDirFerm *r = qlua_checkLatDirFerm(L, 1);
     mLatDirFerm *a = qlua_checkLatDirFerm(L, 2);
 
+    CALL_QDP(L);
     QDP_D_eq_D(r->ptr, a->ptr, *qCurrent);
     lua_pop(L, 1);
 
@@ -256,6 +268,7 @@ q_D_dot(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatComplex *s = qlua_newLatComplex(L);
 
+    CALL_QDP(L);
     QDP_C_eq_D_dot_D(s->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -267,6 +280,7 @@ q_D_gaussian(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 1);
     mLatDirFerm *r = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_gaussian_S(r->ptr, a->ptr, *qCurrent);
 
     return 1;
@@ -280,6 +294,7 @@ q_D_add_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_D_plus_D(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -292,6 +307,7 @@ q_D_sub_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_D_minus_D(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -304,6 +320,7 @@ q_D_mul_r(lua_State *L)
     QLA_Real b = luaL_checknumber(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_r_times_D(c->ptr, &b, a->ptr, *qCurrent);
 
     return 1;
@@ -316,6 +333,7 @@ q_r_mul_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_r_times_D(c->ptr, &a, b->ptr, *qCurrent);
 
     return 1;
@@ -328,6 +346,7 @@ q_D_mul_c(lua_State *L)
     QLA_Complex *b = qlua_checkComplex(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_c_times_D(c->ptr, b, a->ptr, *qCurrent);
 
     return 1;
@@ -340,6 +359,7 @@ q_c_mul_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_c_times_D(c->ptr, a, b->ptr, *qCurrent);
 
     return 1;
@@ -376,6 +396,7 @@ q_R_mul_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     X_D_eq_R_times_D(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -388,6 +409,7 @@ q_D_mul_R(lua_State *L)
     mLatReal *b = qlua_checkLatReal(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     X_D_eq_R_times_D(c->ptr, b->ptr, a->ptr, *qCurrent);
 
     return 1;
@@ -424,6 +446,7 @@ q_C_mul_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     X_D_eq_C_times_D(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -436,6 +459,7 @@ q_D_mul_C(lua_State *L)
     mLatComplex *b = qlua_checkLatComplex(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     X_D_eq_C_times_D(c->ptr, b->ptr, a->ptr, *qCurrent);
 
     return 1;
@@ -448,6 +472,7 @@ q_M_mul_D(lua_State *L)
     mLatDirFerm *b = qlua_checkLatDirFerm(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_M_times_D(c->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
@@ -460,6 +485,7 @@ q_D_div_r(lua_State *L)
     QLA_Real b = 1 / luaL_checknumber(L, 2);
     mLatDirFerm *c = qlua_newLatDirFerm(L);
 
+    CALL_QDP(L);
     QDP_D_eq_r_times_D(c->ptr, &b, a->ptr, *qCurrent);
 
     return 1;
@@ -474,6 +500,7 @@ q_D_div_c(lua_State *L)
     double n = 1 / (QLA_real(*b) * QLA_real(*b) + QLA_imag(*b) * QLA_imag(*b));
     QLA_Complex s;
 
+    CALL_QDP(L);
     QLA_real(s) = n * QLA_real(*b);
     QLA_imag(s) = -n * QLA_imag(*b);
     QDP_D_eq_c_times_D(c->ptr, &s, a->ptr, *qCurrent);
@@ -488,6 +515,7 @@ q_latdirferm(lua_State *L)
     case 1: {
         mLatDirFerm *v = qlua_newLatDirFerm(L);
 
+        CALL_QDP(L);
         QDP_D_eq_zero(v->ptr, *qCurrent);
 
         return 1;
@@ -496,6 +524,7 @@ q_latdirferm(lua_State *L)
         mLatDirFerm *f = qlua_checkLatDirFerm(L, 2);
         mLatDirFerm *v = qlua_newLatDirFerm(L);
 
+        CALL_QDP(L);
         QDP_D_eq_D(v->ptr, f->ptr, *qCurrent);
         
         return 1;
@@ -508,6 +537,7 @@ q_latdirferm(lua_State *L)
             int d = qlua_checkdiracindex(L, 3);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
+            CALL_QDP(L);
             QDP_D_eq_zero(v->ptr, *qCurrent);
             QDP_D_eq_elem_C(v->ptr, z->ptr, c, d, *qCurrent);
 
@@ -518,6 +548,7 @@ q_latdirferm(lua_State *L)
             int d = qlua_checkdiracindex(L, 3);
             mLatDirFerm *v = qlua_newLatDirFerm(L);
 
+            CALL_QDP(L);
             QDP_D_eq_zero(v->ptr, *qCurrent);
             QDP_D_eq_colorvec_V(v->ptr, w->ptr, d, *qCurrent);
 

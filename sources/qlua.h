@@ -83,4 +83,7 @@ void qlua_reg_dot(int ta, q_op op);
 int qlua_badconstr(lua_State *L, const char *name);
 int qlua_badindex(lua_State *L, const char *type);
 
+/* strict memory management: collect garbage befor any QDP operation */
+#define CALL_QDP(L) do lua_gc(L, LUA_GCCOLLECT, 0); while (0)
+
 #endif /* !defined(MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F) */

@@ -59,6 +59,7 @@ q_latmulti(lua_State *L)
     int count = qDim[axis];
     mLatMulti *v = lua_newuserdata(L, sizeof (mLatMulti));
 
+    CALL_QDP(L);
     *arg = axis;
     v->axis = axis;
     v->arg = arg;

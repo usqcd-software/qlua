@@ -236,7 +236,6 @@ q_CL_D(lua_State *L)
 {
     mClover *c = qlua_checkClover(L, 1, 1);
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 2)) {
     case qLatDirFerm: {
         mLatDirFerm *psi = qlua_checkLatDirFerm(L, 2);
@@ -246,6 +245,7 @@ q_CL_D(lua_State *L)
         QLA_DiracFermion *e_psi;
         QLA_DiracFermion *e_eta;
 
+        CALL_QDP(L);
         e_psi = QDP_expose_D(psi->ptr);
         if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
             return luaL_error(L, "CLOVER_import_fermion() failed");
@@ -272,6 +272,7 @@ q_CL_D(lua_State *L)
         struct QOP_CLOVER_Fermion *c_eta;
         qCL_P_env env;
 
+        CALL_QDP(L);
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
@@ -302,7 +303,6 @@ q_CL_Dx(lua_State *L)
 {
     mClover *c = qlua_checkClover(L, 1, 1);
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 2)) {
     case qLatDirFerm: {
         mLatDirFerm *psi = qlua_checkLatDirFerm(L, 2);
@@ -312,6 +312,7 @@ q_CL_Dx(lua_State *L)
         QLA_DiracFermion *e_psi;
         QLA_DiracFermion *e_eta;
 
+        CALL_QDP(L);
         e_psi = QDP_expose_D(psi->ptr);
         if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
             return luaL_error(L, "CLOVER_import_fermion() failed");
@@ -337,6 +338,7 @@ q_CL_Dx(lua_State *L)
         struct QOP_CLOVER_Fermion *c_eta;
         qCL_P_env env;
 
+        CALL_QDP(L);
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
@@ -374,7 +376,6 @@ q_CL_solve(lua_State *L)
     double out_eps;
     int out_iters;
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 1)) {
     case qLatDirFerm: {
         mLatDirFerm *psi = qlua_checkLatDirFerm(L, 1);
@@ -386,6 +387,7 @@ q_CL_solve(lua_State *L)
         double rhs_n;
         int status;
 
+        CALL_QDP(L);
         QDP_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
         if (rhs_norm2 == 0) {
             QDP_D_eq_zero(eta->ptr, QDP_all);
@@ -444,6 +446,7 @@ q_CL_solve(lua_State *L)
         QLA_Real rhs_norm2 = 0;
         double rhs_n;
 
+        CALL_QDP(L);
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
@@ -527,7 +530,6 @@ q_CL_mixed_solve(lua_State *L)
     double out_eps;
     int out_iters;
 
-    lua_gc(L, LUA_GCCOLLECT, 0);
     switch (qlua_gettype(L, 1)) {
     case qLatDirFerm: {
         mLatDirFerm *psi = qlua_checkLatDirFerm(L, 1);
@@ -539,6 +541,7 @@ q_CL_mixed_solve(lua_State *L)
         double rhs_n;
         int status;
 
+        CALL_QDP(L);
         QDP_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
         if (rhs_norm2 == 0) {
             lua_pushnumber(L, 0);
@@ -598,6 +601,7 @@ q_CL_mixed_solve(lua_State *L)
         int status;
         qCL_P_env env;
 
+        CALL_QDP(L);
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
@@ -781,7 +785,6 @@ q_clover(lua_State *L)
     }
 
     luaL_checktype(L, 1, LUA_TTABLE);
-    lua_gc(L, LUA_GCCOLLECT, 0);
 
     if (qRank != QOP_CLOVER_DIM)
         return luaL_error(L, "clover is not implemented for #L=%d", qRank);
@@ -793,6 +796,7 @@ q_clover(lua_State *L)
     c->kappa = kappa;
     c->c_sw = c_sw;
 
+    CALL_QDP(L);
 
     /* create a temporary U, F, and temp M */
     for (i = 0; i < Nz; i++)
@@ -807,6 +811,7 @@ q_clover(lua_State *L)
         lua_pop(L, 1);
     }
 
+    CALL_QDP(L);
     /* compute 8i*F[mu,nu] in UF[Nf...] */
     for (i = 0, mu = 0; mu < QOP_CLOVER_DIM; mu++) {
         for (nu = mu + 1; nu < QOP_CLOVER_DIM; nu++, i++) {
