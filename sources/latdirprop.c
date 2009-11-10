@@ -543,12 +543,11 @@ q_latdirprop(lua_State *L)
 
             CALL_QDP(L);
             QDP_P_eq_zero(v->ptr, *qCurrent);
-            for (ks = 0; ks < QDP_Ns; ks++) {
-                for (ic = 0; ic < QDP_Nc; ic++) {
-                    for (jc = 0; jc < QDP_Nc; jc++) {
-                        QDP_C_eq_elem_M(c->ptr, w->ptr, ic, jc, *qCurrent);
+            for (ic = 0; ic < QDP_Nc; ic++) {
+                for (jc = 0; jc < QDP_Nc; jc++) {
+                    QDP_C_eq_elem_M(c->ptr, w->ptr, ic, jc, *qCurrent);
+                    for (ks = 0; ks < QDP_Ns; ks++)
                         QDP_P_eq_elem_C(v->ptr, c->ptr, ic, ks, jc, ks, *qCurrent);
-                    }
                 }
             }
             lua_pop(L, 1);
@@ -557,7 +556,7 @@ q_latdirprop(lua_State *L)
         }
         default:
             break;
-    }
+        }
     }
     case 3: {
         mLatDirFerm *z = qlua_checkLatDirFerm(L, 2);
@@ -580,48 +579,50 @@ static struct {
     QLA_DiracPropagator *b;
 } QQ_args;
 
-static void
-do_QQc13(QLA_DiracPropagator *x_r, int idx)
-{
-    QLA_DiracPropagator *x_a = &QQ_args.a[idx];
-    QLA_DiracPropagator *x_b = &QQ_args.b[idx];
-    int p_a, p_b;
-    static const int eps[3][3] = {
-        { 0, 1, 2},
-        { 1, 2, 0},
-        { 2, 0, 1}};
-
-#define QLA_SU3_CONTRACT13(k1,i1,j1,k2,i2,j2,q1,q2,q3) { \
-        int a, b, c; \
-        for (a = 0; a < QDP_Ns; a++) { \
-            for (b = 0; b < QDP_Ns; b++) { \
-                QLA_Complex s3; \
-                QLA_c_eq_r(s3, 0.0); \
-                for (c = 0; c < QDP_Ns; c++) { \
-                    QLA_c_peq_c_times_c(s3, QLA_elem_P(q1,i1,c,i2,a),   \
-                                        QLA_elem_P(q2,j1,c,j2,b));      \
-                    QLA_c_meq_c_times_c(s3, QLA_elem_P(q1,i1,c,j2,a),   \
-                                        QLA_elem_P(q2,j1,c,i2,b));      \
-                    QLA_c_meq_c_times_c(s3, QLA_elem_P(q1,j1,c,i2,a),   \
-                                        QLA_elem_P(q2,i1,c,j2,b));      \
-                    QLA_c_peq_c_times_c(s3, QLA_elem_P(q1,j1,c,j2,a),   \
-                                        QLA_elem_P(q2,i1,c,i2,b));      \
-                }                                                       \
-                QLA_c_eq_c(QLA_elem_P(q3,k2,a,k1,b), s3);               \
-            }}}
-   
-    for (p_a = 0; p_a < QDP_Nc; p_a++) {
-        for (p_b = 0; p_b < QDP_Nc; p_b++) {
-            QLA_SU3_CONTRACT13(eps[p_a][0], eps[p_a][1], eps[p_a][2], 
-                               eps[p_b][0], eps[p_b][1], eps[p_b][2],
-                               *x_a, *x_b, *x_r);
-        }
-    }
-#undef QLA_SU3_CONTRACT13
+/* TODO force to unroll loops over color&spin indices? */
+#define do_QQ_contract_func(contract_idx,A,B,C,D)\
+static void do_QQc ## contract_idx(QLA_DiracPropagator *q3, int idx) \
+{ \
+    QLA_DiracPropagator *q1 = &QQ_args.a[idx]; \
+    QLA_DiracPropagator *q2 = &QQ_args.b[idx]; \
+    static const int eps[3][3] = { { 0, 1, 2}, { 1, 2, 0}, { 2, 0, 1} }; \
+    int p_a, p_b; \
+    for (p_a = 0; p_a < QDP_Nc; p_a++) { \
+        int i1 = eps[p_a][0], j1 = eps[p_a][1], k1 = eps[p_a][2]; \
+        for (p_b = 0; p_b < QDP_Nc; p_b++) { \
+            int i2 = eps[p_b][0], j2 = eps[p_b][1], k2 = eps[p_b][2]; \
+            int a, b, c; \
+            for (a = 0; a < QDP_Ns; a++) { \
+                for (b = 0; b < QDP_Ns; b++) { \
+                    QLA_Complex s3; \
+                    QLA_c_eq_r(s3, 0.0); \
+                    for (c = 0; c < QDP_Ns; c++) { \
+                        QLA_c_peq_c_times_c(s3,QLA_elem_P(*q1,i1,(A),i2,(B)), \
+                                               QLA_elem_P(*q2,j1,(C),j2,(D)));\
+                        QLA_c_meq_c_times_c(s3,QLA_elem_P(*q1,i1,(A),j2,(B)), \
+                                               QLA_elem_P(*q2,j1,(C),i2,(D)));\
+                        QLA_c_meq_c_times_c(s3,QLA_elem_P(*q1,j1,(A),i2,(B)), \
+                                               QLA_elem_P(*q2,i1,(C),j2,(D)));\
+                        QLA_c_peq_c_times_c(s3,QLA_elem_P(*q1,j1,(A),j2,(B)), \
+                                               QLA_elem_P(*q2,i1,(C),i2,(D)));\
+                    } \
+                    QLA_c_eq_c(QLA_elem_P(*q3,k2,a,k1,b), s3); \
+                } \
+            } \
+        } \
+    } \
 }
+do_QQ_contract_func(12, c,c,a,b);
+do_QQ_contract_func(13, c,a,c,b);
+do_QQ_contract_func(14, c,a,b,c);
+do_QQ_contract_func(23, a,c,c,b);
+do_QQ_contract_func(24, a,c,b,c);
+do_QQ_contract_func(34, a,b,c,c);
+#undef do_QQ_contract_func
 
 static int
-q_su3contract13(lua_State *L)
+q_su3contract_general(lua_State *L, 
+        void (*do_contract)(QLA_DiracPropagator *, int))
 {
     mLatDirProp *a = qlua_checkLatDirProp(L, 1); /* the first argument */
     mLatDirProp *b = qlua_checkLatDirProp(L, 2); /* the second argument */
@@ -633,7 +634,7 @@ q_su3contract13(lua_State *L)
     CALL_QDP(L);
     QQ_args.a = QDP_expose_P(a->ptr);
     QQ_args.b = QDP_expose_P(b->ptr);
-    QDP_P_eq_funci(r->ptr, do_QQc13, *qCurrent);
+    QDP_P_eq_funci(r->ptr, do_contract, *qCurrent);
     QDP_reset_P(a->ptr);
     QDP_reset_P(b->ptr);
     QQ_args.a = 0;
@@ -641,6 +642,18 @@ q_su3contract13(lua_State *L)
 
     return 1;
 }
+#define q_su3contract_func(contract_idx) \
+static int q_su3contract ## contract_idx(lua_State *L) \
+{ \
+    return q_su3contract_general(L, do_QQc ## contract_idx); \
+}
+q_su3contract_func(12);
+q_su3contract_func(13);
+q_su3contract_func(14);
+q_su3contract_func(23);
+q_su3contract_func(24);
+q_su3contract_func(34);
+#undef q_su3contract_func
 
 static struct luaL_Reg LatDirPropMethods[] = {
     { "norm2",           q_P_norm2 },
@@ -673,7 +686,12 @@ static struct luaL_Reg fLatDirProp[] = {
 };
 
 static struct luaL_Reg fQCDDirProp[] = {
-    { "quarkContract13",   q_su3contract13 },      /* [SNS] */
+    { "quarkContract12",   q_su3contract12 },
+    { "quarkContract13",   q_su3contract13 },
+    { "quarkContract14",   q_su3contract14 },
+    { "quarkContract23",   q_su3contract23 },
+    { "quarkContract24",   q_su3contract24 },
+    { "quarkContract34",   q_su3contract34 },
     { NULL,                NULL }
 };
 
