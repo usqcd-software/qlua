@@ -1,0 +1,47 @@
+require "stdlib"
+
+ls = {3, 4, 6, 5}
+src = {1, 2, 4, 3}
+p = {2, 3, 4, 1}
+
+L  = qcd.lattice(ls)
+
+function copy_array(o)
+  local v = {}
+  for i, x in pairs(o) do
+    v[i] = x
+  end
+  return v
+end
+
+function full_mp(z)
+  return (L:planewave(src, p) * z):sum()
+end
+
+function axis_mp(z, d)
+  local pp = copy_array(p)
+  pp[d+1] = 0
+  return (L:planewave(src, pp) * z):sum(L:MultiSet{d=d})
+end
+
+do
+  local x = L:Int(0)
+  for i = 0, #L - 1 do
+    x = x * L[i] + L:pcoord(i)
+  end
+  S = L:RandomState(424, x)
+end
+
+v = S:gaussian_Complex()
+
+vp = L:momentum_project(v, src, p)
+
+printf("vp     = %s\n", tostring(vp))
+printf("dif    = %s\n", tostring(vp-full_mp(v)))
+for i = 0, #L - 1 do
+  local vdi = axis_mp(v, i)
+  local vpi = L:momentum_project(v, src, p, i)
+  for k = 0, L[i] - 1 do
+    printf(" diff[%d][%d] = %s\n", i, k, tostring(vdi[k] - vpi[k]))
+  end
+end

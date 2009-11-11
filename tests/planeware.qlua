@@ -1,0 +1,22 @@
+require "stdlib"
+
+L = qcd.lattice{3,4,5}
+
+function default_wave(s, p)
+  local ph = L:Real(0)
+  for i = 0, #L - 1 do
+    local d = (L:Real(L:pcoord(i)) - s[i+1]) * p[i+1]
+    ph = ph + 2 * math.pi * d / L[i]
+  end
+  return ph:expi()
+end
+
+src = {2,1,3}
+mom = {2,3,4}
+x = L:planewave(src, mom)
+y = default_wave(src, mom)
+
+printf("x=%s, |x|=%g\n", tostring(x), x:norm2())
+printf("y=%s, |y|=%g\n", tostring(y), y:norm2())
+printf("diff: %g\n", (y-x):norm2())
+

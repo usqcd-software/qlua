@@ -1,8 +1,12 @@
 #include <qlua.h>                                                    /* DEPS */
+#include <qcomplex.h>                                                /* DEPS */
+#include <qvector.h>                                                 /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
+#include <latcomplex.h>                                              /* DEPS */
 #include <string.h>
 #include <qmp.h>
+#include <math.h>
 
 /* NB: This code works only for a single lattice */
 
@@ -90,6 +94,143 @@ q_pcoord(lua_State *L)
     return 1;
 }
 
+static struct {
+    int *s;
+    int *p;
+} PW_arg;
+
+static void
+pw_simple(QLA_Complex *dst, int coord[])
+{
+    int i;
+    double ph;
+
+    for (ph = 0, i = 0; i < qRank; i++) {
+        double d = (coord[i]-PW_arg.s[i]) * ((double)PW_arg.p[i]);
+        ph += 2 * M_PI * d / qDim[i];
+    }
+    *dst = QLA_cexpi(ph);
+}
+
+static int
+q_planewave(lua_State *L)
+{
+    int *s = qlua_checklatcoord(L, 2);
+    int *p = qlua_checklatcoord(L, 3);
+    mLatComplex *w = qlua_newLatComplex(L);
+
+    /* YYY global state */
+    PW_arg.s = s;
+    PW_arg.p = p;
+    CALL_QDP(L);
+    QDP_C_eq_func(w->ptr, pw_simple, *qCurrent);
+
+    PW_arg.s = 0;
+    PW_arg.p = 0;
+    qlua_free(L, s);
+    qlua_free(L, p);
+    return 1;
+}
+
+static void
+mp_full(lua_State *L, mLatComplex *v, int *src, int *p)
+{
+    int *coord = qlua_malloc(L, qRank * sizeof (int));
+    QLA_Complex *r = qlua_newComplex(L);
+    int idx;
+    double c2pt_mp[2]; /* re, im */
+    QLA_Complex *z;
+
+    CALL_QDP(L);
+    c2pt_mp[0] = 0;
+    c2pt_mp[1] = 0;
+    z = QDP_expose_C(v->ptr);
+    for (idx = 0; idx <  QDP_sites_on_node ; idx++) {
+        double ph, re, im, c, s;
+        int i;
+        QDP_get_coords(coord, QDP_this_node, idx);
+        for (i = 0, ph = 0.; i < qRank; i++) {
+            double d = p[i] * (coord[i] - src[i]);
+            ph += 2 * M_PI * d / qDim[i];
+        }
+        re   = QLA_real(z[idx]);
+        im   = QLA_imag(z[idx]);
+        c    = cos(ph);
+        s    = sin(ph);
+        c2pt_mp[0]    += re * c - im * s;
+        c2pt_mp[1]    += re * s + im * c;
+    }
+    QDP_reset_C(v->ptr);
+    QMP_sum_double_array(c2pt_mp, 2);
+    QLA_c_eq_r_plus_ir(*r, c2pt_mp[0], c2pt_mp[1]);
+
+    qlua_free(L, coord);
+}
+
+static void
+mp_axis(lua_State *L, mLatComplex *v, int *src, int *p, int axis)
+{
+    int *coord = qlua_malloc(L, qRank * sizeof (int));
+    double *c2pt = qlua_malloc(L, 2 * qDim[axis] * sizeof (double));
+    mVecComplex *r = qlua_newVecComplex(L, qDim[axis]);
+    int i, idx;
+    QLA_Complex *z;
+
+    CALL_QDP(L);
+    p[axis] = 0; /* avoid phases along the axis */
+    r->size = qDim[axis];
+    for (i = 0; i < 2 * qDim[axis]; i++)
+        c2pt[i] = 0;
+    z = QDP_expose_C(v->ptr);
+    for (idx = 0; idx <  QDP_sites_on_node ; idx++) {
+        double ph, re, im, c, s;
+        QDP_get_coords(coord, QDP_this_node, idx);
+        for (i = 0, ph = 0.; i < qRank; i++) {
+            double d = p[i] * (coord[i] - src[i]);
+            ph += 2 * M_PI * d / qDim[i];
+        }
+        re   = QLA_real(z[idx]);
+        im   = QLA_imag(z[idx]);
+        c    = cos(ph);
+        s    = sin(ph);
+        c2pt[2 * coord[axis] + 0]    += re * c - im * s;
+        c2pt[2 * coord[axis] + 1]    += re * s + im * c;
+    }
+    QDP_reset_C(v->ptr);
+    QMP_sum_double_array(c2pt, 2 * qDim[axis]);
+    for (i = 0; i < qDim[axis]; i++)
+        QLA_c_eq_r_plus_ir(r->val[i], c2pt[2 * i + 0], c2pt[2 * i + 1]);
+
+    qlua_free(L, coord);
+    qlua_free(L, c2pt);
+}
+
+static int
+q_momentum_project(lua_State *L)
+{
+    mLatComplex *v = qlua_checkLatComplex(L, 2);
+    int *s = qlua_checklatcoord(L, 3);
+    int *p = qlua_checklatcoord(L, 4);
+
+    switch (lua_type(L, 5)) {
+    case LUA_TNUMBER: {
+        int axis = luaL_checkint(L, 5);
+        if (axis < 0 || axis >= qRank)
+            return luaL_error(L, "axis out of range");
+        mp_axis(L, v, s, p, axis);
+        break;
+    }
+    case LUA_TNONE:
+        mp_full(L, v, s, p);
+    break;
+    default:
+        return luaL_error(L, "axis must be a number");
+    }
+    qlua_free(L, s);
+    qlua_free(L, p);
+    return 1;
+}
+
 static void
 set_Nd(lua_State *L)
 {
@@ -155,6 +296,7 @@ qlua_latcoord(lua_State *L, int n)
         lua_pushnumber(L, i + 1);
         lua_gettable(L, n);
         idx[i] = luaL_checkint(L, -1);
+        lua_pop(L, 1);
         if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
             qlua_free(L, idx);        
             return NULL;
@@ -229,7 +371,9 @@ q_network(lua_State *L)
 }
 
 static struct luaL_Reg LatticeMethods[] = {
-    { "pcoord",       q_pcoord },
+    { "pcoord",           q_pcoord },
+    { "planewave",        q_planewave },
+    { "momentum_project", q_momentum_project },
     { NULL,           NULL },
 };
 
@@ -241,8 +385,8 @@ static struct luaL_Reg mtLattice[] = {
 };
 
 static struct luaL_Reg fLattice[] = {
-    { "lattice", q_lattice },
-    { "network", q_network },
+    { "lattice",            q_lattice },
+    { "network",            q_network },
     { NULL, NULL}
 };
 
