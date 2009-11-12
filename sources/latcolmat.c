@@ -103,6 +103,7 @@ q_M_get(lua_State *L)
                 QLA_ColorMatrix *locked;
                 double z_re, z_im;
                 
+                qlua_verifylatcoord(L, idx);
                 CALL_QDP(L);
                 locked = QDP_expose_M(V->ptr);
                 if (QDP_node_number(idx) == QDP_this_node) {
@@ -154,6 +155,7 @@ q_M_put(lua_State *L)
             return qlua_badindex(L, "ColorMatrix");
         } else {
             QLA_Complex *z = qlua_checkComplex(L, 3);
+            qlua_verifylatcoord(L, idx);
             if (QDP_node_number(idx) == QDP_this_node) {
                 CALL_QDP(L);
                 QLA_ColorMatrix *locked = QDP_expose_M(V->ptr);

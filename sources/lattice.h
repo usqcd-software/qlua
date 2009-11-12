@@ -8,6 +8,7 @@ extern QDP_Subset *qCurrent;
 
 int *qlua_latcoord(lua_State *L, int idx);                   /* lc[] or NULL */
 int *qlua_checklatcoord(lua_State *L, int idx);
+void qlua_verifylatcoord(lua_State *L, int *coord);
 int *qlua_intarray(lua_State *L, int idx, int *out_dim);
 int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 

@@ -348,13 +348,26 @@ qlua_latcoord(lua_State *L, int n)
     return idx;
 }
 
+static const char *bad_lat_coords = "bad lattice coordinates";
+
+void
+qlua_verifylatcoord(lua_State *L, int *coord)
+{
+    int i;
+
+    for (i = 0; i < qRank; i++) {
+        if ((coord[i] < 0) || (coord[i] >= qDim[i]))
+            luaL_error(L, bad_lat_coords);
+    }
+}
+
 int *
 qlua_checklatcoord(lua_State *L, int n)
 {
     int *idx = qlua_latcoord(L, n);
 
     if (idx == 0)
-        luaL_error(L, "bad lattice coordinates");
+        luaL_error(L, bad_lat_coords);
 
     return idx;
 }
