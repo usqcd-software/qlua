@@ -2,7 +2,7 @@ require "stdlib"
 
 ls = {3, 4, 6, 5}
 src = {1, 2, 4, 3}
-p = {2, 3, 4, 1}
+p = {2, 3, -4, 1}
 
 L  = qcd.lattice(ls)
 

@@ -225,6 +225,35 @@ q_P_spintranspose(lua_State *L)
     return 1;
 }
 
+static void
+do_Ptrace(QLA_Complex *r, int idx)
+{
+    QLA_DiracPropagator *a = &Pst_args.a[idx];
+    int is, ic;
+
+    QLA_c_eq_r_plus_ir(*r, 0, 0);
+    for (is = 0; is < QDP_Ns; is++) {
+        for (ic = 0; ic < QDP_Nc; ic++)  {
+            QLA_c_peq_c(*r, QLA_D3_elem_P(*a,ic,is,ic,is));
+        }
+    }
+}
+
+static int
+q_P_trace(lua_State *L)
+{
+    mLatDirProp *a = qlua_checkLatDirProp(L, 1);
+    mLatComplex *r = qlua_newLatComplex(L);
+
+    CALL_QDP(L);
+    Pst_args.a = QDP_expose_P(a->ptr);
+    QDP_C_eq_funci(r->ptr, do_Ptrace, *qCurrent);
+    QDP_reset_P(a->ptr);
+    Pst_args.a = 0;
+
+    return 1;
+}
+
 static int
 q_P_set(lua_State *L)
 {
@@ -661,8 +690,9 @@ static struct luaL_Reg LatDirPropMethods[] = {
     { "conj",            q_P_conj },
     { "transpose",       q_P_trans },
     { "adjoin",          q_P_adjoin },
-    { "spintrace",       q_P_spintrace },
     { "spintranspose",   q_P_spintranspose },
+    { "spintrace",       q_P_spintrace },
+    { "trace",           q_P_trace },
     { "set",             q_P_set },
     { NULL,              NULL }
 };

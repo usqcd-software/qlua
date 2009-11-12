@@ -14,3 +14,7 @@ c = q:spintrace()
 
 q = gamma{mu=1} * q * gamma{mu=5}
 print("check", qcd.dot(q,M1):sum(), c:norm2())
+
+a = q:spintrace():trace()
+b = q:trace()
+print("full trace", a:sum(), b:sum(), (a-b):norm2())

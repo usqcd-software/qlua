@@ -116,7 +116,7 @@ static int
 q_planewave(lua_State *L)
 {
     int *s = qlua_checklatcoord(L, 2);
-    int *p = qlua_checklatcoord(L, 3);
+    int *p = qlua_checkintarray(L, 3, qRank, NULL);
     mLatComplex *w = qlua_newLatComplex(L);
 
     /* YYY global state */
@@ -210,7 +210,7 @@ q_momentum_project(lua_State *L)
 {
     mLatComplex *v = qlua_checkLatComplex(L, 2);
     int *s = qlua_checklatcoord(L, 3);
-    int *p = qlua_checklatcoord(L, 4);
+    int *p = qlua_checkintarray(L, 4, qRank, NULL);
 
     switch (lua_type(L, 5)) {
     case LUA_TNUMBER: {
@@ -278,6 +278,48 @@ q_lattice(lua_State *L)
     set_Nd(L);
     
     return 1;
+}
+
+int *
+qlua_intarray(lua_State *L, int n, int *dim)
+{
+    int d, i;
+    int *idx;
+
+    if (lua_type(L, n) != LUA_TTABLE)
+        return NULL;
+
+    d = lua_objlen(L, n);
+    idx = qlua_malloc(L, d * sizeof (int));
+    for (i = 0; i < d; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, n);
+        if (lua_type(L, -1) != LUA_TNUMBER) {
+            qlua_free(L, idx);
+            return NULL;
+        }
+        idx[i] = luaL_checkint(L, -1);
+        lua_pop(L, 1);
+    }
+    *dim = d;
+    return idx;
+}
+
+int *
+qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
+{
+    int d_dim;
+    int *idx = qlua_intarray(L, n, &d_dim);
+
+    if (idx == 0)
+        luaL_error(L, "table of integers expected");
+
+    if (out_dim)
+        *out_dim = d_dim;
+    else if (d_dim != dim)
+        luaL_error(L, "table of integer has wrong size");
+
+    return idx;
 }
 
 int *
