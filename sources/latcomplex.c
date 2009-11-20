@@ -881,12 +881,36 @@ q_C_sum(lua_State *L)
         return 1;
     }
     case 2: {
-        mLatMulti *m = qlua_checkLatMulti(L, 2);
-        mVecComplex *r = qlua_newVecComplex(L, m->count);
+        int size = qlua_LatMultiSize(L, 2);
+        mLatInt *idx = qlua_LatMultiIndex(L, 2);
+        mVecComplex *r = qlua_newVecComplex(L, size);
+        int k;
+        QLA_Complex *xx;
+        QLA_Int *ii;
+        QLA_Real *rr;
+        
+        r->size = size;
+        rr = qlua_malloc(L, size * 2 * sizeof (QLA_Real));
+        for (k = 0; k < 2 * size; k++)
+            rr[k] = 0;
 
         CALL_QDP(L);
-        r->size = m->count;
-        QDP_c_eq_sum_C_multi(r->val, a->ptr, m->subset, m->count);
+        xx = QDP_expose_C(a->ptr);
+        ii = QDP_expose_I(idx->ptr);
+        for (k = 0; k < QDP_sites_on_node; k++, xx++, ii++) {
+            int t = *ii;
+            if ((t < 0) || (t >= size))
+                continue;
+            rr[2 * t] += QLA_real(*xx);
+            rr[2 * t + 1] += QLA_imag(*xx);
+        }
+        QDP_reset_I(idx->ptr);
+        QDP_reset_C(a->ptr);
+        QMP_sum_double_array(rr, 2 * size);
+        for (k = 0; k < size; k++) {
+            QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
+        }
+        qlua_free(L, rr);
 
         return 1;
     }

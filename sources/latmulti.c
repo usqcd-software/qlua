@@ -1,17 +1,53 @@
 #include <qlua.h>                                                    /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
+#include <latint.h>                                                  /* DEPS */
 #include <latmulti.h>                                                /* DEPS */
 
-/* only axis subsets are implemented */
+/* QLUA multisets are not QDP multisets! */
 
 const char mtnLatMulti[] = "lattice.multi";
 
-mLatMulti *
+void
 qlua_checkLatMulti(lua_State *L, int idx)
 {
-    void *v = luaL_checkudata(L, idx, mtnLatMulti);
-    
-    luaL_argcheck(L, v != 0, idx, "lattice.MultiSet expected");
+    luaL_checktype(L, idx, LUA_TTABLE);
+    if (lua_getmetatable(L, idx) == 0)
+        goto no_multi;
+    luaL_getmetatable(L, mtnLatMulti);
+    if (lua_equal(L, -1, -2) == 0)
+        goto no_multi;
+    lua_pop(L, 2);
+
+    return;
+no_multi:
+    luaL_error(L, "lattice:MultiSet expected");
+}
+
+int
+qlua_LatMultiSize(lua_State *L, int idx)
+{
+    int v;
+
+    qlua_checkLatMulti(L, idx);
+    lua_pushnumber(L, 1);
+    lua_gettable(L, idx);
+
+    v = luaL_checkint(L, -1);
+    lua_pop(L, 1);
+
+    return v;
+}
+
+mLatInt *
+qlua_LatMultiIndex(lua_State *L, int idx)
+{
+    mLatInt *v;
+
+    qlua_checkLatMulti(L, idx);
+    lua_pushnumber(L, 2);
+    lua_gettable(L, idx);
+    v = qlua_checkLatInt(L, -1);
+    lua_pop(L, 1); /* if MultiSet is collected, v may be collected as well! */
     
     return v;
 }
@@ -19,59 +55,26 @@ qlua_checkLatMulti(lua_State *L, int idx)
 static int
 q_multi_fmt(lua_State *L)
 {
-    mLatMulti *b = qlua_checkLatMulti(L, 1);
     char fmt[72];
+    int size = qlua_LatMultiSize(L, 1);
 
-    sprintf(fmt, "QDP:MultiSet(d=%d,n=%d,%p)", b->axis, b->count, b->subset);
+    sprintf(fmt, "MultiSet(%d,...)", size);
     lua_pushstring(L, fmt);
     
     return 1;
 }
 
 static int
-q_multi_gc(lua_State *L)
-{
-    mLatMulti *b = qlua_checkLatMulti(L, 1);
-
-    if (b->arg) {
-        qlua_free(L, b->arg);
-        QDP_destroy_subset(b->subset);
-    }
-    b->arg = 0;
-    b->subset = NULL;
-
-    return 0;
-}
-
-static int
-multi_func(int *coord, void *arg)
-{
-    int *axis = arg;
-
-    return coord[*axis];
-}
-
-static int
 q_latmulti(lua_State *L)
 {
-    int axis = qlua_checkindex(L, 2, "d", qRank);
-    int *arg = qlua_malloc(L, sizeof (int)); /* just in case LUA moves udata */
-    int count = qDim[axis];
-    mLatMulti *v = lua_newuserdata(L, sizeof (mLatMulti));
-
-    CALL_QDP(L);
-    *arg = axis;
-    v->axis = axis;
-    v->arg = arg;
-    v->count = count;
-    v->subset = QDP_create_subset(multi_func, arg, sizeof (int), count);
-    if (v->subset == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        v->subset = QDP_create_subset(multi_func, arg, sizeof (int), count);
-        if (v->subset == 0)
-            return luaL_error(L, "multiset creation failure");
-    }
-
+    int size = luaL_checkint(L, 2);
+    
+    qlua_checkLatInt(L, 3); /* index */
+    lua_createtable(L, 2, 0);
+    lua_pushnumber(L, size);
+    lua_rawseti(L, -2, 1);
+    lua_pushvalue(L, 3);
+    lua_rawseti(L, -2, 2);
     luaL_getmetatable(L, mtnLatMulti);
     lua_setmetatable(L, -2);
 
@@ -80,7 +83,6 @@ q_latmulti(lua_State *L)
 
 static struct luaL_Reg mtLatMulti[] = {
     { "__tostring",     q_multi_fmt },
-    { "__gc",           q_multi_gc  },
     { NULL,             NULL        }
 };
 

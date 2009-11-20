@@ -10,7 +10,9 @@ typedef struct {
 
 extern const char mtnLatMultSet[];
 
-mLatMulti *qlua_checkLatMulti(lua_State *L, int idx);
+void qlua_checkLatMulti(lua_State *L, int idx);
+int qlua_LatMultiSize(lua_State *L, int idx);
+mLatInt *qlua_LatMultiIndex(lua_State *L, int idx); /* see source */
 
 int init_latmulti(lua_State *L);
 int fini_latmulti(lua_State *L);
