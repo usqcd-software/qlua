@@ -40,7 +40,7 @@ end
 
 -- construct the clover solver
 CL = qcd.Clover(U, kappa, c_sw, bc)
-solve = CL:mixed_solver(cl_eps, f_iters, d_iters)
+solve = CL:mixed_solver(f_eps, f_iters, cl_eps, d_iters)
 
 -- point source
 src = L:DiracPropagator()

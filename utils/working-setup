@@ -8,5 +8,7 @@ TARGET=`(cd ..; pwd)`/install
    --with-lua=$PACKTOP/lua-5.1.4 \
    --with-qdp=$PACKTOP/qdp-1.8.1 \
    --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
-   --with-clover=$PACKTOP/clover-1.0.3 \
-   --with-mdwf=$PACKTOP/mdwf-1.2.0-rc2
+   --with-clover=$PACKTOP/clover-1.1.0
+
+# \
+#   --with-mdwf=$PACKTOP/mdwf-1.2.0-rc2

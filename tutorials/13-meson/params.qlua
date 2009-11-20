@@ -14,6 +14,7 @@ c_sw = 1.0
 bc = {1, 1, 1, -1}
 
 -- solver parameters
+f_eps = 1e-8
 cl_eps = 1e-25
 f_iters = 100
 d_iters = 2000

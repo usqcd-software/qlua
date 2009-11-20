@@ -15,8 +15,9 @@ c_sw = 1.0
 bc = {1, 1, 1, -1}
 
 -- solver parameters
-cl_eps = 1e-25
-f_iters = 100
+f_eps   = 1e-10
+f_iters = 200
+cl_eps  = 1e-25
 d_iters = 2000
 
 -- moments of interest

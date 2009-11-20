@@ -522,9 +522,10 @@ static int
 q_CL_mixed_solve(lua_State *L)
 {
     mClover *c      = qlua_checkClover(L, lua_upvalueindex(1), 1);
-    double eps      = luaL_checknumber(L, lua_upvalueindex(2));
+    double f_eps    = luaL_checknumber(L, lua_upvalueindex(2));
     int inner_iters = luaL_checkint(L, lua_upvalueindex(3));
-    int max_iters   = luaL_checkint(L, lua_upvalueindex(4));
+    double eps      = luaL_checknumber(L, lua_upvalueindex(4));
+    int max_iters   = luaL_checkint(L, lua_upvalueindex(5));
     long long fl1;
     double t1;
     double out_eps;
@@ -562,7 +563,8 @@ q_CL_mixed_solve(lua_State *L)
 
         status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
                                        c_psi, c->gauge, c_psi,
-                                       inner_iters, max_iters, eps,
+                                       inner_iters, f_eps,
+                                       max_iters, eps,
                                        0);
         /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
         QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
@@ -625,7 +627,8 @@ q_CL_mixed_solve(lua_State *L)
                     return luaL_error(L, "CLOVER_import_fermion() failed");
                 status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
                                                c_psi, c->gauge, c_psi,
-                                               inner_iters, max_iters, eps,
+                                               inner_iters, f_eps,
+                                               max_iters, eps,
                                                0);
                 /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
@@ -665,10 +668,11 @@ q_CL_make_mixed_solver(lua_State *L)
 {
 
     qlua_checkClover(L, 1, 1);   /* mClover *c */
-    luaL_checknumber(L, 2);   /* double epsilon */
+    luaL_checknumber(L, 2);   /* double inner_epsilon */
     luaL_checkint(L, 3);      /* int inner_iter */
-    luaL_checkint(L, 4);      /* int max_iter */
-    lua_pushcclosure(L, q_CL_mixed_solve, 4);
+    luaL_checknumber(L, 4);   /* double epsilon */
+    luaL_checkint(L, 5);      /* int max_iter */
+    lua_pushcclosure(L, q_CL_mixed_solve, 5);
 
     return 1;
 }

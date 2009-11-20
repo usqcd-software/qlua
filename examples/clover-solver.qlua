@@ -8,7 +8,9 @@ Lt          = 8
 kappa       = 0.27 -- 0.27 is better
 c_sw        = 1.0
 
-inn_iters   = 300
+-- you really must know what you are doing here...
+inn_eps     = 1e-8
+inn_iters   = 2000
 max_iters   = 10000
 eps         = 1e-12
 
@@ -33,7 +35,7 @@ U = { toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
       toSUn(L, rnd_f * S:gaussian_ColorMatrix()) }
 
 CL = qcd.Clover(U, kappa, c_sw, {1, 1, 1, -1}) -- antiperiodic only in T
-mixed_solver = CL:mixed_solver(eps, inn_iters, max_iters)
+mixed_solver = CL:mixed_solver(inn_eps, inn_iters, eps, max_iters)
 full_solver = CL:solver(eps, max_iters)
 
 F = S:gaussian_DiracPropagator()

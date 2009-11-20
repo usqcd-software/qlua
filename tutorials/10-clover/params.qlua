@@ -5,6 +5,7 @@ Lt          = 8
 kappa       = 0.20
 c_sw        = 1.0
 
-inn_iters   = 100
-max_iters   = 10000
+fp_eps      = 1e-8
+fp_iters    = 200
 eps         = 1e-20
+max_iters   = 10000

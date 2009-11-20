@@ -31,8 +31,8 @@ The standard CG solver is created as follows:
 Here the first argument is the require precision. The solver uses the red-black preconditioned normal equation, and stops when |Mx-b|<sup>2</sup>/|b|<sup>2</sup> < ε. The second argument is the maximum number of iterations CG could use. If the convergence is not reached within that limit, the solver will abort QLUA after printing and error message.
 
 The second solver uses mixed single/double approach of the BMW group. You create the mixed solver by saying
-    mx_solver = CL:mixed_solver(1e-22, 500, 10000)
-Here the first argument is the minimal tolerance as before. The second argument is the number of single precision iteration the solver makes between full double precision correction. The third argument sets the maximum number of iteractions the solver is allowed to make. The mixed solver still produces a double precision solution, but it may run faster than the standard solver. In particular, on the Blue Gene one can get about 30% speedup. On other platforms, the mixed solver could be at a disadvantage. One is advised to compare the solvers performance before embarking on a production calculation.
+    mx_solver = CL:mixed_solver(1e-10, 1000, 1e-22, 10000)
+Here the first argument is precision to use in the single precision solver. The second argument set the maximal number of iterations in each single precision inverter. Next is the desired precision of the solver. Argument four sets the total number of iterations the solver may use before bailing out. The mixed solver still produces a double precision solution, but it may run faster than the standard solver. In particular, on the Blue Gene one can get about 30% speedup. On other platforms, the mixed solver could be at a disadvantage. One is advised to compare the solvers performance before embarking on a production calculation.
 
 When applied to a fermion or a propagator, either solver will produce the solution to the Dirac equation. Here we solve the equation both ways and compute the true error:
    std_inv = std_solver(psi)

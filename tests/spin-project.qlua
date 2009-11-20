@@ -1,0 +1,89 @@
+require "stdlib"
+
+ls = { 3, 4, 5, 6}
+
+mus = { 0, 1, 2, 3, 5}
+signs = { "plus", "minus" }
+
+g_defs = { 1 + gamma{mu=0},
+           1 + gamma{mu=1},
+           1 + gamma{mu=2},
+           1 + gamma{mu=3},
+           (1+gamma{mu=5})/2,
+           1 - gamma{mu=0},
+           1 - gamma{mu=1},
+           1 - gamma{mu=2},
+           1 - gamma{mu=3},
+           (1-gamma{mu=5})/2 }
+
+L = qcd.lattice(ls)
+
+do
+  local x = L:Int(0)
+  for i = 0, #L - 1 do
+    x = x * L[i] + L:pcoord(i)
+  end
+  S = L:RandomState(6453, x)
+end
+
+v = S:gaussian_DiracPropagator()
+
+function scan_left(mu, sign)
+  local z = qcd.left_reconstruct(sign, {mu=mu},
+                        qcd.left_project(sign, {mu=mu}, v))
+  printf("scanning left proj/recon mu=%d, sign=%s\n", mu, sign)
+  for j = 1, #g_defs do
+    local y = g_defs[j] * v
+    printf("   %-20s: %.8e\n", tostring(g_defs[j]), (y - z):norm2())   
+  end
+end
+
+function scan_right(mu, sign)
+  local z = qcd.right_reconstruct(sign, {mu=mu},
+                          qcd.right_project(sign, {mu=mu}, v))
+  printf("scanning right proj/recon mu=%d, sign=%s\n", mu, sign)
+  for j = 1, #g_defs do
+    local y = v * g_defs[j]
+    printf("   %-20s: %.8e\n", tostring(g_defs[j]), (y - z):norm2())   
+  end
+end
+
+function check_left(mu, sign, g)
+  local z = qcd.left_reconstruct(sign, {mu=mu}, 
+                     qcd.left_project(sign, {mu=mu}, v))
+  local y = g * v
+  printf("check left  mu=%d, sign=%-6s, g=%-20s: D %.8e\n", mu, sign,
+         tostring(g), (y-z):norm2())
+end
+
+function check_right(mu, sign, g)
+  local z = qcd.right_reconstruct(sign, {mu=mu},
+                    qcd.right_project(sign, {mu=mu}, v))
+  local y = v * g
+  printf("check right mu=%d, sign=%-6s, g=%-20s: D %.8e\n", mu, sign,
+         tostring(g), (y-z):norm2())
+end
+
+for i = 0, 3 do
+  check_left(i, "plus", 1+gamma{mu=i})
+  check_right(i, "plus", 1+gamma{mu=i})
+  check_left(i, "minus", 1-gamma{mu=i})
+  check_right(i, "minus", 1-gamma{mu=i})
+end
+
+for i = 5, 5 do
+  check_left(i, "plus", (1+gamma{mu=i})/2)
+  check_right(i, "plus", (1+gamma{mu=i})/2)
+  check_left(i, "minus", (1-gamma{mu=i})/2)
+  check_right(i, "minus", (1-gamma{mu=i})/2)
+end
+
+os.exit(0)
+
+
+for i = 1, #mus do
+  for j = 1, #signs do
+    scan_left(mus[i], signs[j])
+    scan_right(mus[i], signs[j])
+  end
+end

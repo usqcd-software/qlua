@@ -22,7 +22,7 @@ U = { toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
       toSUn(L, rnd_f * S:gaussian_ColorMatrix()) }
 
 CL = qcd.Clover(U, kappa, c_sw, {1, 1, 1, -1}) -- antiperiodic only in T
-mixed_solver = CL:mixed_solver(eps, inn_iters, max_iters)
+mixed_solver = CL:mixed_solver(fp_eps, fp_iters, eps, max_iters)
 full_solver = CL:solver(eps, max_iters)
 
 F = S:gaussian_DiracFermion()

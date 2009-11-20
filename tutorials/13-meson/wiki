@@ -55,7 +55,7 @@ Let us print the plaquette to see how random the gauge field really is. We use t
 Next, construct the clover object and make the mixed solver out of it. 
 
  CL = qcd.Clover(U, 0.139727, 1.0, {1,1,1, -1})
- solve = CL:mixed_solver(1e-25, 300, 2000)
+ solve = CL:mixed_solver(1e-10, 1000, 1e-25, 2000)
 
 Build the 4-component point source at the origin
 
