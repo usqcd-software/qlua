@@ -867,6 +867,48 @@ q_R_div_c(lua_State *L)
 }
 
 static int
+q_C_project(lua_State *L)
+{
+    mLatComplex *a = qlua_checkLatComplex(L, 1);
+    mLatComplex *b = qlua_checkLatComplex(L, 2);
+    mLatMulti *m = qlua_checkLatMulti(L, 3);
+    int size = m->size;
+    mVecComplex *r = qlua_newVecComplex(L, size);
+    QLA_Real *rr = qlua_malloc(L, 2 * size * sizeof (QLA_Real));
+    QLA_Int *ii = m->idx;
+    QLA_Complex *aa;
+    QLA_Complex *bb;
+    int k;
+    
+    r->size = size;
+    for (k = 0; k < 2 * size; k++)
+        rr[k] = 0;
+    CALL_QDP(L);
+    aa = QDP_expose_C(a->ptr);
+    bb = QDP_expose_C(b->ptr);
+    for (k = 0; k < QDP_sites_on_node; k++, ii++, aa++, bb++) {
+        int idx = *ii;
+        double var, vai, vbr, vbi;
+        if ((idx < 0) || (idx >= size))
+            continue;
+        var = QLA_real(*aa);
+        vai = QLA_imag(*aa);
+        vbr = QLA_real(*bb);
+        vbi = QLA_imag(*bb);
+        rr[2 * idx    ] += var * vbr - vai * vbi;
+        rr[2 * idx + 1] += var * vbi + vai * vbr;
+    }
+    QDP_reset_C(a->ptr);
+    QDP_reset_C(b->ptr);
+    QMP_sum_double_array(rr, 2 * size);
+    for (k = 0; k < size; k++) {
+        QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
+    }
+
+    return 1;
+}
+
+static int
 q_C_sum(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1);
@@ -1124,19 +1166,20 @@ q_latcomplex(lua_State *L)
 }
 
 static struct luaL_Reg LatComplexMethods[] = {
-    { "real",   q_C_real },
-    { "imag",   q_C_imag },
-    { "sum",    q_C_sum },
-    { "norm2",  q_C_norm2 },
-    { "shift",  q_C_shift },
-    { "conj",   q_C_conj },
-    { "abs",    q_C_abs },
-    { "arg",    q_C_arg },
-    { "sqrt",   q_C_sqrt },
-    { "exp",    q_C_exp },
-    { "log",    q_C_log },
-    { "set",    q_C_set },
-    { NULL,     NULL}
+    { "real",     q_C_real },
+    { "imag",     q_C_imag },
+    { "sum",      q_C_sum },
+    { "norm2",    q_C_norm2 },
+    { "shift",    q_C_shift },
+    { "conj",     q_C_conj },
+    { "abs",      q_C_abs },
+    { "arg",      q_C_arg },
+    { "sqrt",     q_C_sqrt },
+    { "exp",      q_C_exp },
+    { "log",      q_C_log },
+    { "set",      q_C_set },
+    { "project",  q_C_project },
+    { NULL,       NULL}
 };
 
 static struct luaL_Reg mtLatComplex[] = {
