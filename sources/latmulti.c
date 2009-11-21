@@ -7,82 +7,75 @@
 
 const char mtnLatMulti[] = "lattice.multi";
 
-void
-qlua_checkLatMulti(lua_State *L, int idx)
+mLatMulti *
+qlua_newLatMulti(lua_State *L)
 {
-    luaL_checktype(L, idx, LUA_TTABLE);
-    if (lua_getmetatable(L, idx) == 0)
-        goto no_multi;
+    mLatMulti *v = lua_newuserdata(L, sizeof (mLatMulti));
+    
+    v->size = 0;
+    v->idx = qlua_malloc(L, QDP_sites_on_node * sizeof (int));
     luaL_getmetatable(L, mtnLatMulti);
-    if (lua_equal(L, -1, -2) == 0)
-        goto no_multi;
-    lua_pop(L, 2);
-
-    return;
-no_multi:
-    luaL_error(L, "lattice:MultiSet expected");
-}
-
-int
-qlua_LatMultiSize(lua_State *L, int idx)
-{
-    int v;
-
-    qlua_checkLatMulti(L, idx);
-    lua_pushnumber(L, 1);
-    lua_gettable(L, idx);
-
-    v = luaL_checkint(L, -1);
-    lua_pop(L, 1);
+    lua_setmetatable(L, -2);
 
     return v;
 }
 
-mLatInt *
-qlua_LatMultiIndex(lua_State *L, int idx)
+mLatMulti *
+qlua_checkLatMulti(lua_State *L, int idx)
 {
-    mLatInt *v;
+    void *v = luaL_checkudata(L, idx, mtnLatMulti);
 
-    qlua_checkLatMulti(L, idx);
-    lua_pushnumber(L, 2);
-    lua_gettable(L, idx);
-    v = qlua_checkLatInt(L, -1);
-    lua_pop(L, 1); /* if MultiSet is collected, v may be collected as well! */
-    
+    luaL_argcheck(L, v != 0, idx, "lattice.MultiSet expected");
+
     return v;
 }
 
 static int
 q_multi_fmt(lua_State *L)
 {
+    mLatMulti *v = qlua_checkLatMulti(L, 1);
     char fmt[72];
-    int size = qlua_LatMultiSize(L, 1);
 
-    sprintf(fmt, "MultiSet(%d,...)", size);
+    sprintf(fmt, "MultiSet(%d,...)", v->size);
     lua_pushstring(L, fmt);
     
     return 1;
 }
 
 static int
+q_multi_gc(lua_State *L)
+{
+    mLatMulti *v = qlua_checkLatMulti(L, 1);
+
+    if (v->idx)
+        qlua_free(L, v->idx);
+    v->idx = 0;
+
+    return 0;
+}
+
+static int
 q_latmulti(lua_State *L)
 {
     int size = luaL_checkint(L, 2);
-    
-    qlua_checkLatInt(L, 3); /* index */
-    lua_createtable(L, 2, 0);
-    lua_pushnumber(L, size);
-    lua_rawseti(L, -2, 1);
-    lua_pushvalue(L, 3);
-    lua_rawseti(L, -2, 2);
-    luaL_getmetatable(L, mtnLatMulti);
-    lua_setmetatable(L, -2);
+    mLatInt *m = qlua_checkLatInt(L, 3);
+    mLatMulti *v = qlua_newLatMulti(L);
+    QLA_Int *mm;
+    int k;
+
+    v->size = size;
+    CALL_QDP(L);
+    mm = QDP_expose_I(m->ptr);
+    for (k = 0; k < QDP_sites_on_node; k++)
+        v->idx[k] = mm[k];
+    QDP_reset_I(m->ptr);
 
     return 1;
 }
 
 static struct luaL_Reg mtLatMulti[] = {
     { "__tostring",     q_multi_fmt },
+    { "__gc",           q_multi_gc  },
     { NULL,             NULL        }
 };
 

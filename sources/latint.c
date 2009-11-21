@@ -80,12 +80,12 @@ q_I_sum(lua_State *L)
         return 1;
     }
     case 2: {
-        int size = qlua_LatMultiSize(L, 2);
-        mLatInt *idx = qlua_LatMultiIndex(L, 2);
+        mLatMulti *m = qlua_checkLatMulti(L, 2);
+        int size = m->size;
+        QLA_Int *ii = m->idx;
         mVecReal *r = qlua_newVecReal(L, size);
         int k;
         QLA_Int *xx;
-        QLA_Int *ii;
         
         r->size = size;
         for (k = 0; k < size; k++)
@@ -93,14 +93,12 @@ q_I_sum(lua_State *L)
 
         CALL_QDP(L);
         xx = QDP_expose_I(a->ptr);
-        ii = QDP_expose_I(idx->ptr);
         for (k = 0; k < QDP_sites_on_node; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
             r->val[t] += *xx;
         }
-        QDP_reset_I(idx->ptr);
         QDP_reset_I(a->ptr);
         QMP_sum_double_array(r->val, size);
 
@@ -202,15 +200,61 @@ q_I_put(lua_State *L)
     return 0;
 }
 
+static struct {
+    QLA_Int *a;
+    QLA_Int *b;
+    int x;
+} Iargs; /* YYY global state */
+
 static int
 q_I_add_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_I_plus_I(res->ptr, a->ptr, b->ptr, *qCurrent);
+    QDP_I_eq_I_plus_I(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static void
+do_add_iI(QLA_Int *r, int idx)
+{
+    *r = Iargs.x + Iargs.a[idx];
+}
+
+static int
+q_i_add_I(lua_State *L)
+{
+    int x = luaL_checkint(L, 1);
+    mLatInt *a = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_add_iI, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+
+    return 1;
+}
+
+static int
+q_I_add_i(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    int x = luaL_checkint(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_add_iI, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
 
     return 1;
 }
@@ -218,12 +262,58 @@ q_I_add_I(lua_State *L)
 static int
 q_I_sub_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_I_minus_I(res->ptr, a->ptr, b->ptr, *qCurrent);
+    QDP_I_eq_I_minus_I(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static void
+do_sub_iI(QLA_Int *r, int idx)
+{
+    *r = Iargs.x - Iargs.a[idx];
+}
+
+static void
+do_sub_Ii(QLA_Int *r, int idx)
+{
+    *r = Iargs.a[idx] - Iargs.x;
+}
+
+static int
+q_i_sub_I(lua_State *L)
+{
+    int x = luaL_checkint(L, 1);
+    mLatInt *a = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_sub_iI, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+
+    return 1;
+}
+
+static int
+q_I_sub_i(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    int x = luaL_checkint(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_sub_Ii, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
 
     return 1;
 }
@@ -231,12 +321,12 @@ q_I_sub_I(lua_State *L)
 static int
 q_i_mul_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_i_times_I(res->ptr, &a, b->ptr, *qCurrent);
+    QDP_I_eq_i_times_I(r->ptr, &a, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -244,12 +334,12 @@ q_i_mul_I(lua_State *L)
 static int
 q_I_mul_i(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *b = qlua_checkLatInt(L, 1);
     QLA_Int a = luaL_checkint(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_i_times_I(res->ptr, &a, b->ptr, *qCurrent);
+    QDP_I_eq_i_times_I(r->ptr, &a, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -257,12 +347,12 @@ q_I_mul_i(lua_State *L)
 static int
 q_I_mul_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_I_times_I(res->ptr, a->ptr, b->ptr, *qCurrent);
+    QDP_I_eq_I_times_I(r->ptr, a->ptr, b->ptr, *qCurrent);
 
     return 1;
 }
@@ -270,12 +360,129 @@ q_I_mul_I(lua_State *L)
 static int
 q_I_div_I(lua_State *L)
 {
-    mLatInt *res = qlua_newLatInt(L);
     mLatInt *a = qlua_checkLatInt(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
 
     CALL_QDP(L);
-    QDP_I_eq_I_divide_I(res->ptr, a->ptr, b->ptr, *qCurrent);
+    QDP_I_eq_I_divide_I(r->ptr, a->ptr, b->ptr, *qCurrent);
+
+    return 1;
+}
+
+static void
+do_div_iI(QLA_Int *r, int idx)
+{
+    *r = Iargs.x / Iargs.a[idx];
+}
+
+static void
+do_div_Ii(QLA_Int *r, int idx)
+{
+    *r = Iargs.a[idx] / Iargs.x;
+}
+
+static int
+q_i_div_I(lua_State *L)
+{
+    int x = luaL_checkint(L, 1);
+    mLatInt *a = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_div_iI, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+
+    return 1;
+}
+
+static int
+q_I_div_i(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    int x = luaL_checkint(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_div_Ii, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+
+    return 1;
+}
+
+static void
+do_mod_II(QLA_Int *r, int idx)
+{
+    *r = Iargs.a[idx] % Iargs.b[idx];
+}
+
+static void
+do_mod_iI(QLA_Int *r, int idx)
+{
+    *r = Iargs.x % Iargs.a[idx];
+}
+
+static void
+do_mod_Ii(QLA_Int *r, int idx)
+{
+    *r = Iargs.a[idx] % Iargs.x;
+}
+
+static int
+q_I_mod_I(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.a = QDP_expose_I(a->ptr);
+    Iargs.b = QDP_expose_I(b->ptr);
+    QDP_I_eq_funci(r->ptr, do_mod_II, *qCurrent);
+    Iargs.b = 0;
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+    QDP_reset_I(b->ptr);
+
+    return 1;
+}
+
+static int
+q_i_mod_I(lua_State *L)
+{
+    int x = luaL_checkint(L, 1);
+    mLatInt *a = qlua_checkLatInt(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_mod_iI, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
+
+    return 1;
+}
+
+static int
+q_I_mod_i(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1);
+    int x = luaL_checkint(L, 2);
+    mLatInt *r = qlua_newLatInt(L);
+
+    CALL_QDP(L);
+    Iargs.x = x;
+    Iargs.a = QDP_expose_I(a->ptr);
+    QDP_I_eq_funci(r->ptr, do_mod_Ii, *qCurrent);
+    Iargs.a = 0;
+    QDP_reset_I(a->ptr);
 
     return 1;
 }
@@ -284,11 +491,11 @@ static int
 q_I_neg(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1);
-    mLatInt *res = qlua_newLatInt(L);
+    mLatInt *r = qlua_newLatInt(L);
     QLA_Int m1 = -1;
 
     CALL_QDP(L);
-    QDP_I_eq_i_times_I(res->ptr, &m1, a->ptr, *qCurrent);
+    QDP_I_eq_i_times_I(r->ptr, &m1, a->ptr, *qCurrent);
 
     return 1;
 }
@@ -349,6 +556,7 @@ static struct luaL_Reg mtLatInt[] = {
     { "__sub",        qlua_sub },
     { "__mul",        qlua_mul },
     { "__div",        qlua_div },
+    { "__mod",        qlua_mod },
     { NULL,           NULL}
 };
 
@@ -366,11 +574,20 @@ init_latint(lua_State *L)
     qlua_metatable(L, mtnLatInt, mtLatInt);
     qlua_metatable(L, opLatInt, LatIntMethods);
     qlua_reg_add(qLatInt, qLatInt, q_I_add_I);
+    qlua_reg_add(qReal,   qLatInt, q_i_add_I);
+    qlua_reg_add(qLatInt, qReal,   q_I_add_i);
     qlua_reg_sub(qLatInt, qLatInt, q_I_sub_I);
+    qlua_reg_sub(qReal,   qLatInt, q_i_sub_I);
+    qlua_reg_sub(qLatInt, qReal,   q_I_sub_i);
     qlua_reg_mul(qLatInt, qLatInt, q_I_mul_I);
     qlua_reg_mul(qReal,   qLatInt, q_i_mul_I);
     qlua_reg_mul(qLatInt, qReal,   q_I_mul_i);
     qlua_reg_div(qLatInt, qLatInt, q_I_div_I);
+    qlua_reg_div(qReal,   qLatInt, q_i_div_I);
+    qlua_reg_div(qLatInt, qReal,   q_I_div_i);
+    qlua_reg_mod(qLatInt, qLatInt, q_I_mod_I);
+    qlua_reg_mod(qReal,   qLatInt, q_i_mod_I);
+    qlua_reg_mod(qLatInt, qReal,   q_I_mod_i);
 
     return 0;
 }

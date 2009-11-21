@@ -47,7 +47,15 @@ q_U_fmt(lua_State *L)
         sprintf(fmt, "Subset[odd]");
         break;
     case qss_slice:
-        sprintf(fmt, "Subset[axis=%d, position=%d]", m->axis, m->position);
+        sprintf(fmt, "Subset[axis=%d,position=%d]", m->axis, m->position);
+        break;
+    case qss_upper:
+        sprintf(fmt, "Subset[axis=%d,position=%d,semispace=upper]",
+                m->axis, m->position);
+        break;
+    case qss_lower:
+        sprintf(fmt, "Subset[axis=%d,position=%d,semispace=lower]",
+                m->axis, m->position);
         break;
     default:
         return luaL_error(L, "unknown subset class %d", m->cl);
@@ -57,12 +65,29 @@ q_U_fmt(lua_State *L)
     return 1;
 }
 
+/* subset functions return 0 on positions belonging to the subset */
 static int
 subset_slice(int *coord, void *arg)
 {
     mLatSubset *x = arg;
 
     return coord[x->axis] != x->position;
+}
+
+static int
+subset_upper(int *coord, void *arg)
+{
+    mLatSubset *x = arg;
+
+    return coord[x->axis] < x->position;
+}
+
+static int
+subset_lower(int *coord, void *arg)
+{
+    mLatSubset *x = arg;
+
+    return coord[x->axis] >= x->position;
 }
 
 static void
@@ -80,6 +105,24 @@ switch_subset(lua_State *L, mLatSubset *s)
         if (qCurrent == 0) {
             lua_gc(L, LUA_GCCOLLECT, 0);
             qCurrent = QDP_create_subset(subset_slice, s, sizeof (*s), 1);
+            if (qCurrent == 0)
+                luaL_error(L, "QDP_create_subset() failed");
+        }
+        break;
+    case qss_upper:
+        qCurrent = QDP_create_subset(subset_upper, s, sizeof (*s), 1);
+        if (qCurrent == 0) {
+            lua_gc(L, LUA_GCCOLLECT, 0);
+            qCurrent = QDP_create_subset(subset_upper, s, sizeof (*s), 1);
+            if (qCurrent == 0)
+                luaL_error(L, "QDP_create_subset() failed");
+        }
+        break;
+    case qss_lower:
+        qCurrent = QDP_create_subset(subset_lower, s, sizeof (*s), 1);
+        if (qCurrent == 0) {
+            lua_gc(L, LUA_GCCOLLECT, 0);
+            qCurrent = QDP_create_subset(subset_lower, s, sizeof (*s), 1);
             if (qCurrent == 0)
                 luaL_error(L, "QDP_create_subset() failed");
         }
@@ -115,8 +158,22 @@ q_subset(lua_State *L)
     int d = qlua_checkindex(L, 2, "axis", qRank);
     int p = qlua_checkindex(L, 2, "position", qDim[d]);
     mLatSubset *m = qlua_newLatSubset(L);
+    const char *sub = 0;
 
-    m->cl = qss_slice;
+    lua_getfield(L, 2, "semispace");
+    if (lua_type(L, -1) == LUA_TSTRING)
+        sub = luaL_checkstring(L, -1);
+    lua_pop(L, 1);
+
+    if (sub == 0)
+        m->cl = qss_slice;
+    else if (strcmp(sub, "upper") == 0)
+        m->cl = qss_upper;
+    else if (strcmp(sub, "lower") == 0)
+        m->cl = qss_lower;
+    else
+        luaL_error(L, "bad semispace specifier");
+
     m->axis = d;
     m->position = p;
     luaL_getmetatable(L, mtnLatSubset);

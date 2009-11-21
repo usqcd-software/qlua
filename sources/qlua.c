@@ -44,7 +44,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.9.8+XXX $Id$"},
+    {"qlua",  "QLUA version 0.9.9+XXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
@@ -393,6 +393,25 @@ qlua_div(lua_State *L)
         return op(L);
     else
         return luaL_error(L, "bad argument for division");
+}
+
+static q_op qt_mod[(qOther + 1) * (qOther + 1)];
+
+void
+qlua_reg_mod(int ta, int tb, q_op op)
+{
+    qt_mod[Op2Idx(ta, tb)] = op;
+}
+
+int 
+qlua_mod(lua_State *L)
+{
+    q_op op = qt_mod[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+
+    if (op)
+        return op(L);
+    else
+        return luaL_error(L, "bad argument for modulo");
 }
 
 static q_op qt_dot[(qOther + 1)];

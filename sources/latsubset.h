@@ -6,7 +6,9 @@ typedef enum {
     qss_even,
     qss_odd,
     qss_dynamic,
-    qss_slice
+    qss_slice,
+    qss_upper,
+    qss_lower
 } qSubsetClass;
 
 typedef struct {

@@ -5,27 +5,54 @@ for i = 0, qcd.Nd - 1 do
   print("dim[" .. i .. "] = " .. LAT[i])
 end
 
-c0 = LAT:pcoord(0)
-c1 = LAT:pcoord(1)
+c0 = LAT:pcoord(0) + LAT:Int(7)
+c1 = LAT:pcoord(1) + LAT:Int(9)
 
 print("pcoord(2)", c0)
 print("type(c0)", type(c0))
 
 c0[{1,2}] = -1
 
-cx = c0 + 100 * c1
+function check_op(name, v, f)
+  for d0 = 0, LAT[0] - 1 do
+    for d1 = 0, LAT[1] - 1 do
+      local w = f(c0[{d0,d1}], c1[{d0,d1}])
+      if not (w == v[{d0,d1}]) then
+         print("BAD::", name, d0, d1, w, v[{d0,d1}])
+         error("check_op() failed")
+      end
+    end
+  end
+  print(name, "OK")
+end
+
+check_op("add_II", c0 + c1, function(a,b) return a + b end)
+check_op("add_Ii", c0 + 12, function(a,b) return a + 12 end)
+check_op("add_iI", 15 + c0, function(a,b) return 15 + a end)
+check_op("sub_II", c0 - c1, function(a,b) return a - b end)
+check_op("sub_Ii", c0 - 12, function(a,b) return a - 12 end)
+check_op("sub_iI", 15 - c0, function(a,b) return 15 - a end)
+check_op("mul_II", c0 * c1, function(a,b) return a * b end)
+check_op("mul_Ii", c0 * 2, function(a,b) return a * 2 end)
+check_op("mul_iI", 6 * c0, function(a,b) return 6 * a end)
+check_op("div_II", (c0 + c1) / (c1 + c0), function(a,b) return 1 end)
+check_op("div_Ii", (c0 + c0) / 2, function(a,b) return a end)
+check_op("div_iI", 6 / (c0 - c0 - 1), function(a,b) return -6 end)
+check_op("mod_II", (c0 + c1 + 1) % (c1 + c0), function(a,b) return 1 end)
+check_op("mod_Ii", (c0 - c0 + 1) % 2, function(a,b) return 1 end)
+check_op("mod_iI", 6 % (c0 - c0 + 3), function(a,b) return 0 end)
+
+cx = c0 + 100 * (6 + c1) % c0 - c1 / 2
 cy = LAT:pcoord(0):shift(0, "from_backward")
 cz = LAT:pcoord(1):shift(1, "from_forward")
 for d0 = 0, 7 - 1 do 
   for d1 = 0, 8 - 1 do
+    local v0 = c0[{d0,d1}]
+    local v1 = c1[{d0,d1}]
     print("  ", d0, d1,
           cy[{d0, d1}],
           cz[{d0, d1}],
-          cx[{d0, d1}],
-          cx[{d0,d1}]==(c0[{d0,d1}]+100*c1[{d0,d1}]))
-    if not (cx[{d0,d1}] == (c0[{d0,d1}]+100*c1[{d0,d1}])) then
-       error("**** disagreement")
-    end
+          cx[{d0, d1}])
   end
 end
 

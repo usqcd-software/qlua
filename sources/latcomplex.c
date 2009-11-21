@@ -881,12 +881,12 @@ q_C_sum(lua_State *L)
         return 1;
     }
     case 2: {
-        int size = qlua_LatMultiSize(L, 2);
-        mLatInt *idx = qlua_LatMultiIndex(L, 2);
+        mLatMulti *m = qlua_checkLatMulti(L, 2);
+        int size = m->size;
+        QLA_Int *ii = m->idx;
         mVecComplex *r = qlua_newVecComplex(L, size);
         int k;
         QLA_Complex *xx;
-        QLA_Int *ii;
         QLA_Real *rr;
         
         r->size = size;
@@ -896,7 +896,6 @@ q_C_sum(lua_State *L)
 
         CALL_QDP(L);
         xx = QDP_expose_C(a->ptr);
-        ii = QDP_expose_I(idx->ptr);
         for (k = 0; k < QDP_sites_on_node; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
@@ -904,7 +903,6 @@ q_C_sum(lua_State *L)
             rr[2 * t] += QLA_real(*xx);
             rr[2 * t + 1] += QLA_imag(*xx);
         }
-        QDP_reset_I(idx->ptr);
         QDP_reset_C(a->ptr);
         QMP_sum_double_array(rr, 2 * size);
         for (k = 0; k < size; k++) {

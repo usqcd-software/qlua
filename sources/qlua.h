@@ -77,6 +77,8 @@ void qlua_reg_mul(int ta, int tb, q_op op);
 int qlua_mul(lua_State *L);
 void qlua_reg_div(int ta, int tb, q_op op);
 int qlua_div(lua_State *L);
+void qlua_reg_mod(int ta, int tb, q_op op);
+int qlua_mod(lua_State *L);
 
 void qlua_reg_dot(int ta, q_op op);
 

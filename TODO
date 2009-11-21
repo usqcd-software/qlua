@@ -1,15 +1,12 @@
+Ticket #14: aff:building_blocks(Cf, p*, prefix, multiset)
+              p[i] = {L:complex phase, p[0], p[1], ..., p[#L-1]}
+
 -- QDP/C QIO: writing sections of the fields -- extend the interface.
 
 MDWF
   operator
   conjugate operator
   solvers
-
-Building blocks
-NPR
-* Smearing -- done in QLUA itself
-Sequential sources
-Sources
 
 Documentation
 +  Examples in the distribution tree  -- started
