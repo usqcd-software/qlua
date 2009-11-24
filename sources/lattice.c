@@ -168,70 +168,6 @@ mp_full(lua_State *L, mLatComplex *v, int *src, int *p)
 }
 
 static void
-mp_axis(lua_State *L, mLatComplex *v, int *src, int *p, int axis)
-{
-    int *coord = qlua_malloc(L, qRank * sizeof (int));
-    double *c2pt = qlua_malloc(L, 2 * qDim[axis] * sizeof (double));
-    mVecComplex *r = qlua_newVecComplex(L, qDim[axis]);
-    int i, idx;
-    QLA_Complex *z;
-
-    CALL_QDP(L);
-    p[axis] = 0; /* avoid phases along the axis */
-    r->size = qDim[axis];
-    for (i = 0; i < 2 * qDim[axis]; i++)
-        c2pt[i] = 0;
-    z = QDP_expose_C(v->ptr);
-    for (idx = 0; idx <  QDP_sites_on_node ; idx++) {
-        double ph, re, im, c, s;
-        QDP_get_coords(coord, QDP_this_node, idx);
-        for (i = 0, ph = 0.; i < qRank; i++) {
-            double d = p[i] * (coord[i] - src[i]);
-            ph += 2 * M_PI * d / qDim[i];
-        }
-        re   = QLA_real(z[idx]);
-        im   = QLA_imag(z[idx]);
-        c    = cos(ph);
-        s    = sin(ph);
-        c2pt[2 * coord[axis] + 0]    += re * c - im * s;
-        c2pt[2 * coord[axis] + 1]    += re * s + im * c;
-    }
-    QDP_reset_C(v->ptr);
-    QMP_sum_double_array(c2pt, 2 * qDim[axis]);
-    for (i = 0; i < qDim[axis]; i++)
-        QLA_c_eq_r_plus_ir(r->val[i], c2pt[2 * i + 0], c2pt[2 * i + 1]);
-
-    qlua_free(L, coord);
-    qlua_free(L, c2pt);
-}
-
-static int
-q_momentum_project(lua_State *L)
-{
-    mLatComplex *v = qlua_checkLatComplex(L, 2);
-    int *s = qlua_checklatcoord(L, 3);
-    int *p = qlua_checkintarray(L, 4, qRank, NULL);
-
-    switch (lua_type(L, 5)) {
-    case LUA_TNUMBER: {
-        int axis = luaL_checkint(L, 5);
-        if (axis < 0 || axis >= qRank)
-            return luaL_error(L, "axis out of range");
-        mp_axis(L, v, s, p, axis);
-        break;
-    }
-    case LUA_TNONE:
-        mp_full(L, v, s, p);
-    break;
-    default:
-        return luaL_error(L, "axis must be a number");
-    }
-    qlua_free(L, s);
-    qlua_free(L, p);
-    return 1;
-}
-
-static void
 set_Nd(lua_State *L)
 {
     lua_getglobal(L, qcdlib);
@@ -428,7 +364,6 @@ q_network(lua_State *L)
 static struct luaL_Reg LatticeMethods[] = {
     { "pcoord",           q_pcoord },
     { "planewave",        q_planewave },
-    { "momentum_project", q_momentum_project },
     { NULL,           NULL },
 };
 

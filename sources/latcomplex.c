@@ -86,8 +86,7 @@ q_C_get(lua_State *L)
         mLatComplex *V = qlua_checkLatComplex(L, 1);
         QLA_Complex *W;
         QLA_Complex *locked;
-        double z_re;
-        double z_im;
+        double zri[2];
         int *idx = 0;
         
         idx = qlua_checklatcoord(L, 2);
@@ -96,19 +95,17 @@ q_C_get(lua_State *L)
         if (QDP_node_number(idx) == QDP_this_node) {
             QLA_Complex *zz = &QLA_elem_C(locked[QDP_index(idx)]);
 
-            z_re = QLA_real(*zz);
-            z_im = QLA_imag(*zz);
+            zri[0] = QLA_real(*zz);
+            zri[1] = QLA_imag(*zz);
         } else {
-            z_re = 0;
-            z_im = 0;
+            zri[0] = 0;
+            zri[1] = 0;
         }
         QDP_reset_C(V->ptr);
         qlua_free(L, idx);
-        QMP_sum_double(&z_re);
-        QMP_sum_double(&z_im);
+        QMP_sum_double_array(zri, 2);
         W = qlua_newComplex(L);
-        QLA_real(*W) = z_re;
-        QLA_imag(*W) = z_im;
+        QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
 
         return 1;
     }

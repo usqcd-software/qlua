@@ -94,24 +94,23 @@ q_D_get(lua_State *L)
             } else {
                 QLA_Complex *W = qlua_newComplex(L);
                 QLA_DiracFermion *locked;
-                double z_re, z_im;
+                double zri[2];
 
                 qlua_verifylatcoord(L, idx);
                 CALL_QDP(L);
                 locked = QDP_expose_D(V->ptr);
                 if (QDP_node_number(idx) == QDP_this_node) {
                     QLA_Complex *zz = &QLA_elem_D(locked[QDP_index(idx)], c, d);
-                    z_re = QLA_real(*zz);
-                    z_im = QLA_imag(*zz);
+                    zri[0] = QLA_real(*zz);
+                    zri[1] = QLA_imag(*zz);
                 } else {
-                    z_re = 0;
-                    z_im = 0;
+                    zri[0] = 0;
+                    zri[1] = 0;
                 }
                 QDP_reset_D(V->ptr);
-                QMP_sum_double(&z_re);
-                QMP_sum_double(&z_im);
-                QLA_real(*W) = z_re;
-                QLA_imag(*W) = z_im;
+                QMP_sum_double_array(zri, 2);
+                QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
+
             }
         }
         qlua_free(L, idx);
