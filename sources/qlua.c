@@ -44,6 +44,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
+/* Ready for 0.9.10-rc1 */
     {"qlua",  "QLUA version 0.9.9+XXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
