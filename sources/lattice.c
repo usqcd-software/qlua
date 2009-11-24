@@ -133,41 +133,6 @@ q_planewave(lua_State *L)
 }
 
 static void
-mp_full(lua_State *L, mLatComplex *v, int *src, int *p)
-{
-    int *coord = qlua_malloc(L, qRank * sizeof (int));
-    QLA_Complex *r = qlua_newComplex(L);
-    int idx;
-    double c2pt_mp[2]; /* re, im */
-    QLA_Complex *z;
-
-    CALL_QDP(L);
-    c2pt_mp[0] = 0;
-    c2pt_mp[1] = 0;
-    z = QDP_expose_C(v->ptr);
-    for (idx = 0; idx <  QDP_sites_on_node ; idx++) {
-        double ph, re, im, c, s;
-        int i;
-        QDP_get_coords(coord, QDP_this_node, idx);
-        for (i = 0, ph = 0.; i < qRank; i++) {
-            double d = p[i] * (coord[i] - src[i]);
-            ph += 2 * M_PI * d / qDim[i];
-        }
-        re   = QLA_real(z[idx]);
-        im   = QLA_imag(z[idx]);
-        c    = cos(ph);
-        s    = sin(ph);
-        c2pt_mp[0]    += re * c - im * s;
-        c2pt_mp[1]    += re * s + im * c;
-    }
-    QDP_reset_C(v->ptr);
-    QMP_sum_double_array(c2pt_mp, 2);
-    QLA_c_eq_r_plus_ir(*r, c2pt_mp[0], c2pt_mp[1]);
-
-    qlua_free(L, coord);
-}
-
-static void
 set_Nd(lua_State *L)
 {
     lua_getglobal(L, qcdlib);
