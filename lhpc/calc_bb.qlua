@@ -49,6 +49,39 @@ function calc_bb(
   end
   -- append '/' to kpath prefix if non-empty
   if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+  
+  -- init plane waves for each momentum
+  qlist_pw = {}
+  for i,q in pairs(qlist) do
+    q_cp = copy_table(q)
+    q_cp[1+t_axis] = 0
+    qlist_pw[i] = L:planewave(csrc, q_cp)
+  end
+  time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+  if not time_reverse then
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt - tsrc + L:pcoord(t_axis)) % lt)
+  else
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt + tsrc - L:pcoord(t_axis)) % lt)
+  end
+  
+  -- XXX test mset
+--  printf('t_axis=%d, tsrc=%d\n', t_axis, tsrc)
+--  r_index = L:Real(L:pcoord(t_axis))
+--  rs = r_index:sum(mset_src_snk)
+--  V3 = 1
+--  for i = 0, #L-1 do
+--    if not (i == t_axis) then V3 = V3 * L[i] end
+--  end
+--  printf('#rs = %d\n', #rs)
+--  for t = 0, #rs - 1 do
+--    printf('[%d] = %f\n', t, rs[t] / V3)
+--  end
+--  ii1 = (L:pcoord(t_axis) + tsrc) % lt
+--  ii2 = (tsrc + lt - L:pcoord(t_axis)) % lt
+--  for t = 0, L[t_axis]-1 do
+--    printf('ii1[%d]=%d\tii2[%d]=%d\n', t, ii1[{0,0,0,t}], t, ii2[{0,0,0,t}])
+--  end
+  -- XXX end test
 
   -- make standard layout of bb vector: [0 .. src_snk_dt]
   local function make_bb_standard(bb)
@@ -93,6 +126,8 @@ function calc_bb(
         lpath_str, gn, qext[1], qext[2], qext[3])
   end
 
+  -- XXX testing vector
+  local bb_test = vector.complex(L[t_axis])
   -- compute contractions with 16 gammas, project on momenta, save bb
   local function save_bb(fw_p, lpath)
     local lpath_str = lpath_string(lpath)
@@ -103,7 +138,10 @@ function calc_bb(
       if time_reverse and (gn < 8) then bb = bb * bc_2pt_t end
       for iq = 1, #qlist do
         aff_w:write(bb_keypath(lpath_str, gn, qlist[iq]),
-                    make_bb_standard(L:momentum_project(bb, csrc, qlist[iq], t_axis))
+--                    make_bb_standard(bb_test)
+--                    make_bb_standard((qlist_pw[iq] * bb):sum(time_mset))
+                    bb:project(qlist_pw[iq], mset_src_snk)
+--                    make_bb_standard(L:momentum_project(bb, csrc, qlist[iq], t_axis))
 --                    L:momentum_project(bb, csrc, qlist[iq], t_axis)
                     )
       end

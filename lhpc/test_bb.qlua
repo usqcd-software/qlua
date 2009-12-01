@@ -107,10 +107,10 @@ qcd.ddpairs.write("D",
 aff_hadspec = qcd.aff.Writer(
                   string.format('output.qlua/hadspec_x%dy%dz%dt%d.aff',
                                 csrc[1],csrc[2],csrc[3],csrc[4]))
-save_hadspec(L, aff_hadspec, "/hspectrum/GN25-P/mq-0.0953",
-             fwd_prop, fwd_prop, csrc, psnk_list, 3, bc[4])
-save_hadspec(L, aff_hadspec, "/hspectrum/GN25-GN25/mq-0.0953",
-             fwd_prop_sm, fwd_prop_sm, csrc, psnk_list, 3, bc[4])
+--save_hadspec(L, aff_hadspec, "/hspectrum/GN25-P/mq-0.0953",
+--             fwd_prop, fwd_prop, csrc, psnk_list, 3, bc[4])
+--save_hadspec(L, aff_hadspec, "/hspectrum/GN25-GN25/mq-0.0953",
+--             fwd_prop_sm, fwd_prop_sm, csrc, psnk_list, 3, bc[4])
 
 -- compute seqsource and backward prop
 bc_2pt_t = bc[1+t_axis]*bc[1+t_axis]*bc[1+t_axis]
