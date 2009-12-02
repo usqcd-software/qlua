@@ -8,6 +8,7 @@ function calc_bb(
     L,
     aff_w,              -- aff writer
     aff_kpath_prefix,   -- keypath prefix
+    lpath_min,          -- minimum linkpath length to save (makes sense for separate l=3 with q=0)
     lpath_max,          -- maximum linkpath length
     fw_p,               -- forward propagator
     bw_p_adj, gauge_u_, -- backward propagator, Dslash^-1 * g5 * SeqSrc^\dag *g5
@@ -140,7 +141,8 @@ function calc_bb(
         aff_w:write(bb_keypath(lpath_str, gn, qlist[iq]),
 --                    make_bb_standard(bb_test)
 --                    make_bb_standard((qlist_pw[iq] * bb):sum(time_mset))
-                    bb:project(qlist_pw[iq], mset_src_snk)
+--                    bb:project(qlist_pw[iq], mset_src_snk)
+                    bb_test
 --                    make_bb_standard(L:momentum_project(bb, csrc, qlist[iq], t_axis))
 --                    L:momentum_project(bb, csrc, qlist[iq], t_axis)
                     )
@@ -153,7 +155,7 @@ function calc_bb(
       fw_p,    -- forward-prop * adjoint(U_linkpath)
       lpath    -- linkpath(array of: dir for +1 shift, Nd+dir for -1 shift)
     )
-    save_bb(fw_p, lpath)
+    if lpath_min <= #lpath then save_bb(fw_p, lpath) end
     if lpath_max <= #lpath then return end
 
     local lpath_new = copy_table(lpath)
