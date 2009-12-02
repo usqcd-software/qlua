@@ -1,8 +1,14 @@
+package.path = package.path .. ';/Users/syritsyn/trench/qlua-trunk/lhpc/?.qlua'
 require "stdlib"
 require "gauge"
 require "wuppertal-smear"
 require "ape-smear"
 require "hex-smear"
+
+require "lhpc-std"
+require "hadspec"
+require "seqsource"
+require "bb"
 
 Lx=4
 Lt=8
@@ -11,7 +17,7 @@ volume = Lx * Lx * Lx * Lt
 
 tsrc = 5
 csrc = {1,2,3,tsrc}
-baryon='proton_negpar_3'
+baryon='proton_3'
 flavor='D'
 
 time_reverse = nil
@@ -62,44 +68,44 @@ max_iters = 20000
 wup_alpha = 3.0
 wup_N = 25
 
-function timer(start)
-  local t0 = os.time()
-  return function(stop)
-    local t1 = os.time()
-    printf("TIME(%q,%q) = %.3f secs\n", start, stop, t1 - t0)
-    return t1 - t0
-  end
-end
-
-
-function make_source(Z, csrc)
-  local F=L:DiracPropagator()
-  for c = 0, qcd.Nc - 1 do
-    for d = 0, qcd.Ns - 1 do
-      local dv = L:DiracFermion()
-      dv[{csrc[1], csrc[2], csrc[3], csrc[4],c=c,d=d}] = complex(1,0)
-      F[{c=c,d=d}] = dv
-    end
-  end
-  L:Subset{axis=3, position=csrc[4]}:where(
-     function()
-       F:set(wuppertal_smear(Z, wup_alpha, wup_N, F, 3))
-     end)
-  return F
-end
-
-function propagator_projected(sign, mu, src, solver)
-  local z = qcd.right_project(sign, {mu=mu}, src)
-  local z_sol = {}
-  for i = 1, #z do
-    z_sol[i] = {}
-    for j = 1, #z[i] do 
-      printf('%d,%d:%s\n', i,j, tostring(z[i][j]))
-      z_sol[i][j] = solver(z[i][j]) / 2.
-    end
-  end
-  return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
-end
+--function timer(start)
+--  local t0 = os.time()
+--  return function(stop)
+--    local t1 = os.time()
+--    printf("TIME(%q,%q) = %.3f secs\n", start, stop, t1 - t0)
+--    return t1 - t0
+--  end
+--end
+--
+--
+--function make_source(Z, csrc)
+--  local F=L:DiracPropagator()
+--  for c = 0, qcd.Nc - 1 do
+--    for d = 0, qcd.Ns - 1 do
+--      local dv = L:DiracFermion()
+--      dv[{csrc[1], csrc[2], csrc[3], csrc[4],c=c,d=d}] = complex(1,0)
+--      F[{c=c,d=d}] = dv
+--    end
+--  end
+--  L:Subset{axis=3, position=csrc[4]}:where(
+--     function()
+--       F:set(wuppertal_smear(Z, wup_alpha, wup_N, F, 3))
+--     end)
+--  return F
+--end
+--
+--function propagator_projected(sign, mu, src, solver)
+--  local z = qcd.right_project(sign, {mu=mu}, src)
+--  local z_sol = {}
+--  for i = 1, #z do
+--    z_sol[i] = {}
+--    for j = 1, #z[i] do 
+--      printf('%d,%d:%s\n', i,j, tostring(z[i][j]))
+--      z_sol[i][j] = solver(z[i][j]) / 2.
+--    end
+--  end
+--  return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
+--end
 
 
 U, hdr = qcd.nersc.read_gauge('input/gauge_disord_4c8.NERSC')
@@ -179,16 +185,6 @@ aff_bb = qcd.aff.Writer(
 calc_bb(L, 
         aff_bb, 
         string.format('/bb/%s/%s', baryon, flavor), -- destination
-        3, 2, -- max links
-        fwd_prop, bwd_prop, U, --fields
-        csrc, tsnk, psnk, t_axis,
-        qext_list_lpath2,
-        time_reverse,
-        bc[1+t_axis], bc_2pt_t)
-c3pt_timer('bwd_prop-2links-nosave')
-calc_bb(L, 
-        aff_bb, 
-        string.format('/bb/%s/%s', baryon, flavor), -- destination
         0, 2, -- max links
         fwd_prop, bwd_prop, U, --fields
         csrc, tsnk, psnk, t_axis,
@@ -197,33 +193,3 @@ calc_bb(L,
         bc[1+t_axis], bc_2pt_t)
 c3pt_timer('bwd_prop-2links')
 
-calc_bb(L, 
-        aff_bb, 
-        string.format('/bb/%s/%s', baryon, flavor), -- destination
-        4, 3, -- max links
-        fwd_prop, bwd_prop, U, --fields
-        csrc, tsnk, psnk, t_axis,
-        qext_list_lpath3,
-        time_reverse,
-        bc[1+t_axis], bc_2pt_t)
-c3pt_timer('bwd_prop-3links-nosave')
-calc_bb(L, 
-        aff_bb, 
-        string.format('/bb/%s/%s', baryon, flavor), -- destination
-        3, 3, -- max links
-        fwd_prop, bwd_prop, U, --fields
-        csrc, tsnk, psnk, t_axis,
-        {},
-        time_reverse,
-        bc[1+t_axis], bc_2pt_t)
-c3pt_timer('bwd_prop-3links-nomom')
-calc_bb(L, 
-        aff_bb, 
-        string.format('/bb/%s/%s', baryon, flavor), -- destination
-        3, 3, -- max links
-        fwd_prop, bwd_prop, U, --fields
-        csrc, tsnk, psnk, t_axis,
-        qext_list_lpath3,
-        time_reverse,
-        bc[1+t_axis], bc_2pt_t)
-c3pt_timer('bwd_prop-3links')

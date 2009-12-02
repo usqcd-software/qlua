@@ -141,8 +141,8 @@ function calc_bb(
         aff_w:write(bb_keypath(lpath_str, gn, qlist[iq]),
 --                    make_bb_standard(bb_test)
 --                    make_bb_standard((qlist_pw[iq] * bb):sum(time_mset))
---                    bb:project(qlist_pw[iq], mset_src_snk)
-                    bb_test
+                    bb:project(qlist_pw[iq], mset_src_snk)
+--                    bb_test
 --                    make_bb_standard(L:momentum_project(bb, csrc, qlist[iq], t_axis))
 --                    L:momentum_project(bb, csrc, qlist[iq], t_axis)
                     )

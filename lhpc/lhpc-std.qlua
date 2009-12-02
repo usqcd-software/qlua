@@ -1,0 +1,37 @@
+require "stdlib"
+require "wuppertal-smear"
+
+function timer(start)
+  local t0 = os.time()
+  return function(stop)
+    local t1 = os.time()
+    printf("TIME(%q,%q) = %.3f secs\n", start, stop, t1 - t0)
+    return t1 - t0
+  end
+end
+
+
+function make_source(Z, csrc)
+  local cm = L:ColorMatrix()
+  for a = 0, qcd.Nc - 1 do
+    cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
+  end
+  L:Subset{axis=3, position=csrc[4]}:where(
+     function()
+       cm:set(wuppertal_smear(Z, wup_alpha, wup_N, cm, 3))
+     end)
+  return L:DiracPropagator(cm)
+end
+
+function propagator_projected(sign, mu, src, solver)
+  local z = qcd.right_project(sign, {mu=mu}, src)
+  local z_sol = {}
+  for i = 1, #z do
+    z_sol[i] = {}
+    for j = 1, #z[i] do 
+      z_sol[i][j] = solver(z[i][j]) / 2.
+    end
+  end
+  return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
+end
+
