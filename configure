@@ -13,6 +13,7 @@ show_help() {
      --libdir=DIR             use DIR instead of PREFIX/lib/qlua for libraries
      --incdir=DIR             use DIR instead of PREFIX/include for headers
      --docdir=DIR             use DIR instead of PREFIX/share/doc/mdwf for docs
+     --with-extras            include extra LHPC extensions
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
      --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
      --with-<package>=DIR     use DIR/bin/<package>-config to query package
@@ -27,7 +28,7 @@ show_help() {
      CFLAGS                  Flags to pass to the compiler
      LD                      Link editor to use
      LDFLAGS                 Flags to pass to the linker
-     LIBS                    Extra libraries to use
+     LIBS                    Additional libraries to use
      AR                      Library archiver
      RANLIB                  Library indexing tool
 EOF
@@ -77,6 +78,7 @@ process_args() {
       --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
       --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'`     ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
+      --with-extras)      extras=true ;;
       ## add other packages here
       *) show_error "Unknown argument $1" ;;
     esac
@@ -151,14 +153,15 @@ show_config() {
    echo "Compiler flags          $cflags"
    echo "Link editor             $ld"
    echo "Linking flags           $ldflags"
-   echo "Extra libraries         $libs"
+   echo "Additional libraries    $libs"
    echo "Archiver                $ar"
    echo "Ranlib                  $ranlib"
    echo "LUA location            $lua"
    echo "QDP location            $qdp"
-   [ -z "$clover" ] || echo "Clover location         $clover"
-   [ -z "$mdwf" ]   || echo "MDWF location           $mdwf"
-   [ -z "$aff" ]    || echo "AFF location            $aff"
+   [ -z "$clover" ]  || echo "Clover location         $clover"
+   [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
+   [ -z "$aff" ]     || echo "AFF location            $aff"
+   [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
 }
@@ -196,6 +199,7 @@ build() {
         -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
         -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
         -e "s|@mdwf_libs@|$mdwf_libs|g" \
+  | sed -e "s|@extras@|$extras|g" \
       > $2 \
 || show_error "Could not generate $2"
 }
@@ -214,6 +218,9 @@ build_modules() {
     echo "#define CLOVER_VERSION \"$clover\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
+  if [ ! -z "$extras" ] ; then
+    echo "#define HAS_EXTRAS"
+  fi
 }
 
 ######

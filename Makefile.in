@@ -42,6 +42,8 @@ MDWF_CF      = @mdwf_cflags@
 MDWF_LF      = @mdwf_ldflags@
 MDWF_LIBS    = @mdwf_libs@
 
+EXTRAS       = @extras@
+
 ## ZZZ add other modules here
 
 #############################################################################
@@ -85,10 +87,18 @@ ifneq ("$(MDWF)", "")
   libsrc += qmdwf.c
 endif
 
+extrascr =
+
+ifeq ("$(EXTRAS)", "true")
+  extrasrc += extras.c \
+              save_bb.c
+endif
+
 ## ZZZ add other optional modules here
 ###############################################################################
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
+extraobj = $(extrasrc:%.c=%.o)
 program = $(driver:%.c=%)
 
 #############################################################################
@@ -115,7 +125,7 @@ lib: $(library)
 
 clean:
 	$ECLEAN objects
-	$C$(RM) $(drvobj) $(libobj) $(library)
+	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(library)
 
 realclean: clean
 	$ECLEAN executables
@@ -141,11 +151,15 @@ $(program): $(drvobj) $(library)
 
 $(drvobj) $(libobj): %.o: sources/%.c
 	$ECC $@
-	$C$(CCMD) -Isources -o $@ $<
+	$C$(CCMD) -Isources -Iextras -o $@ $<
 
-$(library): $(libobj)
+$(extraobj): %.o: extras/%.c
+	$ECC $@
+	$C$(CCMD) -Isources -Iextras -o $@ $<
+
+$(library): $(libobj) $(extraobj)
 	$EAR $(library)
-	$C$(AR) cr $(library) $(libobj)
+	$C$(AR) cr $(library) $(libobj) $(extraobj)
 	$C$(RANLIB) $(library)
 
 $(drvobj) $(libobj): Makefile deps
