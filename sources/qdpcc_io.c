@@ -123,6 +123,7 @@ qdpcc_read_P(lua_State *L)
         luaL_error(L, "qcd.qdpcc.read_prop() read data error");
     QDP_reset_P(P->ptr);
     QIO_destroy_record_info(record_info);
+    QIO_close_read(reader);
     lua_pushstring(L, QIO_string_ptr(file_xml));
     lua_pushstring(L, QIO_string_ptr(record_xml));
     QIO_string_destroy(file_xml);

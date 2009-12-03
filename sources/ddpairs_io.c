@@ -307,7 +307,8 @@ ddpairs_write(lua_State *L)
 
     QDP_reset_P(S->ptr);
     QDP_reset_P(P->ptr);
-    QIO_close_write(writer);
+    if (QIO_close_write(writer))
+        return luaL_error(L, "qcd.ddpairs.write(): closing error");
     QIO_string_destroy(p_xml);
     QIO_string_destroy(s_xml);
     QIO_string_destroy(f_xml);
