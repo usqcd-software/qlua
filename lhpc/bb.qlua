@@ -16,7 +16,7 @@ function calc_bb(
     tsnk, psnk,         -- sink timeslice, sink momentum
     t_axis,             -- axis; currently works for t_axis ==3
     qlist,              -- list of insertion momenta {q}; each q be with #q = qcd.Nd
-    time_reverse,       -- whether to reverse time (true for proton_negpar_3)
+    time_rev,           -- whether to reverse time (true for proton_negpar_3)
     bc_quark_t,         -- BC for quarks, only in t dir? FIXME need general?
     bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
     )
@@ -41,7 +41,7 @@ function calc_bb(
   local tsrc = csrc[1+t_axis]
   -- calc source-sink separation
   local src_snk_dt = nil
-  if not time_reverse then
+  if not time_rev then
     if tsrc < tsnk then src_snk_dt = tsnk - tsrc
     else src_snk_dt = lt + tsnk - tsrc end
   else
@@ -59,7 +59,7 @@ function calc_bb(
     qlist_pw[i] = L:planewave(csrc, q_cp)
   end
   time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
-  if not time_reverse then
+  if not time_rev then
      mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt - tsrc + L:pcoord(t_axis)) % lt)
   else
      mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt + tsrc - L:pcoord(t_axis)) % lt)
@@ -87,7 +87,7 @@ function calc_bb(
   -- make standard layout of bb vector: [0 .. src_snk_dt]
   local function make_bb_standard(bb)
     local bb_std = vector.complex(src_snk_dt + 1)
-    if not time_reverse then
+    if not time_rev then
       for i = 0, src_snk_dt do
         bb_std[i] = bb[(tsrc + i) % lt]
       end
@@ -103,7 +103,7 @@ function calc_bb(
   local function lpath_string(lpath)
     local s = string.format('l%d_', #lpath)
     local ltab = {'x', 'y', 'z', 't', 'X', 'Y', 'Z', 'T'}
-    if time_reverse then
+    if time_rev then
       ltab[1 + t_axis], ltab[1 + t_axis + qcd.Nd] = ltab[1 + t_axis + qcd.Nd], ltab[1 + t_axis]
     end
 --    printf('#lpath = %d\n', #lpath)
@@ -132,11 +132,17 @@ function calc_bb(
   -- compute contractions with 16 gammas, project on momenta, save bb
   local function save_bb(fw_p, lpath)
     local lpath_str = lpath_string(lpath)
+    local fw_times_bw = fw_p * bw_p:adjoin()
     for gn = 0, qcd.Ns *qcd.Ns - 1 do
       -- XXX bw_p is conjugated to do dot(backward, forward)
-      local bb = qcd.dot(bw_p, gamma{n=gn} * fw_p)
-      -- XXX Chroma signs [sic!]
-      if time_reverse and (gn < 8) then bb = bb * bc_2pt_t end
+--      local bb = qcd.dot(bw_p, gamma{n=gn} * fw_p)
+      local bb = (gamma{n=gn} * fw_times_bw):trace()
+      -- XXX Chroma signs [sic!]; 
+      -- note that in general can be bc_2pt_t != -1
+      if time_rev then
+        if (gn < 8) then bb = bb * bc_2pt_t
+        else bb = bb * (-bc_2pt_t) end
+      end
       for iq = 1, #qlist do
         aff_w:write(bb_keypath(lpath_str, gn, qlist[iq]),
 --                    make_bb_standard(bb_test)
@@ -155,7 +161,22 @@ function calc_bb(
       fw_p,    -- forward-prop * adjoint(U_linkpath)
       lpath    -- linkpath(array of: dir for +1 shift, Nd+dir for -1 shift)
     )
-    if lpath_min <= #lpath then save_bb(fw_p, lpath) end
+    if lpath_min <= #lpath then 
+--      save_bb(fw_p, lpath) 
+      -- micro hack
+      local time_rev_int = 0
+      if time_rev then time_rev_int = 1 end
+      qcd.save_bb(aff_w,
+                  string.format('%sx%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d_T%d/%s',
+                                aff_kpath_prefix,
+                                csrc[1], csrc[2], csrc[3], csrc[4],
+                                psnk[1], psnk[2], psnk[3], tsnk,
+                                lpath_string(lpath)),
+                  fw_p, bw_p, 
+                  csrc, tsnk,
+                  qlist, time_rev_int, -- replace with normal boolean
+                  t_axis, bc_2pt_t)
+    end
     if lpath_max <= #lpath then return end
 
     local lpath_new = copy_table(lpath)

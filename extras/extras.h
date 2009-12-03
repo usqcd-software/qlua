@@ -2,7 +2,8 @@
 #define MARK_E390D5B2_478D_48BF_B753_64072003402B
 
 const char *
-save_bb(mAffWriter *aff_w,
+save_bb(lua_State *L,
+        mAffWriter *aff_w,
         const char *aff_kpath,
         QDP_DiracPropagator *F,
         QDP_DiracPropagator *B,

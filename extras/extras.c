@@ -43,7 +43,7 @@ q_save_bb(lua_State *L)
     qlua_Aff_enter(L);
     CALL_QDP(L);
     
-    status = save_bb(aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
+    status = save_bb(L, aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
                      time_rev, t_axis, bc_baryon);
     qlua_Aff_leave();
     

@@ -15,9 +15,14 @@ Lt=8
 L = qcd.lattice{Lx,Lx,Lx,Lt}
 volume = Lx * Lx * Lx * Lt
 
+-- XXX debug
+printf("%s\n", tostring(qcd.dot))
+printf("%s\n", tostring(qcd.save_bb))
+printf("%s\n", tostring(qcd.Clover))
+
 tsrc = 5
 csrc = {1,2,3,tsrc}
-baryon='proton_3'
+baryon='proton_negpar_3'
 flavor='D'
 
 time_reverse = nil
@@ -182,6 +187,31 @@ aff_bb = qcd.aff.Writer(
                           csrc[1],csrc[2],csrc[3],csrc[4],
                           psnk[1], psnk[2], psnk[3], tsnk))
 
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 2, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath2,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-2links-nosave')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        0, 2, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        {},
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-2links-nomom')
+
+bb_timer = timer('bb')
 calc_bb(L, 
         aff_bb, 
         string.format('/bb/%s/%s', baryon, flavor), -- destination
@@ -191,5 +221,41 @@ calc_bb(L,
         qext_list_lpath2,
         time_reverse,
         bc[1+t_axis], bc_2pt_t)
-c3pt_timer('bwd_prop-2links')
+bb_timer('bwd_prop-2links')
 
+
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        4, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath3,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links-nosave')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        {},
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links-nomom')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath3,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links')
