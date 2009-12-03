@@ -27,7 +27,7 @@ end
 
 function c2pt_print_mom_proj(c, id, p3)
   local w = planewave_d3(p3)
-  local pt2 = (c * w):sum(L:MultiSet{d=3})  -- 2pt function for each time slice
+  local pt2 = (c * w):sum(L:MultiSet(L[3], L:pcoord(3)))
   printf("# %s p=(%d,%d,%d)\n", id, p3[1], p3[2], p3[3]);
   for i = 0, #pt2 - 1 do
     local q = pt2[i]

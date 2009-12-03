@@ -3,7 +3,7 @@ Lt = 8
 -- this is probably a bad (chroma) sample file, but it should read OK
 gfile = os.getenv("QDP_FILE")
 if not gfile then 
-  gfile = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge"
+  gfile = "./random-gauge.qio"
 end
 output = "xxx"
 

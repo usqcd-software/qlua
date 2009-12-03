@@ -21,7 +21,7 @@ end
 function axis_mp(z, d)
   local pp = copy_array(p)
   pp[d+1] = 0
-  return (L:planewave(src, pp) * z):sum(L:MultiSet{d=d})
+  return (L:planewave(src, pp) * z):sum(L:MultiSet(L[d], L:pcoord(d)))
 end
 
 do
@@ -34,13 +34,15 @@ end
 
 v = S:gaussian_Complex()
 
-vp = L:momentum_project(v, src, p)
+vp = v:project(L:planewave(src, p), L:MultiSet(1, L:Int(0)))[0]
 
 printf("vp     = %s\n", tostring(vp))
 printf("dif    = %s\n", tostring(vp-full_mp(v)))
 for i = 0, #L - 1 do
   local vdi = axis_mp(v, i)
-  local vpi = L:momentum_project(v, src, p, i)
+  local pp = copy_array(p)
+  pp[i+1] = 0
+  local vpi = v:project(L:planewave(src, pp), L:MultiSet(L[i], L:pcoord(i)))
   for k = 0, L[i] - 1 do
     printf(" diff[%d][%d] = %s\n", i, k, tostring(vdi[k] - vpi[k]))
   end

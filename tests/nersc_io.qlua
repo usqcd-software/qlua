@@ -4,7 +4,7 @@ L = qcd.lattice{4,4,4,8}
 -- provide your own NERSC file for testing!
 file_name = os.getenv("NERSC_DATA")
 if not file_name then
-  file_name = "/Users/avp/Sandbox/USQCD/qio/data/random-gauge.nersc"
+  file_name = "./random-gauge.nersc"
 end
 
 U, msg = qcd.nersc.read_gauge(file_name)
