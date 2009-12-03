@@ -22,52 +22,6 @@ calc_exp_iphase(const int coord[], const int c0[],
 }
 
 
-/* gamma matrix parameterization for left multiplication:
-   Gamma_n [i,j] = gamma_coeff[n][i] * \delta_{i,gamma_ind[n][i]}
-            
-            v[0]    a[0]*v[I[0]]
-    Gamma * v[1] =  a[1]*v[I[1]]
-            v[2]    a[2]*v[I[2]]
-            v[3]    a[3]*v[I[3]]
-    or
-    (Gamma * X)_{ik} = a[i] * X[I[i],k]
- */
-double complex gamma_left_coeff[16][4] = {
-    { 1, 1, 1, 1 },             /* G0 = 1 */
-    { I, I,-I,-I },             /* G1 = g1 */
-    {-1, 1, 1,-1 },             /* G2 = g2 */
-    {-I, I,-I, I },             /* G3 = g1 g2 */
-    { I,-I,-I, I },             /* G4 = g3 */
-    {-1, 1,-1, 1 },             /* G5 = g1 g3 */
-    {-I,-I,-I,-I },             /* G6 = g2 g3 */
-    { 1, 1,-1,-1 },             /* G7 = g1 g2 g3 */
-    { 1, 1, 1, 1 },             /* G8 = g4 */
-    { I, I,-I,-I },             /* G9 = g1 g4 */
-    {-1, 1, 1,-1 },             /* G10= g2 g4 */
-    {-I, I,-I, I },             /* G11= g1 g2 g4 */
-    { I,-I,-I, I },             /* G12= g3 g4 */
-    {-1, 1,-1, 1 },             /* G13= g1 g3 g4 */
-    {-I,-I,-I,-I },             /* G14= g2 g3 g4 */
-    { 1, 1,-1,-1 },             /* G15= g1 g2 g3 g4 */
-};
-int gamma_left_ind[16][4] = {
-    { 0, 1, 2, 3 },             /* G0 = 1 */
-    { 3, 2, 1, 0 },             /* G1 = g1 */
-    { 3, 2, 1, 0 },             /* G2 = g2 */
-    { 0, 1, 2, 3 },             /* G3 = g1 g2 */
-    { 2, 3, 0, 1 },             /* G4 = g3 */
-    { 1, 0, 3, 2 },             /* G5 = g1 g3 */
-    { 1, 0, 3, 2 },             /* G6 = g2 g3 */
-    { 2, 3, 0, 1 },             /* G7 = g1 g2 g3 */
-    { 2, 3, 0, 1 },             /* G8 = g4 */
-    { 1, 0, 3, 2 },             /* G9 = g1 g4 */
-    { 1, 0, 3, 2 },             /* G10= g2 g4 */
-    { 2, 3, 0, 1 },             /* G11= g1 g2 g4 */
-    { 0, 1, 2, 3 },             /* G12= g3 g4 */
-    { 3, 2, 1, 0 },             /* G13= g1 g3 g4 */
-    { 3, 2, 1, 0 },             /* G14= g2 g3 g4 */
-    { 0, 1, 2, 3 },             /* G15= g1 g2 g3 g4 */
-};
 
 
 /* optimized version of building blocks 
@@ -95,6 +49,52 @@ save_bb(lua_State *L,
         int t_axis,                  /* 0-based */
         double bc_baryon_t)
 {
+    /* gamma matrix parameterization for left multiplication:
+       Gamma_n [i,j] = gamma_coeff[n][i] * \delta_{i,gamma_ind[n][i]}
+                
+                v[0]    a[0]*v[I[0]]
+        Gamma * v[1] =  a[1]*v[I[1]]
+                v[2]    a[2]*v[I[2]]
+                v[3]    a[3]*v[I[3]]
+        or
+        (Gamma * X)_{ik} = a[i] * X[I[i],k]
+     */
+    double complex gamma_left_coeff[16][4] = {
+        { 1, 1, 1, 1 },             /* G0 = 1 */
+        { I, I,-I,-I },             /* G1 = g1 */
+        {-1, 1, 1,-1 },             /* G2 = g2 */
+        {-I, I,-I, I },             /* G3 = g1 g2 */
+        { I,-I,-I, I },             /* G4 = g3 */
+        {-1, 1,-1, 1 },             /* G5 = g1 g3 */
+        {-I,-I,-I,-I },             /* G6 = g2 g3 */
+        { 1, 1,-1,-1 },             /* G7 = g1 g2 g3 */
+        { 1, 1, 1, 1 },             /* G8 = g4 */
+        { I, I,-I,-I },             /* G9 = g1 g4 */
+        {-1, 1, 1,-1 },             /* G10= g2 g4 */
+        {-I, I,-I, I },             /* G11= g1 g2 g4 */
+        { I,-I,-I, I },             /* G12= g3 g4 */
+        {-1, 1,-1, 1 },             /* G13= g1 g3 g4 */
+        {-I,-I,-I,-I },             /* G14= g2 g3 g4 */
+        { 1, 1,-1,-1 },             /* G15= g1 g2 g3 g4 */
+    };
+    int gamma_left_ind[16][4] = {
+        { 0, 1, 2, 3 },             /* G0 = 1 */
+        { 3, 2, 1, 0 },             /* G1 = g1 */
+        { 3, 2, 1, 0 },             /* G2 = g2 */
+        { 0, 1, 2, 3 },             /* G3 = g1 g2 */
+        { 2, 3, 0, 1 },             /* G4 = g3 */
+        { 1, 0, 3, 2 },             /* G5 = g1 g3 */
+        { 1, 0, 3, 2 },             /* G6 = g2 g3 */
+        { 2, 3, 0, 1 },             /* G7 = g1 g2 g3 */
+        { 2, 3, 0, 1 },             /* G8 = g4 */
+        { 1, 0, 3, 2 },             /* G9 = g1 g4 */
+        { 1, 0, 3, 2 },             /* G10= g2 g4 */
+        { 2, 3, 0, 1 },             /* G11= g1 g2 g4 */
+        { 0, 1, 2, 3 },             /* G12= g3 g4 */
+        { 3, 2, 1, 0 },             /* G13= g1 g3 g4 */
+        { 3, 2, 1, 0 },             /* G14= g2 g3 g4 */
+        { 0, 1, 2, 3 },             /* G15= g1 g2 g3 g4 */
+    };
 #define get_mom(mom_list, i_mom) ((mom_list) + 4*(i_mom))
     if (4 != QDP_ndim() || 
             4 != QDP_Ns ||
