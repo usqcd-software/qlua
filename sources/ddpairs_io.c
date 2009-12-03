@@ -66,8 +66,7 @@ static int
 dd_read_comp(lua_State *L,
              int js, int jc,
              QLA_DiracPropagator *T,
-             QIO_Reader *reader,
-             QIO_String *record_xml)
+             QIO_Reader *reader)
 {
     typedef void Putter(char *buf, size_t index, int count, void *arg);
     static const struct {
@@ -80,6 +79,7 @@ dd_read_comp(lua_State *L,
         {'D', double_DD_put, sizeof (QLA_D_Real),sizeof (QLA_D_DiracFermion)},
         {0, NULL, 0, 0}
     };
+    QIO_String *record_xml = NULL;
     QIO_RecordInfo *record_info = NULL;
     int word_size = 0;
     int datum_size = 0;
@@ -88,6 +88,7 @@ dd_read_comp(lua_State *L,
     USQCDArgs data;
 
     record_info = QIO_create_record_info(0, NULL, NULL, 0, "", "", 0, 0, 0, 0);
+    record_xml = QIO_string_create();
     if (QIO_read_record_info(reader, record_info, record_xml))
         return luaL_error(L, "qcd.ddpairs.read() read info error");
     prec = *QIO_get_precision(record_info);
@@ -109,6 +110,7 @@ dd_read_comp(lua_State *L,
                  datum_size, word_size, &data))
         return luaL_error(L, "qcd.ddpairs.read() read error");
 
+    QIO_string_destroy(record_xml);
     QIO_destroy_record_info(record_info);
     return 0;
 }
@@ -121,7 +123,6 @@ ddpairs_read(lua_State *L)
     mLatDirProp *S = qlua_newLatDirProp(L);
     mLatDirProp *P = qlua_newLatDirProp(L);
     QIO_String *file_xml = NULL;
-    QIO_String *record_xml = NULL;
     QIO_Reader *reader = NULL;
     int js, jc;
     QLA_DiracPropagator *xP;
@@ -129,7 +130,6 @@ ddpairs_read(lua_State *L)
     
     CALL_QDP(L);
     file_xml = QIO_string_create();
-    record_xml = QIO_string_create();
     reader = qlua_qio_std_reader(fname, file_xml);
     if (reader == 0)
         return luaL_error(L, "qcd.ddpairs.read() open error");
@@ -139,14 +139,13 @@ ddpairs_read(lua_State *L)
     xS = QDP_expose_P(S->ptr);
     for (js = 0; js < QDP_Ns; js++) {
         for (jc = 0; jc < QDP_Nc; jc++) {
-            dd_read_comp(L, js, jc, xS, reader, record_xml);
-            dd_read_comp(L, js, jc, xP, reader, record_xml);
+            dd_read_comp(L, js, jc, xS, reader);
+            dd_read_comp(L, js, jc, xP, reader);
         }
     }
     QDP_reset_P(P->ptr);
     QDP_reset_P(S->ptr);
     QIO_close_read(reader);
-    QIO_string_destroy(record_xml);
     return 3;
 }
 
