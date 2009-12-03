@@ -901,6 +901,7 @@ q_C_project(lua_State *L)
     for (k = 0; k < size; k++) {
         QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
     }
+    qlua_free(L, rr);
 
     return 1;
 }
