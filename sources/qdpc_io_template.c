@@ -38,6 +38,7 @@ X_ID(qdpc_r_)(lua_State *L)
         int i;
         QDP_String *info;
         T_QTYPE **U;
+        int status;
         
         /* sanity check */
         if (n <= 0)
@@ -49,7 +50,9 @@ X_ID(qdpc_r_)(lua_State *L)
         info = QDP_string_create();
 
         /* do the reading */
-        if (X_ID(QDP_vread_)(reader->ptr, info, U, n) == 0) {
+        status = X_ID(QDP_vread_)(reader->ptr, info, U, n);
+        qlua_free(L, U);
+        if (status == 0) {
             /* convert results to LUA */
             lua_createtable(L, n, 0);
             for (i = 0; i < n; i++) {
@@ -66,7 +69,7 @@ X_ID(qdpc_r_)(lua_State *L)
         QDP_string_destroy(info);
         for (i = 0; i < n; i++)
             X_ID(QDP_destroy_)(U[i]);
-
+        
         break;
     }
     }
