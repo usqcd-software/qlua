@@ -45,22 +45,18 @@ X_ID(qdpc_r_)(lua_State *L)
             return luaL_error(L, "field count out of range");
 
         U = qlua_malloc(L, n * sizeof (T_QTYPE *));
-        for (i = 0; i < n; i++)
-            U[i] = X_ID(QDP_create_)();
+        lua_createtable(L, n, 0);
+        for (i = 0; i < n; i++) {
+            QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L);
+            U[i] = ui->ptr;
+            lua_rawseti(L, -2, i + 1);
+        }
         info = QDP_string_create();
 
         /* do the reading */
         status = X_ID(QDP_vread_)(reader->ptr, info, U, n);
         qlua_free(L, U);
         if (status == 0) {
-            /* convert results to LUA */
-            lua_createtable(L, n, 0);
-            for (i = 0; i < n; i++) {
-                QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L);
-
-                ui->ptr = U[i];
-                lua_rawseti(L, -2, i + 1); /* [sic] lua indexes from 1 */
-            }
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
             return 2;
