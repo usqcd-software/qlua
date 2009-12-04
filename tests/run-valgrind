@@ -3,7 +3,12 @@ nm="$1"
 
 valgrind=${valgrind:-/opt/SciDAC/fen64/valgrind-3.2.3/bin/valgrind}
 
-echo -n $nm ''
+builtin echo -n $nm ''
+
+[ -d valgrind.test ] || mkdir valgrind.test
+[ -f valgrind.test/random-gauge.nersc ] || ln random-gauge.nersc valgrind.test/
+[ -f valgrind.test/random-gauge.qio ] || ln random-gauge.qio valgrind.test/
+cd valgrind.test
 
 $valgrind \
   --tool=memcheck \
@@ -12,9 +17,9 @@ $valgrind \
   --time-stamp=yes \
   --leak-check=full \
   --show-reachable=yes \
-   -v \
- ../qlua \
-  $nm \
+  --dsymutil=yes \
+ ../../qlua \
+  ../$nm \
   > $nm.output \
   2> $nm.error
 echo $?
