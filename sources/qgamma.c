@@ -1015,7 +1015,7 @@ q_P_reconstruct(lua_State *L, X_reconstruct *op)
     for (ic = 0; ic < QDP_Nc; ic++) {
         lua_pushnumber(L, ic + 1);
         lua_gettable(L, 3);
-        luaL_checktype(L, -1, LUA_TTABLE);
+        qlua_checktable(L, -1, "projected Prop (%d,*)", ic);
         for (is = 0; is < QDP_Ns/2; is++) {
             lua_pushnumber(L, is + 1);
             lua_gettable(L, -2);

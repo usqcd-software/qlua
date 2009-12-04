@@ -67,6 +67,11 @@ int qlua_checkgammaindex(lua_State *L, int idx);
 int qlua_gammabinary(lua_State *L, int idx);                  /* n = 0 .. 15 */
 int qlua_checkgammabinary(lua_State *L, int idx);
 
+const char *qlua_checkstring(lua_State *L, int idx, const char *fmt, ...);
+int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
+double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
+void qlua_checktable(lua_State *L, int idx, const char *fmt, ...);
+
 typedef int (*q_op)(lua_State *L);
 
 void qlua_reg_add(int ta, int tb, q_op op);

@@ -144,7 +144,7 @@ q_U_where(lua_State *L)
     switch_subset(L, v);
 
     if (lua_pcall(L, argc, LUA_MULTRET, 0))
-        return luaL_error(L, luaL_checkstring(L, -1));
+        return luaL_error(L, lua_tostring(L, -1));
     resc = lua_gettop(L) - 1;
 
     switch_subset(L, &old_subset);
@@ -162,7 +162,7 @@ q_subset(lua_State *L)
 
     lua_getfield(L, 2, "semispace");
     if (lua_type(L, -1) == LUA_TSTRING)
-        sub = luaL_checkstring(L, -1);
+        sub = lua_tostring(L, -1);
     lua_pop(L, 1);
 
     if (sub == 0)

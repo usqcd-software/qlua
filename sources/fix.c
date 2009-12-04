@@ -264,14 +264,15 @@ qlua_print(lua_State *L)
         lua_getglobal(L, "tostring");
         lua_pushvalue(L, i + 1);
         if (lua_pcall(L, 1, 1, 0))
-            return luaL_error(L, luaL_checkstring(L, -1));
-        str = luaL_checkstring(L, -1);
+            return luaL_error(L, qlua_checkstring(L, -1,
+                                                  "no #%d:tostring()", i + 1));
+        str = qlua_checkstring(L, -1, "#%d:tostring() is no string", i + 1);
         luaL_addstring(&b, str);
         lua_pop(L, 1);
     }
     luaL_addstring(&b, "\n");
     luaL_pushresult(&b);
-    str = luaL_checkstring(L, -1);
+    str = lua_tostring(L, -1);
     printf("%s", str);
     
     return 0;

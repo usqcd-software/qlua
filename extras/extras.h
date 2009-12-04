@@ -15,6 +15,43 @@ save_bb(lua_State *L,
         int t_axis,                  /* 0-based */
         double bc_baryon_t);
 
+const char *
+gen_laplace_V(lua_State *L,
+              QDP_ColorVector *result,
+              double a,
+              double b,
+              QDP_ColorMatrix **gauge,
+              QDP_ColorVector *source,
+              int skip_axis);
+
+
+const char *
+gen_laplace_M(lua_State *L,
+              QDP_ColorMatrix *result,
+              double a,
+              double b,
+              QDP_ColorMatrix **gauge,
+              QDP_ColorMatrix *source,
+              int skip_axis);
+
+const char *
+gen_laplace_D(lua_State *L,
+              QDP_DiracFermion *result,
+              double a,
+              double b,
+              QDP_ColorMatrix **gauge,
+              QDP_DiracFermion *source,
+              int skip_axis);
+
+const char *
+gen_laplace_P(lua_State *L,
+              QDP_DiracPropagator *result,
+              double a,
+              double b,
+              QDP_ColorMatrix **gauge,
+              QDP_DiracPropagator *source,
+              int skip_axis);
+
 int init_extras(lua_State *L);
 int fini_extras(lua_State *L);
 

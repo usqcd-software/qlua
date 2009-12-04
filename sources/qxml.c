@@ -325,7 +325,7 @@ parse_ETag(lua_State *L,
 {
     const char err[] = "xml.parse() expecting ETag";
     const char *pos;
-    const char *tag = luaL_checkstring(L, -1);
+    const char *tag = qlua_checkstring(L, -1, "tag expected");
 
     if (!is_ETag(s, e))
         luaL_error(L, err);
@@ -482,7 +482,7 @@ parse_Attribute(lua_State *L,
     pos = parse_Eq(L, pos, e, buf);
     pos = parse_AttValue(L, pos, e, buf);
     lua_pushstring(L, buf);
-    lua_setfield(L, -4, luaL_checkstring(L, -2));
+    lua_setfield(L, -4, qlua_checkstring(L, -2, "attribute expected"));
     lua_pop(L, 1);
 
     return pos;
@@ -583,7 +583,7 @@ parse_content(lua_State *L, /* [-1] = tag, [-2] = table */
                 if (len > 0) {
                     lua_rawgeti(L, -3, len);
                     if ((lua_type(L, -1) == LUA_TSTRING) &&
-                        is_whitespace(luaL_checkstring(L, -1)))
+                        is_whitespace(lua_tostring(L, -1))) /* AAA ok */
                         len = len - 1;
                     lua_pop(L, 1);
                 }
@@ -637,7 +637,7 @@ parse_element(lua_State *L,
             if (len > 1) {
                 lua_rawgeti(L, -1, len);
                 if ((lua_type(L, -1) == LUA_TSTRING) &&
-                    is_whitespace(luaL_checkstring(L, -1))) {
+                    is_whitespace(lua_tostring(L, -1))) {
                     lua_pushnil(L);
                     lua_rawseti(L, -3, len);
                 }
@@ -765,7 +765,7 @@ unparse(lua_State *L, int level, int nested)
     skip(L, level, nested);
     lua_pushstring(L, "<");
     lua_getfield(L, -3, tag_key);
-    luaL_checkstring(L, -1);
+    qlua_checkstring(L, -1, "xml field expected");
     lua_concat(L, 3);
     lua_pushnil(L);
     while (lua_next(L, -3)) {
@@ -786,10 +786,10 @@ unparse(lua_State *L, int level, int nested)
         case LUA_TSTRING:
             switch (lua_type(L, -1)) {
             case LUA_TSTRING:
-                if (strcmp(luaL_checkstring(L, -2), tag_key) != 0) { 
-                    lua_pushstring(L, luaL_checkstring(L, -3));
+                if (strcmp(lua_tostring(L, -2), tag_key) != 0) { 
+                    lua_pushstring(L, lua_tostring(L, -3));
                     lua_pushstring(L, " ");
-                    lua_pushstring(L, luaL_checkstring(L, -4));
+                    lua_pushstring(L, lua_tostring(L, -4));
                     lua_pushstring(L, "=\"");
                     lua_concat(L, 4);
                     unparse_string(L, -2, 1);

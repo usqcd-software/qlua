@@ -159,7 +159,7 @@ q_lattice(lua_State *L)
     for (i = 0; i < r; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 1);
-        qDim[i] = luaL_checkint(L, -1);
+        qDim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
     }
     CALL_QDP(L);
     QDP_set_latsize(qRank, qDim);
@@ -199,7 +199,7 @@ qlua_intarray(lua_State *L, int n, int *dim)
             qlua_free(L, idx);
             return NULL;
         }
-        idx[i] = luaL_checkint(L, -1);
+        idx[i] = qlua_checkint(L, -1, "array element %d", i + 1);
         lua_pop(L, 1);
     }
     *dim = d;
@@ -238,7 +238,7 @@ qlua_latcoord(lua_State *L, int n)
     for (i = 0; i < d; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, n);
-        idx[i] = luaL_checkint(L, -1);
+        idx[i] = qlua_checkint(L, -1, "lattice coord %d", i);
         lua_pop(L, 1);
         if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
             qlua_free(L, idx);        

@@ -35,6 +35,7 @@
 #endif
 
 #include <string.h>
+#include <stdarg.h>
 #include <qmp.h>
 
 /* ZZZ include other package headers here */
@@ -156,6 +157,51 @@ qlua_lookup(lua_State *L, int idx, const char *table)
 }
 
 int
+qlua_checkint(lua_State *L, int idx, const char *fmt, ...)
+{
+    lua_Integer d = lua_tointeger(L, idx);
+    
+    if (d == 0 && !lua_isnumber(L, idx)) {
+        char buf[72];
+        va_list va;
+        va_start(va, fmt);
+        vsnprintf(buf, sizeof (buf) - 1, fmt, va);
+        va_end(va);
+        luaL_error(L, "expected int, %s", buf);
+    }
+    return (int)d;
+}
+
+const char *
+qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
+{
+    const char *d = lua_tostring(L, idx);
+    
+    if (d == 0) {
+        char buf[72];
+        va_list va;
+        va_start(va, fmt);
+        vsnprintf(buf, sizeof (buf) - 1, fmt, va);
+        va_end(va);
+        luaL_error(L, "expected string, %s", buf);
+    }
+    return d;
+}
+
+void
+qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
+{
+    if (lua_type(L, idx) != LUA_TTABLE) {
+        char buf[72];
+        va_list va;
+        va_start(va, fmt);
+        vsnprintf(buf, sizeof (buf) - 1, fmt, va);
+        va_end(va);
+        luaL_error(L, "expected table, %s", buf);
+    }
+}
+
+int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
     int v = -1;
@@ -163,7 +209,7 @@ qlua_index(lua_State *L, int n, const char *name, int max_value)
     luaL_checktype(L, n, LUA_TTABLE);
     lua_getfield(L, n, name);
     if (lua_isnumber(L, -1)) {
-        v = luaL_checkint(L, -1);
+        v = qlua_checkint(L, -1, "integer in [0,%d) expected", max_value);
         if ((v < 0) || (v >= max_value))
             v = -1;
     }

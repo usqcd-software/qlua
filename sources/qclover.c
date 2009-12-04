@@ -777,7 +777,7 @@ q_clover(lua_State *L)
         lua_gettable(L, 4);
         switch (qlua_gettype(L, -1)) {
         case qReal:
-            QLA_c_eq_r_plus_ir(args.bf[i], luaL_checknumber(L, -1), 0);
+            QLA_c_eq_r_plus_ir(args.bf[i], lua_tonumber(L, -1), 0);
             break;
         case qComplex:
             QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
