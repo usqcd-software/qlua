@@ -1,0 +1,64 @@
+require "stdlib"
+require "wuppertal-smear"
+
+L = qcd.lattice { 4, 4, 6, 8 }
+
+coord_src = {1, 2, 3, 1}
+t_sink = 7
+qlist = { { 0, 0, 0, 0},
+          { 1, 2, 0, -1},
+          { 2, 1, 3, 4},
+          { -7, -5, 4, 9}}
+
+if not qcd.save_bb then
+   printf("No extras compiled\n")
+   exit(1)
+end
+
+do
+   local x = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(1234, x)
+end
+
+function wuppertal_smear_qlua(U, alpha, N, F, axis)
+  local v = 1
+  for i in skip(axis + 1, interval(1, qcd.Nd)) do
+    v = v + 2 * alpha
+  end
+  local a = 1 / v
+  local b = alpha / v
+  local G = F
+  for k = 1, N do
+    local H = a * G
+    for i in skip(axis + 1, interval(1, qcd.Nd)) do
+      H = H + b *
+                (U[i] * G:shift(i-1, "from_forward") +
+                 (U[i]:adjoin() * G):shift(i-1, "from_backward"))
+    end
+    G = H
+  end
+  return G
+end
+
+
+function compare_wup(name, alpha, N, u, x, skip_axis)
+  local std = wuppertal_smear_qlua(u, alpha, N, x, skip_axis)
+  local xxx = wuppertal_smear(u, alpha, N, x, skip_axis)
+  printf("%s: norm(std)=%e\tnorm(std-xxx)=%e\n", name, std:norm2(), (std - xxx):norm2())
+end
+
+P = S:gaussian_DiracPropagator()
+u = {}
+
+for i = 1, #L do
+  u[i] = S:gaussian_ColorMatrix()
+end
+
+compare_wup("P", 3., 10, u, P, -1)
+
+compare_wup("P", 3., 10, u, P, 3)
+
+printf("ALL DONE\n")
