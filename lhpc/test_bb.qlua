@@ -15,14 +15,10 @@ Lt=8
 L = qcd.lattice{Lx,Lx,Lx,Lt}
 volume = Lx * Lx * Lx * Lt
 
--- XXX debug
-printf("%s\n", tostring(qcd.dot))
-printf("%s\n", tostring(qcd.save_bb))
-printf("%s\n", tostring(qcd.Clover))
 
-tsrc = 5
+tsrc = 1
 csrc = {1,2,3,tsrc}
-baryon='proton_negpar_3'
+baryon='proton_3'
 flavor='D'
 
 time_reverse = nil
@@ -33,7 +29,7 @@ else exit() end
 --src_snk_dt = 4
 --if (not time_reverse) then tsnk = (tsrc + src_snk_dt) % Lt
 --else tsnk = (tsrc + lt - src_snk_dt) % Lt end
-tsnk = 1
+tsnk = 5
 
 bc = {1,1,1,-1}
 t_axis = 3

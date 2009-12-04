@@ -205,7 +205,7 @@ save_bb(lua_State *L,
     qlua_free(L, exp_iphase);
 
     /* global sum */
-    if (QMP_sum_double_array(bb_arr, bb_arr_size)) {
+    if (QMP_sum_double_array(bb_arr, bb_arr_size / sizeof(double))) {
         qlua_free(L, bb_arr);
         return "QMP_sum_double_array error";
     }
