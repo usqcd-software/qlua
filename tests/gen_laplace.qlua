@@ -1,0 +1,63 @@
+require "stdlib"
+
+L = qcd.lattice { 4, 4, 6, 8 }
+
+coord_src = {1, 2, 3, 1}
+t_sink = 7
+qlist = { { 0, 0, 0, 0},
+          { 1, 2, 0, -1},
+          { 2, 1, 3, 4},
+          { -7, -5, 4, 9}}
+
+if not qcd.save_bb then
+   printf("No extras compiled\n")
+   exit(1)
+end
+
+do
+   local x = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(1234, x)
+end
+
+function generic_laplace(a, b, u, x, skip_axis)
+  if not skip_axis then skip_axis = -1 end
+  local res = a * x
+  for i = 1,#L do
+    if not (i-1 == skip_axis) then 
+      res = res + b * (-2 * x +
+          u[i] * x:shift(i-1, "from_forward") + (u[i]:adjoin() * x):shift(i-1, "from_backward"))
+    end
+  end
+  return res
+end
+
+function compare_laplace(name, a,b,u,x,skip_axis)
+  local std = generic_laplace(a, b, u, x, skip_axis)
+  local xxx = qcd.laplacian(a, b, u, x, skip_axis)
+  printf("%s: norm(std)=%e\tnorm(std-xxx)=%e\n", name, std:norm2(), (std - xxx):norm2())
+end
+
+P = S:gaussian_DiracPropagator()
+D = S:gaussian_DiracFermion()
+M = S:gaussian_ColorMatrix()
+V = S:gaussian_ColorVector()
+u = {}
+
+for i = 1, #L do
+  u[i] = S:gaussian_ColorMatrix()
+end
+
+compare_laplace("P", 1.5, 2.5, u, P)
+compare_laplace("D", 1.5, 2.5, u, D)
+compare_laplace("M", 1.5, 2.5, u, M)
+compare_laplace("V", 1.5, 2.5, u, V)
+
+compare_laplace("P", 1.5, 2.5, u, P ,3)
+compare_laplace("D", 1.5, 2.5, u, D ,3)
+compare_laplace("M", 1.5, 2.5, u, M ,3)
+compare_laplace("V", 1.5, 2.5, u, V ,3)
+
+printf("ALL DONE\n")

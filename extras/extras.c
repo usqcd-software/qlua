@@ -76,6 +76,7 @@ q_laplacian(lua_State *L)
         skip = luaL_checkint(L, 5);
         break;
     case LUA_TNONE:
+    case LUA_TNIL:
         skip = -1;
         break;
     default:
@@ -100,8 +101,8 @@ q_laplacian(lua_State *L)
         break;
     }
     case qLatColMat: {
-        mLatColMat *x = qlua_checkLatColMax(L, 4);
-        mLatColMat *r = qlua_newLatColMax(L);
+        mLatColMat *x = qlua_checkLatColMat(L, 4);
+        mLatColMat *r = qlua_newLatColMat(L);
         CALL_QDP(L);
         status = gen_laplace_M(L, r->ptr, a, b, g, x->ptr, skip);
         break;
