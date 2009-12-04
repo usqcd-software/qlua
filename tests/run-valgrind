@@ -1,0 +1,20 @@
+#!/bin/sh -f
+nm="$1"
+
+valgrind=${valgrind:-/opt/SciDAC/fen64/valgrind-3.2.3/bin/valgrind}
+
+echo -n $nm ''
+
+$valgrind \
+  --tool=memcheck \
+  --leak-check=yes \
+  --log-file=$nm.valgrind \
+  --time-stamp=yes \
+  --leak-check=full \
+  --show-reachable=yes \
+   -v \
+ ../qlua \
+  $nm \
+  > $nm.output \
+  2> $nm.error
+echo $?
