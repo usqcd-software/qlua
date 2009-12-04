@@ -261,6 +261,7 @@ save_bb(lua_State *L,
 
 #undef bb_real
 #undef bb_imag
+#undef get_mom
     qlua_free(L, bb_arr);   
     QDP_reset_P(F);
     QDP_reset_P(B);
