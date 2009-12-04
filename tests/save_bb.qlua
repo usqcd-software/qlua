@@ -1,0 +1,37 @@
+require "stdlib"
+
+L = qcd.lattice { 4, 4, 6, 8 }
+
+coord_src = {1, 2, 3, 1}
+t_sink = 7
+qlist = { { 0, 0, 0, 0},
+          { 1, 2, 0, -1},
+          { 2, 1, 3, 4},
+          { -7, -5, 4, 9}}
+
+if not qcd.save_bb then
+   printf("No extras compiled\n")
+   exit(1)
+end
+
+do
+   local x = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(1234, x)
+end
+
+F = S:gaussian_DiracPropagator()
+B = S:gaussian_DiracPropagator()
+
+aff_bb = qcd.aff.Writer("save_bb.aff")
+
+qcd.save_bb(aff_bb, "/test_i0_r1", F, B, coord_src, t_sink, qlist, 0, 3, 1)
+qcd.save_bb(aff_bb, "/test_i1_r1", F, B, coord_src, t_sink, qlist, 1, 3, 1)
+qcd.save_bb(aff_bb, "/test_i0_r-1", F, B, coord_src, t_sink, qlist, 0, 3, -1)
+qcd.save_bb(aff_bb, "/test_i1_r-1", F, B, coord_src, t_sink, qlist, 1, 3, -1)
+
+aff_bb:close()
+
+printf("ALL DONE\n")
