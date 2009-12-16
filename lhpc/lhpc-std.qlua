@@ -11,14 +11,14 @@ function timer(start)
 end
 
 
-function make_source(Z, csrc)
+function make_source(Z, csrc, wup_a, wup_n)
   local cm = L:ColorMatrix()
   for a = 0, qcd.Nc - 1 do
     cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
   end
   L:Subset{axis=3, position=csrc[4]}:where(
      function()
-       cm:set(wuppertal_smear(Z, wup_alpha, wup_N, cm, 3))
+       cm:set(wuppertal_smear(Z, wup_a, wup_n, cm, 3))
      end)
   return L:DiracPropagator(cm)
 end
