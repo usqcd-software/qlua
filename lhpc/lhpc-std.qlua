@@ -11,14 +11,14 @@ function timer(start)
 end
 
 
-function make_source(Z, csrc, wup_a, wup_n)
+function make_source(Z, csrc, wup_a, wup_n, t_axis)
   local cm = L:ColorMatrix()
   for a = 0, qcd.Nc - 1 do
     cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
   end
   L:Subset{axis=3, position=csrc[4]}:where(
      function()
-       cm:set(wuppertal_smear(Z, wup_a, wup_n, cm, 3))
+       cm:set(wuppertal_smear(Z, wup_a, wup_n, cm, t_axis))
      end)
   return L:DiracPropagator(cm)
 end
@@ -33,5 +33,19 @@ function propagator_projected(sign, mu, src, solver)
     end
   end
   return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
+end
+
+function calc_mean_squared_radius(density, csrc, t_axis)
+  local dr_sq = L:Int(0)
+  for mu = 0, #L-1 do
+    -- calc dx = (x-x0) in [-Lx/2; +Lx/2)
+    local dx = (L:pcoord(mu) + 3 * L[mu] / 2 - csrc[1+mu]) % L[mu] - L[mu] / 2
+    dr_sq = dr_sq + dx * dx
+  end
+  local subset = L:Subset{axis=t_axis,position=csrc[1+t_axis]}
+  local sum = subset:where(function() return density:sum() end)
+  if sum <= 0. then return 0 end
+  local r2sum = subset:where(function() return (density * L:Real(dr_sq)):sum() end)
+  return r2sum / sum
 end
 
