@@ -1,0 +1,44 @@
+-- call as
+-- % qlua lhpc-std.qlua rms_radius.qlua
+
+require "stdlib"
+require "wuppertal-smear"
+--require "lhpc-std"
+
+Lx=4
+Lt=8
+
+L = qcd.lattice{Lx,Lx,Lx,Lt}
+t_axis = 3
+
+function sum_subset(field, subset)
+end
+
+function make_unit_gauge()
+  local g = L:ColorMatrix(complex(1,0))
+  local garr = {}
+  for i = 0, #L-1 do
+    garr[1+i] = L:ColorMatrix(g)
+  end
+  return garr
+end
+
+ix = L:Int(0)
+for i = 0, qcd.Nd - 1 do
+  ix = ix * L[i] + L:pcoord(i)
+end     
+S = L:RandomState(12345, ix)
+
+
+U = make_unit_gauge()
+for i = 0, #L-1 do
+  printf(string.format("U[%d] = %e\n", i, U[1+i]:norm2()))
+end
+
+csrc = {1,2,3,1}
+for n = 0, 10 do
+  local F = make_source(U, csrc, 3., n, t_axis)
+  local r2 = calc_mean_squared_radius(qcd.dot(F,F):abs(), csrc, t_axis)
+--  local r2 = calc_mean_squared_radius(F, csrc, t_axis)
+  printf(string.format("r2{smear[%d]} = %e\n", n, r2))
+end

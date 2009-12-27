@@ -16,7 +16,7 @@ function make_source(Z, csrc, wup_a, wup_n, t_axis)
   for a = 0, qcd.Nc - 1 do
     cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
   end
-  L:Subset{axis=3, position=csrc[4]}:where(
+  L:Subset{axis=t_axis, position=csrc[1+t_axis]}:where(
      function()
        cm:set(wuppertal_smear(Z, wup_a, wup_n, cm, t_axis))
      end)
