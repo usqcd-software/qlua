@@ -23,6 +23,7 @@ enum {
     qVecInt,
     qVecReal,
     qVecComplex,
+    qMatReal,
     qLatInt,
     qLatRandom,
     qLatReal,
@@ -53,6 +54,7 @@ void qlua_free(lua_State *L, void *ptr);
 
 int qlua_index(lua_State *L, int idx, const char *name, int mv);  /* k or -1 */
 int qlua_checkindex(lua_State *L, int idx, const char *name, int mv);
+void qlua_checkindex2(lua_State *L, int idx, const char *nm, int *i0, int *i1);
 
 int qlua_diracindex(lua_State *L, int idx);               /* d = 0 .. Nf - 1 */
 int qlua_checkdiracindex(lua_State *L, int idx);

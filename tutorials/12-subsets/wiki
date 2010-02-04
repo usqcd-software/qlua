@@ -53,7 +53,7 @@ Here is an illustration:
   s_all = v:sum()
   s_x = {}
   for i = 0, #L - 1 do
-    s_x[i+1] = v:sum(L:MultiSet{d=i})
+    s_x[i+1] = v:sum(L:MultiSet(L[i], L:pcoord(i)))
   end
   printf("full sum: %g\n\n", s_all)
   for i = 1, #L do

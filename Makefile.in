@@ -54,6 +54,7 @@ driver = qlua.c
 headers = qlua.h
 libsrc = fix.c \
          qvector.c \
+         qmatrix.c \
          qcomplex.c \
          qgamma.c \
          lattice.c \
@@ -72,6 +73,7 @@ libsrc = fix.c \
          qdpcc_io.c \
          ddpairs_io.c \
 	 nersc_io.c \
+         matrix.c \
          qxml.c
 
 ###############################################################################

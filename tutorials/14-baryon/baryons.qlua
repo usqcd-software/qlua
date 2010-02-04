@@ -71,7 +71,7 @@ function baryon2pt(qq_c, id, p3)
   local w = (L:Real(L:pcoord(0)) * px +
              L:Real(L:pcoord(1)) * py +
              L:Real(L:pcoord(2)) * pz):expi()  -- plane wave with p=(px,py,pz)
-  local pt2 = (qq_c * w):sum(L:MultiSet{d=3})  -- 2pt function for each time slice
+  local pt2 = (qq_c * w):sum(L:MultiSet(L[3], L:pcoord(3))) -- 2pt function
   for i = 0, #pt2 - 1 do                       -- print 2pt values
     local q = pt2[i]
     printf("%s px %d py %d pz %d t %d %15.8e %15.8e\n",

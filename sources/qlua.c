@@ -4,6 +4,7 @@
 #include <qcomplex.h>                                                /* DEPS */
 #include <qgamma.h>                                                  /* DEPS */
 #include <qvector.h>                                                 /* DEPS */
+#include <qmatrix.h>                                                 /* DEPS */
 #include <lattice.h>                                                 /* DEPS */
 #include <latint.h>                                                  /* DEPS */
 #include <latrandom.h>                                               /* DEPS */
@@ -48,7 +49,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.9.11-rc3 XXX $Id$"},
+    {"qlua",  "QLUA version 0.11.00-w XXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
@@ -218,6 +219,21 @@ qlua_index(lua_State *L, int n, const char *name, int max_value)
     return v;
 }
 
+void
+qlua_checkindex2(lua_State *L, int n, const char *name, int *sl, int *sr)
+{
+    luaL_checktype(L, n, LUA_TTABLE);
+    lua_pushnumber(L, 1);
+    lua_gettable(L, n);
+    *sl = qlua_checkint(L, -1, "integer expected for index0 in %s", name);
+    lua_pop(L, 1);
+
+    lua_pushnumber(L, 2);
+    lua_gettable(L, n);
+    *sr = qlua_checkint(L, -1, "integer expected for index1 in %s", name);
+    lua_pop(L, 1);
+}
+
 int
 qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
 {
@@ -345,6 +361,7 @@ qlua_gettype(lua_State *L, int idx)
             { mtnVecInt,        qVecInt },
             { mtnVecReal,       qVecReal },
             { mtnVecComplex,    qVecComplex },
+            { mtnMatReal,       qMatReal },
             { mtnLatInt,        qLatInt },
             { mtnLatReal,       qLatReal },
             { mtnLatRandom,     qLatRandom },
@@ -521,6 +538,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_complex,
         init_gamma,
         init_vector,
+        init_matrix,
         init_lattice,
         init_latint,
         init_latrandom,
@@ -621,6 +639,7 @@ qlua_fini(lua_State *L)
         fini_latrandom,
         fini_latint,
         fini_lattice,
+        fini_matrix,
         fini_vector,
         fini_gamma,
         fini_complex,

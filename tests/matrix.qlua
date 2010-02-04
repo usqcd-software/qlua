@@ -1,0 +1,52 @@
+require "stdlib"
+
+mx_size = 10
+
+function show_matrix(n,m)
+   printf("------------- matrix %s: (%s)\n", n, tostring(m))
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b -1 do
+         printf("%s[%2d, %2d] = %15.10f\n", n, i, j, m[{i,j}])
+      end
+   end
+   printf("matrix %s -------------\n\n", n)
+end
+
+function show_vector(n, v)
+   printf("------------- vector %s (%s):\n", n, tostring(v))
+   local a = #v
+   for i = 0, a - 1 do
+      printf("%s[%2d] = %15.10f\n", n, i, v[i])
+   end
+   printf("vector %s -------------\n\n", n)  
+end
+
+m = matrix.real{5,7}
+printf("m = %s\n", tostring(m))
+
+mx = matrix.real{mx_size,mx_size}
+for k = 0, mx_size - 1 do
+   mx[{k,k}] = 2
+end
+for k = 1, mx_size - 1 do
+   mx[{k-1,k}] = -1
+   mx[{k,k-1}] = -1
+end
+mx[{0,mx_size - 1}] = -0.999
+mx[{mx_size - 1,0}] = 10
+show_matrix("mx-1 transposed", mx:transpose())
+mx[{mx_size - 1,0}] = -0.999
+
+show_matrix("mx", mx)
+l, b = mx:eigen()
+show_matrix("basis", b)
+printf("trace(b) = %15.10f\n", b:trace())
+show_matrix("diag", b:transpose() * mx * b)
+printf("trace(diag) = %15.10f\n", (b:transpose() * mx * b):trace())
+printf("trace(mx)   = %15.10f\n", mx:trace())
+show_vector("lambda", l)
+show_matrix("unit", b:transpose() * b)
+xm = mx:inverse()
+show_matrix("xm", xm)
+show_matrix("xm * mx", xm * mx)
