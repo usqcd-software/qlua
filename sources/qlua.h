@@ -24,6 +24,7 @@ enum {
     qVecReal,
     qVecComplex,
     qMatReal,
+    qMatComplex,
     qLatInt,
     qLatRandom,
     qLatReal,

@@ -2,26 +2,50 @@ require "stdlib"
 
 mx_size = 10
 
-function show_matrix(n,m)
+function show_rmatrix(n,m)
    printf("------------- matrix %s: (%s)\n", n, tostring(m))
    local a, b = m:dims()
    for i = 0, a - 1 do
       for j = 0, b -1 do
-         printf("%s[%2d, %2d] = %15.10f\n", n, i, j, m[{i,j}])
+         printf("  [%2d, %2d] = %15.10f\n", i, j, m[{i,j}])
       end
    end
    printf("matrix %s -------------\n\n", n)
 end
 
-function show_vector(n, v)
+function show_rvector(n, v)
    printf("------------- vector %s (%s):\n", n, tostring(v))
    local a = #v
    for i = 0, a - 1 do
-      printf("%s[%2d] = %15.10f\n", n, i, v[i])
+      printf("  [%2d] = %15.10f\n", i, v[i])
    end
    printf("vector %s -------------\n\n", n)  
 end
 
+function show_cmatrix(n,m)
+   printf("------------- matrix %s: (%s)\n", n, tostring(m))
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b -1 do
+         printf("  [%2d, %2d] = %15.10f %+15.10fI\n", i, j,
+                m[{i,j}]:real(), m[{i,j}]:imag())
+      end
+   end
+   printf("matrix %s -------------\n\n", n)
+end
+
+function show_cvector(n, v)
+   printf("------------- vector %s (%s):\n", n, tostring(v))
+   local a = #v
+   for i = 0, a - 1 do
+      printf("  [%2d] = %15.10f %+15.10fI\n", i,
+             m[{i,j}]:real(), m[{i,j}]:imag())
+   end
+   printf("vector %s -------------\n\n", n)  
+end
+
+
+----- real case
 m = matrix.real{5,7}
 printf("m = %s\n", tostring(m))
 
@@ -35,18 +59,63 @@ for k = 1, mx_size - 1 do
 end
 mx[{0,mx_size - 1}] = -0.999
 mx[{mx_size - 1,0}] = 10
-show_matrix("mx-1 transposed", mx:transpose())
+show_rmatrix("mx-1 transposed", mx:transpose())
 mx[{mx_size - 1,0}] = -0.999
 
-show_matrix("mx", mx)
-l, b = mx:eigen()
-show_matrix("basis", b)
+show_rmatrix("mx", mx)
+l, b = mx:symmetric_eigen()
+show_rmatrix("basis", b)
 printf("trace(b) = %15.10f\n", b:trace())
-show_matrix("diag", b:transpose() * mx * b)
+show_rmatrix("diag", b:transpose() * mx * b)
 printf("trace(diag) = %15.10f\n", (b:transpose() * mx * b):trace())
 printf("trace(mx)   = %15.10f\n", mx:trace())
-show_vector("lambda", l)
-show_matrix("unit", b:transpose() * b)
+show_rvector("lambda", l)
+show_rmatrix("unit", b:transpose() * b)
 xm = mx:inverse()
-show_matrix("xm", xm)
-show_matrix("xm * mx", xm * mx)
+show_rmatrix("xm", xm)
+show_rmatrix("xm * mx", xm * mx)
+
+printf("real matrix arithmetics")
+mx = matrix.real{3,3}
+for i = 0, 2 do
+   mx[{i,i}] = i + 1
+   for j = i + 1, 2 do
+      mx[{i,j}] = i + j
+   end
+end
+show_rmatrix("mx", mx)
+show_rmatrix("mx * mx", mx * mx)
+show_rmatrix("3 * mx", 3 * mx)
+q = mx * 5; show_rmatrix("mx * 5", q)
+show_rmatrix("mx * 5 / 0.5", q / 0.5)
+
+--------- complex case
+
+mz = matrix.complex{2,2}
+mz[{0,0}] = complex(1,0)
+mz[{0,1}] = 2
+mz[{1,1}] = 3
+
+show_cmatrix("mz", mz)
+show_cmatrix("mz * mz", mz * mz)
+show_cmatrix("3 * mz", 3 * mz)
+show_cmatrix("mz * 5", mz * 5)
+show_cmatrix("mz / 2", mz / 2)
+show_cmatrix("(1+2i) * mz", complex(1,2) * mz)
+mq = mz * complex(2,-3); show_cmatrix("mz * (3-2i)", mq)
+show_cmatrix("mz *(3-2i) / (3-2*i)", mq / complex(2,-3))
+show_cmatrix("mz/mz", mz:inverse() * mz)
+
+mz = matrix.complex{mx_size, mx_size}
+for i = 0, mx_size - 1 do
+  for j = i + 1, mx_size - 1 do
+     mz[{i,j}] = complex(i, j)
+     mz[{j,i}] = complex(i,-j)
+  end
+end
+l,mq = mz:hermitian_eigen()
+show_cmatrix("eigenvecs", mq)
+show_cmatrix("right: mq * mz * mq", mq:adjoin() * mz * mq)
+show_cmatrix("wrong: mq * mz * mq", mq * mz * mq:adjoin())
+
+printf("DONE\n")

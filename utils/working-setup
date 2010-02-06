@@ -1,7 +1,8 @@
 #!/bin/sh
 PACKTOP=/Users/avp/Local/packages
 
-TARGET=`(cd ..; pwd)`/install
+#TARGET=`(cd ..; pwd)`/install
+TARGET=$PACKTOP/qlua-0.11.0-w
 
 LD="gcc -g" \
 ./configure \

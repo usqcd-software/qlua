@@ -362,6 +362,7 @@ qlua_gettype(lua_State *L, int idx)
             { mtnVecReal,       qVecReal },
             { mtnVecComplex,    qVecComplex },
             { mtnMatReal,       qMatReal },
+            { mtnMatComplex,    qMatComplex },
             { mtnLatInt,        qLatInt },
             { mtnLatReal,       qLatReal },
             { mtnLatRandom,     qLatRandom },
