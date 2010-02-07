@@ -5,12 +5,9 @@ CC='xgcc' \
 AR='xar' \
 RANLIB='xranlib' \
 ./configure \
-   --prefix=/opt/SciDAC/bgl/qlua-0.9.3 \
+   --prefix=$HOME/bin/bgl/qlua-0.11.0-x \
    --with-lua=/opt/SciDAC/bgl/lua-5.1.4 \
-   --with-qdp=/opt/SciDAC/bgl/qdp-1.8.1 \
+   --with-qdp=/opt/SciDAC/bgl/qdp-1.8.1.memleak \
    --with-lhpc-aff=/opt/SciDAC/bgl/lhpc-aff-2.1.0rc1 \
-   --with-clover=/opt/SciDAC/bgl/clover-1.0.3
-
-# MDWF part is not fully implemented yet
-
-#   --with-mdwf=/Users/avp/Local/test/mdwf-1.1.4
+   --with-clover=/opt/SciDAC/bgl/clover-1.1.0 \
+   --with-extras
