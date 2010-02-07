@@ -10,7 +10,7 @@ typedef struct {
 typedef struct {
     int size_l;
     int size_r;
-    double val[1];
+    double val[2];
 } mMatComplex;
 
 extern const char mtnMatReal[];

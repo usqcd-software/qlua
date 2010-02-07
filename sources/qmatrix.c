@@ -16,7 +16,7 @@ static const char opMatComplex[]  = "matrix.mtComplex.ops";
 
 static char matrix_ns[] = "matrix";
 
-#define MSIZE(s,a,b,t) (sizeof (s) + ((a)*(b)-1)*sizeof (t))
+#define MSIZE(s,a,b,t) (sizeof (s) + ((a)*(b)-1)*(t))
 #define RM(a,i,j)  ((a)->val + (i) + (j) * (a)->size_l)
 #define CM(a,i,j)  ((a)->val + 2 * ((i) + (j) * (a)->size_l))
 
@@ -55,7 +55,9 @@ qlua_checkMatReal(lua_State *L, int idx)
 mMatReal *
 qlua_newMatReal(lua_State *L, int sl, int sr)
 {
-    return qlua_newMatrix(L, MSIZE(mMatReal, sl, sr, double), mtnMatReal);
+    return qlua_newMatrix(L,
+                          MSIZE(mMatReal, sl, sr, sizeof(double)),
+                          mtnMatReal);
 }
 
 static int
@@ -359,9 +361,9 @@ qlua_checkMatComplex(lua_State *L, int idx)
 mMatComplex *
 qlua_newMatComplex(lua_State *L, int sl, int sr)
 {
-    typedef double xc[2];
-
-    return qlua_newMatrix(L, MSIZE(mMatComplex, sl, sr, xc), mtnMatComplex);
+    return qlua_newMatrix(L,
+                          MSIZE(mMatComplex, sl, sr, 2 * sizeof (double)),
+                          mtnMatComplex);
 }
 
 static int
