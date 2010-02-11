@@ -1,0 +1,69 @@
+require "stdlib"
+
+function show_rmatrix(n,m)
+   printf("------------- matrix %s: (%s)\n", n, tostring(m))
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b -1 do
+         printf("  %+9.2e", m[{i,j}])
+      end
+      printf("\n")
+   end
+   printf("matrix %s -------------\n\n", n)
+end
+
+function show_cmatrix(n,m)
+   printf("------------- matrix %s: (%s)\n", n, tostring(m))
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b -1 do
+         printf(" [%+9.2e %+9.2e]",
+                m[{i,j}]:real(), m[{i,j}]:imag())
+      end
+      printf("\n")
+   end
+   printf("matrix %s -------------\n\n", n)
+end
+
+----- real case
+function do_rmatrix(a, b)
+   local m = matrix.real{a,b}
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         m[{i,j}] = (j + 1) * math.sin(i * 4 - 1) * math.cos(j / (i + 5))
+      end
+   end
+   show_rmatrix("M", m)
+   local q, r = m:qr()
+   show_rmatrix("Q", q)
+   show_rmatrix("QQ", q:transpose() * q)
+   show_rmatrix("R", r)
+   show_rmatrix("M-QR",  m - q * r)
+   printf("=============\n")
+end
+
+do_rmatrix(5, 7)
+do_rmatrix(7, 5)
+
+----- complex case
+function do_cmatrix(a, b)
+   local m = matrix.complex{a,b}
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         m[{i,j}] = complex((j + 1) * math.sin(i * 4 - 1),
+                            math.cos(j / (i + 5)))
+      end
+   end
+   show_cmatrix("M", m)
+   local q, r = m:qr()
+   show_cmatrix("Q", q)
+   show_cmatrix("QQ", q:adjoin() * q)
+   show_cmatrix("R", r)
+   show_cmatrix("M-QR",  m - q * r)
+   printf("=============\n")
+end
+
+do_cmatrix(2, 3)
+do_cmatrix(3, 2)
+
+printf("DONE\n")

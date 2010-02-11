@@ -2,9 +2,62 @@
 #include <matrix.h>                                                  /* DEPS */
 #include <math.h>
 
-/* symetric real matrix eigenvalues and eigenvectors */
 #define a(M,i,j)   ((M)[((i)+(j)*n)])
+/* real matrix QR decomposition */
+void
+matrix_rqr(int n, int m, double *M, double *Q)
+{
+    int i;
+    int nn;
+    
+    for (i = 0; i < n; i++) {
+        int j;
+        for (j = 0; j < n; j++) {
+            a(Q,i,j) = (i == j)? 1: 0;
+        }
+    }
+    nn = n > m? m: n;
+    for (i = 0; i < nn; i++) {
+        double len;
+        double c, d;
+        int j;
 
+        len = 0;
+        for (j = i; j < n; j++)
+            len = hypot(len, a(M,j,i));
+        if (len == 0)
+            continue;
+        if (a(M,i,i) < 0)
+            len = -len;
+        a(M,i,i) += len;
+        c = len * a(M,i,i);
+        d = -len;
+        for (j = i + 1; j < m; j++) {
+            double s, t;
+            int k;
+            for (s = 0, k = i; k < n; k++)
+                s += a(M,k,i) * a(M,k,j);
+            t = s / c;
+            for (k = i; k < n; k++) {
+                a(M,k,j) -= t * a(M,k,i);
+            }
+        }
+        for (j = 0; j < n; j++) {
+            double s, t;
+            int k;
+            for (s = 0, k = i; k < n; k++)
+                s += a(Q,j,k) * a(M,k,i);
+            t = s / c;
+            for (k = i; k < n; k++)
+                a(Q,j,k) -= t * a(M,k,i);
+        }
+        a(M,i,i) = d;
+        for (j = i + 1; j < n; j++)
+            a(M,j,i) = 0;
+    }
+}
+
+/* symetric real matrix eigenvalues and eigenvectors */
 static void
 r_swap_mx(int i, int j, int k, int n, double *t)
 {
@@ -443,8 +496,92 @@ matrix_rinverse(int n, double *M, double *N)
 #undef U
 }
 
-/* hermitian complex matrix eigenvalues and eigenvectors */
 #define a(M,i,j)   (&((M)[2*((i)+(j)*n)]))
+/* complex QR decomposition */
+void
+matrix_cqr(int n, int m, double *M, double *Q)
+{
+    int i;
+    int nn;
+
+    for (i = 0; i < n; i++) {
+        int j;
+        for (j = 0; j < n; j++) {
+            a(Q,i,j)[0] = (i == j)? 1: 0;
+            a(Q,i,j)[1] = 0;
+        }
+    }
+    nn = n < m? n: m;
+    for (i = 0; i < nn; i++) {
+        double len;
+        double c, d;
+        int j;
+
+        /* make M[i,i] real */
+        if (a(M,i,i)[1] != 0) {
+            double h = hypot(a(M,i,i)[0], a(M,i,i)[1]);
+            double vr = a(M,i,i)[0] / h;
+            double vi = a(M,i,i)[1] / h;
+            a(M,i,i)[0] = h;
+            a(M,i,i)[1] = 0;
+            for (j = i + 1; j < m; j++) {
+                double tr = a(M,i,j)[0];
+                double ti = a(M,i,j)[1];
+                a(M,i,j)[0] = tr * vr + ti * vi;
+                a(M,i,j)[1] = ti * vr - tr * vi;
+            }
+            for (j = 0; j < n; j++) {
+                double tr = a(Q,j,i)[0];
+                double ti = a(Q,j,i)[1];
+                a(Q,j,i)[0] = tr * vr - ti * vi;
+                a(Q,j,i)[1] = ti * vr + tr * vi;
+            }
+        }
+
+        /* householder transform */
+        len = fabs(a(M,i,i)[0]);
+        for (j = i + 1; j < n; j++)
+            len = hypot(len, hypot(a(M,j,i)[0], a(M,j,i)[1]));
+        if (len == 0)
+            continue;
+        a(M,i,i)[0] += len;
+        c = len * a(M,i,i)[0];
+        d = -len;
+        for (j = i + 1; j < m; j++) {
+            double sr, si, tr, ti;
+            int k;
+            for (sr = si = 0, k = i; k < n; k++) {
+                sr += a(M,k,i)[0] * a(M,k,j)[0] + a(M,k,i)[1] * a(M,k,j)[1];
+                si += a(M,k,i)[0] * a(M,k,j)[1] - a(M,k,i)[1] * a(M,k,j)[0];
+            }
+            tr = sr / c;
+            ti = si / c;
+            for (k = i; k < n; k++) {
+                a(M,k,j)[0] -= tr * a(M,k,i)[0] - ti * a(M,k,i)[1];
+                a(M,k,j)[1] -= ti * a(M,k,i)[0] + tr * a(M,k,i)[1];
+            }
+        }
+        for (j = 0; j < n; j++) {
+            double sr, si, tr, ti;
+            int k;
+            for (sr = si = 0, k = i; k < n; k++) {
+                sr += a(Q,j,k)[0] * a(M,k,i)[0] - a(Q,j,k)[1] * a(M,k,i)[1];
+                si += a(Q,j,k)[0] * a(M,k,i)[1] + a(Q,j,k)[1] * a(M,k,i)[0];
+            }
+            tr = sr / c;
+            ti = si / c;
+            for (k = i; k < n; k++) {
+                a(Q,j,k)[0] -= tr * a(M,k,i)[0] + ti * a(M,k,i)[1];
+                a(Q,j,k)[1] -= ti * a(M,k,i)[0] - tr * a(M,k,i)[1];
+            }
+        }
+        a(M,i,i)[0] = d;
+        for (j = i + 1; j < n; j++)
+            a(M,j,i)[0] = a(M,j,i)[1] = 0;
+    }
+}
+
+/* hermitian complex matrix eigenvalues and eigenvectors */
 
 static void
 c_swap_mx(int i, int j, int k, int n, double *t)

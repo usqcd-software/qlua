@@ -94,6 +94,24 @@ md_inverse(lua_State *L)
 }
 
 static int
+md_qr(lua_State *L)                                            /* (-1,+2,e) */
+{
+    mMatReal *m = qlua_checkMatReal(L, 1);
+    mMatReal *q = qlua_newMatReal(L, m->size_l, m->size_l);
+    mMatReal *r = qlua_newMatReal(L, m->size_l, m->size_r);
+
+    q->size_l = m->size_l;
+    q->size_r = m->size_l;
+
+    r->size_l = m->size_l;
+    r->size_r = m->size_r;
+    memcpy(r->val, m->val, m->size_l * m->size_r * sizeof (double));
+    matrix_rqr(m->size_l, m->size_r, r->val, q->val);
+    
+    return 2;
+}
+
+static int
 md_eigen(lua_State *L)                                         /* (-1,+2,e) */
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
@@ -337,6 +355,7 @@ static const luaL_Reg MatRealMethods[] = {
     { "trace",                md_trace      },
     { "inverse",              md_inverse    },
     { "symmetric_eigen",      md_eigen      },
+    { "qr",                   md_qr         },
     { NULL, NULL}
 };
 
@@ -538,6 +557,24 @@ mc_inverse(lua_State *L)
         return luaL_error(L, "inverting singular matrix");
 
     return 1;
+}
+
+static int
+mc_qr(lua_State *L)                                            /* (-1,+2,e) */
+{
+    mMatComplex *m = qlua_checkMatComplex(L, 1);
+    mMatComplex *q = qlua_newMatComplex(L, m->size_l, m->size_l);
+    mMatComplex *r = qlua_newMatComplex(L, m->size_l, m->size_r);
+
+    q->size_l = m->size_l;
+    q->size_r = m->size_l;
+
+    r->size_l = m->size_l;
+    r->size_r = m->size_r;
+    memcpy(r->val, m->val, m->size_l * m->size_r * 2 * sizeof (double));
+    matrix_cqr(m->size_l, m->size_r, r->val, q->val);
+    
+    return 2;
 }
 
 static int
@@ -756,6 +793,7 @@ static const luaL_Reg MatComplexMethods[] = {
     { "adjoin",               mc_adjoin     },
     { "inverse",              mc_inverse    },
     { "hermitian_eigen",      mc_eigen      },
+    { "qr",                   mc_qr         },
     { NULL, NULL}
 };
 
