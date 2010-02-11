@@ -407,19 +407,18 @@ r_order_lambdas(int n, double *d, double *u)
 }
 
 void /* symmetic case */
-matrix_reigenvec(lua_State *L,
-                 int n, const double *data, double *lambda, double *u)
+matrix_reigenvec(lua_State *L, int n, double *u, double *lambda)
 {
     double *t = qlua_malloc(L, n * n * sizeof (double));
     double *e = qlua_malloc(L, (n - 1) * sizeof (double));
     int i, j;
 
     for (i = 0; i < n; i++) {
+        a(t, i, i) = a(u, i, i);
         a(u, i, i) = 1.0;
-        a(t, i, i) = a(data, i, i);
         for (j = 0; j < i; j++) {
-            a(t, i, j) = a(data, i, j);
-            a(t, j, i) = a(data, i, j);
+            a(t, i, j) = a(u, i, j);
+            a(t, j, i) = a(u, i, j);
             a(u, i, j) = 0;
             a(u, j, i) = 0;
         }
@@ -935,23 +934,22 @@ c_order_lambdas(int n, double *d, double *u)
 }
 
 void /* hermitian case */
-matrix_ceigenvec(lua_State *L,
-                 int n, const double *data, double *lambda, double *u)
+matrix_ceigenvec(lua_State *L, int n, double *u, double *lambda)
 {
     double *t = qlua_malloc(L, 2 * n * n * sizeof (double));
     double *e = qlua_malloc(L, (n - 1) * sizeof (double));
     int i, j;
 
     for (i = 0; i < n; i++) {
+        a(t, i, i)[0] = a(u, i, i)[0];
+        a(t, i, i)[1] = 0;
         a(u, i, i)[0] = 1.0;
         a(u, i, i)[1] = 0.0;
-        a(t, i, i)[0] = a(data, i, i)[0];
-        a(t, i, i)[1] = 0;
         for (j = 0; j < i; j++) {
-            a(t, i, j)[0] = a(data, i, j)[0];
-            a(t, i, j)[1] = a(data, i, j)[1];
-            a(t, j, i)[0] = a(data, i, j)[0];
-            a(t, j, i)[1] = -a(data, i, j)[1];
+            a(t, i, j)[0] = a(u, i, j)[0];
+            a(t, i, j)[1] = a(u, i, j)[1];
+            a(t, j, i)[0] = a(u, i, j)[0];
+            a(t, j, i)[1] = -a(u, i, j)[1];
             a(u, i, j)[0] = 0;
             a(u, i, j)[1] = 0;
             a(u, j, i)[0] = 0;

@@ -17,7 +17,7 @@ static const char opMatComplex[]  = "matrix.mtComplex.ops";
 static char matrix_ns[] = "matrix";
 
 #define MSIZE(s,a,b,t) (sizeof (s) + ((a)*(b)-1)*(t))
-#define RM(a,i,j)  ((a)->val + (i) + (j) * (a)->size_l)
+#define RM(a,i,j)  ((a)->val[(i) + (j) * (a)->size_l])
 #define CM(a,i,j)  ((a)->val + 2 * ((i) + (j) * (a)->size_l))
 
 static void *
@@ -112,22 +112,55 @@ md_qr(lua_State *L)                                            /* (-1,+2,e) */
 }
 
 static int
+slice_out(lua_State *L)
+{
+    return luaL_error(L, "matrix:eigen() matrix slice out of bounds");
+}
+
+static int
 md_eigen(lua_State *L)                                         /* (-1,+2,e) */
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
     mVecReal *lambda;
     mMatReal *trans;
+    int i, j;
+    int lo, hi;
 
-    if (m->size_l != m->size_r)
-        return luaL_error(L, "matrix:eigen() expects square matrix");
-    
-    lambda = qlua_newVecReal(L, m->size_l);
-    lambda->size = m->size_l;
-    trans = qlua_newMatReal(L, m->size_l, m->size_r);
-    trans->size_l = m->size_l;
-    trans->size_r = m->size_r;
+    switch (lua_gettop(L)) {
+    case 1:
+        if (m->size_l != m->size_r)
+            return luaL_error(L, "matrix:eigen() expects square matrix");
+        lo = 0;
+        hi = m->size_l;
+        break;
+    case 2:
+        lo = 0;
+        hi = luaL_checkint(L, 2);
+        if ((hi > m->size_l) || (hi > m->size_r))
+            return slice_out(L);
+        break;
+    case 3:
+        lo = luaL_checkint(L, 2);
+        hi = luaL_checkint(L, 3);
+        if ((lo >= hi) ||
+            (lo > m->size_l) || (lo > m->size_r) ||
+            (hi > m->size_l) || (hi > m->size_r))
+            return slice_out(L);
+    default:
+        return luaL_error(L, "matrix:eigen(): illegal arguments");
+    }
 
-    matrix_reigenvec(L, m->size_l, m->val, lambda->val, trans->val);
+    lambda = qlua_newVecReal(L, hi - lo);
+    lambda->size = hi - lo;
+    trans = qlua_newMatReal(L, hi - lo, hi - lo);
+    trans->size_l = trans->size_r = hi - lo;
+    for (i = lo; i < hi; i++) {
+        for (j = lo; j < hi; j++) {
+            RM(trans, i - lo, j - lo) = RM(m, i, j);
+        }
+    }
+
+    matrix_reigenvec(L, hi - lo, trans->val, lambda->val);
 
     return 2;
 }
@@ -143,7 +176,7 @@ md_transpose(lua_State *L)
     b->size_r = a->size_l;
     for (l = 0; l < b->size_l; l++) {
         for (r = 0; r < b->size_r; r++) {
-            RM(b,l,r)[0] = RM(a,r,l)[0];
+            RM(b,l,r) = RM(a,r,l);
         }
     }
     return 1;
@@ -160,7 +193,7 @@ md_trace(lua_State *L)                                         /* (-1,+2,e) */
         return luaL_error(L, "matrix:trace() expects square matrix");
     
     for (tr = 0, i = 0; i < m->size_l; i++)
-        tr += RM(m,i,i)[0];
+        tr += RM(m,i,i);
     lua_pushnumber(L, tr);
 
     return 1;
@@ -189,7 +222,7 @@ md_get(lua_State *L)                                           /* (-2,+1,e) */
 
         if ((sl >= 0) && (sl < v->size_l) &&
             (sr >= 0) && (sr < v->size_r)) {
-            lua_pushnumber(L, RM(v, sl, sr)[0]);
+            lua_pushnumber(L, RM(v, sl, sr));
             return 1;
         }
         break;
@@ -212,7 +245,7 @@ md_put(lua_State *L)                                           /* (-3,+0,e) */
 
     if ((sl >= 0) && (sl < v->size_l) &&
         (sr >= 0) && (sr < v->size_r)) {
-        RM(v, sl, sr)[0] = x;
+        RM(v, sl, sr) = x;
         return 0;
     }
 
@@ -282,8 +315,8 @@ rm_mul_rm(lua_State *L)
         for (j = 0; j < br; j++) {
             double v = 0;
             for (k = 0; k < ar; k++)
-                v += RM(a,i,k)[0] * RM(b, k, j)[0];
-            RM(r, i, j)[0] = v;
+                v += RM(a,i,k) * RM(b, k, j);
+            RM(r, i, j) = v;
         }
     }
 
@@ -463,8 +496,8 @@ mc_trace(lua_State *L)                                         /* (-1,+2,e) */
         return luaL_error(L, "matrix:trace() expects square matrix");
     
     for (ti = tr = 0, i = 0; i < m->size_l; i++) {
-        tr += RM(m,i,i)[0];
-        ti += RM(m,i,i)[1];
+        tr += CM(m,i,i)[0];
+        ti += CM(m,i,i)[1];
     }
     QLA_real(*t) = tr;
     QLA_imag(*t) = ti;
@@ -583,17 +616,45 @@ mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
     mMatComplex *m = qlua_checkMatComplex(L, 1);
     mVecReal *lambda;
     mMatComplex *trans;
+    int i, j;
+    int lo, hi;
 
-    if (m->size_l != m->size_r)
-        return luaL_error(L, "matrix:eigen() expects square matrix");
-    
-    lambda = qlua_newVecReal(L, m->size_l);
-    lambda->size = m->size_l;
-    trans = qlua_newMatComplex(L, m->size_l, m->size_r);
-    trans->size_l = m->size_l;
-    trans->size_r = m->size_r;
+    switch (lua_gettop(L)) {
+    case 1:
+        if (m->size_l != m->size_r)
+            return luaL_error(L, "matrix:eigen() expects square matrix");
+        lo = 0;
+        hi = m->size_l;
+        break;
+    case 2:
+        lo = 0;
+        hi = luaL_checkint(L, 2);
+        if ((hi > m->size_l) || (hi > m->size_r))
+            return slice_out(L);
+        break;
+    case 3:
+        lo = luaL_checkint(L, 2);
+        hi = luaL_checkint(L, 3);
+        if ((lo >= hi) ||
+            (lo > m->size_l) || (lo > m->size_r) ||
+            (hi > m->size_l) || (hi > m->size_r))
+            return slice_out(L);
+    default:
+        return luaL_error(L, "matrix:eigen(): illegal arguments");
+    }
 
-    matrix_ceigenvec(L, m->size_l, m->val, lambda->val, trans->val);
+    lambda = qlua_newVecReal(L, hi - lo);
+    lambda->size = hi - lo;
+    trans = qlua_newMatComplex(L, hi - lo, hi - lo);
+    trans->size_l = trans->size_r = hi - lo;
+    for (i = lo; i < hi; i++) {
+        for (j = lo; j < hi; j++) {
+            CM(trans, i - lo, j - lo)[0] = CM(m, i, j)[0];
+            CM(trans, i - lo, j - lo)[1] = CM(m, i, j)[1];
+        }
+    }
+
+    matrix_ceigenvec(L, hi - lo, trans->val, lambda->val);
 
     return 2;
 }
