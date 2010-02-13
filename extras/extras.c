@@ -1,11 +1,11 @@
-#include <qlua.h>                                                   /* DEPS */
-#include <lattice.h>                                                /* DEPS */
-#include <aff_io.h>                                                 /* DEPS */
-#include <latdirferm.h>                                             /* DEPS */
-#include <latdirprop.h>                                             /* DEPS */
-#include <latcolmat.h>                                              /* DEPS */
-#include <latcolvec.h>                                              /* DEPS */
-#include <extras.h>                                                 /* DEPS */
+#include "qlua.h"                                                   /* DEPS */
+#include "lattice.h"                                                /* DEPS */
+#include "aff_io.h"                                                 /* DEPS */
+#include "latdirferm.h"                                             /* DEPS */
+#include "latdirprop.h"                                             /* DEPS */
+#include "latcolmat.h"                                              /* DEPS */
+#include "latcolvec.h"                                              /* DEPS */
+#include "extras.h"                                                 /* DEPS */
 
 static int
 q_save_bb(lua_State *L)

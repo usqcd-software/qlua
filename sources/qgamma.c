@@ -1,10 +1,10 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <qgamma.h>                                                  /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
-#include <qdp.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "qgamma.h"                                                  /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
+#include "qdp.h"
 #include <math.h>
 #include <string.h>
 

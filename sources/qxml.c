@@ -1,5 +1,5 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qxml.h>                                                    /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qxml.h"                                                    /* DEPS */
 #include <string.h>
 
 static const char xml_lib[] = "xml";

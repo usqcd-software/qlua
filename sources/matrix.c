@@ -1,5 +1,5 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <matrix.h>                                                  /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "matrix.h"                                                  /* DEPS */
 #include <math.h>
 
 #define a(M,i,j)   ((M)[((i)+(j)*n)])

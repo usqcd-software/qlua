@@ -1,13 +1,13 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latreal.h>                                                 /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latcolvec.h>                                               /* DEPS */
-#include <qmp.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
+#include "latcolvec.h"                                               /* DEPS */
+#include "qmp.h"
 #include <math.h>
 
 const char mtnLatColMat[] = "lattice.ColorMatrix";

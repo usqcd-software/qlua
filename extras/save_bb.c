@@ -2,12 +2,12 @@
 #include <complex.h>
 #include <string.h>
 
-#include <qmp.h>
-#include <lhpc-aff.h>
+#include "qmp.h"
+#include "lhpc-aff.h"
 
-#include <qlua.h>                                                   /* DEPS */
-#include <aff_io.h>                                                 /* DEPS */
-#include <extras.h>                                                 /* DEPS */
+#include "qlua.h"                                                   /* DEPS */
+#include "aff_io.h"                                                 /* DEPS */
+#include "extras.h"                                                 /* DEPS */
 
 static double complex
 calc_exp_iphase(const int coord[], const int c0[], 

@@ -1,13 +1,13 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qclover.h>                                                 /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qclover.h"                                                 /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
 #define QOP_CLOVER_DEFAULT_PRECISION QDP_Precision
-#include <qop-clover.h>
-#include <qmp.h>
+#include "qop-clover.h"
+#include "qmp.h"
 #include <math.h>
 
 /* NB: Clover operator does not agrees with BMW conventions */

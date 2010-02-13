@@ -1,13 +1,13 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qmdwf.h>                                                   /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qmdwf.h"                                                   /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
 #define QOP_MDWF_DEFAULT_PRECISION QDP_Precision
-#include <qop-mdwf3.h>
-#include <qmp.h>
+#include "qop-mdwf3.h"
+#include "qmp.h"
 
 /* NB: MDWF operator definition follows the docs, must agree with Chroma too */
 

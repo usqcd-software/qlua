@@ -3,7 +3,7 @@
 extract_file() {
   if [ -f "$1" ] ; then
     incs=`grep '#include.*DEPS' $1 \
-          | sed -e 's/^.*<//;s/>.*$//'`
+          | sed -e 's/^.* "//;s/".*$//'`
     o=`basename $1 .c`
     for i in $incs ; do
       if [ -f "sources/$i" ] ; then

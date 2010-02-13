@@ -1,11 +1,11 @@
 /* Rings over matrices, real and complex, not mixed.
  * Modules are not implemented because there are too many of them
  */
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <qmatrix.h>                                                 /* DEPS */
-#include <qvector.h>                                                 /* DEPS */
-#include <matrix.h>                                                  /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "qmatrix.h"                                                 /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
+#include "matrix.h"                                                  /* DEPS */
 #include <string.h>
 #include <math.h>
 

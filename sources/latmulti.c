@@ -1,7 +1,7 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latmulti.h>                                                /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 
 /* QLUA multisets are not QDP multisets! */
 

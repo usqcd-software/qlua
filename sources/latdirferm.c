@@ -1,14 +1,14 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latreal.h>                                                 /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
-#include <latcolvec.h>                                               /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <qmp.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
+#include "latcolvec.h"                                               /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "qmp.h"
 
 const char mtnLatDirFerm[] = "lattice.DiracFermion";
 static char opLatDirFerm[] = "lattice.DiracFermion.ops";

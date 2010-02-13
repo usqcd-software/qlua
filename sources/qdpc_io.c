@@ -1,13 +1,13 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qdpc_io.h>                                                 /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latcolvec.h>                                               /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latreal.h>                                                 /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qdpc_io.h"                                                 /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latcolvec.h"                                               /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
 
 typedef struct {
     QDP_Reader *ptr;
@@ -219,42 +219,42 @@ qdpc_w_close(lua_State *L)
 #define T_QTYPE       QDP_Int
 #define QLUA_NAME(x)  x ## LatInt
 #define X_ID(x)       x ## I
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_RandomState
 #define QLUA_NAME(x)  x ## LatRandom
 #define X_ID(x)       x ## S
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_Real
 #define QLUA_NAME(x)  x ## LatReal
 #define X_ID(x)       x ## R
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_Complex
 #define QLUA_NAME(x)  x ## LatComplex
 #define X_ID(x)       x ## C
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_ColorVector
 #define QLUA_NAME(x)  x ## LatColVec
 #define X_ID(x)       x ## V
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_ColorMatrix
 #define QLUA_NAME(x)  x ## LatColMat
 #define X_ID(x)       x ## M
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_DiracFermion
 #define QLUA_NAME(x)  x ## LatDirFerm
 #define X_ID(x)       x ## D
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 #define T_QTYPE       QDP_DiracPropagator
 #define QLUA_NAME(x)  x ## LatDirProp
 #define X_ID(x)       x ## P
-#include <qdpc_io_template.c>                                        /* DEPS */
+#include "qdpc_io_template.c"                                        /* DEPS */
 
 
 static int

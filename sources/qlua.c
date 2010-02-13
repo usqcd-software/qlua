@@ -1,38 +1,38 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <modules.h>
-#include <fix.h>                                                     /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <qgamma.h>                                                  /* DEPS */
-#include <qvector.h>                                                 /* DEPS */
-#include <qmatrix.h>                                                 /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latreal.h>                                                 /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
-#include <latcolvec.h>                                               /* DEPS */
-#include <latcolmat.h>                                               /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
-#include <latsubset.h>                                               /* DEPS */
-#include <latmulti.h>                                                /* DEPS */
-#include <qdpc_io.h>                                                 /* DEPS */
-#include <qdpcc_io.h>                                                /* DEPS */
-#include <ddpairs_io.h>                                              /* DEPS */
-#include <nersc_io.h>                                                /* DEPS */
-#include <qxml.h>                                                    /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "modules.h"
+#include "fix.h"                                                     /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "qgamma.h"                                                  /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
+#include "qmatrix.h"                                                 /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
+#include "latcolvec.h"                                               /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
+#include "qdpc_io.h"                                                 /* DEPS */
+#include "qdpcc_io.h"                                                /* DEPS */
+#include "ddpairs_io.h"                                              /* DEPS */
+#include "nersc_io.h"                                                /* DEPS */
+#include "qxml.h"                                                    /* DEPS */
 #ifdef HAS_AFF
-#include <lhpc-aff.h>
-#include <aff_io.h>                                                  /* DEPS */
+#include "lhpc-aff.h"
+#include "aff_io.h"                                                  /* DEPS */
 #endif
 #ifdef HAS_CLOVER
-#include <qclover.h>                                                 /* DEPS */
+#include "qclover.h"                                                 /* DEPS */
 #endif
 #ifdef HAS_EXTRAS
-#include <extras.h>                                                  /* DEPS */
+#include "extras.h"                                                  /* DEPS */
 #endif
 #ifdef HAS_MDWF
-#include <qmdwf.h>                                                   /* DEPS */
+#include "qmdwf.h"                                                   /* DEPS */
 #endif
 
 #include <string.h>

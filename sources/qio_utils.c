@@ -1,7 +1,7 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <qio_utils.h>                                               /* DEPS */
-#include <qmp.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "qio_utils.h"                                               /* DEPS */
+#include "qmp.h"
 
 static void
 init_layout(QIO_Layout *layout)

@@ -1,11 +1,11 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qvector.h>                                                 /* DEPS */
-#include <lhpc-aff.h>
-#include <aff_io.h>                                                  /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
+#include "lhpc-aff.h"
+#include "aff_io.h"                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
 #include <assert.h>
-#include <qmp.h>
+#include "qmp.h"
 
 const char aff_io[] = "aff";
 static const char mtnReader[] = "qcd.aff.mtReader";

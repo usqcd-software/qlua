@@ -1,5 +1,5 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
 #include <math.h>
 
 const char mtnComplex[] = "qlua.mtComplex";

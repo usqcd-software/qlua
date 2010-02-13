@@ -1,6 +1,6 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latsubset.h>                                               /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
 #include <string.h>
 
 const char mtnLatSubset[] = "lattice.subset";

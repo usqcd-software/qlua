@@ -1,10 +1,10 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qdpcc_io.h>                                                /* DEPS */
-#include <qio_utils.h>                                               /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latdirferm.h>                                              /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
-#include <qio.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "qdpcc_io.h"                                                /* DEPS */
+#include "qio_utils.h"                                               /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
+#include "qio.h"
 
 static const char qdpcc_io[] = "qdpcc";
 

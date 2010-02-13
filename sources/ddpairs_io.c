@@ -1,9 +1,9 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <ddpairs_io.h>                                              /* DEPS */
-#include <qio_utils.h>                                               /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latdirprop.h>                                              /* DEPS */
-#include <qio.h>
+#include "qlua.h"                                                    /* DEPS */
+#include "ddpairs_io.h"                                              /* DEPS */
+#include "qio_utils.h"                                               /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
+#include "qio.h"
 
 static const char ddpairs_io[] = "ddpairs";
 

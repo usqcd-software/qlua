@@ -1,11 +1,11 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <qvector.h>                                                 /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
 #include <string.h>
-#include <qmp.h>
+#include "qmp.h"
 #include <math.h>
 
 /* NB: This code works only for a single lattice */

@@ -1,14 +1,14 @@
-#include <qlua.h>                                                    /* DEPS */
-#include <qcomplex.h>                                                /* DEPS */
-#include <qvector.h>                                                 /* DEPS */
-#include <lattice.h>                                                 /* DEPS */
-#include <latcomplex.h>                                              /* DEPS */
-#include <latreal.h>                                                 /* DEPS */
-#include <latint.h>                                                  /* DEPS */
-#include <latrandom.h>                                               /* DEPS */
-#include <latmulti.h>                                                /* DEPS */
+#include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include <math.h>
-#include <qmp.h>
+#include "qmp.h"
 
 const char mtnLatComplex[] = "lattice.Complex";
 static const char opLatComplex[] = "lattice.Complex.ops";
