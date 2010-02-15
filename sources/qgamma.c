@@ -870,9 +870,9 @@ q_P_project(lua_State *L, X_project *op)
     QLA_DiracFermion *rr[QDP_Nc][QDP_Ns/2];
 
     if (strcmp(sign, "plus") == 0)
-        isign = 1; /* XXX check it */
+        isign = 1;
     else if (strcmp(sign, "minus") == 0)
-        isign = 0; /* XXX check it */
+        isign = 0;
     else
         return luaL_error(L, "bad sign parameter");
     
@@ -1026,9 +1026,9 @@ q_P_reconstruct(lua_State *L, X_reconstruct *op)
     }
 
     if (strcmp(sign, "plus") == 0)
-        isign = 1; /* XXX check it */
+        isign = 1;
     else if (strcmp(sign, "minus") == 0)
-        isign = 0; /* XXX check it */
+        isign = 0;
     else
         return luaL_error(L, "bad sign parameter");
 

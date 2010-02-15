@@ -13,12 +13,21 @@
 /* NB: Clover operator does not agrees with BMW conventions */
 
 static char mtnClover[] = "qcd.clover";
+static char mtnDeflatorState[] = "qcd.clover.deflator.state";
+static char mtnDeflator[] = "qcd.clover.deflator";
+static char opDeflator[] = "qcd.clover.deflator.ops";
 
 typedef struct {
     struct QOP_CLOVER_State *state;
     struct QOP_CLOVER_Gauge *gauge;
     double kappa, c_sw;
 } mClover;
+
+typedef struct {
+    int nev;
+    int msize;
+    struct QOP_CLOVER_Deflator *deflator;
+} mDeflatorState;
 
 static mClover *
 qlua_newClover(lua_State *L)
@@ -45,7 +54,58 @@ qlua_checkClover(lua_State *L, int idx, int live)
     if (live && (c->state == 0 || c->gauge == 0))
         luaL_error(L, "using closed qcd.Clover");
 
-    return v;
+    return c;
+}
+
+static mDeflatorState *
+qlua_newDeflatorState(lua_State *L)
+{
+    mDeflatorState *d= lua_newuserdata(L, sizeof (mDeflatorState));
+    d->nev = 0;
+    d->msize = 0;
+    d->deflator = 0;
+    luaL_getmetatable(L, mtnDeflatorState);
+    lua_setmetatable(L, -2);
+
+    return d;
+}
+
+static mDeflatorState*
+qlua_checkDeflatorState(lua_State *L, int idx, int live)
+{
+    void *v = luaL_checkudata(L, idx, mtnDeflatorState);
+    mDeflatorState *d = (mDeflatorState *)v;
+
+    luaL_argcheck(L, v != 0, idx, "Clover.DeflatorState expected");
+    
+    if (live && (d->deflator == 0))
+        luaL_error(L, "Using closed Clover.DeflatorState");
+
+    return d;
+}
+
+static mClover *
+qlua_Deflator_get_Clover(lua_State *L, int idx, int live)
+{
+    mClover *c;
+    qlua_checktable(L, idx, "");
+
+    lua_rawgeti(L, idx, 1);
+    c = qlua_checkClover(L, -1, live);
+
+    return c;
+}
+
+static mDeflatorState *
+qlua_Deflator_get_State(lua_State *L, int idx, int live)
+{
+    mDeflatorState *d;
+    qlua_checktable(L, idx, "");
+
+    lua_rawgeti(L, idx, 2);
+    d = qlua_checkDeflatorState(L, -1, live);
+
+    return d;
 }
 
 static int
@@ -78,6 +138,21 @@ q_CL_gc(lua_State *L)
         c->state = 0;
     }
     
+    return 0;
+}
+
+static int
+q_DFS_gc(lua_State *L)
+{
+    mDeflatorState *d = qlua_checkDeflatorState(L, 1, 0);
+
+    if (d->deflator) {
+#if 0   /* XXX free deflator state in GC */
+#else
+        
+#endif
+        d->deflator = 0;
+    }
     return 0;
 }
 
@@ -873,6 +948,146 @@ q_clover(lua_State *L)
     return 1;
 }
 
+static int
+q_CL_make_deflator(lua_State *L)
+{
+    mDeflatorState *d;
+    mClover *c = qlua_checkClover(L, 1, 1);
+    int msize = luaL_checkint(L, 2);
+    int nev = luaL_checkint(L, 3);
+
+    if ((nev <= 0) || (2 * nev <= msize))
+        return luaL_error(L, "bad eigenspace size");
+
+    if ((c->state == 0) || (c->gauge == 0))
+        return luaL_error(L, "closed Clover used");
+
+    lua_createtable(L, 2, 0);
+    lua_pushvalue(L, 1);
+    lua_rawseti(L, -2, 1);
+    d = qlua_newDeflatorState(L);
+    d->nev = nev;
+    d->msize = msize;
+#if 0 /* XXX allocate CLOVER deflator state */
+#else
+    d->deflator = (struct QOP_CLOVER_Deflator *)1;
+#endif
+    lua_rawseti(L, -2, 2);
+    luaL_getmetatable(L, mtnDeflator);
+    lua_setmetatable(L, -2);
+
+    return 1;
+}
+
+static int
+q_DF_fmt(lua_State *L)
+{
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 0);
+    char fmt[72];
+
+    if (d->deflator)
+        sprintf(fmt, "Clover.Deflator(0x%p)", d->deflator);
+    else
+        sprintf(fmt, "Clover.Deflator(closed)");
+
+    lua_pushstring(L, fmt);
+
+    return 1;
+}
+
+static int
+q_DF_get(lua_State *L)
+{
+    luaL_checkstring(L, 2);
+    return qlua_lookup(L, 2, opDeflator);
+}
+
+static int
+q_DF_put(lua_State *L)
+{
+    return luaL_error(L, "Clover.Deflator could not be assigned");
+}
+
+static int
+q_DF_close(lua_State *L)
+{
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
+
+#if 0 /* XXX free the deflator state */
+#endif
+    d->deflator = 0;
+    return 0;
+}
+
+static int
+q_DF_reset(lua_State *L)
+{
+#if 0 /* XXX instruct the deflator to reset */
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
+#endif
+    return 0;
+}
+
+static int
+q_DF_stop(lua_State *L)
+{
+#if 0 /* XXX instruct the deflator to stop */
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
+#endif
+    return 0;
+}
+
+static int
+q_DF_resume(lua_State *L)
+{
+#if 0 /* XXX instruct the deflator to resume */
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
+#endif
+    return 0;
+}
+
+static int
+q_DF_eigenvalues(lua_State *L)
+{
+#if 0 /* XXX read the eigenvalues from the deflator */
+#else
+    lua_pushnil(L);
+#endif
+    return 1;
+}
+
+/* the solver */
+static int
+q_DF_mixed_solve(lua_State *L)
+{
+#if 0    /* XXX the deflated mixed solver */
+#endif
+    return 0;
+}
+
+static int
+q_DF_make_mixed_solver(lua_State *L)
+{
+    double inner_eps;
+    int inner_iter;
+    double eps;
+    int max_iter;
+
+    qlua_Deflator_get_Clover(L, 1, 1);  /* clo[1]: Clover */
+    qlua_Deflator_get_State(L, 1, 1);   /* clo[2]: Deflator */
+    inner_eps = luaL_checknumber(L, 2);
+    lua_pushnumber(L, inner_eps);       /* clo[3]: inner_eps */
+    inner_iter = luaL_checkint(L, 3);
+    lua_pushnumber(L, inner_iter);       /* clo[4]: inner_iter */
+    eps = luaL_checknumber(L, 4);
+    lua_pushnumber(L, eps);             /* clo[5]: epsilon */
+    max_iter = luaL_checkint(L, 5);
+    lua_pushnumber(L, max_iter);        /* clo[6]: max_iter */
+    lua_pushcclosure(L, q_DF_mixed_solve, 6);
+
+    return 1;
+}
+
 static struct luaL_Reg mtClover[] = {
     { "__tostring",   q_CL_fmt },
     { "__gc",         q_CL_gc },
@@ -881,7 +1096,30 @@ static struct luaL_Reg mtClover[] = {
     { "Dx",           q_CL_Dx },
     { "solver",       q_CL_make_solver },
     { "mixed_solver", q_CL_make_mixed_solver },
+    { "eig_deflator", q_CL_make_deflator },
     { NULL, NULL }
+};
+
+static struct luaL_Reg mtDeflatorState[] = {
+    { "__gc",         q_DFS_gc },
+    { NULL, NULL}, 
+};
+
+static struct luaL_Reg mtDeflator[] = {
+    { "__tostring",         q_DF_fmt },
+    { "__index",            q_DF_get },
+    { "__newindex",         q_DF_put },
+    { NULL, NULL }
+};
+
+static struct luaL_Reg DeflatorMethods[] = {
+    { "mixed_solver",       q_DF_make_mixed_solver },
+    { "close",              q_DF_close },
+    { "reset",              q_DF_reset },
+    { "stop",               q_DF_stop },
+    { "resume",             q_DF_resume },
+    { "eigenvalues",        q_DF_eigenvalues },
+    { NULL, NULL}, 
 };
 
 static struct luaL_Reg fClover[] = {
@@ -894,6 +1132,9 @@ init_clover(lua_State *L)
 {
     luaL_register(L, qcdlib, fClover);
     qlua_metatable(L, mtnClover, mtClover);
+    qlua_metatable(L, mtnDeflatorState, mtDeflatorState);
+    qlua_metatable(L, mtnDeflator, mtDeflator);
+    qlua_metatable(L, opDeflator, DeflatorMethods);
 
     return 0;
 }
