@@ -12,6 +12,17 @@
 
 /* NB: Clover operator does not agrees with BMW conventions */
 
+typedef int CloverInverter(lua_State *L,
+                           struct QOP_CLOVER_Fermion *solution,
+                           int *out_iters,
+                           double *out_epsilon,
+                           const struct QOP_CLOVER_Fermion *rhs);
+
+typedef struct {
+    CloverInverter  *proc;
+    const char      *name;
+} CloverSolver;
+
 static char mtnClover[] = "qcd.clover";
 static char mtnDeflatorState[] = "qcd.clover.deflator.state";
 static char mtnDeflator[] = "qcd.clover.deflator";
@@ -439,17 +450,30 @@ q_CL_Dx(lua_State *L)
     return luaL_error(L, "bad arguments in Clover:Dx");
 }
 
-/* the solver */
+/* The generic solver */
 static int
-q_CL_solve(lua_State *L)
+q_dirac_solver(lua_State *L)
 {
-    mClover *c = qlua_checkClover(L, lua_upvalueindex(1), 1);
-    double eps = luaL_checknumber(L, lua_upvalueindex(2));
-    int max_iters = luaL_checkint(L, lua_upvalueindex(3));
+    CloverSolver *solver = lua_touserdata(L, lua_upvalueindex(1));
+    mClover *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
+    int relaxed_p;
     long long fl1;
     double t1;
     double out_eps;
     int out_iters;
+    
+    switch (lua_type(L, 2)) {
+    case LUA_TNONE:
+    case LUA_TNIL:
+        relaxed_p = 0;
+        break;
+    case LUA_TBOOLEAN:
+        relaxed_p = lua_toboolean(L, 2);
+        break;
+    default:
+        relaxed_p = 1;
+        break;
+    }
 
     switch (qlua_gettype(L, 1)) {
     case qLatDirFerm: {
@@ -475,25 +499,25 @@ q_CL_solve(lua_State *L)
         rhs_n = sqrt(rhs_norm2);
         env.f = QDP_expose_D(psi->ptr);
         env.s = 1 / rhs_n;
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
+        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled,
+                                      &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
         QDP_reset_D(psi->ptr);
 
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
-        status = QOP_CLOVER_D_CG(c_eta, &out_iters, &out_eps,
-                                 c_psi, c->gauge, c_psi, max_iters, eps,
-                                 0 /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL */);
+        status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi);
+
         QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
+        if (t1 == 0)
+            t1 = -1;
         if (qlua_primary_node)
-            printf("CLOVER CG solver: status = %d,"
+            printf("CLOVER %s solver: status = %d,"
                    " eps = %.4e, iters = %d, time = %.3f sec,"
                    " perf = %.2f MFlops/sec\n",
-                   status, out_eps, out_iters, t1, fl1 * 1e-6 / t1);
-
-        if (status)
-            return luaL_error(L, QOP_CLOVER_error(c->state));
+                   solver->name, status,
+                   out_eps, out_iters, t1, fl1 * 1e-6 / t1);
 
         env.f = QDP_expose_D(eta->ptr);
         env.s = rhs_n;
@@ -503,6 +527,13 @@ q_CL_solve(lua_State *L)
         QOP_CLOVER_free_fermion(&c_eta);
         QOP_CLOVER_free_fermion(&c_psi);
 
+        if (status) {
+            if (relaxed_p)
+                return 0;
+            else
+                return luaL_error(L, QOP_CLOVER_error(c->state));
+        }
+
         /* eta is on the stack already */
         lua_pushnumber(L, out_eps);
         lua_pushnumber(L, out_iters);
@@ -511,29 +542,32 @@ q_CL_solve(lua_State *L)
 
         return 5;
     }
+
     case qLatDirProp: {
         mLatDirProp *psi = qlua_checkLatDirProp(L, 1);
         mLatDirProp *eta = qlua_newLatDirProp(L);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
+        int gstatus = 0;
         int status;
         qCL_P_env env;
         QLA_Real rhs_norm2 = 0;
         double rhs_n;
 
+        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
+        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* iters */
         CALL_QDP(L);
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
         QDP_r_eq_norm2_P(&rhs_norm2, psi->ptr, QDP_all);
         if (rhs_norm2 == 0) {
-            return 1;
+            QDP_P_eq_zero(eta->ptr, QDP_all);
+            return 3;
         }
         rhs_n = sqrt(rhs_norm2);
         env.in = QDP_expose_P(psi->ptr);
         env.out = QDP_expose_P(eta->ptr);
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* iters */
         for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
             lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* eps.c */
             lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
@@ -543,22 +577,25 @@ q_CL_solve(lua_State *L)
                 if (QOP_CLOVER_import_fermion(&c_psi, c->state,
                                               q_CL_P_reader_scaled, &env))
                     return luaL_error(L, "CLOVER_import_fermion() failed");
-                status = QOP_CLOVER_D_CG(c_eta, &out_iters, &out_eps,
-                                         c_psi, c->gauge, c_psi, max_iters, eps,
-                                         0);
-                /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
+                status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi);
 
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
-                
+                if (t1 == 0)
+                    t1 = -1;
                 if (qlua_primary_node)
-                    printf("CLOVER CG solver: status = %d, c = %d, d = %d,"
+                    printf("CLOVER %s solver: status = %d, c = %d, d = %d,"
                            " eps = %.4e, iters = %d, time = %.3f sec,"
                            " perf = %.2f MFlops/sec\n",
-                           status, env.c, env.d, out_eps, out_iters, t1,
+                           solver->name, status,
+                           env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
                 QOP_CLOVER_free_fermion(&c_psi);
-                if (status)
-                    return luaL_error(L, QOP_CLOVER_error(c->state));
+                if (status) {
+                    if (relaxed_p)
+                        gstatus = 1;
+                    else
+                        return luaL_error(L, QOP_CLOVER_error(c->state));
+                }
 
                 env.s = rhs_n;
                 QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
@@ -574,180 +611,88 @@ q_CL_solve(lua_State *L)
         QDP_reset_P(eta->ptr);
         QOP_CLOVER_free_fermion(&c_eta);
 
-        return 3;
+        if (gstatus)
+            return 0;
+        else
+            return 3;
     }
     }
     return luaL_error(L, "bad argument to CLOVER solver");
 }
+
+
+/* the standard clover solver */
+static int
+q_CL_std_solver(lua_State *L,
+                struct QOP_CLOVER_Fermion *solution,
+                int *out_iters,
+                double *out_epsilon,
+                const struct QOP_CLOVER_Fermion *rhs)
+{
+    mClover *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
+    double eps = luaL_checknumber(L, lua_upvalueindex(3));
+    int max_iters = luaL_checkint(L, lua_upvalueindex(4));
+    
+    return QOP_CLOVER_D_CG(solution, out_iters, out_epsilon,
+                           rhs, c->gauge, rhs, max_iters, eps, 0);
+}
+
+static CloverSolver std_solver = { q_CL_std_solver, "CG" };
 
 static int
 q_CL_make_solver(lua_State *L)
 {
+    qlua_checkClover(L, 1, 1);   /* mClover */
+    luaL_checknumber(L, 2);      /* double epsilon */
+    luaL_checkint(L, 3);         /* int max_iter */
 
-    qlua_checkClover(L, 1, 1);   /* mClover *c */
-    luaL_checknumber(L, 2);   /* double epsilon */
-    luaL_checkint(L, 3);      /* int max_iter */
-    lua_pushcclosure(L, q_CL_solve, 3);
+    lua_pushlightuserdata(L, &std_solver);  /* cl[1]: solver */
+    lua_pushvalue(L, 1);                    /* cl[2]: mClover */
+    lua_pushvalue(L, 2);                    /* cl[3]: epsilon */
+    lua_pushvalue(L, 3);                    /* cl[4]: max_iters */
+    lua_pushcclosure(L, q_dirac_solver, 4);
 
     return 1;
 }
 
-/* the solver */
+/* the mixed clover solver */
 static int
-q_CL_mixed_solve(lua_State *L)
+q_CL_mixed_solver(lua_State *L,
+                  struct QOP_CLOVER_Fermion *solution,
+                  int *out_iters,
+                  double *out_epsilon,
+                  const struct QOP_CLOVER_Fermion *rhs)
 {
-    mClover *c      = qlua_checkClover(L, lua_upvalueindex(1), 1);
-    double f_eps    = luaL_checknumber(L, lua_upvalueindex(2));
-    int inner_iters = luaL_checkint(L, lua_upvalueindex(3));
-    double eps      = luaL_checknumber(L, lua_upvalueindex(4));
-    int max_iters   = luaL_checkint(L, lua_upvalueindex(5));
-    long long fl1;
-    double t1;
-    double out_eps;
-    int out_iters;
-
-    switch (qlua_gettype(L, 1)) {
-    case qLatDirFerm: {
-        mLatDirFerm *psi = qlua_checkLatDirFerm(L, 1);
-        mLatDirFerm *eta = qlua_newLatDirFerm(L);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        struct CL_D_env env;
-        QLA_Real rhs_norm2;
-        double rhs_n;
-        int status;
-
-        CALL_QDP(L);
-        QDP_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
-        if (rhs_norm2 == 0) {
-            lua_pushnumber(L, 0);
-            lua_pushnumber(L, 0);
-            lua_pushnumber(L, 0);
-            lua_pushnumber(L, 0);
-            return 5;
-        }
-        rhs_n = sqrt(rhs_norm2);
-        env.f = QDP_expose_D(psi->ptr);
-        env.s = 1 / rhs_n;
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled, &env))
-            return luaL_error(L, "CLOVER_import_fermion() failed");
-        QDP_reset_D(psi->ptr);
-
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
-                                       c_psi, c->gauge, c_psi,
-                                       inner_iters, f_eps,
-                                       max_iters, eps,
-                                       0);
-        /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
-        QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
-        if (qlua_primary_node)
-            printf("CLOVER mCG solver: status = %d,"
-                   " eps = %.4e, iters = %d, time = %.3f sec,"
-                   " perf = %.2f MFlops/sec\n",
-                   status, out_eps, out_iters, t1, fl1 * 1e-6 / t1);
-
-        if (status)
-            return luaL_error(L, QOP_CLOVER_error(c->state));
-
-        env.f = QDP_expose_D(eta->ptr);
-        env.s = rhs_n;
-        QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
-        QDP_reset_D(eta->ptr);
-        
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
-
-        /* eta is on the stack already */
-        lua_pushnumber(L, out_eps);
-        lua_pushnumber(L, out_iters);
-        lua_pushnumber(L, t1);
-        lua_pushnumber(L, (double)fl1);
-
-        return 5;
-    }
-    case qLatDirProp: {
-        mLatDirProp *psi = qlua_checkLatDirProp(L, 1);
-        mLatDirProp *eta = qlua_newLatDirProp(L);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        QLA_Real rhs_norm2;
-        double rhs_n;
-        int status;
-        qCL_P_env env;
-
-        CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        QDP_r_eq_norm2_P(&rhs_norm2, psi->ptr, QDP_all);
-        if (rhs_norm2 == 0) {
-            return 1;
-        }
-        rhs_n = sqrt(rhs_norm2);
-        env.in = QDP_expose_P(psi->ptr);
-        env.out = QDP_expose_P(eta->ptr);
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* iters */
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* eps.c */
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
-
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
-                env.s = 1 / rhs_n;
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader_scaled, &env))
-                    return luaL_error(L, "CLOVER_import_fermion() failed");
-                status = QOP_CLOVER_mixed_D_CG(c_eta, &out_iters, &out_eps,
-                                               c_psi, c->gauge, c_psi,
-                                               inner_iters, f_eps,
-                                               max_iters, eps,
-                                               0);
-                /* QOP_CLOVER_FINAL_DIRAC_RESIDUAL); */
-                QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
-                
-                if (qlua_primary_node)
-                    printf("CLOVER mCG solver: status = %d, c = %d, d = %d,"
-                           " eps = %.4e, iters = %d, time = %.3f sec,"
-                           " perf = %.2f MFlops/sec\n",
-                           status, env.c, env.d, out_eps, out_iters, t1,
-                           fl1 * 1e-6 / t1);
-                QOP_CLOVER_free_fermion(&c_psi);
-                if (status)
-                    return luaL_error(L, QOP_CLOVER_error(c->state));
-
-                env.s = rhs_n;
-                QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
-                lua_pushnumber(L, out_eps);
-                lua_rawseti(L, -3, env.d + 1);
-                lua_pushnumber(L, out_iters);
-                lua_rawseti(L, -2, env.d + 1);
-            }
-            lua_rawseti(L, -3, env.c + 1);
-            lua_rawseti(L, -3, env.c + 1);
-        }
-        QDP_reset_P(psi->ptr);
-        QDP_reset_P(eta->ptr);
-        QOP_CLOVER_free_fermion(&c_eta);
-
-        return 3;
-    }
-    }
-    return luaL_error(L, "bad argument to CLOVER solver");
+    mClover *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
+    double f_eps    = luaL_checknumber(L, lua_upvalueindex(3));
+    int inner_iters = luaL_checkint(L, lua_upvalueindex(4));
+    double eps      = luaL_checknumber(L, lua_upvalueindex(5));
+    int max_iters   = luaL_checkint(L, lua_upvalueindex(6));
+    
+    return QOP_CLOVER_mixed_D_CG(solution, out_iters, out_epsilon,
+                                 rhs, c->gauge, rhs,
+                                 inner_iters, f_eps,
+                                 max_iters, eps, 0);
 }
+
+static CloverSolver mixed_solver = { q_CL_mixed_solver, "mixedCG" };
 
 static int
 q_CL_make_mixed_solver(lua_State *L)
 {
+    qlua_checkClover(L, 1, 1);   /* mClover */
+    luaL_checknumber(L, 2);      /* double inner_epsilon */
+    luaL_checkint(L, 3);         /* int inner_iter */
+    luaL_checknumber(L, 4);      /* double epsilon */
+    luaL_checkint(L, 5);         /* int max_iter */
 
-    qlua_checkClover(L, 1, 1);   /* mClover *c */
-    luaL_checknumber(L, 2);   /* double inner_epsilon */
-    luaL_checkint(L, 3);      /* int inner_iter */
-    luaL_checknumber(L, 4);   /* double epsilon */
-    luaL_checkint(L, 5);      /* int max_iter */
-    lua_pushcclosure(L, q_CL_mixed_solve, 5);
+    lua_pushlightuserdata(L, &mixed_solver);  /* cl[1]: solver */
+    lua_pushvalue(L, 1);                      /* cl[2]: mClover */
+    lua_pushvalue(L, 2);                      /* cl[3]: inner_epsilon */
+    lua_pushvalue(L, 3);                      /* cl[4]: inner_iters */
+    lua_pushvalue(L, 4);                      /* cl[5]: epsilon */
+    lua_pushvalue(L, 5);                      /* cl[6]: max_iters */
+    lua_pushcclosure(L, q_dirac_solver, 6);
 
     return 1;
 }
