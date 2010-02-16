@@ -1,6 +1,7 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qclover.h"                                                 /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
+#include "qvector.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
@@ -158,10 +159,7 @@ q_DFS_gc(lua_State *L)
     mDeflatorState *d = qlua_checkDeflatorState(L, 1, 0);
 
     if (d->deflator) {
-#if 0   /* XXX free deflator state in GC */
-#else
-        
-#endif
+        QOP_CLOVER_free_deflator(&d->deflator);
         d->deflator = 0;
     }
     return 0;
@@ -900,6 +898,7 @@ q_CL_make_deflator(lua_State *L)
     mClover *c = qlua_checkClover(L, 1, 1);
     int msize = luaL_checkint(L, 2);
     int nev = luaL_checkint(L, 3);
+    double eps = luaL_checknumber(L, 4);
 
     if ((nev <= 0) || (2 * nev <= msize))
         return luaL_error(L, "bad eigenspace size");
@@ -913,10 +912,11 @@ q_CL_make_deflator(lua_State *L)
     d = qlua_newDeflatorState(L);
     d->nev = nev;
     d->msize = msize;
-#if 0 /* XXX allocate CLOVER deflator state */
-#else
-    d->deflator = (struct QOP_CLOVER_Deflator *)1;
-#endif
+
+    CALL_QDP(L);
+    if (QOP_CLOVER_create_deflator(&d->deflator, c->state, nev, msize, eps))
+        return luaL_error(L, "CLOVER_create_deflator() failed");
+
     lua_rawseti(L, -2, 2);
     luaL_getmetatable(L, mtnDeflator);
     lua_setmetatable(L, -2);
@@ -958,77 +958,102 @@ q_DF_close(lua_State *L)
 {
     mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
 
-#if 0 /* XXX free the deflator state */
-#endif
-    d->deflator = 0;
+    QOP_CLOVER_free_deflator(&d->deflator);
+
     return 0;
 }
 
 static int
 q_DF_reset(lua_State *L)
 {
-#if 0 /* XXX instruct the deflator to reset */
     mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
-#endif
+
+    QOP_CLOVER_deflator_reset(d->deflator);
+
     return 0;
 }
 
 static int
 q_DF_stop(lua_State *L)
 {
-#if 0 /* XXX instruct the deflator to stop */
     mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
-#endif
+
+    QOP_CLOVER_deflator_stop(d->deflator);
+
     return 0;
 }
 
 static int
 q_DF_resume(lua_State *L)
 {
-#if 0 /* XXX instruct the deflator to resume */
     mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
-#endif
+
+    QOP_CLOVER_deflator_resume(d->deflator);
+
     return 0;
 }
 
 static int
 q_DF_eigenvalues(lua_State *L)
 {
-#if 0 /* XXX read the eigenvalues from the deflator */
-#else
-    lua_pushnil(L);
-#endif
-    return 1;
+    mDeflatorState *d = qlua_Deflator_get_State(L, 1, 1);
+    mVecReal *v = qlua_newVecReal(L, d->nev);
+    double *t = qlua_malloc(L, d->nev * sizeof (double));
+    int status = QOP_CLOVER_deflator_eigen(t, d->deflator);
+
+    if (status == 0) {
+        int i;
+        for (i = 0; i < d->nev; i++)
+            v->val[i] = t[i];
+    }
+    qlua_free(L, t);
+    if (status == 0)
+        return 1;
+    else
+        return 0;
 }
 
-/* the solver */
+/* the deflated mixed clover solver */
 static int
-q_DF_mixed_solve(lua_State *L)
+q_DF_deflated_mixed_solver(lua_State *L,
+                           struct QOP_CLOVER_Fermion *solution,
+                           int *out_iters,
+                           double *out_epsilon,
+                           const struct QOP_CLOVER_Fermion *rhs)
 {
-#if 0    /* XXX the deflated mixed solver */
-#endif
-    return 0;
+    mClover        *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
+    mDeflatorState *d = qlua_checkDeflatorState(L, lua_upvalueindex(3), 1);
+    double      f_eps = luaL_checknumber(L, lua_upvalueindex(4));
+    int   inner_iters = luaL_checkint(L, lua_upvalueindex(5));
+    double        eps = luaL_checknumber(L, lua_upvalueindex(6));
+    int     max_iters = luaL_checkint(L, lua_upvalueindex(7));
+    
+    return QOP_CLOVER_deflated_mixed_D_CG(solution, out_iters, out_epsilon,
+                                          rhs, c->gauge, rhs, d->deflator,
+                                          inner_iters, f_eps,
+                                          max_iters, eps, 0);
 }
+
+static CloverSolver deflated_mixed_solver = {
+    q_DF_deflated_mixed_solver, "eigCG"
+};
 
 static int
 q_DF_make_mixed_solver(lua_State *L)
 {
-    double inner_eps;
-    int inner_iter;
-    double eps;
-    int max_iter;
+    double inner_eps = luaL_checknumber(L, 2);
+    int inner_iter = luaL_checkint(L, 3);
+    double eps = luaL_checknumber(L, 4);
+    int max_iter = luaL_checkint(L, 5);
 
-    qlua_Deflator_get_Clover(L, 1, 1);  /* clo[1]: Clover */
-    qlua_Deflator_get_State(L, 1, 1);   /* clo[2]: Deflator */
-    inner_eps = luaL_checknumber(L, 2);
-    lua_pushnumber(L, inner_eps);       /* clo[3]: inner_eps */
-    inner_iter = luaL_checkint(L, 3);
-    lua_pushnumber(L, inner_iter);       /* clo[4]: inner_iter */
-    eps = luaL_checknumber(L, 4);
-    lua_pushnumber(L, eps);             /* clo[5]: epsilon */
-    max_iter = luaL_checkint(L, 5);
-    lua_pushnumber(L, max_iter);        /* clo[6]: max_iter */
-    lua_pushcclosure(L, q_DF_mixed_solve, 6);
+    lua_pushlightuserdata(L, &deflated_mixed_solver); /* clo[1]: solver */
+    qlua_Deflator_get_Clover(L, 1, 1);                /* clo[2]: Clover */
+    qlua_Deflator_get_State(L, 1, 1);                 /* clo[3]: Deflator */
+    lua_pushnumber(L, inner_eps);                     /* clo[4]: inner_eps */
+    lua_pushnumber(L, inner_iter);                    /* clo[5]: inner_iter */
+    lua_pushnumber(L, eps);                           /* clo[6]: epsilon */
+    lua_pushnumber(L, max_iter);                      /* clo[7]: max_iter */
+    lua_pushcclosure(L, q_dirac_solver, 7);
 
     return 1;
 }
