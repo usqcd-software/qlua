@@ -236,6 +236,7 @@ md_eigen(lua_State *L)                                         /* (-1,+2,e) */
             (lo > m->l_size) || (lo > m->r_size) ||
             (hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
+        break;
     default:
         return luaL_error(L, "matrix:eigen(): illegal arguments");
     }
@@ -809,6 +810,7 @@ mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
             (lo > m->l_size) || (lo > m->r_size) ||
             (hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
+        break;
     default:
         return luaL_error(L, "matrix:eigen(): illegal arguments");
     }

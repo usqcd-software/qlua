@@ -74,6 +74,13 @@ show_rmatrix("mx-1 transposed", mx:transpose())
 mx[{mx_size - 1,0}] = -0.999
 
 show_rmatrix("mx", mx)
+l2, b2 = mx:symmetric_eigen(mx_size - 2)
+show_rmatrix("b2", b2)
+show_rvector("l2", l2)
+l3, b3 = mx:symmetric_eigen(1, mx_size - 2)
+show_rmatrix("b3", b3)
+show_rvector("l3", l3)
+
 l, b = mx:symmetric_eigen()
 show_rmatrix("basis", b)
 printf("trace(b) = %15.10f\n", b:trace())
@@ -105,6 +112,7 @@ for i = 0, 2 do
 end
 show_rmatrix("mx", mx)
 show_rmatrix("mx * mx", mx * mx)
+show_rmatrix("mx + mx", mx + mx)
 show_rmatrix("3 * mx", 3 * mx)
 q = mx * 5; show_rmatrix("mx * 5", q)
 show_rmatrix("mx * 5 / 0.5", q / 0.5)
@@ -122,15 +130,17 @@ show_cmatrix("3 * mz", 3 * mz)
 show_cmatrix("mz * 5", mz * 5)
 show_cmatrix("mz / 2", mz / 2)
 show_cmatrix("(1+2i) * mz", complex(1,2) * mz)
-mq = mz * complex(2,-3); show_cmatrix("mz * (3-2i)", mq)
-show_cmatrix("mz *(3-2i) / (3-2*i)", mq / complex(2,-3))
+mq = mz * complex(2,-3); show_cmatrix("mz * (2-3i)", mq)
+show_cmatrix("mz *(2-3i) / (2-3i)", mq / complex(2,-3))
 show_cmatrix("mz/mz", mz:inverse() * mz)
 
 mz = matrix.complex{mx_size, mx_size}
 for i = 0, mx_size - 1 do
   for j = i + 1, mx_size - 1 do
-     mz[{i,j}] = complex(i, j)
-     mz[{j,i}] = complex(i,-j)
+     local a = math.sin((i+j)/65)
+     local b = math.cos((i-j)/(i + j + 6))
+     mz[{i,j}] = complex(a, b)
+     mz[{j,i}] = complex(a,-b)
   end
 end
 l,mq = mz:hermitian_eigen()
@@ -143,5 +153,20 @@ show_cmatrix("q", q)
 show_cmatrix("q*q", q:adjoin() * q)
 show_cmatrix("r", r)
 show_cmatrix("qr-m", q * r - mz)
+
+show_cmatrix("mx", mz)
+l2, b2 = mz:hermitian_eigen(mx_size - 2)
+show_cmatrix("b2", b2)
+show_rvector("l2", l2)
+l3, b3 = mz:hermitian_eigen(1, mx_size - 3)
+show_cmatrix("b3", b3)
+show_rvector("l3", l3)
+
+show_cmatrix("b3+b3*", b3:transpose() + b3)
+show_cmatrix("b3:conj()", b3:conj() + b3)
+z = b3:trace()
+printf("b3:trace = %15.11f  %15.11f\n", z:real(), z:imag())
+z = b3:det()
+printf("b3:det = %15.11f  %15.11f\n", z:real(), z:imag())
 
 printf("DONE\n")
