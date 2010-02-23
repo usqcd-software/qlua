@@ -46,8 +46,19 @@ end
 
 
 ----- real case
-m = matrix.real{5,7}
+m = matrix.real{5,3}
 printf("m = %s\n", tostring(m))
+for i = 0, 5 - 1 do
+   for j = 0, 3 - 1 do
+      m[{i,j}] = math.cos((i + j) / 7) + math.sin(j / 5)
+   end
+end
+mq, mr = m:qr()
+show_rmatrix("q", mq)
+show_rmatrix("r", mr)
+show_rmatrix("m", m)
+show_rmatrix("qr-m", mq * mr - m)
+show_rmatrix("qq", mq:transpose() * mq)
 
 mx = matrix.real{mx_size,mx_size}
 for k = 0, mx_size - 1 do
@@ -71,6 +82,15 @@ printf("trace(diag) = %15.10f\n", (b:transpose() * mx * b):trace())
 printf("trace(mx)   = %15.10f\n", mx:trace())
 show_rvector("lambda", l)
 show_rmatrix("unit", b:transpose() * b)
+det_b = b:det()
+printf("det(b)= %15.10f\n", det_b)
+printf("det(mx) = %15.10f\n", mx:det())
+xx = 1
+for n = 0, #l - 1 do
+   xx = xx * l[n]
+end
+printf("DET(mx) = %15.10f\n", xx)
+
 xm = mx:inverse()
 show_rmatrix("xm", xm)
 show_rmatrix("xm * mx", xm * mx)
@@ -117,5 +137,11 @@ l,mq = mz:hermitian_eigen()
 show_cmatrix("eigenvecs", mq)
 show_cmatrix("right: mq * mz * mq", mq:adjoin() * mz * mq)
 show_cmatrix("wrong: mq * mz * mq", mq * mz * mq:adjoin())
+show_rvector("lambda", l)
+q, r = mz:qr()
+show_cmatrix("q", q)
+show_cmatrix("q*q", q:adjoin() * q)
+show_cmatrix("r", r)
+show_cmatrix("qr-m", q * r - mz)
 
 printf("DONE\n")

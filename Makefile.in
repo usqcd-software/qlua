@@ -42,6 +42,12 @@ MDWF_CF      = @mdwf_cflags@
 MDWF_LF      = @mdwf_ldflags@
 MDWF_LIBS    = @mdwf_libs@
 
+GSL          = @gsl@
+GSL_CF       = @gsl_cflags@
+GSL_LIBS     = @gsl_libs@
+
+CBLAS_LIBS   = @cblas_libs@
+
 EXTRAS       = @extras@
 
 ## ZZZ add other modules here
@@ -54,7 +60,6 @@ driver = qlua.c
 headers = qlua.h
 libsrc = fix.c \
          qvector.c \
-         qmatrix.c \
          qcomplex.c \
          qgamma.c \
          lattice.c \
@@ -73,7 +78,6 @@ libsrc = fix.c \
          qdpcc_io.c \
          ddpairs_io.c \
 	 nersc_io.c \
-         matrix.c \
          qxml.c
 
 ###############################################################################
@@ -87,6 +91,10 @@ endif
 
 ifneq ("$(MDWF)", "")
   libsrc += qmdwf.c
+endif
+
+ifneq ("$(GSL)", "")
+  libsrc += qmatrix.c
 endif
 
 extrascr =
@@ -114,10 +122,13 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF) \
+              $(GSL_CF)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
               $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
-LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) -llua $(LIBS)
+LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) \
+        $(GSL_LIBS) $(CBLAS_LIBS) \
+        -llua $(LIBS)
 
 ###############################################################################
 all: doc $(program)

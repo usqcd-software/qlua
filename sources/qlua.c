@@ -34,6 +34,9 @@
 #ifdef HAS_MDWF
 #include "qmdwf.h"                                                   /* DEPS */
 #endif
+#ifdef HAS_GSL
+#include "qmatrix.h"                                                 /* DEPS */
+#endif
 
 #include <string.h>
 #include <stdarg.h>
@@ -63,6 +66,12 @@ static struct {
 #endif
 #ifdef HAS_EXTRAS
     {"extras", "included" },
+#endif
+#ifdef HAS_GSL
+    {"gsl",     GSL_VERSION },
+#endif
+#ifdef HAS_CBLAS
+    {"cblas",     CBLAS_VERSION },
 #endif
     {NULL,     NULL}
 };
@@ -361,8 +370,10 @@ qlua_gettype(lua_State *L, int idx)
             { mtnVecInt,        qVecInt },
             { mtnVecReal,       qVecReal },
             { mtnVecComplex,    qVecComplex },
+#ifdef HAS_GSL
             { mtnMatReal,       qMatReal },
             { mtnMatComplex,    qMatComplex },
+#endif
             { mtnLatInt,        qLatInt },
             { mtnLatReal,       qLatReal },
             { mtnLatRandom,     qLatRandom },
@@ -539,7 +550,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_complex,
         init_gamma,
         init_vector,
+#ifdef HAS_GSL
         init_matrix,
+#endif
         init_lattice,
         init_latint,
         init_latrandom,
@@ -640,7 +653,9 @@ qlua_fini(lua_State *L)
         fini_latrandom,
         fini_latint,
         fini_lattice,
+#ifdef HAS_GSL
         fini_matrix,
+#endif
         fini_vector,
         fini_gamma,
         fini_complex,

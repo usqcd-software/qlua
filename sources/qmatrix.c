@@ -5,9 +5,17 @@
 #include "qcomplex.h"                                                /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
-#include "matrix.h"                                                  /* DEPS */
 #include <string.h>
 #include <math.h>
+#define GSL_RANGE_CHECK_OFF
+#define HAVE_INLINE
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_eigen.h>
+#include <gsl/gsl_matrix_double.h>
+#include <gsl/gsl_vector_double.h>
+#include <gsl/gsl_permutation.h>
+#include <gsl/gsl_linalg.h>
 
 const char mtnMatReal[]           = "matrix.mtReal";
 const char mtnMatComplex[]        = "matrix.mtComplex";
@@ -16,9 +24,17 @@ static const char opMatComplex[]  = "matrix.mtComplex.ops";
 
 static char matrix_ns[] = "matrix";
 
-#define MSIZE(s,a,b,t) (sizeof (s) + ((a)*(b)-1)*(t))
-#define RM(a,i,j)  ((a)->val[(i) + (j) * (a)->size_l])
-#define CM(a,i,j)  ((a)->val + 2 * ((i) + (j) * (a)->size_l))
+typedef struct {
+    int l_size;
+    int r_size;
+    gsl_matrix *m;
+} mMatReal;
+
+typedef struct {
+    int l_size;
+    int r_size;
+    gsl_matrix_complex *m;
+} mMatComplex;
 
 static void *
 qlua_checkMatrix(lua_State *L, int idx, const char *mt, const char *name)
@@ -55,9 +71,18 @@ qlua_checkMatReal(lua_State *L, int idx)
 mMatReal *
 qlua_newMatReal(lua_State *L, int sl, int sr)
 {
-    return qlua_newMatrix(L,
-                          MSIZE(mMatReal, sl, sr, sizeof(double)),
-                          mtnMatReal);
+    mMatReal *m = (mMatReal *)qlua_newMatrix(L, sizeof (mMatReal), mtnMatReal);
+
+    m->l_size = sl;
+    m->r_size = sr;
+    m->m = gsl_matrix_calloc(sl, sr);
+    if (m->m == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        m->m = gsl_matrix_calloc(sl, sr);
+        if (m->m == 0)
+            luaL_error(L, "not enough memory");
+    }
+    return m;
 }
 
 static int
@@ -66,30 +91,80 @@ md_fmt(lua_State *L)                                           /* (-1,+1,e) */
     char fmt[72];
     mMatReal *v = qlua_checkMatReal(L, 1);
 
-    sprintf(fmt, "matrix.real[{%d,%d}]", v->size_l, v->size_r);
+    sprintf(fmt, "matrix.real[{%d,%d}]", v->l_size, v->r_size);
     lua_pushstring(L, fmt);
 
     return 1;
 }
 
 static int
+md_gc(lua_State *L)
+{
+    mMatReal *v = qlua_checkMatReal(L, 1);
+    
+    if (v->m)
+        gsl_matrix_free(v->m);
+    v->m = 0;
+
+    return 0;
+}
+
+static int
 md_inverse(lua_State *L)
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
-    mMatReal *t;
+    mMatReal *lu;
     mMatReal *r;
+    gsl_permutation *p;
+    int signum;
 
-    if (m->size_l != m->size_r)
+    if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
-    t = qlua_newMatReal(L, m->size_l, m->size_l);
-    r = qlua_newMatReal(L, m->size_l, m->size_l);
-    memcpy(t->val, m->val, m->size_l * m->size_l * sizeof (double));
-    r->size_l = m->size_l;
-    r->size_r = m->size_l;
-    if (matrix_rinverse(m->size_l, t->val, r->val))
-        return luaL_error(L, "inverting singular matrix");
+    lu = qlua_newMatReal(L, m->l_size, m->l_size);
+    r = qlua_newMatReal(L, m->l_size, m->l_size);
+    gsl_matrix_memcpy(lu->m, m->m);
+    p = gsl_permutation_alloc(m->l_size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m->l_size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
+    gsl_linalg_LU_decomp(lu->m, p, &signum);
+    if (gsl_linalg_LU_invert(lu->m, p, r->m))
+        luaL_error(L, "matrix:inverse() failed");
+    
+    gsl_permutation_free(p);
+    return 1;
+}
 
+static int
+md_det(lua_State *L)                                            /* (-1,+1,e) */
+{
+    mMatReal *m = qlua_checkMatReal(L, 1);
+    mMatReal *lu;
+    gsl_permutation *p;
+    int signum;
+    double d;
+
+    if (m->l_size != m->r_size)
+        return luaL_error(L, "square matrix expected");
+    
+    lu = qlua_newMatReal(L, m->l_size, m->l_size);
+    gsl_matrix_memcpy(lu->m, m->m);
+    p = gsl_permutation_alloc(m->l_size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m->l_size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
+    gsl_linalg_LU_decomp(lu->m, p, &signum);
+    d = gsl_linalg_LU_det(lu->m, signum);
+    gsl_permutation_free(p);
+
+    lua_pushnumber(L, d);
     return 1;
 }
 
@@ -97,16 +172,26 @@ static int
 md_qr(lua_State *L)                                            /* (-1,+2,e) */
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
-    mMatReal *q = qlua_newMatReal(L, m->size_l, m->size_l);
-    mMatReal *r = qlua_newMatReal(L, m->size_l, m->size_r);
+    mMatReal *qr = qlua_newMatReal(L, m->l_size, m->r_size);
+    mMatReal *q = qlua_newMatReal(L, m->l_size, m->l_size);
+    mMatReal *r = qlua_newMatReal(L, m->l_size, m->r_size);
+    int nm = m->l_size < m->r_size? m->l_size: m->r_size;
+    gsl_vector *tau;
 
-    q->size_l = m->size_l;
-    q->size_r = m->size_l;
-
-    r->size_l = m->size_l;
-    r->size_r = m->size_r;
-    memcpy(r->val, m->val, m->size_l * m->size_r * sizeof (double));
-    matrix_rqr(m->size_l, m->size_r, r->val, q->val);
+    gsl_matrix_memcpy(qr->m, m->m);
+    tau = gsl_vector_alloc(nm);
+    if (tau == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        tau = gsl_vector_alloc(nm);
+        if (tau == 0)
+            luaL_error(L, "not enough memory");
+    }
+    if (gsl_linalg_QR_decomp(qr->m, tau))
+        luaL_error(L, "matrix:qr() failed");
+    
+    if (gsl_linalg_QR_unpack(qr->m, tau, q->m, r->m))
+        luaL_error(L, "matrix:qr() failed");
+    gsl_vector_free(tau);
     
     return 2;
 }
@@ -121,46 +206,75 @@ static int
 md_eigen(lua_State *L)                                         /* (-1,+2,e) */
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
+    gsl_matrix_view mx;
+    gsl_eigen_symmv_workspace *w;
+    gsl_vector *ev;
     mVecReal *lambda;
     mMatReal *trans;
-    int i, j;
+    mMatReal *tmp;
+    int n;
+    int i;
     int lo, hi;
 
     switch (lua_gettop(L)) {
     case 1:
-        if (m->size_l != m->size_r)
+        if (m->l_size != m->r_size)
             return luaL_error(L, "matrix:eigen() expects square matrix");
         lo = 0;
-        hi = m->size_l;
+        hi = m->l_size;
         break;
     case 2:
         lo = 0;
         hi = luaL_checkint(L, 2);
-        if ((hi > m->size_l) || (hi > m->size_r))
+        if ((hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
         break;
     case 3:
         lo = luaL_checkint(L, 2);
         hi = luaL_checkint(L, 3);
         if ((lo >= hi) ||
-            (lo > m->size_l) || (lo > m->size_r) ||
-            (hi > m->size_l) || (hi > m->size_r))
+            (lo > m->l_size) || (lo > m->r_size) ||
+            (hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
     default:
         return luaL_error(L, "matrix:eigen(): illegal arguments");
     }
 
-    lambda = qlua_newVecReal(L, hi - lo);
-    lambda->size = hi - lo;
-    trans = qlua_newMatReal(L, hi - lo, hi - lo);
-    trans->size_l = trans->size_r = hi - lo;
-    for (i = lo; i < hi; i++) {
-        for (j = lo; j < hi; j++) {
-            RM(trans, i - lo, j - lo) = RM(m, i, j);
-        }
+    n = hi - lo;
+    mx = gsl_matrix_submatrix(m->m, lo, lo, n, n);
+    tmp = qlua_newMatReal(L, n, n);
+    gsl_matrix_memcpy(tmp->m, &mx.matrix);
+    lambda = qlua_newVecReal(L, n);
+    lambda->size = n;
+    trans = qlua_newMatReal(L, n, n);
+
+    ev = gsl_vector_alloc(n);
+    if (ev == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        ev = gsl_vector_alloc(n);
+        if (ev == 0)
+            luaL_error(L, "not enough memory");
     }
 
-    matrix_reigenvec(L, hi - lo, trans->val, lambda->val);
+    w = gsl_eigen_symmv_alloc(n);
+    if (w == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        w = gsl_eigen_symmv_alloc(n);
+        if (w == 0)
+            luaL_error(L, "not enough memory");
+    }
+    
+    if (gsl_eigen_symmv(tmp->m, ev, trans->m, w))
+        luaL_error(L, "matrix:eigen() failed");
+
+    if (gsl_eigen_symmv_sort(ev, trans->m, GSL_EIGEN_SORT_VAL_ASC))
+        luaL_error(L, "matrix:eigen() eigenvalue ordering failed");
+
+    for (i = 0; i < n; i++)
+        lambda->val[i] = gsl_vector_get(ev, i);
+
+    gsl_vector_free(ev);
+    gsl_eigen_symmv_free(w);
 
     return 2;
 }
@@ -169,16 +283,15 @@ static int
 md_transpose(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
-    mMatReal *b = qlua_newMatReal(L, a->size_r, a->size_l);
+    mMatReal *b = qlua_newMatReal(L, a->r_size, a->r_size);
     int l, r;
 
-    b->size_l = a->size_r;
-    b->size_r = a->size_l;
-    for (l = 0; l < b->size_l; l++) {
-        for (r = 0; r < b->size_r; r++) {
-            RM(b,l,r) = RM(a,r,l);
+    for (l = 0; l < b->l_size; l++) {
+        for (r = 0; r < b->r_size; r++) {
+            gsl_matrix_set(b->m, l, r, gsl_matrix_get(a->m, r, l));
         }
     }
+
     return 1;
 }
 
@@ -189,11 +302,11 @@ md_trace(lua_State *L)                                         /* (-1,+2,e) */
     int i;
     double tr;
     
-    if (m->size_l != m->size_r)
+    if (m->l_size != m->r_size)
         return luaL_error(L, "matrix:trace() expects square matrix");
     
-    for (tr = 0, i = 0; i < m->size_l; i++)
-        tr += RM(m,i,i);
+    for (tr = 0, i = 0; i < m->l_size; i++)
+        tr += gsl_matrix_get(m->m,i,i);
     lua_pushnumber(L, tr);
 
     return 1;
@@ -204,8 +317,8 @@ md_dims(lua_State *L)                                          /* (-1,+2,e) */
 {
     mMatReal *m = qlua_checkMatReal(L, 1);
 
-    lua_pushnumber(L, m->size_l);
-    lua_pushnumber(L, m->size_r);
+    lua_pushnumber(L, m->l_size);
+    lua_pushnumber(L, m->r_size);
 
     return 2;
 }
@@ -220,9 +333,9 @@ md_get(lua_State *L)                                           /* (-2,+1,e) */
 
         qlua_checkindex2(L, 2, "matrix get", &sl, &sr);
 
-        if ((sl >= 0) && (sl < v->size_l) &&
-            (sr >= 0) && (sr < v->size_r)) {
-            lua_pushnumber(L, RM(v, sl, sr));
+        if ((sl >= 0) && (sl < v->l_size) &&
+            (sr >= 0) && (sr < v->r_size)) {
+            lua_pushnumber(L, gsl_matrix_get(v->m, sl, sr));
             return 1;
         }
         break;
@@ -233,7 +346,6 @@ md_get(lua_State *L)                                           /* (-2,+1,e) */
     return qlua_badindex(L, "matrix.real[]");
 }
 
-
 static int
 md_put(lua_State *L)                                           /* (-3,+0,e) */
 {
@@ -243,9 +355,9 @@ md_put(lua_State *L)                                           /* (-3,+0,e) */
 
     qlua_checkindex2(L, 2, "matrix set", &sl, &sr);
 
-    if ((sl >= 0) && (sl < v->size_l) &&
-        (sr >= 0) && (sr < v->size_r)) {
-        RM(v, sl, sr) = x;
+    if ((sl >= 0) && (sl < v->l_size) &&
+        (sr >= 0) && (sr < v->r_size)) {
+        gsl_matrix_set(v->m, sl, sr, x);
         return 0;
     }
 
@@ -257,18 +369,15 @@ rm_add_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
     mMatReal *r = qlua_newMatReal(L, al, ar);
-    int i;
 
-    if ((al != b->size_l) || (ar != b->size_r))
+    if ((al != b->l_size) || (ar != b->r_size))
         return luaL_error(L, "matrix sizes mismatch in m + m");
 
-    r->size_l = al;
-    r->size_r = ar;
-    for (i = 0; i < al * ar; i++)
-        r->val[i] = a->val[i] + b->val[i];
+    gsl_matrix_memcpy(r->m, a->m);
+    gsl_matrix_add(r->m, b->m);
 
     return 1;
 }
@@ -278,18 +387,15 @@ rm_sub_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
     mMatReal *r = qlua_newMatReal(L, al, ar);
-    int i;
 
-    if ((al != b->size_l) || (ar != b->size_r))
+    if ((al != b->l_size) || (ar != b->r_size))
         return luaL_error(L, "matrix sizes mismatch in m - m");
 
-    r->size_l = al;
-    r->size_r = ar;
-    for (i = 0; i < al * ar; i++)
-        r->val[i] = a->val[i] - b->val[i];
+    gsl_matrix_memcpy(r->m, a->m);
+    gsl_matrix_sub(r->m, b->m);
 
     return 1;
 }
@@ -299,26 +405,16 @@ rm_mul_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
-    int bl = b->size_l;
-    int br = b->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
+    int bl = b->l_size;
+    int br = b->r_size;
     mMatReal *r = qlua_newMatReal(L, al, br);
-    int i, j, k;
 
     if (ar != bl)
         return luaL_error(L, "matrix sizes mismatch in m * m");
 
-    r->size_l = al;
-    r->size_r = br;
-    for (i = 0; i < al; i++) {
-        for (j = 0; j < br; j++) {
-            double v = 0;
-            for (k = 0; k < ar; k++)
-                v += RM(a,i,k) * RM(b, k, j);
-            RM(r, i, j) = v;
-        }
-    }
+    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, a->m, b->m, 0.0, r->m);
 
     return 1;
 }
@@ -326,15 +422,10 @@ rm_mul_rm(lua_State *L)
 static int
 do_rrmul(lua_State *L, mMatReal *a, double b)
 {
-    mMatReal *r = qlua_newMatReal(L, a->size_l, a->size_r);
-    int n = a->size_l * a->size_r;
-    int i;
+    mMatReal *r = qlua_newMatReal(L, a->l_size, a->r_size);
 
-    r->size_l = a->size_l;
-    r->size_r = a->size_r;
-
-    for (i = 0; i < n; i++)
-        r->val[i] = a->val[i] * b;
+    gsl_matrix_memcpy(r->m, a->m);
+    gsl_matrix_scale(r->m, b);
 
     return 1;
 }
@@ -370,14 +461,10 @@ static int
 m_real(lua_State *L)                                         /* (-1,+1,e) */
 {
     int sl, sr;
-    mMatReal *m;
 
     qlua_checkindex2(L, 1, "matrix size", &sl, &sr);
 
-    m = qlua_newMatReal(L, sl, sr);
-    m->size_l = sl;
-    m->size_r = sr;
-    memset(m->val, 0, sl * sr * sizeof (double));
+    qlua_newMatReal(L, sl, sr);
 
     return 1;
 }
@@ -389,11 +476,13 @@ static const luaL_Reg MatRealMethods[] = {
     { "inverse",              md_inverse    },
     { "symmetric_eigen",      md_eigen      },
     { "qr",                   md_qr         },
+    { "det",                  md_det        },
     { NULL, NULL}
 };
 
 static const luaL_Reg mtMatReal[] = {
     { "__tostring",     md_fmt    },
+    { "__gc",           md_gc     },
     { "__index",        md_get    },
     { "__newindex",     md_put    },
     { "__add",          qlua_add  },
@@ -413,9 +502,17 @@ qlua_checkMatComplex(lua_State *L, int idx)
 mMatComplex *
 qlua_newMatComplex(lua_State *L, int sl, int sr)
 {
-    return qlua_newMatrix(L,
-                          MSIZE(mMatComplex, sl, sr, 2 * sizeof (double)),
-                          mtnMatComplex);
+    mMatComplex *m = qlua_newMatrix(L, sizeof (mMatComplex), mtnMatComplex);
+    m->l_size = sl;
+    m->r_size = sr;
+    m->m = gsl_matrix_complex_calloc(sl, sr);
+    if (m->m == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        m->m = gsl_matrix_complex_calloc(sl, sr);
+        if (m->m == 0)
+            luaL_error(L, "not enough memory");
+    }
+    return m;
 }
 
 static int
@@ -423,8 +520,8 @@ mc_dims(lua_State *L)                                          /* (-1,+2,e) */
 {
     mMatComplex *m = qlua_checkMatComplex(L, 1);
 
-    lua_pushnumber(L, m->size_l);
-    lua_pushnumber(L, m->size_r);
+    lua_pushnumber(L, m->l_size);
+    lua_pushnumber(L, m->r_size);
 
     return 2;
 }
@@ -433,15 +530,13 @@ static int
 mc_transpose(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
-    mMatComplex *b = qlua_newMatComplex(L, a->size_r, a->size_l);
+    mMatComplex *b = qlua_newMatComplex(L, a->r_size, a->l_size);
     int l, r;
 
-    b->size_l = a->size_r;
-    b->size_r = a->size_l;
-    for (l = 0; l < b->size_l; l++) {
-        for (r = 0; r < b->size_r; r++) {
-            CM(b,l,r)[0] = CM(a,r,l)[0];
-            CM(b,l,r)[1] = CM(a,r,l)[1];
+    for (l = 0; l < b->l_size; l++) {
+        for (r = 0; r < b->r_size; r++) {
+            gsl_matrix_complex_set(b->m, l, r,
+                                   gsl_matrix_complex_get(a->m, r, l));
         }
     }
     return 1;
@@ -451,15 +546,15 @@ static int
 mc_adjoin(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
-    mMatComplex *b = qlua_newMatComplex(L, a->size_r, a->size_l);
+    mMatComplex *b = qlua_newMatComplex(L, a->r_size, a->l_size);
     int l, r;
 
-    b->size_l = a->size_r;
-    b->size_r = a->size_l;
-    for (l = 0; l < b->size_l; l++) {
-        for (r = 0; r < b->size_r; r++) {
-            CM(b,l,r)[0] = CM(a,r,l)[0];
-            CM(b,l,r)[1] = -CM(a,r,l)[1];
+    for (l = 0; l < b->l_size; l++) {
+        for (r = 0; r < b->r_size; r++) {
+            gsl_complex q;
+            gsl_complex z = gsl_matrix_complex_get(a->m, r, l);
+            GSL_SET_COMPLEX(&q, GSL_REAL(z), -GSL_IMAG(z));
+            gsl_matrix_complex_set(b->m, l, r, q);
         }
     }
     return 1;
@@ -469,15 +564,15 @@ static int
 mc_conj(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
-    mMatComplex *b = qlua_newMatComplex(L, a->size_l, a->size_r);
+    mMatComplex *b = qlua_newMatComplex(L, a->l_size, a->r_size);
     int l, r;
 
-    b->size_l = a->size_r;
-    b->size_r = a->size_l;
-    for (l = 0; l < b->size_l; l++) {
-        for (r = 0; r < b->size_r; r++) {
-            CM(b,l,r)[0] = CM(a,l,r)[0];
-            CM(b,l,r)[1] = -CM(a,l,r)[1];
+    for (l = 0; l < b->l_size; l++) {
+        for (r = 0; r < b->r_size; r++) {
+            gsl_complex q;
+            gsl_complex z = gsl_matrix_complex_get(a->m, l, r);
+            GSL_SET_COMPLEX(&q, GSL_REAL(z), -GSL_IMAG(z));
+            gsl_matrix_complex_set(b->m, l, r, q);
         }
     }
     return 1;
@@ -492,12 +587,13 @@ mc_trace(lua_State *L)                                         /* (-1,+2,e) */
     double ti;
     QLA_Complex *t = qlua_newComplex(L);
     
-    if (m->size_l != m->size_r)
+    if (m->l_size != m->r_size)
         return luaL_error(L, "matrix:trace() expects square matrix");
     
-    for (ti = tr = 0, i = 0; i < m->size_l; i++) {
-        tr += CM(m,i,i)[0];
-        ti += CM(m,i,i)[1];
+    for (ti = tr = 0, i = 0; i < m->l_size; i++) {
+        gsl_complex z = gsl_matrix_complex_get(m->m, i, i);
+        tr += GSL_REAL(z);
+        ti += GSL_IMAG(z);
     }
     QLA_real(*t) = tr;
     QLA_imag(*t) = ti;
@@ -515,12 +611,13 @@ mc_get(lua_State *L)                                           /* (-2,+1,e) */
 
         qlua_checkindex2(L, 2, "matrix get", &sl, &sr);
 
-        if ((sl >= 0) && (sl < v->size_l) &&
-            (sr >= 0) && (sr < v->size_r)) {
+        if ((sl >= 0) && (sl < v->l_size) &&
+            (sr >= 0) && (sr < v->r_size)) {
             QLA_Complex *z = qlua_newComplex(L);
+            gsl_complex zz = gsl_matrix_complex_get(v->m, sl, sr);
 
-            QLA_real(*z) = CM(v, sl, sr)[0];
-            QLA_imag(*z) = CM(v, sl, sr)[1];
+            QLA_real(*z) = GSL_REAL(zz);
+            QLA_imag(*z) = GSL_IMAG(zz);
             return 1;
         }
         break;
@@ -536,26 +633,29 @@ mc_put(lua_State *L)                                           /* (-3,+0,e) */
 {
     mMatComplex *v = qlua_checkMatComplex(L, 1);
     int sl, sr;
+    
+
     qlua_checkindex2(L, 2, "matrix set", &sl, &sr);
 
-    if ((sl >= 0) && (sl < v->size_l) &&
-        (sr >= 0) && (sr < v->size_r)) {
+    if ((sl >= 0) && (sl < v->l_size) &&
+        (sr >= 0) && (sr < v->r_size)) {
         switch (qlua_gettype(L, 3)) {
         case qReal: {
+            gsl_complex z;
             double x = luaL_checknumber(L, 3);
-            CM(v, sl, sr)[0] = x;
-            CM(v, sl, sr)[1] = 0;
+            GSL_SET_COMPLEX(&z, x, 0);
+            gsl_matrix_complex_set(v->m, sl, sr, z);
             return 0;
         }
         case qComplex: {
+            gsl_complex zz;
             QLA_Complex *z = qlua_checkComplex(L, 3);
-            CM(v, sl, sr)[0] = QLA_real(*z);
-            CM(v, sl, sr)[1] = QLA_imag(*z);
+            GSL_SET_COMPLEX(&zz, QLA_real(*z), QLA_imag(*z));
+            gsl_matrix_complex_set(v->m, sl, sr, zz);
             return 0;
         }
         }
     }
-
     return qlua_badindex(L, "matrix.complex[]");
 }
 
@@ -565,29 +665,84 @@ mc_fmt(lua_State *L)                                           /* (-1,+1,e) */
     char fmt[72];
     mMatComplex *v = qlua_checkMatComplex(L, 1);
 
-    sprintf(fmt, "matrix.complex[{%d,%d}]", v->size_l, v->size_r);
+    sprintf(fmt, "matrix.complex[{%d,%d}]", v->l_size, v->r_size);
     lua_pushstring(L, fmt);
 
     return 1;
 }
 
 static int
+mc_gc(lua_State *L)
+{
+    mMatComplex *v = qlua_checkMatComplex(L, 1);
+
+    if (v->m)
+        gsl_matrix_complex_free(v->m);
+    v->m = 0;
+
+    return 0;
+}
+
+static int
 mc_inverse(lua_State *L)
 {
     mMatComplex *m = qlua_checkMatComplex(L, 1);
-    mMatComplex *t;
+    mMatComplex *lu;
     mMatComplex *r;
+    gsl_permutation *p;
+    int signum;
 
-    if (m->size_l != m->size_r)
+    if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
-    t = qlua_newMatComplex(L, m->size_l, m->size_l);
-    r = qlua_newMatComplex(L, m->size_l, m->size_l);
-    memcpy(t->val, m->val, 2 * m->size_l * m->size_l * sizeof (double));
-    r->size_l = m->size_l;
-    r->size_r = m->size_l;
-    if (matrix_cinverse(m->size_l, t->val, r->val))
-        return luaL_error(L, "inverting singular matrix");
+    lu = qlua_newMatComplex(L, m->l_size, m->l_size);
+    r = qlua_newMatComplex(L, m->l_size, m->l_size);
+    gsl_matrix_complex_memcpy(lu->m, m->m);
+    p = gsl_permutation_alloc(m->l_size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m->l_size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
+    gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
+    if (gsl_linalg_complex_LU_invert(lu->m, p, r->m))
+        luaL_error(L, "matrix:inverse() failed");
+    
+    gsl_permutation_free(p);
+    return 1;
+}
+
+static int
+mc_det(lua_State *L)
+{
+    mMatComplex *m = qlua_checkMatComplex(L, 1);
+    mMatComplex *lu;
+    mMatComplex *r;
+    gsl_permutation *p;
+    int signum;
+    gsl_complex d;
+    QLA_Complex *z;
+
+    if (m->l_size != m->r_size)
+        return luaL_error(L, "square matrix expected");
+    
+    lu = qlua_newMatComplex(L, m->l_size, m->l_size);
+    r = qlua_newMatComplex(L, m->l_size, m->l_size);
+    gsl_matrix_complex_memcpy(lu->m, m->m);
+    p = gsl_permutation_alloc(m->l_size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m->l_size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
+    gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
+    d = gsl_linalg_complex_LU_det(lu->m, signum);
+    gsl_permutation_free(p);
+    z = qlua_newComplex(L);
+    QLA_real(*z) = GSL_REAL(d);
+    QLA_imag(*z) = GSL_IMAG(d);
 
     return 1;
 }
@@ -596,16 +751,26 @@ static int
 mc_qr(lua_State *L)                                            /* (-1,+2,e) */
 {
     mMatComplex *m = qlua_checkMatComplex(L, 1);
-    mMatComplex *q = qlua_newMatComplex(L, m->size_l, m->size_l);
-    mMatComplex *r = qlua_newMatComplex(L, m->size_l, m->size_r);
+    mMatComplex *qr = qlua_newMatComplex(L, m->l_size, m->r_size);
+    mMatComplex *q = qlua_newMatComplex(L, m->l_size, m->l_size);
+    mMatComplex *r = qlua_newMatComplex(L, m->l_size, m->r_size);
+    int nm = m->l_size < m->r_size? m->l_size: m->r_size;
+    gsl_vector_complex *tau;
 
-    q->size_l = m->size_l;
-    q->size_r = m->size_l;
-
-    r->size_l = m->size_l;
-    r->size_r = m->size_r;
-    memcpy(r->val, m->val, m->size_l * m->size_r * 2 * sizeof (double));
-    matrix_cqr(m->size_l, m->size_r, r->val, q->val);
+    gsl_matrix_complex_memcpy(qr->m, m->m);
+    tau = gsl_vector_complex_alloc(nm);
+    if (tau == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        tau = gsl_vector_complex_alloc(nm);
+        if (tau == 0)
+            luaL_error(L, "not enough memory");
+    }
+    if (gsl_linalg_complex_QR_decomp(qr->m, tau))
+        luaL_error(L, "matrix:qr() failed");
+    
+    if (gsl_linalg_complex_QR_unpack(qr->m, tau, q->m, r->m))
+        luaL_error(L, "matrix:qr() failed");
+    gsl_vector_complex_free(tau);
     
     return 2;
 }
@@ -614,47 +779,75 @@ static int
 mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
 {
     mMatComplex *m = qlua_checkMatComplex(L, 1);
+    gsl_matrix_complex_view mx;
+    gsl_eigen_hermv_workspace *w;
+    gsl_vector *ev;
     mVecReal *lambda;
     mMatComplex *trans;
-    int i, j;
+    mMatComplex *tmp;
+    int n;
+    int i;
     int lo, hi;
 
     switch (lua_gettop(L)) {
     case 1:
-        if (m->size_l != m->size_r)
+        if (m->l_size != m->r_size)
             return luaL_error(L, "matrix:eigen() expects square matrix");
         lo = 0;
-        hi = m->size_l;
+        hi = m->l_size;
         break;
     case 2:
         lo = 0;
         hi = luaL_checkint(L, 2);
-        if ((hi > m->size_l) || (hi > m->size_r))
+        if ((hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
         break;
     case 3:
         lo = luaL_checkint(L, 2);
         hi = luaL_checkint(L, 3);
         if ((lo >= hi) ||
-            (lo > m->size_l) || (lo > m->size_r) ||
-            (hi > m->size_l) || (hi > m->size_r))
+            (lo > m->l_size) || (lo > m->r_size) ||
+            (hi > m->l_size) || (hi > m->r_size))
             return slice_out(L);
     default:
         return luaL_error(L, "matrix:eigen(): illegal arguments");
     }
 
-    lambda = qlua_newVecReal(L, hi - lo);
-    lambda->size = hi - lo;
-    trans = qlua_newMatComplex(L, hi - lo, hi - lo);
-    trans->size_l = trans->size_r = hi - lo;
-    for (i = lo; i < hi; i++) {
-        for (j = lo; j < hi; j++) {
-            CM(trans, i - lo, j - lo)[0] = CM(m, i, j)[0];
-            CM(trans, i - lo, j - lo)[1] = CM(m, i, j)[1];
-        }
+    n = hi - lo;
+    mx = gsl_matrix_complex_submatrix(m->m, lo, lo, n, n);
+    tmp = qlua_newMatComplex(L, n, n);
+    gsl_matrix_complex_memcpy(tmp->m, &mx.matrix);
+    lambda = qlua_newVecReal(L, n);
+    lambda->size = n;
+    trans = qlua_newMatComplex(L, n, n);
+
+    ev = gsl_vector_alloc(n);
+    if (ev == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        ev = gsl_vector_alloc(n);
+        if (ev == 0)
+            luaL_error(L, "not enough memory");
     }
 
-    matrix_ceigenvec(L, hi - lo, trans->val, lambda->val);
+    w = gsl_eigen_hermv_alloc(n);
+    if (w == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        w = gsl_eigen_hermv_alloc(n);
+        if (w == 0)
+            luaL_error(L, "not enough memory");
+    }
+    
+    if (gsl_eigen_hermv(tmp->m, ev, trans->m, w))
+        luaL_error(L, "matrix:eigen() failed");
+
+    if (gsl_eigen_hermv_sort(ev, trans->m, GSL_EIGEN_SORT_VAL_ASC))
+        luaL_error(L, "matrix:eigen() eigenvalue ordering failed");
+
+    for (i = 0; i < n; i++)
+        lambda->val[i] = gsl_vector_get(ev, i);
+
+    gsl_vector_free(ev);
+    gsl_eigen_hermv_free(w);
 
     return 2;
 }
@@ -664,18 +857,15 @@ cm_add_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
     mMatComplex *r = qlua_newMatComplex(L, al, ar);
-    int i;
 
-    if ((al != b->size_l) || (ar != b->size_r))
+    if ((al != b->l_size) || (ar != b->r_size))
         return luaL_error(L, "matrix sizes mismatch in m + m");
 
-    r->size_l = al;
-    r->size_r = ar;
-    for (i = 0; i < 2 * al * ar; i++)
-        r->val[i] = a->val[i] + b->val[i];
+    gsl_matrix_complex_memcpy(r->m, a->m);
+    gsl_matrix_complex_add(r->m, b->m);
 
     return 1;
 }
@@ -685,34 +875,28 @@ cm_sub_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
     mMatComplex *r = qlua_newMatComplex(L, al, ar);
-    int i;
 
-    if ((al != b->size_l) || (ar != b->size_r))
-        return luaL_error(L, "matrix sizes mismatch in m - m");
+    if ((al != b->l_size) || (ar != b->r_size))
+        return luaL_error(L, "matrix sizes mismatch in m + m");
 
-    r->size_l = al;
-    r->size_r = ar;
-    for (i = 0; i < 2 * al * ar; i++)
-        r->val[i] = a->val[i] - b->val[i];
+    gsl_matrix_complex_memcpy(r->m, a->m);
+    gsl_matrix_complex_sub(r->m, b->m);
 
     return 1;
 }
 
 static int
-do_crmul(lua_State *L, mMatComplex *a, double b)
+do_ccmul(lua_State *L, mMatComplex *a, double b_re, double b_im)
 {
-    mMatComplex *r = qlua_newMatComplex(L, a->size_l, a->size_r);
-    int n = 2 * a->size_l * a->size_r;
-    int i;
+    mMatComplex *r = qlua_newMatComplex(L, a->l_size, a->r_size);
+    gsl_complex z;
 
-    r->size_l = a->size_l;
-    r->size_r = a->size_r;
-
-    for (i = 0; i < n; i++)
-        r->val[i] = a->val[i] * b;
+    gsl_matrix_complex_memcpy(r->m, a->m);
+    GSL_SET_COMPLEX(&z, b_re, b_im);
+    gsl_matrix_complex_scale(r->m, z);
 
     return 1;
 }
@@ -723,7 +907,7 @@ cm_mul_r(lua_State *L)
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     double b = luaL_checknumber(L, 2);
 
-    return do_crmul(L, a, b);
+    return do_ccmul(L, a, b, 0);
 }
 
 static int
@@ -732,7 +916,7 @@ r_mul_cm(lua_State *L)
     double b = luaL_checknumber(L, 1);
     mMatComplex *a = qlua_checkMatComplex(L, 2);
 
-    return do_crmul(L, a, b);
+    return do_ccmul(L, a, b, 0);
 }
 
 static int
@@ -741,25 +925,7 @@ cm_div_r(lua_State *L)
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     double b = luaL_checknumber(L, 2);
 
-    return do_crmul(L, a, 1/b);
-}
-
-static int
-do_ccmul(lua_State *L, mMatComplex *a, double br, double bi)
-{
-    mMatComplex *r = qlua_newMatComplex(L, a->size_l, a->size_r);
-    int n = a->size_l * a->size_r;
-    int i;
-
-    r->size_l = a->size_l;
-    r->size_r = a->size_r;
-
-    for (i = 0; i < n; i++) {
-        r->val[2*i] = a->val[2*i] * br - a->val[2*i+1] * bi;
-        r->val[2*i+1] = a->val[2*i] * bi + a->val[2*i+1] * br;
-    }
-
-    return 1;
+    return do_ccmul(L, a, 1/b, 0);
 }
 
 static int
@@ -798,34 +964,19 @@ cm_mul_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
-    int al = a->size_l;
-    int ar = a->size_r;
-    int bl = b->size_l;
-    int br = b->size_r;
+    int al = a->l_size;
+    int ar = a->r_size;
+    int bl = b->l_size;
+    int br = b->r_size;
     mMatComplex *r = qlua_newMatComplex(L, al, br);
-    int i, j, k;
+    gsl_complex z1, z0;
 
     if (ar != bl)
         return luaL_error(L, "matrix sizes mismatch in m * m");
 
-    r->size_l = al;
-    r->size_r = br;
-    for (i = 0; i < al; i++) {
-        for (j = 0; j < br; j++) {
-            double vr = 0;
-            double vi = 0;
-            for (k = 0; k < ar; k++) {
-                double ar = CM(a,i,k)[0];
-                double ai = CM(a,i,k)[1];
-                double br = CM(b,k,j)[0];
-                double bi = CM(b,k,j)[1];
-                vr += ar * br - ai * bi;
-                vi += ar * bi + ai * br;
-            }
-            CM(r, i, j)[0] = vr;
-            CM(r, i, j)[1] = vi;
-        }
-    }
+    GSL_SET_COMPLEX(&z1, 1.0, 0.0);
+    GSL_SET_COMPLEX(&z0, 0.0, 0.0);
+    gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, z1, a->m, b->m, z0, r->m);
 
     return 1;
 }
@@ -834,14 +985,9 @@ static int
 m_complex(lua_State *L)
 {
     int sl, sr;
-    mMatComplex *m;
-
+    
     qlua_checkindex2(L, 1, "matrix size", &sl, &sr);
-
-    m = qlua_newMatComplex(L, sl, sr);
-    m->size_l = sl;
-    m->size_r = sr;
-    memset(m->val, 0, sl * sr * 2 * sizeof (double));
+    qlua_newMatComplex(L, sl, sr);
 
     return 1;
 }
@@ -855,11 +1001,13 @@ static const luaL_Reg MatComplexMethods[] = {
     { "inverse",              mc_inverse    },
     { "hermitian_eigen",      mc_eigen      },
     { "qr",                   mc_qr         },
+    { "det",                  mc_det        },
     { NULL, NULL}
 };
 
 static const luaL_Reg mtMatComplex[] = {
     { "__tostring",     mc_fmt    },
+    { "__gc",           mc_gc     },
     { "__index",        mc_get    },
     { "__newindex",     mc_put    },
     { "__add",          qlua_add  },
@@ -879,27 +1027,28 @@ static const luaL_Reg fMatrix[] = {
 int
 init_matrix(lua_State *L)
 {
+    gsl_set_error_handler_off();
     luaL_register(L, matrix_ns,      fMatrix);
     qlua_metatable(L, mtnMatReal,    mtMatReal);
     qlua_metatable(L, opMatReal,     MatRealMethods);
     qlua_metatable(L, mtnMatComplex, mtMatComplex);
     qlua_metatable(L, opMatComplex,  MatComplexMethods);
 
-    qlua_reg_add(qMatComplex, qMatComplex, cm_add_cm);
     qlua_reg_add(qMatReal,    qMatReal,    rm_add_rm);
-    qlua_reg_div(qMatComplex, qComplex,    cm_div_c);
-    qlua_reg_div(qMatComplex, qReal,       cm_div_r);
+    qlua_reg_sub(qMatReal,    qMatReal,    rm_sub_rm);
+    qlua_reg_mul(qMatReal,    qMatReal,    rm_mul_rm);
+    qlua_reg_mul(qReal,       qMatReal,    r_mul_rm);
+    qlua_reg_mul(qMatReal,    qReal,       rm_mul_r);
     qlua_reg_div(qMatReal,    qReal,       rm_div_r);
+    qlua_reg_add(qMatComplex, qMatComplex, cm_add_cm);
+    qlua_reg_sub(qMatComplex, qMatComplex, cm_sub_cm);
+    qlua_reg_mul(qMatComplex, qMatComplex, cm_mul_cm);
+    qlua_reg_mul(qReal,       qMatComplex, r_mul_cm);
     qlua_reg_mul(qComplex,    qMatComplex, c_mul_cm);
     qlua_reg_mul(qMatComplex, qComplex,    cm_mul_c);
-    qlua_reg_mul(qMatComplex, qMatComplex, cm_mul_cm);
     qlua_reg_mul(qMatComplex, qReal,       cm_mul_r);
-    qlua_reg_mul(qMatReal,    qMatReal,    rm_mul_rm);
-    qlua_reg_mul(qMatReal,    qReal,       rm_mul_r);
-    qlua_reg_mul(qReal,       qMatComplex, r_mul_cm);
-    qlua_reg_mul(qReal,       qMatReal,    r_mul_rm);
-    qlua_reg_sub(qMatComplex, qMatComplex, cm_sub_cm);
-    qlua_reg_sub(qMatReal,    qMatReal,    rm_sub_rm);
+    qlua_reg_div(qMatComplex, qComplex,    cm_div_c);
+    qlua_reg_div(qMatComplex, qReal,       cm_div_r);
 
     return 0;
 }

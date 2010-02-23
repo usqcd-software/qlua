@@ -22,6 +22,8 @@ show_help() {
      clover                   SciDAC L3 clover inverter
      mdwf                     SciDAC L3 Moebius domain wall fermions
      lhpc-aff                 LHPC AFF library
+     gsl                      GSL library
+     atlas                    Use ATLAS for CBLAS
 
    Environment variables:
      CC                      C compiler to use
@@ -78,6 +80,8 @@ process_args() {
       --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
       --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'`     ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
+      --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
+      --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
       --with-extras)      extras=true ;;
       ## add other packages here
       *) show_error "Unknown argument $1" ;;
@@ -121,6 +125,7 @@ normalize() {
      clover_cflags=`$clover/bin/clover-config --cflags`
      clover_ldflags=`$clover/bin/clover-config --ldflags`
      clover_libs=`$clover/bin/clover-config --libs`
+     [ -z "$gsl" ] && show_error "CLOVER requires GSL"
   fi
   if [ ! -z "$mdwf" ] ; then
      [ -x "$mdwf/bin/mdwf-config" ] \
@@ -135,6 +140,18 @@ normalize() {
      aff_cflags=`$aff/bin/lhpc-aff-config --cflags`
      aff_ldflags=`$aff/bin/lhpc-aff-config --ldflags`
      aff_libs=`$aff/bin/lhpc-aff-config --libs`
+  fi
+  ## see if optimized CBLAS is chosen
+  if [ ! -z "$atlas" ] ; then
+     cblas_libs="-L$atlas/lib -lcblas"
+  fi
+  if [ ! -z "$gsl" ] ; then
+    gsl_cflags=`$gsl/bin/gsl-config --cflags`
+    if [ -z "$cblas_libs" ] ; then
+      gsl_libs=`$gsl/bin/gsl-config --libs`
+    else
+      gsl_libs=`$gsl/bin/gsl-config --libs-without-cblas`
+    fi
   fi
   ## Add other packages here
 }
@@ -161,6 +178,8 @@ show_config() {
    [ -z "$clover" ]  || echo "Clover location         $clover"
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
+   [ -z "$gsl" ]     || echo "GSL location            $gsl"
+   [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
@@ -199,6 +218,10 @@ build() {
         -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
         -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
         -e "s|@mdwf_libs@|$mdwf_libs|g" \
+  | sed -e "s|@gsl@|$gsl|g" \
+        -e "s|@gsl_cflags@|$gsl_cflags|g" \
+        -e "s|@gsl_libs@|$gsl_libs|g" \
+        -e "s|@cblas_libs@|$cblas_libs|g" \
   | sed -e "s|@extras@|$extras|g" \
       > $2 \
 || show_error "Could not generate $2"
@@ -218,6 +241,14 @@ build_modules() {
     echo "#define CLOVER_VERSION \"$clover\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
+  if [ ! -z "$cblas_libs" ] ; then
+     echo "#define HAS_CBLAS"
+     echo "#define CBLAS_VERSION \"$cblas_libs\""
+  fi
+  if [ ! -z "$gsl" ] ; then
+    echo "#define HAS_GSL"
+    echo "#define GSL_VERSION \"$gsl\""
+  fi
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
