@@ -18,6 +18,13 @@ function rnd_init(x)
   return L:RandomState(x, l_id)
 end
 
+function toSUn(L, X)
+  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
+  local ahX = (X - X:adjoin()) / 2
+  local algX = ahX - ScaledOne * ahX:trace()
+  return algX:exp()
+end
+
 -- small deviation of identity in SU(3)
 function almost_su3(S, v)
   local one = L:ColorMatrix(complex(1,0))
@@ -36,12 +43,12 @@ end
 
 S = rnd_init(1984)
 
-U = { almost_su3(S, 0.5),
-      almost_su3(S, 0.5),
-      almost_su3(S, 0.5),
-      almost_su3(S, 0.5) }
+U = {}
+for i = 1, #L do
+   U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
+end
 
-CL = qcd.Clover(U, 0.081, 0.07, {1, 1, 1, 0})
+CL = qcd.Clover(U, 1 / 4.7501, 1.0, {1, 1, 1, -1})
 printf("CLOVER  %s\n", tostring(CL))
 
 DF = CL:eig_deflator(50, 10, 1e-7, 200)
@@ -49,9 +56,9 @@ printf("DEFLATOR %s\n", tostring(DF))
 
 F = S:gaussian_DiracFermion()
 G = CL:D(F)
-check_solver(F, G, "standard solver", CL:solver(1e-12, 1000))
-check_solver(F, G, "mixed solver",  CL:mixed_solver(1e-10, 1000, 1e-12, 1000))
-eigCG = DF:mixed_solver(1e-10, 1000, 1e-12, 1000)
+check_solver(F, G, "standard solver", CL:solver(1e-12, 2000))
+check_solver(F, G, "mixed solver",  CL:mixed_solver(1e-10, 2000, 1e-12, 1000))
+eigCG = DF:mixed_solver(1e-10, 1000, 1e-12, 2000)
 check_solver(F, G, "eigCG solver",  eigCG)
 
 for i = 1, 20 do
