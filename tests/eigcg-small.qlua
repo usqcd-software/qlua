@@ -31,15 +31,6 @@ function almost_su3(S, v)
   return one + v * S:gaussian_ColorMatrix()
 end
 
-function check_solver(x, b, name, s)
-   printf("----- checking %s: %s\n", name, tostring(s))
-   local y = s(b)
-   printf("|b| = %15.7e\n", b:norm2())
-   printf("|x| = %15.7e\n", x:norm2())
-   printf("|y| = %15.7e\n", y:norm2())
-   printf("residue: %15.7e\n", (x - y):norm2())
-   printf("----- check done\n\n")
-end
 
 S = rnd_init(1984)
 
@@ -48,32 +39,24 @@ for i = 1, #L do
    U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
 end
 
-CL = qcd.Clover(U, 1 / 4.7501, 1.0, {1, 1, 1, -1})
+CL = qcd.Clover(U, 1 / 5.0345, 1.0, {1, 1, 1, -1})
 printf("CLOVER  %s\n", tostring(CL))
 
-DF = CL:eig_deflator(50, 10, 1e-7, 200)
-printf("DEFLATOR %s\n", tostring(DF))
+Inv =  CL:solver(1e-12, 2000)
+DF = CL:eig_deflator(50, 20, 1e-8, 100)
+mCG = CL:mixed_solver(1e-12, 1000, 1e-14, 2000)
+eigCG = DF:mixed_solver(1e-12, 1000, 1e-14, 2000)
 
-F = S:gaussian_DiracFermion()
-G = CL:D(F)
-CG = CL:solver(1e-12, 2000)
-check_solver(F, G, "standard solver", CG)
-mCG = CL:mixed_solver(1e-10, 1000, 1e-12, 2000)
-check_solver(F, G, "mixed solver",  mCG)
-eigCG = DF:mixed_solver(1e-10, 1000, 1e-12, 2000)
-check_solver(F, G, "eigCG solver",  eigCG)
-
-for i = 1, 4 do
+for i = 1, 40 do
    F = S:gaussian_DiracFermion()
+   f2 = F:norm2()
    G = CL:D(F)
-   printf("stdCG %5d :", i)
-   mCG(G)
-   printf("eigCG %5d :", i)
-   eigCG(G)
-   -- check_solver(F, G, string.format("eigCG[%d]", i), eigCG)
+   printf("\nstdCG %5d :", i)
+   a = mCG(G)
+   printf("eigCG %5d :  ", i)
+   b = eigCG(G)
+   printf("dA = %15.7e  dB = %15.7e\n", (F-a):norm2()/f2, (F-b):norm2()/f2)
 end
-DF:close()
-CL:close()
 
 printf("DONE\n")
 

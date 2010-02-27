@@ -31,15 +31,6 @@ function almost_su3(S, v)
   return one + v * S:gaussian_ColorMatrix()
 end
 
-function check_solver(x, b, name, s)
-   printf("----- checking %s: %s\n", name, tostring(s))
-   local y = s(b)
-   printf("|b| = %15.7e\n", b:norm2())
-   printf("|x| = %15.7e\n", x:norm2())
-   printf("|y| = %15.7e\n", y:norm2())
-   printf("residue: %15.7e\n", (x - y):norm2())
-   printf("----- check done\n\n")
-end
 
 S = rnd_init(1984)
 
@@ -54,26 +45,12 @@ printf("CLOVER  %s\n", tostring(CL))
 DF = CL:eig_deflator(50, 10, 1e-7, 200)
 printf("DEFLATOR %s\n", tostring(DF))
 
-F = S:gaussian_DiracFermion()
-G = CL:D(F)
-CG = CL:solver(1e-12, 2000)
-check_solver(F, G, "standard solver", CG)
-mCG = CL:mixed_solver(1e-10, 1000, 1e-12, 2000)
-check_solver(F, G, "mixed solver",  mCG)
 eigCG = DF:mixed_solver(1e-10, 1000, 1e-12, 2000)
-check_solver(F, G, "eigCG solver",  eigCG)
 
-for i = 1, 4 do
-   F = S:gaussian_DiracFermion()
-   G = CL:D(F)
-   printf("stdCG %5d :", i)
-   mCG(G)
-   printf("eigCG %5d :", i)
-   eigCG(G)
-   -- check_solver(F, G, string.format("eigCG[%d]", i), eigCG)
-end
-DF:close()
-CL:close()
+CL = nil
+DF = nil
+eigCG = nil
+collectgarbage("collect")
 
 printf("DONE\n")
 
