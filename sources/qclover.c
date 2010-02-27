@@ -11,6 +11,8 @@
 #include "qmp.h"
 #include <math.h>
 
+#define CG_DEBUG_LEVEL 0
+
 /* NB: Clover operator does not agrees with BMW conventions */
 
 typedef int CloverInverter(lua_State *L,
@@ -37,7 +39,8 @@ typedef struct {
 
 typedef struct {
     int nev;
-    int msize;
+    int umax;
+    int vmax;
     struct QOP_CLOVER_Deflator *deflator;
 } mDeflatorState;
 
@@ -74,7 +77,8 @@ qlua_newDeflatorState(lua_State *L)
 {
     mDeflatorState *d= lua_newuserdata(L, sizeof (mDeflatorState));
     d->nev = 0;
-    d->msize = 0;
+    d->vmax = 0;
+    d->umax = 0;
     d->deflator = 0;
     luaL_getmetatable(L, mtnDeflatorState);
     lua_setmetatable(L, -2);
@@ -632,7 +636,8 @@ q_CL_std_solver(lua_State *L,
     int max_iters = luaL_checkint(L, lua_upvalueindex(4));
     
     return QOP_CLOVER_D_CG(solution, out_iters, out_epsilon,
-                           rhs, c->gauge, rhs, max_iters, eps, 0);
+                           rhs, c->gauge, rhs, max_iters, eps,
+                           CG_DEBUG_LEVEL);
 }
 
 static CloverSolver std_solver = { q_CL_std_solver, "CG" };
@@ -670,7 +675,8 @@ q_CL_mixed_solver(lua_State *L,
     return QOP_CLOVER_mixed_D_CG(solution, out_iters, out_epsilon,
                                  rhs, c->gauge, rhs,
                                  inner_iters, f_eps,
-                                 max_iters, eps, 0);
+                                 max_iters, eps,
+                                 CG_DEBUG_LEVEL);
 }
 
 static CloverSolver mixed_solver = { q_CL_mixed_solver, "mixedCG" };
@@ -896,11 +902,12 @@ q_CL_make_deflator(lua_State *L)
 {
     mDeflatorState *d;
     mClover *c = qlua_checkClover(L, 1, 1);
-    int msize = luaL_checkint(L, 2);
+    int vmax = luaL_checkint(L, 2);
     int nev = luaL_checkint(L, 3);
     double eps = luaL_checknumber(L, 4);
+    int umax = luaL_checkint(L, 5);
 
-    if ((nev <= 0) || (2 * nev <= msize))
+    if ((nev <= 0) || (2 * nev >= vmax))
         return luaL_error(L, "bad eigenspace size");
 
     if ((c->state == 0) || (c->gauge == 0))
@@ -911,10 +918,12 @@ q_CL_make_deflator(lua_State *L)
     lua_rawseti(L, -2, 1);
     d = qlua_newDeflatorState(L);
     d->nev = nev;
-    d->msize = msize;
+    d->vmax = vmax;
+    d->umax = umax;
 
     CALL_QDP(L);
-    if (QOP_CLOVER_create_deflator(&d->deflator, c->state, nev, msize, eps))
+    if (QOP_CLOVER_create_deflator(&d->deflator, c->state,
+                                   vmax, nev, eps, umax))
         return luaL_error(L, "CLOVER_create_deflator() failed");
 
     lua_rawseti(L, -2, 2);
@@ -1031,7 +1040,8 @@ q_DF_deflated_mixed_solver(lua_State *L,
     return QOP_CLOVER_deflated_mixed_D_CG(solution, out_iters, out_epsilon,
                                           rhs, c->gauge, rhs, d->deflator,
                                           inner_iters, f_eps,
-                                          max_iters, eps, 0);
+                                          max_iters, eps,
+                                          CG_DEBUG_LEVEL);
 }
 
 static CloverSolver deflated_mixed_solver = {

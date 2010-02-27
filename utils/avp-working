@@ -11,12 +11,13 @@ LD="gcc -g" \
    --with-lua=$PACKTOP/lua-5.1.4 \
    --with-qdp=$PACKTOP/qdp-1.8.1.memleak \
    --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
-   --with-clover=/Users/avp/Sandbox/USQCD/clover/install \
+   --with-clover=/Users/avp/Sandbox/USQCD/clover/install-eig \
    --with-gsl=$PACKTOP/gsl-1.13-qr-complex \
    --with-atlas=$PACKTOP/atlas-3.9.23 \
    --with-extras
 
 
+#   --with-clover=/Users/avp/Sandbox/USQCD/clover/install \
 #   --with-clover=$PACKTOP/clover-1.1.0 \
 # \
 #   --with-mdwf=$PACKTOP/mdwf-1.2.0-rc2
