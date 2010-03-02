@@ -378,7 +378,6 @@ qaff_r_read(lua_State *L)
             mVecInt *v = qlua_newVecInt(L, size);
             int i;
 
-            v->size = size;
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
 
@@ -398,7 +397,6 @@ qaff_r_read(lua_State *L)
             mVecReal *v = qlua_newVecReal(L, size);
             int i;
 
-            v->size = size;
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
 
@@ -418,7 +416,6 @@ qaff_r_read(lua_State *L)
             mVecComplex *v = qlua_newVecComplex(L, size);
             int i;
 
-            v->size = size;
             for (i = 0; i < size; i++) {
                 QLA_real(v->val[i]) = creal(d[i]);
                 QLA_imag(v->val[i]) = cimag(d[i]);

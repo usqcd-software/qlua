@@ -7,15 +7,6 @@
 #include "qvector.h"                                                 /* DEPS */
 #include <string.h>
 #include <math.h>
-#define GSL_RANGE_CHECK_OFF
-#define HAVE_INLINE
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_blas.h>
-#include <gsl/gsl_eigen.h>
-#include <gsl/gsl_matrix_double.h>
-#include <gsl/gsl_vector_double.h>
-#include <gsl/gsl_permutation.h>
-#include <gsl/gsl_linalg.h>
 
 const char mtnMatReal[]           = "matrix.mtReal";
 const char mtnMatComplex[]        = "matrix.mtComplex";
@@ -23,18 +14,6 @@ static const char opMatReal[]     = "matrix.mtReal.ops";
 static const char opMatComplex[]  = "matrix.mtComplex.ops";
 
 static char matrix_ns[] = "matrix";
-
-typedef struct {
-    int l_size;
-    int r_size;
-    gsl_matrix *m;
-} mMatReal;
-
-typedef struct {
-    int l_size;
-    int r_size;
-    gsl_matrix_complex *m;
-} mMatComplex;
 
 static void *
 qlua_checkMatrix(lua_State *L, int idx, const char *mt, const char *name)
@@ -246,7 +225,6 @@ md_eigen(lua_State *L)                                         /* (-1,+2,e) */
     tmp = qlua_newMatReal(L, n, n);
     gsl_matrix_memcpy(tmp->m, &mx.matrix);
     lambda = qlua_newVecReal(L, n);
-    lambda->size = n;
     trans = qlua_newMatReal(L, n, n);
 
     ev = gsl_vector_alloc(n);
@@ -820,7 +798,6 @@ mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
     tmp = qlua_newMatComplex(L, n, n);
     gsl_matrix_complex_memcpy(tmp->m, &mx.matrix);
     lambda = qlua_newVecReal(L, n);
-    lambda->size = n;
     trans = qlua_newMatComplex(L, n, n);
 
     ev = gsl_vector_alloc(n);

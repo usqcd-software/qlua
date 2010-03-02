@@ -3,7 +3,7 @@ Lt = 8
 -- this is probably a bad (chroma) sample file, but it should read OK
 gfile = os.getenv("QDP_FILE")
 if not gfile then 
-  gfile = "./random-gauge.qio"
+  gfile = "./tests/random-gauge.qio"
 end
 output = "xxx"
 
@@ -47,26 +47,34 @@ for i, u in ipairs(U) do
 end
 
 -- try writing now
-out = qcd.qdpc.Writer(output, finfo)
-print("out", out)
+function try_write(output, finfo, fmt)
+   out = qcd.qdpc.Writer(output, finfo, fmt)
+   print("out", out)
+   print("fmt", fmt)
 
-if not out then
-   print("Error creating the writer")
-   os.exit(1)
+   if not out then
+      print("Error creating the writer")
+      os.exit(1)
+   end
+
+   if not out:ColorMatrix(U[1], "<?xml version=\"1.0\"?><colormatrix/>") then
+      print("Error writing a single ColorMatrix")
+      os.exit(1)
+   end
+   
+   if not out:ColorMatrix(U, rinfo) then
+      print("Error writing a vector of ColorMatrix")
+      os.exit(1)
+   end
+   
+   print("write complete")
+   out:close()
 end
 
-if not out:ColorMatrix(U[1], "<?xml version=\"1.0\"?><colormatrix/>") then
-   print("Error writing a single ColorMatrix")
-   os.exit(1)
-end
-
-if not out:ColorMatrix(U, rinfo) then
-  print("Error writing a vector of ColorMatrix")
-  os.exit(1)
-end
-
-print("write complete")
-out:close()
+try_write(output, "fmt=none")
+try_write("xxx-nil", "fmt=nil", nil)
+try_write("xxx-single", "fmt=single", "single")
+try_write("xxx-multi", "fmt=multi", "multi")
 
 xx, xinfo = qcd.qdpc.Reader(output)
 print("xx: ", xx)
@@ -75,19 +83,18 @@ print("info: ", xinfo)
 s = xx:skip()
 print("skip()=", s)
 
-s,f = xx:info()
-print("info().s=", s)
-print("info().f=", f)
+-- QIO error handling broken in MPI 
+--s,f = xx:info()
+--print("info().s=", s)
+--print("info().f=", f)
 
 s = xx:skip()
 print("x skip=", s)
 
-s,f = xx:info()  -- no info, returns nil, nil
-print("x info().s=", s)
-print("x info().f=", f)
-
-s = xx:skip() -- should and does complain from QIO, returns nil
-print("y skip=", s)
+--QIO error handling broken in MPI 
+--s,f = xx:info()  -- no info, returns nil, nil
+--print("x info().s=", s)
+--print("x info().f=", f)
 
 xx:close()
 

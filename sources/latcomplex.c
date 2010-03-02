@@ -877,7 +877,6 @@ q_C_project(lua_State *L)
     QLA_Complex *bb;
     int k;
     
-    r->size = size;
     for (k = 0; k < 2 * size; k++)
         rr[k] = 0;
     CALL_QDP(L);
@@ -929,7 +928,6 @@ q_C_sum(lua_State *L)
         QLA_Complex *xx;
         QLA_Real *rr;
         
-        r->size = size;
         rr = qlua_malloc(L, size * 2 * sizeof (QLA_Real));
         for (k = 0; k < 2 * size; k++)
             rr[k] = 0;

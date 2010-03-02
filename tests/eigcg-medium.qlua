@@ -1,0 +1,62 @@
+require "stdlib"
+
+-- completely meaningless values of parameters just to make life interesting
+
+Lx = 6
+Lt = 12
+
+L = qcd.lattice {Lx, Lx, Lx, Lt}
+
+-- get a unique number of each lattice site
+function rnd_init(x)
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, qcd.Nd - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  return L:RandomState(x, l_id)
+end
+
+function toSUn(L, X)
+  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
+  local ahX = (X - X:adjoin()) / 2
+  local algX = ahX - ScaledOne * ahX:trace()
+  return algX:exp()
+end
+
+-- small deviation of identity in SU(3)
+function almost_su3(S, v)
+  local one = L:ColorMatrix(complex(1,0))
+  return one + v * S:gaussian_ColorMatrix()
+end
+
+
+S = rnd_init(1984)
+
+U = {}
+for i = 1, #L do
+   U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
+end
+
+CL = qcd.Clover(U, 1 / 5.0345, 1.0, {1, 1, 1, -1})
+printf("CLOVER  %s\n", tostring(CL))
+
+Inv =  CL:solver(1e-12, 2000)
+DF = CL:eig_deflator(150, 20, 1e-8, 190)
+mCG = CL:mixed_solver(1e-12, 1000, 1e-14, 2000)
+eigCG = DF:mixed_solver(1e-12, 1000, 1e-14, 2000)
+
+for i = 1, 40 do
+   F = S:gaussian_DiracFermion()
+   f2 = F:norm2()
+   G = CL:D(F)
+   printf("\nstdCG %5d :", i)
+   a = mCG(G)
+   printf("eigCG %5d :  ", i)
+   b = eigCG(G)
+   printf("dA = %15.7e  dB = %15.7e\n", (F-a):norm2()/f2, (F-b):norm2()/f2)
+end
+
+printf("DONE\n")
+

@@ -1,0 +1,68 @@
+-- tests of global data
+
+require "stdlib"
+
+L = qcd.lattice{3,2,4}
+
+d_name = "xxx-test-global.qdpc"
+
+-- writer
+w = qcd.qdpc.Writer(d_name, "global write test")
+--- iteger vectors
+i_v = vector.int(10)
+i_v[0] = 2
+i_v[1] = 3
+i_v[2] = 5
+i_v[3] = 7
+i_v[4] = 11
+i_v[5] = 13
+i_v[6] = 17
+i_v[7] = 19
+i_v[8] = 23
+i_v[9] = 29
+w:int_vector(i_v, "small primes")
+
+--- real vectors
+r_v = vector.real(37)
+for i = 0, #r_v - 1 do
+   r_v[i] = math.cos(i / 41.2)
+end
+w:real_vector(r_v, "some real vector")
+
+-- complex vectors
+c_v = vector.complex(14)
+for i = 0, #c_v - 1 do
+   c_v[i] = complex(i - 5.12, i * 6.234 + 14.)
+end
+w:complex_vector(c_v, "some complex vector")
+
+-- real matrices
+r_m = matrix.real{4,7}
+for i = 0, 3 do
+  for j = 0, 6 do
+     r_m[{i,j}] = i * 9 + j
+  end
+end
+w:real_matrix(r_m, "some real matrix")
+
+-- complex matrices
+c_m = matrix.complex{5,11}
+for i = 0, 4 do
+  for j = 0, 10 do
+     c_m[{i,j}] = complex(i * 9 + j, i * j - 1)
+  end
+end
+w:complex_matrix(c_m, "some complex matrix")
+
+w:close()
+
+-- reader
+r = qcd.qdpc.Reader(d_name)
+r:int_vector(10)
+r:real_vector(37)
+r:complex_vector(14)
+r:real_matrix(4,7)
+r:complex_matrix(5,11)
+r:close()
+
+printf("DONE\n")

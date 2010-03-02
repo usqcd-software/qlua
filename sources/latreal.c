@@ -99,7 +99,6 @@ q_R_sum(lua_State *L)
         int k;
         QLA_Real *xx;
         
-        r->size = size;
         for (k = 0; k < size; k++)
             r->val[k] = 0;
 

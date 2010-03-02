@@ -87,7 +87,6 @@ q_I_sum(lua_State *L)
         int k;
         QLA_Int *xx;
         
-        r->size = size;
         for (k = 0; k < size; k++)
             r->val[k] = 0;
 
