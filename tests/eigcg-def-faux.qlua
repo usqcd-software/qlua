@@ -1,0 +1,345 @@
+-- reference implementation of eigCG
+require "stdlib"
+
+L           = qcd.lattice{2, 10000}
+seed        = 567822
+low_lambda  = 1e-6
+cont_lambda = 1e-3
+run_count   = 100
+eps         = 1e-15
+
+do
+   local x = L:Int(0)
+   for i = 0, #L - 1 do
+      x = L[i] * x + L:pcoord(i)
+   end
+   S = L:RandomState(seed, x)
+end
+
+function rnd_range(S,lo,hi)
+   local z = L:Real(L:pcoord(0) + L[0] * L:pcoord(1)) / (L[0] * L[1])
+   return lo + (hi - lo) * (z + S:random_Real()/(L[0] * L[1]))
+end
+
+-- random eigenvalues from min_lambda to 1 with L[0] small values
+do
+   M = rnd_range(S, cont_lambda, 1)
+   local A = rnd_range(S, low_lambda, L[1] * L[0] * low_lambda)
+   for j = 0, L[0]-1 do
+      M[{j,0}] = A[{j,0}]
+   end
+
+   for j = 0, 3 do
+      for i = 0, L[0]-1 do
+         printf("M[%5d,%5d] = %15.7e\n", i, j, M[{i,j}])
+      end
+   end
+   local j = L[1] - 1
+   for i = 0, L[0]- 1 do
+      printf("M[%5d,%5d] = %15.7e\n", i, j, M[{i,j}])
+   end
+end
+
+-- the operator
+function op(z)
+   return M * z
+end
+
+-- zero vector
+function zero_v()
+   return L:Complex(0)
+end
+
+-- random vector
+function rnd_v(S)
+   return S:gaussian_Complex()
+end
+
+-- standard solver
+function std_CG(op, max_k, eps, chi, ident)
+   local psi, rho, r = zero_v(), chi, chi:norm2()
+   local pi = rho
+   local k = 0
+   while (r > eps) and (k < max_k) do
+      printf("cg %s %5d %15.7e\n", ident, k, r)
+      local zeta = op(pi)
+      local a = r / qcd.dot(pi, zeta):real():sum()
+      --- check if <pi|zeta> is too small, it means a zeto mode is hit
+      rho = rho - a * zeta
+      local g = rho:norm2()
+      local b = g / r
+      r = g
+      psi = psi + a * pi
+      pi = rho + b * pi
+      k = k + 1
+   end
+   printf("cg %s %5d %15.7e (end)\n", ident, k, r)
+   return psi, r, k
+end
+
+-- accelerated solver
+function eig_CG(df, op, max_k, eps, chi, ident)
+   local psi, rho, r = df:preamble(op, chi)
+   local pi = rho
+   local k = 0
+   local a0 = nil
+   local b0 = nil
+   printf("eig CG: chi %15.7e, rho %15.7e, psi %15.7e\n",
+          chi:norm2(), rho:norm2(), psi:norm2())
+   while (r > eps) and (k < max_k) do
+      printf("eig-cg %s %5d %15.7e\n", ident, k, r)
+      local zeta = op(pi)
+      local a = r / qcd.dot(pi, zeta):real():sum()
+      --- check if <pi|zeta> is too small, it means a zeto mode is hit
+      rho = rho - a * zeta
+      local g = rho:norm2()
+      local b = g / r
+      r = g
+      df:update(rho, r, a, b, a0, b0)
+      psi = psi + a * pi
+      pi = rho + b * pi
+      k = k + 1
+      a0 = a
+      b0 = b
+   end
+   printf("eig-cg %s %5d %15.7e (end)\n", ident, k, r)
+   df:postamble(op)
+   return psi, r, k
+end
+
+-- tradition othonormal basis construction
+function std_ortho(W, v)
+   local z = v
+   for i = 1, #W do
+      local u = qcd.dot(W[i],v):sum()
+      z = z - u * W[i]
+   end
+   W[#W+1] = z / math.sqrt(z:norm2())
+   return W
+end
+
+-- serial othonormal basis construction
+function seq_ortho(W, v)
+   local z = v
+   for i = 1, #W do
+      local u = qcd.dot(W[i],z):sum()
+      z = z - u * W[i]
+   end
+   W[#W+1] = z / math.sqrt(z:norm2())
+   return W
+end
+
+-- joining two matrices
+function join_YY(Y1, Y2, vmax, ksize)
+   local YY = matrix.real{vmax, 2 * ksize} -- filled with zeros
+   for e = 0, ksize - 1 do
+      for i = 0, vmax - 1 do
+         YY[{i,e}] = Y1[{i,e}]
+      end
+      for i = 0, vmax - 2 do
+         YY[{i,e + ksize}] = Y2[{i, e}]
+      end
+   end
+   return YY
+end
+
+-- fat Krylov restart
+function fat_restart(T, V, vmax, ksize, tx) -- => T', V'
+   -- [debug
+   if false then
+      do 
+         printf("fat restart %d\n", ksize)
+         local l, r = T:dims()
+         for i = 0, l - 1 do
+            for j = 0, r - 1 do
+               local z = T[{i,j}]
+               if not (z == 0) then
+                  printf("  T[%4d, %4d] = %15.7e\n", i, j, z)
+               end
+            end
+         end
+         printf("\n");
+      end
+   end
+   -- debug]
+   local Mn, Yn = T:symmetric_eigen()
+   local M1, Y1 = T:symmetric_eigen(vmax - 1)
+   local Q, R = join_YY(Yn, Y1, vmax, ksize):qr()
+   local M, Z = (Q:transpose() * T * Q):symmetric_eigen()
+   local QZ = Q * Z
+   local T1 = matrix.real{vmax, vmax}
+   local V1 = {}
+   for k = 0, 2 * ksize - 1 do
+      local Vk = QZ[{0,k}] * V[1] -- transposed QZ here!
+      for m = 2, vmax do
+         Vk = Vk + QZ[{m-1,k}] * V[m]
+      end
+      V1[k+1] = Vk
+      T1[{k,k}] = M[k]
+      local q = QZ[{vmax-1,k}] *  tx
+      T1[{2 * ksize, k}] = q
+      T1[{k, 2 * ksize}] = q
+   end
+   return T1, V1
+end
+
+-- deflator
+function mk_deflator(umax, vmax, ksize, psize)
+   if (ksize * 2 >= vmax) then
+      printf("mk_deflator(): ksize too small\n")
+      return nil
+   end
+   if (psize >= umax) then
+      printf("mk_deflator(): psize too small\n")
+      return nil
+   end
+   
+   return {
+      T = matrix.real{vmax, vmax},
+      V = {}, -- Field[vmax]
+      vsize = 0,
+      H = vector.real(umax),
+      U = {}, -- Field[umax]
+      usize = 0,
+      preamble =
+         function(df, op, chi) -- => psi, rho, r
+            local psi, rho, r
+            if (usize == 0) then
+               psi = zero_v()
+               rho = chi
+            else
+               -- aka fv_dot_f
+               local Uchi = vector.complex(df.usize)
+               for i = 1, df.usize do
+                  Uchi[i-1] = qcd.dot(df.U[i], chi):sum()
+               end
+               psi = zero_v()
+               for i = 0, df.usize - 1 do
+                  --printf("preamble: i %3d  U %15.7e %15.7e  H %15.7e\n",
+                  --   i, Uchi[i]:real(), Uchi[i]:imag(), df.H[i])
+                  psi = psi + (Uchi[i] / df.H[i]) * df.U[i+1]
+               end
+               rho = chi - op(psi)
+            end
+            df.T = matrix.real{vmax, vmax} -- fill with zeros
+            r = rho:norm2()
+            df.V[1] = rho / math.sqrt(r)
+            df.vsize = 0
+            return psi, rho, r
+         end,
+      update =
+         function(df, rho, r, a, b, a0, b0)
+            if (df.vsize == 0) then
+               df.T[{0,0}] = a
+            else
+               df.T[{df.vsize,df.vsize}] = 1 / a + b0 / a0
+            end
+            local tx = - math.sqrt(b) / a
+            df.vsize = df.vsize + 1
+            if (df.vsize == vmax) then
+               local T1, V1 = fat_restart(df.T, df.V, vmax, ksize, tx)
+               df.vsize = 2 * ksize
+               df.T = T1
+               df.V = V1
+            else
+               df.T[{df.vsize, df.vsize - 1}] = tx
+               df.T[{df.vsize - 1, df.vsize}] = tx
+            end
+            df.V[df.vsize + 1] = rho / math.sqrt(r)
+         end,
+      postamble =
+         function(df, op)
+            --printf("postamble: vsize=%d, usize=%d, vmax=%d, umax=%d\n",
+            --       df.vsize, df.usize, vmax, umax)
+            if (df.vsize - 1 >= psize) then
+               local i
+               if (df.usize + psize > umax) then
+                  i = umax - psize
+               else
+                  i = df.usize
+               end
+               -- recreate the old projected op and its basis
+               local Hx = matrix.complex{umax, umax}
+               local Ux = {}
+               for k = 0, i - 1 do
+                  Hx[{k,k}] = df.H[k]
+                  Ux[k+1] = df.U[k+1]
+               end
+               -- new eigenvalues
+               local M, Y = df.T:symmetric_eigen(df.vsize - 1)
+               for k = 0, psize - 1 do
+                  -- rotate Vs
+                  local W = Y[{0,k}] * df.V[1]
+                  for j = 2, df.vsize - 1 do
+                     W = W + Y[{j-1,k}] * df.V[j]
+                  end
+                  -- orthogonalize to Ux so far
+                  for j = 1, i do
+                     local z = qcd.dot(Ux[j],W):sum()
+                     W = W - z * Ux[j]
+                  end
+                  W = W / math.sqrt(W:norm2())
+                  Ux[i + 1] = W
+                  -- compute the operator on W
+                  local opW = op(W)
+                  for j = 1, i do
+                     local z = qcd.dot(Ux[j],opW):sum()
+                     --printf("  op %4d %4d  %15.7e %15.7e\n",
+                     --       j-1, i, z:real(), z:imag())
+                     Hx[{j - 1, i}] = z:conj()
+                     Hx[{i, j - 1}] = z
+                  end
+                  Hx[{i, i}] = qcd.dot(W,opW):real():sum()
+                  --printf("  op %4d %4d  %15.7e\n",
+                  --       i, i, Hx[{i,i}]:real())
+                  i = i + 1
+               end
+               local M, Y = Hx:hermitian_eigen(i)
+               local Uz = {}
+               local Hx = vector.real(vmax)
+               for k = 1, i do
+                  local W = Y[{0,k-1}]:conj() * Ux[1]
+                  for j = 2, i do
+                     W = W + Y[{j-1,k-1}]:conj() * Ux[j]
+                  end
+                  Uz[k] = W / math.sqrt(W:norm2())
+                  Hx[k-1] = qcd.dot(Uz[k],op(Uz[k])):real():sum()
+                  --printf("  eigen %3d %15.7e %15.7e\n",
+                  --       k-1, M[k-1], Hx[k-1])
+               end
+               df.U = Uz
+               df.H = Hx
+               df.usize = i
+            end
+         end,
+      show =
+         function(df)
+            printf("DEFLATOR {\n")
+            printf("  usize = %d,\n", df.usize)
+            printf("  vsize = %d,\n", df.vsize)
+            printf("     H = {\n")
+            for i = 0, df.usize - 1 do
+               printf("       %15.7e, -- %3d\n", df.H[i], i)
+            end
+            printf("     }\n")
+            printf("}\n")
+         end,
+   }
+end
+
+---- eig_CG test
+printf("\n\nEig CG test\n")
+df = mk_deflator(60, 150, 30, 10)
+for i = 0, run_count do
+   rhs = rnd_v(S)
+   rhs = rhs / math.sqrt(rhs:norm2())
+   local ident = string.format("%d", i)
+   local psi, r, k = std_CG(op, 5000, eps, rhs, ident)
+   printf("stdCG %3d %5d %15.7e\n", i, k, r)
+   local psi, r, k = eig_CG(df, op, 5000, eps, rhs, ident)
+   printf("EIGCG %3d %5d %15.7e\n", i, k, r)
+   df:show()
+   io.stdout:flush()
+end
+
+printf("DONE\n")
