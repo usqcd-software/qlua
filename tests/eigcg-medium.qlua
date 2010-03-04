@@ -52,9 +52,9 @@ for i = 1, 40 do
    f2 = F:norm2()
    G = CL:D(F)
    printf("\nstdCG %5d :", i)
-   a = mCG(G)
+   a = mCG(G, false, true)
    printf("eigCG %5d :  ", i)
-   b = eigCG(G)
+   b = eigCG(G, false, true)
    printf("dA = %15.7e  dB = %15.7e\n", (F-a):norm2()/f2, (F-b):norm2()/f2)
 end
 

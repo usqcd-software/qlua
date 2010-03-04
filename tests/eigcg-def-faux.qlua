@@ -6,9 +6,13 @@ seed        = 567822
 low_lambda  = 1e-6
 cont_lambda = 1e-3
 run_count   = 100
-eps1        = 1e-6
+eps1        = 1e-6 -- also good, maybe better
 -- eps1        = 1e-8 -- this is good
 eps         = 1e-15
+df_umax     =  60  -- size of deflation subspace (60 is good)
+df_vmax     = 150  -- size of Lancoz subspace (150 is good)
+df_ksize    =  50  -- fat restart dimension (30 is good)
+df_psize    =  20 -- deflation subspace extension size (10 is good)
 
 do
    local x = L:Int(0)
@@ -392,7 +396,7 @@ end
 
 ---- eig_CG test
 printf("\n\nEig CG test\n")
-df = mk_deflator(60, 150, 30, 10)
+df = mk_deflator(df_umax, df_vmax, df_ksize, df_psize)
 for i = 0, run_count do
    rhs = rnd_v(S)
    rhs = rhs / math.sqrt(rhs:norm2())

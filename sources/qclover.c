@@ -11,15 +11,14 @@
 #include "qmp.h"
 #include <math.h>
 
-#define CG_DEBUG_LEVEL 0
-
 /* NB: Clover operator does not agrees with BMW conventions */
 
 typedef int CloverInverter(lua_State *L,
                            struct QOP_CLOVER_Fermion *solution,
                            int *out_iters,
                            double *out_epsilon,
-                           const struct QOP_CLOVER_Fermion *rhs);
+                           const struct QOP_CLOVER_Fermion *rhs,
+                           int log_level);
 
 typedef struct {
     CloverInverter  *proc;
@@ -463,6 +462,7 @@ q_dirac_solver(lua_State *L)
     double t1;
     double out_eps;
     int out_iters;
+    int log_level;
     
     switch (lua_type(L, 2)) {
     case LUA_TNONE:
@@ -476,6 +476,11 @@ q_dirac_solver(lua_State *L)
         relaxed_p = 1;
         break;
     }
+
+    if ((lua_type(L, 3) == LUA_TBOOLEAN) && (lua_toboolean(L, 3) != 0))
+        log_level = QOP_CLOVER_LOG_CG_RESIDUAL;
+    else
+        log_level = 0;
 
     switch (qlua_gettype(L, 1)) {
     case qLatDirFerm: {
@@ -509,7 +514,7 @@ q_dirac_solver(lua_State *L)
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
-        status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi);
+        status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
         QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
@@ -579,7 +584,8 @@ q_dirac_solver(lua_State *L)
                 if (QOP_CLOVER_import_fermion(&c_psi, c->state,
                                               q_CL_P_reader_scaled, &env))
                     return luaL_error(L, "CLOVER_import_fermion() failed");
-                status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi);
+                status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
+                                      log_level);
 
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
@@ -629,7 +635,8 @@ q_CL_std_solver(lua_State *L,
                 struct QOP_CLOVER_Fermion *solution,
                 int *out_iters,
                 double *out_epsilon,
-                const struct QOP_CLOVER_Fermion *rhs)
+                const struct QOP_CLOVER_Fermion *rhs,
+                int log_level)
 {
     mClover *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
     double eps = luaL_checknumber(L, lua_upvalueindex(3));
@@ -637,7 +644,7 @@ q_CL_std_solver(lua_State *L,
     
     return QOP_CLOVER_D_CG(solution, out_iters, out_epsilon,
                            rhs, c->gauge, rhs, max_iters, eps,
-                           CG_DEBUG_LEVEL);
+                           log_level);
 }
 
 static CloverSolver std_solver = { q_CL_std_solver, "CG" };
@@ -664,7 +671,8 @@ q_CL_mixed_solver(lua_State *L,
                   struct QOP_CLOVER_Fermion *solution,
                   int *out_iters,
                   double *out_epsilon,
-                  const struct QOP_CLOVER_Fermion *rhs)
+                  const struct QOP_CLOVER_Fermion *rhs,
+                  int log_level)
 {
     mClover *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
     double f_eps    = luaL_checknumber(L, lua_upvalueindex(3));
@@ -676,7 +684,7 @@ q_CL_mixed_solver(lua_State *L,
                                  rhs, c->gauge, rhs,
                                  inner_iters, f_eps,
                                  max_iters, eps,
-                                 CG_DEBUG_LEVEL);
+                                 log_level);
 }
 
 static CloverSolver mixed_solver = { q_CL_mixed_solver, "mixedCG" };
@@ -1028,7 +1036,8 @@ q_DF_deflated_mixed_solver(lua_State *L,
                            struct QOP_CLOVER_Fermion *solution,
                            int *out_iters,
                            double *out_epsilon,
-                           const struct QOP_CLOVER_Fermion *rhs)
+                           const struct QOP_CLOVER_Fermion *rhs,
+                           int log_level)
 {
     mClover        *c = qlua_checkClover(L, lua_upvalueindex(2), 1);
     mDeflatorState *d = qlua_checkDeflatorState(L, lua_upvalueindex(3), 1);
@@ -1041,7 +1050,7 @@ q_DF_deflated_mixed_solver(lua_State *L,
                                           rhs, c->gauge, rhs, d->deflator,
                                           inner_iters, f_eps,
                                           max_iters, eps,
-                                          CG_DEBUG_LEVEL);
+                                          log_level);
 }
 
 static CloverSolver deflated_mixed_solver = {
