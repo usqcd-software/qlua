@@ -6,6 +6,8 @@ seed        = 567822
 low_lambda  = 1e-6
 cont_lambda = 1e-3
 run_count   = 100
+eps1        = 1e-6
+-- eps1        = 1e-8 -- this is good
 eps         = 1e-15
 
 do
@@ -56,12 +58,12 @@ function rnd_v(S)
 end
 
 -- standard solver
-function std_CG(op, max_k, eps, chi, ident)
+function std_CG(op, max_k, eps, chi, ident, rs, k0)
    local psi, rho, r = zero_v(), chi, chi:norm2()
    local pi = rho
    local k = 0
    while (r > eps) and (k < max_k) do
-      printf("cg %s %5d %15.7e\n", ident, k, r)
+      printf("cg %s %5d %15.7e\n", ident, k + k0, r * rs)
       local zeta = op(pi)
       local a = r / qcd.dot(pi, zeta):real():sum()
       --- check if <pi|zeta> is too small, it means a zeto mode is hit
@@ -73,12 +75,43 @@ function std_CG(op, max_k, eps, chi, ident)
       pi = rho + b * pi
       k = k + 1
    end
-   printf("cg %s %5d %15.7e (end)\n", ident, k, r)
+   printf("cg %s %5d %15.7e (end)\n", ident, k + k0, r * rs)
    return psi, r, k
 end
 
+-- mixed solver
+function mixed_CG(op, max_k, eps1, eps, chi, ident)
+   local psi = zero_v()
+   local k_left = max_k
+   local do_more = true
+   local j = 0
+   local chi_x = chi - op(psi)
+   local n_x = chi_x:norm2()
+   while do_more do
+      local s = math.sqrt(n_x)
+      local e_x = eps / n_x
+      local e_z = eps1
+      if e_z < e_x then
+         e_z = e_x
+      end
+      local delta, r, k = std_CG(op, k_left, e_z, chi_x / s,
+                                 string.format("%s %d", ident, j),
+                                 n_x, max_k - k_left)
+      psi = psi + delta * s
+      k_left = k_left - k
+      chi_x = chi - op(psi)
+      n_x = chi_x:norm2()
+      j = j + 1
+      if (k_left <= 0) or (n_x < eps) then
+         do_more = false
+      end
+   end
+   local rho = chi - op(psi)
+   return psi, rho:norm2(), max_k - k_left
+end
+
 -- accelerated solver
-function eig_CG(df, op, max_k, eps, chi, ident)
+function eig_CG(df, op, max_k, eps, chi, ident, rs, k0)
    local psi, rho, r = df:preamble(op, chi)
    local pi = rho
    local k = 0
@@ -87,7 +120,7 @@ function eig_CG(df, op, max_k, eps, chi, ident)
    printf("eig CG: chi %15.7e, rho %15.7e, psi %15.7e\n",
           chi:norm2(), rho:norm2(), psi:norm2())
    while (r > eps) and (k < max_k) do
-      printf("eig-cg %s %5d %15.7e\n", ident, k, r)
+      printf("eig-cg %s %5d %15.7e\n", ident, k + k0, r * rs)
       local zeta = op(pi)
       local a = r / qcd.dot(pi, zeta):real():sum()
       --- check if <pi|zeta> is too small, it means a zeto mode is hit
@@ -102,9 +135,39 @@ function eig_CG(df, op, max_k, eps, chi, ident)
       a0 = a
       b0 = b
    end
-   printf("eig-cg %s %5d %15.7e (end)\n", ident, k, r)
+   printf("eig-cg %s %5d %15.7e (end)\n", ident, k + k0, r * rs)
    df:postamble(op)
    return psi, r, k
+end
+
+function eig_mixed_CG(df, op, max_k, eps1, eps, chi, ident)
+   local psi = zero_v()
+   local k_left = max_k
+   local do_more = true
+   local j = 0
+   local chi_x = chi - op(psi)
+   local n_x = chi_x:norm2()
+   while do_more do
+      local s = math.sqrt(n_x)
+      local e_x = eps / n_x
+      local e_z = eps1
+      if e_z < e_x then
+         e_z = e_x
+      end
+      local delta, r, k = eig_CG(df, op, k_left, e_z, chi_x / s,
+                                 string.format("%s %d", ident, j),
+                                 n_x, max_k - k_left)
+      psi = psi + delta * s
+      k_left = k_left - k
+      chi_x = chi - op(psi)
+      n_x = chi_x:norm2()
+      j = j + 1
+      if (k_left <= 0) or (n_x < eps) then
+         do_more = false
+      end
+   end
+   local rho = chi - op(psi)
+   return psi, rho:norm2(), max_k - k_left
 end
 
 -- tradition othonormal basis construction
@@ -334,9 +397,9 @@ for i = 0, run_count do
    rhs = rnd_v(S)
    rhs = rhs / math.sqrt(rhs:norm2())
    local ident = string.format("%d", i)
-   local psi, r, k = std_CG(op, 5000, eps, rhs, ident)
+   local psi, r, k = mixed_CG(op, 5000, eps1, eps, rhs, ident)
    printf("stdCG %3d %5d %15.7e\n", i, k, r)
-   local psi, r, k = eig_CG(df, op, 5000, eps, rhs, ident)
+   local psi, r, k = eig_mixed_CG(df, op, 5000, eps1, eps, rhs, ident)
    printf("EIGCG %3d %5d %15.7e\n", i, k, r)
    df:show()
    io.stdout:flush()
