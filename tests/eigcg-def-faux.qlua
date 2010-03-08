@@ -7,7 +7,6 @@ low_lambda  = 1e-6
 cont_lambda = 1e-3
 run_count   = 100
 eps1        = 1e-6 -- also good, maybe better
--- eps1        = 1e-8 -- this is good
 eps         = 1e-15
 df_umax     =  60  -- size of deflation subspace (60 is good)
 df_vmax     = 150  -- size of Lancoz subspace (150 is good)
@@ -86,32 +85,28 @@ end
 -- mixed solver
 function mixed_CG(op, max_k, eps1, eps, chi, ident)
    local psi = zero_v()
-   local k_left = max_k
-   local do_more = true
+   local k_used = 0
    local j = 0
    local chi_x = chi - op(psi)
    local n_x = chi_x:norm2()
-   while do_more do
+   while (n_x > eps) and (k_used < max_k) do
       local s = math.sqrt(n_x)
       local e_x = eps / n_x
       local e_z = eps1
       if e_z < e_x then
          e_z = e_x
       end
-      local delta, r, k = std_CG(op, k_left, e_z, chi_x / s,
+      local delta, r, k = std_CG(op, max_k - k_used, e_z, chi_x / s,
                                  string.format("%s %d", ident, j),
-                                 n_x, max_k - k_left)
+                                 n_x, k_used)
       psi = psi + delta * s
-      k_left = k_left - k
+      k_used = k_used + k
       chi_x = chi - op(psi)
       n_x = chi_x:norm2()
       j = j + 1
-      if (k_left <= 0) or (n_x < eps) then
-         do_more = false
-      end
    end
    local rho = chi - op(psi)
-   return psi, rho:norm2(), max_k - k_left
+   return psi, rho:norm2(), k_used
 end
 
 -- accelerated solver
@@ -121,8 +116,6 @@ function eig_CG(df, op, max_k, eps, chi, ident, rs, k0)
    local k = 0
    local a0 = nil
    local b0 = nil
-   printf("eig CG: chi %15.7e, rho %15.7e, psi %15.7e\n",
-          chi:norm2(), rho:norm2(), psi:norm2())
    while (r > eps) and (k < max_k) do
       printf("eig-cg %s %5d %15.7e\n", ident, k + k0, r * rs)
       local zeta = op(pi)
@@ -146,54 +139,28 @@ end
 
 function eig_mixed_CG(df, op, max_k, eps1, eps, chi, ident)
    local psi = zero_v()
-   local k_left = max_k
-   local do_more = true
+   local k_used = 0
    local j = 0
    local chi_x = chi - op(psi)
    local n_x = chi_x:norm2()
-   while do_more do
+   while (n_x > eps) and (k_used < max_k) do
       local s = math.sqrt(n_x)
       local e_x = eps / n_x
       local e_z = eps1
       if e_z < e_x then
          e_z = e_x
       end
-      local delta, r, k = eig_CG(df, op, k_left, e_z, chi_x / s,
+      local inner_chi = chi_x / s
+      local delta, r, k = eig_CG(df, op, max_k - k_used, e_z, inner_chi,
                                  string.format("%s %d", ident, j),
-                                 n_x, max_k - k_left)
+                                 n_x, k_used)
       psi = psi + delta * s
-      k_left = k_left - k
+      k_used = k_used + k
       chi_x = chi - op(psi)
       n_x = chi_x:norm2()
       j = j + 1
-      if (k_left <= 0) or (n_x < eps) then
-         do_more = false
-      end
    end
-   local rho = chi - op(psi)
-   return psi, rho:norm2(), max_k - k_left
-end
-
--- tradition othonormal basis construction
-function std_ortho(W, v)
-   local z = v
-   for i = 1, #W do
-      local u = qcd.dot(W[i],v):sum()
-      z = z - u * W[i]
-   end
-   W[#W+1] = z / math.sqrt(z:norm2())
-   return W
-end
-
--- serial othonormal basis construction
-function seq_ortho(W, v)
-   local z = v
-   for i = 1, #W do
-      local u = qcd.dot(W[i],z):sum()
-      z = z - u * W[i]
-   end
-   W[#W+1] = z / math.sqrt(z:norm2())
-   return W
+   return psi, n_x, k_used
 end
 
 -- joining two matrices
@@ -212,23 +179,6 @@ end
 
 -- fat Krylov restart
 function fat_restart(T, V, vmax, ksize, tx) -- => T', V'
-   -- [debug
-   if false then
-      do 
-         printf("fat restart %d\n", ksize)
-         local l, r = T:dims()
-         for i = 0, l - 1 do
-            for j = 0, r - 1 do
-               local z = T[{i,j}]
-               if not (z == 0) then
-                  printf("  T[%4d, %4d] = %15.7e\n", i, j, z)
-               end
-            end
-         end
-         printf("\n");
-      end
-   end
-   -- debug]
    local Mn, Yn = T:symmetric_eigen()
    local M1, Y1 = T:symmetric_eigen(vmax - 1)
    local Q, R = join_YY(Yn, Y1, vmax, ksize):qr()
@@ -268,6 +218,8 @@ function mk_deflator(umax, vmax, ksize, psize)
       H = vector.real(umax),
       U = {}, -- Field[umax]
       usize = 0,
+      update_count = 0,
+      run_count = 0,
       preamble =
          function(df, op, chi) -- => psi, rho, r
             local psi, rho, r
@@ -282,8 +234,6 @@ function mk_deflator(umax, vmax, ksize, psize)
                end
                psi = zero_v()
                for i = 0, df.usize - 1 do
-                  --printf("preamble: i %3d  U %15.7e %15.7e  H %15.7e\n",
-                  --   i, Uchi[i]:real(), Uchi[i]:imag(), df.H[i])
                   psi = psi + (Uchi[i] / df.H[i]) * df.U[i+1]
                end
                rho = chi - op(psi)
@@ -296,6 +246,7 @@ function mk_deflator(umax, vmax, ksize, psize)
          end,
       update =
          function(df, rho, r, a, b, a0, b0)
+            df.update_count = df.update_count + 1
             if (df.vsize == 0) then
                df.T[{0,0}] = a
             else
@@ -316,8 +267,7 @@ function mk_deflator(umax, vmax, ksize, psize)
          end,
       postamble =
          function(df, op)
-            --printf("postamble: vsize=%d, usize=%d, vmax=%d, umax=%d\n",
-            --       df.vsize, df.usize, vmax, umax)
+            df.run_count = df.run_count + 1
             if (df.vsize - 1 >= psize) then
                local i
                if (df.usize + psize > umax) then
@@ -351,14 +301,10 @@ function mk_deflator(umax, vmax, ksize, psize)
                   local opW = op(W)
                   for j = 1, i do
                      local z = qcd.dot(Ux[j],opW):sum()
-                     --printf("  op %4d %4d  %15.7e %15.7e\n",
-                     --       j-1, i, z:real(), z:imag())
                      Hx[{j - 1, i}] = z:conj()
                      Hx[{i, j - 1}] = z
                   end
                   Hx[{i, i}] = qcd.dot(W,opW):real():sum()
-                  --printf("  op %4d %4d  %15.7e\n",
-                  --       i, i, Hx[{i,i}]:real())
                   i = i + 1
                end
                local M, Y = Hx:hermitian_eigen(i)
@@ -371,27 +317,48 @@ function mk_deflator(umax, vmax, ksize, psize)
                   end
                   Uz[k] = W / math.sqrt(W:norm2())
                   Hx[k-1] = qcd.dot(Uz[k],op(Uz[k])):real():sum()
-                  --printf("  eigen %3d %15.7e %15.7e\n",
-                  --       k-1, M[k-1], Hx[k-1])
                end
                df.U = Uz
                df.H = Hx
                df.usize = i
             end
          end,
-      show =
+      info =
          function(df)
-            printf("DEFLATOR {\n")
-            printf("  usize = %d,\n", df.usize)
-            printf("  vsize = %d,\n", df.vsize)
-            printf("     H = {\n")
+            local hh = vector.real(df.usize)
             for i = 0, df.usize - 1 do
-               printf("       %15.7e, -- %3d\n", df.H[i], i)
+               hh[i] = df.H[i]
             end
-            printf("     }\n")
-            printf("}\n")
-         end,
+            return {
+               usize = df.usize,
+               umax = umax,
+               vsize = df.vsize,
+               vmax = vmax,
+               ksize = ksize,
+               psize = psize,
+               updates = df.update_count,
+               runs = df.run_count,
+               eigenvalues = hh
+            }
+         end
    }
+end
+
+function df_show(df, ident)
+   local info = df:info()
+   printf("DEFLATOR %s\n", ident)
+   printf("  %s usize     %6d\n", ident, info.usize)
+   printf("  %s umax      %6d\n", ident, info.umax)
+   printf("  %s vsize     %6d\n", ident, info.vsize)
+   printf("  %s vmax      %6d\n", ident, info.vmax)
+   printf("  %s ksize     %6d\n", ident, info.ksize)
+   printf("  %s psize     %6d\n", ident, info.psize)
+   printf("  %s updates   %6d\n", ident, info.updates)
+   printf("  %s runs      %6d\n", ident, info.runs)
+   for i = 0, #info.eigenvalues - 1 do
+      printf("  %s eigval %4d %15.7e\n", ident, i, info.eigenvalues[i])
+   end
+   printf("\n")
 end
 
 ---- eig_CG test
@@ -405,7 +372,7 @@ for i = 0, run_count do
    printf("stdCG %3d %5d %15.7e\n", i, k, r)
    local psi, r, k = eig_mixed_CG(df, op, 5000, eps1, eps, rhs, ident)
    printf("EIGCG %3d %5d %15.7e\n", i, k, r)
-   df:show()
+   df_show(df, ident)
    io.stdout:flush()
 end
 

@@ -1,11 +1,35 @@
 -- reference implementation of eigCG
---  same Gauge field as in eigcg-medium.qlua
+--  same Gauge field as in eigcg-medium.qlua XXXX not yet
 require "stdlib"
+require "hex-smear"
 
 Lx = 6
 Lt = 12
 L           = qcd.lattice{Lx, Lx, Lx, Lt}
 seed        = 1984
+m_q         = -1.1
+c_sw        = 1.0
+run_count   = 100
+eps1        = 1e-6
+eps         = 1e-15
+max_cg      = 50000
+df_umax     =  60  -- size of deflation subspace (60 is good)
+df_vmax     = 150  -- size of Lancoz subspace (150 is good)
+df_ksize    =  50  -- fat restart dimension (30 is good)
+df_psize    =  20 -- deflation subspace extension size (10 is good)
+
+--          unsmeared     hex2
+-- m_q        iters       iters
+--  0.5          37          56
+--  0.1          44          76
+--  0.0          47          84
+-- -0.5          67         177
+-- -1.0         126        2729
+-- -1.1                    7616                        
+-- -1.5         757       38586   
+-- -1.6        2772
+-- -1.65      11839
+-- -1.7       18065 
 
 -- get a unique number of each lattice site
 function rnd_init(x)
@@ -32,7 +56,9 @@ for i = 1, #L do
    U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
 end
 
-CL = qcd.Clover(U, 1 / 5.0345, 1.0, {1, 1, 1, -1})
+U = bmw_hex(L, bmw_hex(L, U))
+
+CL = qcd.Clover(U, 1/(8 + 2 * m_q), c_sw, {1, 1, 1, -1})
 -- random eigenvalues from min_lambda to 1 with L[0] small values
 
 -- the operator
@@ -41,22 +67,22 @@ function op(z)
 end
 
 -- random field
-function rnd_field(S)
+function rnd_v(S)
    local F = S:gaussian_DiracFermion()
    return F / math.sqrt(F:norm2())
 end
 
-function zero_field()
+function zero_v()
    return L:DiracFermion()
 end
 
 -- standard solver
-function std_CG(op, max_k, eps, chi)
-   local psi, rho, r = zero_field(), chi, chi:norm2()
+function std_CG(op, max_k, eps, chi, ident, rs, k0)
+   local psi, rho, r = zero_v(), chi, chi:norm2()
    local pi = rho
    local k = 0
    while (r > eps) and (k < max_k) do
-      printf("cg %5d %15.7e\n", k, r)
+      printf("cg %s %5d %15.7e\n", ident, k + k0, r * rs)
       local zeta = op(pi)
       local a = r / qcd.dot(pi, zeta):real():sum()
       --- check if <pi|zeta> is too small, it means a zeto mode is hit
@@ -68,21 +94,46 @@ function std_CG(op, max_k, eps, chi)
       pi = rho + b * pi
       k = k + 1
    end
-   printf("cg %5d %15.7e\n", k, r)
+   printf("cg %s %5d %15.7e (end)\n", ident, k + k0, r * rs)
    return psi, r, k
 end
 
+-- mixed solver
+function mixed_CG(op, max_k, eps1, eps, chi, ident)
+   local psi = zero_v()
+   local k_used = 0
+   local j = 0
+   local chi_x = chi - op(psi)
+   local n_x = chi_x:norm2()
+   while (n_x > eps) and (k_used < max_k) do
+      local s = math.sqrt(n_x)
+      local e_x = eps / n_x
+      local e_z = eps1
+      if e_z < e_x then
+         e_z = e_x
+      end
+      local delta, r, k = std_CG(op, max_k - k_used, e_z, chi_x / s,
+                                 string.format("%s %d", ident, j),
+                                 n_x, k_used)
+      psi = psi + delta * s
+      k_used = k_used + k
+      chi_x = chi - op(psi)
+      n_x = chi_x:norm2()
+      j = j + 1
+   end
+   local rho = chi - op(psi)
+   return psi, rho:norm2(), k_used
+end
+
 -- accelerated solver
-function eig_CG(df, op, max_k, eps, chi, msg)
+function eig_CG(df, op, max_k, eps, chi, ident, rs, k0)
    local psi, rho, r = df:preamble(op, chi)
    local pi = rho
    local k = 0
    local a0 = nil
    local b0 = nil
-   printf("eig CG: chi %15.7e, rho %15.7e, psi %15.7e\n",
-          chi:norm2(), rho:norm2(), psi:norm2())
    while (r > eps) and (k < max_k) do
-      printf("eig-cg %s %5d %15.7e\n", msg, k, r)
+      printf("eig-cg %s %5d %15.7e\n", ident, k + k0, r * rs)
       local zeta = op(pi)
       local a = r / qcd.dot(pi, zeta):real():sum()
       --- check if <pi|zeta> is too small, it means a zeto mode is hit
@@ -97,31 +148,35 @@ function eig_CG(df, op, max_k, eps, chi, msg)
       a0 = a
       b0 = b
    end
-   printf("eig-cg %s %5d %15.7e (end)\n", msg, k, r)
+   printf("eig-cg %s %5d %15.7e (end)\n", ident, k + k0, r * rs)
    df:postamble(op)
    return psi, r, k
 end
 
--- tradition othonormal basis construction
-function std_ortho(W, v)
-   local z = v
-   for i = 1, #W do
-      local u = qcd.dot(W[i],v):sum()
-      z = z - u * W[i]
+function eig_mixed_CG(df, op, max_k, eps1, eps, chi, ident)
+   local psi = zero_v()
+   local k_used = 0
+   local j = 0
+   local chi_x = chi - op(psi)
+   local n_x = chi_x:norm2()
+   while (n_x > eps) and (k_used < max_k) do
+      local s = math.sqrt(n_x)
+      local e_x = eps / n_x
+      local e_z = eps1
+      if e_z < e_x then
+         e_z = e_x
+      end
+      local inner_chi = chi_x / s
+      local delta, r, k = eig_CG(df, op, max_k - k_used, e_z, inner_chi,
+                                 string.format("%s %d", ident, j),
+                                 n_x, k_used)
+      psi = psi + delta * s
+      k_used = k_used + k
+      chi_x = chi - op(psi)
+      n_x = chi_x:norm2()
+      j = j + 1
    end
-   W[#W+1] = z / math.sqrt(z:norm2())
-   return W
-end
-
--- serial othonormal basis construction
-function seq_ortho(W, v)
-   local z = v
-   for i = 1, #W do
-      local u = qcd.dot(W[i],z):sum()
-      z = z - u * W[i]
-   end
-   W[#W+1] = z / math.sqrt(z:norm2())
-   return W
+   return psi, n_x, k_used
 end
 
 -- joining two matrices
@@ -140,23 +195,6 @@ end
 
 -- fat Krylov restart
 function fat_restart(T, V, vmax, ksize, tx) -- => T', V'
-   -- [debug
-   if false then
-      do 
-         printf("fat restart %d\n", ksize)
-         local l, r = T:dims()
-         for i = 0, l - 1 do
-            for j = 0, r - 1 do
-               local z = T[{i,j}]
-               if not (z == 0) then
-                  printf("  T[%4d, %4d] = %15.7e\n", i, j, z)
-               end
-            end
-         end
-         printf("\n");
-      end
-   end
-   -- debug]
    local Mn, Yn = T:symmetric_eigen()
    local M1, Y1 = T:symmetric_eigen(vmax - 1)
    local Q, R = join_YY(Yn, Y1, vmax, ksize):qr()
@@ -196,11 +234,13 @@ function mk_deflator(umax, vmax, ksize, psize)
       H = vector.real(umax),
       U = {}, -- Field[umax]
       usize = 0,
+      update_count = 0,
+      run_count = 0,
       preamble =
          function(df, op, chi) -- => psi, rho, r
             local psi, rho, r
             if (usize == 0) then
-               psi = zero_field()
+               psi = zero_v()
                rho = chi
             else
                -- aka fv_dot_f
@@ -208,10 +248,8 @@ function mk_deflator(umax, vmax, ksize, psize)
                for i = 1, df.usize do
                   Uchi[i-1] = qcd.dot(df.U[i], chi):sum()
                end
-               psi = zero_field()
+               psi = zero_v()
                for i = 0, df.usize - 1 do
-                  --printf("preamble: i %3d  U %15.7e %15.7e  H %15.7e\n",
-                  --   i, Uchi[i]:real(), Uchi[i]:imag(), df.H[i])
                   psi = psi + (Uchi[i] / df.H[i]) * df.U[i+1]
                end
                rho = chi - op(psi)
@@ -224,6 +262,7 @@ function mk_deflator(umax, vmax, ksize, psize)
          end,
       update =
          function(df, rho, r, a, b, a0, b0)
+            df.update_count = df.update_count + 1
             if (df.vsize == 0) then
                df.T[{0,0}] = a
             else
@@ -241,11 +280,12 @@ function mk_deflator(umax, vmax, ksize, psize)
                df.T[{df.vsize - 1, df.vsize}] = tx
             end
             df.V[df.vsize + 1] = rho / math.sqrt(r)
+            -- to make output nicer
+            io.stdout:flush()
          end,
       postamble =
          function(df, op)
-            --printf("postamble: vsize=%d, usize=%d, vmax=%d, umax=%d\n",
-            --       df.vsize, df.usize, vmax, umax)
+            df.run_count = df.run_count + 1
             if (df.vsize - 1 >= psize) then
                local i
                if (df.usize + psize > umax) then
@@ -279,14 +319,10 @@ function mk_deflator(umax, vmax, ksize, psize)
                   local opW = op(W)
                   for j = 1, i do
                      local z = qcd.dot(Ux[j],opW):sum()
-                     --printf("  op %4d %4d  %15.7e %15.7e\n",
-                     --       j-1, i, z:real(), z:imag())
                      Hx[{j - 1, i}] = z:conj()
                      Hx[{i, j - 1}] = z
                   end
                   Hx[{i, i}] = qcd.dot(W,opW):real():sum()
-                  --printf("  op %4d %4d  %15.7e\n",
-                  --       i, i, Hx[{i,i}]:real())
                   i = i + 1
                end
                local M, Y = Hx:hermitian_eigen(i)
@@ -299,77 +335,63 @@ function mk_deflator(umax, vmax, ksize, psize)
                   end
                   Uz[k] = W / math.sqrt(W:norm2())
                   Hx[k-1] = qcd.dot(Uz[k],op(Uz[k])):real():sum()
-                  --printf("  eigen %3d %15.7e %15.7e\n",
-                  --       k-1, M[k-1], Hx[k-1])
                end
                df.U = Uz
                df.H = Hx
                df.usize = i
             end
          end,
-      show =
+      info =
          function(df)
-            printf("DEFLATOR {\n")
-            printf("  usize = %d,\n", df.usize)
-            printf("  vsize = %d,\n", df.vsize)
-            printf("     H = {\n")
+            local hh = vector.real(df.usize)
             for i = 0, df.usize - 1 do
-               printf("       %15.7e, -- %3d\n", df.H[i], i)
+               hh[i] = df.H[i]
             end
-            printf("     }\n")
-            printf("}\n")
-         end,
+            return {
+               usize = df.usize,
+               umax = umax,
+               vsize = df.vsize,
+               vmax = vmax,
+               ksize = ksize,
+               psize = psize,
+               updates = df.update_count,
+               runs = df.run_count,
+               eigenvalues = hh
+            }
+         end
    }
 end
 
-
------ tests start here
---A = {}
---B = {}
---for i = 1, 100 do
---   local v = S:gaussian_Complex()
---   A = std_ortho(A, v)
---   B = seq_ortho(B, v)
---end
---
--- compare the bases
---do
---   local m = 0
---   for i = 1, #A do
---      local z = A[i] - B[i]
---      local u = math.sqrt(z:norm2())
---      printf("%4d  %15.7e\n", i, u)
---      if (u > m) then
---         m = u
---      end
---   end
---   printf("MAX u %15.7e\n", m)
---end
---
--- compare the metrics
---for i = 1, #A do
---   for j = 1, i do
---      local aji = qcd.dot(A[j],A[i]):sum()
---      local bji = qcd.dot(B[j],B[i]):sum()
---      printf("%4d %4d:  %20.17f %20.17f  %20.17f %20.17f\n",
---             j, j, aji:real(), aji:imag(), bji:real(), bji:imag())
---   end
---end
-
----- std_CG test
-printf("\n\nStandard CG test\n")
-rhs = rnd_field(S)
-std_CG(op, 5000, 1e-15, rhs)
-io.stdout:flush()
+function df_show(df, ident)
+   local info = df:info()
+   printf("DEFLATOR %s\n", ident)
+   printf("  %s usize     %6d\n", ident, info.usize)
+   printf("  %s umax      %6d\n", ident, info.umax)
+   printf("  %s vsize     %6d\n", ident, info.vsize)
+   printf("  %s vmax      %6d\n", ident, info.vmax)
+   printf("  %s ksize     %6d\n", ident, info.ksize)
+   printf("  %s psize     %6d\n", ident, info.psize)
+   printf("  %s updates   %6d\n", ident, info.updates)
+   printf("  %s runs      %6d\n", ident, info.runs)
+   for i = 0, #info.eigenvalues - 1 do
+      printf("  %s eigval %4d %15.7e\n", ident, i, info.eigenvalues[i])
+   end
+   printf("\n")
+end
 
 ---- eig_CG test
-printf("\n\nEig CG test\n")
-df = mk_deflator(60, 150, 30, 10)
-for i = 0, 60 do
-   rhs = rnd_field(S)
-   local psi, r, k = eig_CG(df, op, 2000, 1e-17, rhs, string.format("%d", i))
+printf("Eig CG test, m_q = %.6f\n\n", m_q)
+df = mk_deflator(df_umax, df_vmax, df_ksize, df_psize)
+for i = 0, run_count - 1 do
+   rhs = rnd_v(S)
+   rhs = rhs / math.sqrt(rhs:norm2())
+   local ident = string.format("%d", i)
+   local psi, r, k = mixed_CG(op, max_cg, eps1, eps, rhs, ident)
+   printf("stdCG %3d %5d %15.7e\n", i, k, r)
+   io.stdout:flush()
+   local psi, r, k = eig_mixed_CG(df, op, max_cg, eps1, eps, rhs, ident)
    printf("EIGCG %3d %5d %15.7e\n", i, k, r)
-   df:show()
+   df_show(df, ident)
    io.stdout:flush()
 end
 
