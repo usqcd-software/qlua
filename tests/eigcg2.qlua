@@ -1,9 +1,14 @@
 require "stdlib"
+require "hex-smear"
 
 -- completely meaningless values of parameters just to make life interesting
 
 Lx = 6
 Lt = 12
+seed        = 1984
+m_q         = -1.03
+c_sw        = 1.0
+max_cg      = 50000
 
 L = qcd.lattice {Lx, Lx, Lx, Lt}
 
@@ -25,12 +30,6 @@ function toSUn(L, X)
   return algX:exp()
 end
 
--- small deviation of identity in SU(3)
-function almost_su3(S, v)
-  local one = L:ColorMatrix(complex(1,0))
-  return one + v * S:gaussian_ColorMatrix()
-end
-
 function check_solver(x, b, name, s)
    printf("----- checking %s: %s\n", name, tostring(s))
    local y = s(b)
@@ -41,14 +40,16 @@ function check_solver(x, b, name, s)
    printf("----- check done\n\n")
 end
 
-S = rnd_init(1984)
+S = rnd_init(seed)
 
 U = {}
 for i = 1, #L do
    U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
 end
 
-CL = qcd.Clover(U, 1 / 4.7501, 1.0, {1, 1, 1, -1})
+U = bmw_hex(L, bmw_hex(L, U))
+
+CL = qcd.Clover(U, 1/(8 + 2 * m_q), c_sw, {1, 1, 1, -1})
 printf("CLOVER  %s\n", tostring(CL))
 
 DF = CL:eig_deflator(50, 10, 1e-7, 200)
@@ -56,16 +57,16 @@ printf("DEFLATOR %s\n", tostring(DF))
 
 F = S:gaussian_DiracFermion()
 G = CL:D(F)
-check_solver(F, G, "standard solver", CL:solver(1e-12, 2000))
-check_solver(F, G, "mixed solver",  CL:mixed_solver(1e-10, 2000, 1e-12, 1000))
-eigCG = DF:mixed_solver(1e-10, 1000, 1e-12, 2000)
+check_solver(F, G, "standard solver", CL:solver(1e-12, max_cg))
+check_solver(F, G, "mixed solver",  CL:mixed_solver(1e-10,max_cg,1e-12,max_cg))
+eigCG = DF:mixed_solver(1e-10, max_cg, 1e-12, max_cg)
 check_solver(F, G, "eigCG solver",  eigCG)
 
 for i = 1, 20 do
    F = S:gaussian_DiracFermion()
    G = CL:D(F)
-   printf("eigCG %5d :", i)
-   eigCG(G)
+   printf("\neigCG %5d :", i)
+   eigCG(G, false, true)
    -- check_solver(F, G, string.format("eigCG[%d]", i), eigCG)
 end
 

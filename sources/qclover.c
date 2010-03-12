@@ -478,7 +478,9 @@ q_dirac_solver(lua_State *L)
     }
 
     if ((lua_type(L, 3) == LUA_TBOOLEAN) && (lua_toboolean(L, 3) != 0))
-        log_level = QOP_CLOVER_LOG_CG_RESIDUAL;
+        log_level = (QOP_CLOVER_LOG_CG_RESIDUAL |
+                     QOP_CLOVER_LOG_EIG_POSTAMBLE |
+                     QOP_CLOVER_LOG_EIG_UPDATE1);
     else
         log_level = 0;
 
