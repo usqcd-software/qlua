@@ -1,7 +1,0 @@
-#ifndef MARK_BA45F1D8_23D0_471A_B984_101412E2029D
-#define MARK_BA45F1D8_23D0_471A_B984_101412E2029D
-
-int init_xml(lua_State *L);
-int fini_xml(lua_State *L);
-
-#endif /* !defined(MARK_BA45F1D8_23D0_471A_B984_101412E2029D) */
