@@ -1,0 +1,5 @@
+require "stdlib"
+
+printf("time %.6f\n", os.time())
+printf("time %.6f\n", os.time())
+printf("time %.6f\n", os.time())

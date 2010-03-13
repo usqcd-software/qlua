@@ -37,11 +37,6 @@ CLOVER_CF    = @clover_cflags@
 CLOVER_LF    = @clover_ldflags@
 CLOVER_LIBS  = @clover_libs@
 
-MDWF         = @mdwf@
-MDWF_CF      = @mdwf_cflags@
-MDWF_LF      = @mdwf_ldflags@
-MDWF_LIBS    = @mdwf_libs@
-
 GSL          = @gsl@
 GSL_CF       = @gsl_cflags@
 GSL_LIBS     = @gsl_libs@
@@ -59,27 +54,28 @@ library = libqlua.a
 driver = qlua.c
 headers = qlua.h
 libsrc = fix.c \
-         qvector.c \
          qcomplex.c \
-         qgamma.c \
-         lattice.c \
-         latint.c \
-         latrandom.c \
-         latreal.c \
-         latcomplex.c \
-         latcolvec.c \
-	 latcolmat.c \
-         latdirferm.c \
-         latdirprop.c \
-	 latmulti.c \
-         latsubset.c \
-	 qio_utils.c \
-         qdpc_io.c \
-         qdpcc_io.c \
-         ddpairs_io.c \
-	 nersc_io.c \
+         qvector.c \
          qxml.c
 
+#         qgamma.c \
+#         lattice.c \
+#         latint.c \
+#         latrandom.c \
+#         latreal.c \
+#         latcomplex.c \
+#         latcolvec.c \
+#	 latcolmat.c \
+#         latdirferm.c \
+#         latdirprop.c \
+#	 latmulti.c \
+#         latsubset.c \
+#	 qio_utils.c \
+#         qdpc_io.c \
+#         qdpcc_io.c \
+#         ddpairs_io.c \
+#	 nersc_io.c \
+#
 ###############################################################################
 ifneq ("$(AFF)", "")
   libsrc += aff_io.c
@@ -87,10 +83,6 @@ endif
 
 ifneq ("$(CLOVER)", "")
   libsrc += qclover.c
-endif
-
-ifneq ("$(MDWF)", "")
-  libsrc += qmdwf.c
 endif
 
 ifneq ("$(GSL)", "")
