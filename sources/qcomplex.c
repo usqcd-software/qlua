@@ -105,7 +105,7 @@ c_neg(lua_State *L)                                            /* (-1,+1,e) */
 }
 
 static int
-q_r_add_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_r_add_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Real a = luaL_checknumber(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -118,7 +118,7 @@ q_r_add_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_add_r(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_add_r(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *b = qlua_checkComplex(L, 1);
     QLA_D_Real a = luaL_checknumber(L, 2);
@@ -131,7 +131,7 @@ q_c_add_r(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_add_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_add_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *a = qlua_checkComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -143,7 +143,7 @@ q_c_add_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_r_sub_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_r_sub_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Real a = luaL_checknumber(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -156,7 +156,7 @@ q_r_sub_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_sub_r(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_sub_r(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *b = qlua_checkComplex(L, 1);
     QLA_D_Real a = luaL_checknumber(L, 2);
@@ -169,7 +169,7 @@ q_c_sub_r(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_sub_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_sub_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *a = qlua_checkComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -181,7 +181,7 @@ q_c_sub_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_r_mul_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_r_mul_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Real a = luaL_checknumber(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -193,7 +193,7 @@ q_r_mul_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_mul_r(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_mul_r(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *b = qlua_checkComplex(L, 1);
     QLA_D_Real a = luaL_checknumber(L, 2);
@@ -205,7 +205,7 @@ q_c_mul_r(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_c_mul_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_mul_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *a = qlua_checkComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -217,7 +217,7 @@ q_c_mul_c(lua_State *L, void *env)                             /* (-2,+1,-) */
 }
 
 static int
-q_r_div_c(lua_State *L, void *env)                              /* (-2,+1,-) */
+q_r_div_c(lua_State *L)                              /* (-2,+1,-) */
 {
     double n;
     QLA_D_Real a = luaL_checknumber(L, 1);
@@ -234,7 +234,7 @@ q_r_div_c(lua_State *L, void *env)                              /* (-2,+1,-) */
 }
 
 static int
-q_c_div_r(lua_State *L, void *env)                              /* (-2,+1,-) */
+q_c_div_r(lua_State *L)                              /* (-2,+1,-) */
 {
     QLA_D_Complex *b = qlua_checkComplex(L, 1);
     QLA_D_Real a = luaL_checknumber(L, 2);
@@ -246,7 +246,7 @@ q_c_div_r(lua_State *L, void *env)                              /* (-2,+1,-) */
 }
 
 static int
-q_c_div_c(lua_State *L, void *env)                             /* (-2,+1,-) */
+q_c_div_c(lua_State *L)                             /* (-2,+1,-) */
 {
     QLA_D_Complex *a = qlua_checkComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -280,21 +280,26 @@ static const luaL_Reg fComplex[] = {
 int
 init_complex(lua_State *L)
 {
+    static const QLUA_Op2 ops[] = {
+        {qlua_add_table, qReal,    qComplex, q_r_add_c},
+        {qlua_add_table, qComplex, qReal,    q_c_add_r},
+        {qlua_add_table, qComplex, qComplex, q_c_add_c},
+        {qlua_sub_table, qReal,    qComplex, q_r_sub_c},
+        {qlua_sub_table, qComplex, qReal,    q_c_sub_r},
+        {qlua_sub_table, qComplex, qComplex, q_c_sub_c},
+        {qlua_mul_table, qReal,    qComplex, q_r_mul_c},
+        {qlua_mul_table, qComplex, qReal,    q_c_mul_r},
+        {qlua_mul_table, qComplex, qComplex, q_c_mul_c},
+        {qlua_div_table, qReal,    qComplex, q_r_div_c},
+        {qlua_div_table, qComplex, qReal,    q_c_div_r},
+        {qlua_div_table, qComplex, qComplex, q_c_div_c},
+        {NULL,           qOther,   qOther,   NULL}
+    };
+
     lua_getglobal(L, "_G");
     luaL_register(L, NULL, fComplex);
     qlua_metatable(L, mtnComplex, mtComplex, qComplex);
-    qlua_reg_add(qReal,    qComplex, q_r_add_c, NULL);
-    qlua_reg_add(qComplex, qReal,    q_c_add_r, NULL);
-    qlua_reg_add(qComplex, qComplex, q_c_add_c, NULL);
-    qlua_reg_sub(qReal,    qComplex, q_r_sub_c, NULL);
-    qlua_reg_sub(qComplex, qReal,    q_c_sub_r, NULL);
-    qlua_reg_sub(qComplex, qComplex, q_c_sub_c, NULL);
-    qlua_reg_mul(qReal,    qComplex, q_r_mul_c, NULL);
-    qlua_reg_mul(qComplex, qReal,    q_c_mul_r, NULL);
-    qlua_reg_mul(qComplex, qComplex, q_c_mul_c, NULL);
-    qlua_reg_div(qReal,    qComplex, q_r_div_c, NULL);
-    qlua_reg_div(qComplex, qReal,    q_c_div_r, NULL);
-    qlua_reg_div(qComplex, qComplex, q_c_div_c, NULL);
+    qlua_reg_op2(ops);
 
     return 0;
 }

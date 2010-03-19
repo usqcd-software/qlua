@@ -8,7 +8,7 @@ typedef struct {
 
 extern const char mtnLatMultSet[];
 
-mLatMulti *qlua_checkLatMulti(lua_State *L, int idx);
+mLatMulti *qlua_checkLatMulti(lua_State *L, int idx, mLattice *S);
 
 int init_latmulti(lua_State *L);
 int fini_latmulti(lua_State *L);

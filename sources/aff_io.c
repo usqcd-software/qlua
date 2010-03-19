@@ -463,7 +463,7 @@ qaff_w_write(lua_State *L)
         }
 
         msg = "Write error";
-        switch (qlua_gettype(L, 3)) {
+        switch (qlua_atype(L, 3)) {
         case qString: {
             const char *str = luaL_checkstring(L, 3);
             
@@ -723,8 +723,8 @@ init_aff_io(lua_State *L)
         lua_setfield(L, -2, fAFFio[i].name);
     }
     lua_setfield(L, -2, aff_io);
-    qlua_metatable(L, mtnReader, mtReader);
-    qlua_metatable(L, mtnWriter, mtWriter);
+    qlua_metatable(L, mtnReader, mtReader, qAffReader);
+    qlua_metatable(L, mtnWriter, mtWriter, qAffWriter);
     
     return 0;
 }

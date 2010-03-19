@@ -1,30 +1,39 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
-#include <string.h>
 #include "qmp.h"
+#include <string.h>
 #include <math.h>
 
-/* NB: This code works only for a single lattice */
-
-QDP_Subset *qCurrent;
+/* NB: This code is not tested for multiple lattices */
 const char opLattice[] = "lattice.ops";
 
-typedef struct {
-    int rank;
-    int dim[1];
-} mLattice;
+mLattice *
+qlua_checkLattice(lua_State *L, int idx)
+{
+    void *v = lua_touserdata(L, idx);
 
-static const char mtnLattice[] = "qcd.lattice";
-int qRank = 0;
-int *qDim = NULL;
+    if (qlua_qtype(L, idx) != qLattice)
+        luaL_error(L, "lattice expected");
+
+    return v;
+}
+
+mLattice *
+qlua_ObjLattice(lua_State *L, int idx)
+{
+    qlua_getlattice(L, idx);
+    return qlua_checkLattice(L, -1);
+}
 
 static int
 q_L_fmt(lua_State *L)
 {
+    mLattice *S = qlua_checkLattice(L, 1);
     luaL_Buffer b;
     char fmt[72];
     char *sep;
@@ -32,8 +41,8 @@ q_L_fmt(lua_State *L)
 
     luaL_buffinit(L, &b);
     luaL_addstring(&b, "lattice(");
-    for (i = 0, sep = ""; i < qRank; i++, sep = ", ") {
-        sprintf(fmt, "%s%d", sep, qDim[i]);
+    for (i = 0, sep = ""; i < S->rank; i++, sep = ", ") {
+        sprintf(fmt, "%s%d", sep, S->dim[i]);
         luaL_addstring(&b, fmt);
     }
     luaL_addstring(&b, ")");
@@ -43,20 +52,36 @@ q_L_fmt(lua_State *L)
 }
 
 static int
+q_L_gc(lua_State *L)
+{
+    mLattice *S = qlua_checkLattice(L, 1);
+
+    if (S->dim)
+        qlua_free(L, S->dim);
+    S->dim = 0;
+
+    return 0;
+}
+
+static int
 q_L_get(lua_State *L)
 {
-    switch (qlua_gettype(L, 2)) {
+    mLattice *S = qlua_checkLattice(L, 1);
+
+    switch (qlua_qtype(L, 2)) {
     case qReal: {
         int d = luaL_checkint(L, 2);
 
-        if ((d >= 0) && (d < qRank)) {
-            lua_pushnumber(L, qDim[d]);
+        if ((d >= 0) && (d < S->rank)) {
+            lua_pushnumber(L, S->dim[d]);
             return 1;
         }
         break;
     }
     case qString:
         return qlua_lookup(L, 2, opLattice);
+    default:
+        break;
     }
 
     return qlua_badindex(L, "Lattice");
@@ -65,7 +90,9 @@ q_L_get(lua_State *L)
 static int
 q_L_dim(lua_State *L)
 {
-    lua_pushnumber(L, qRank);
+    mLattice *S = qlua_checkLattice(L, 1);
+
+    lua_pushnumber(L, S->rank);
 
     return 1;
 }
@@ -80,16 +107,19 @@ pcoord_set(QLA_Int *dst, int coords[])
 static int
 q_pcoord(lua_State *L)
 {
+    mLattice *S = qlua_checkLattice(L, 1);
+    QDP_Subset *qCurrent = S->qss;
     int d = luaL_checkint(L, 2);
-    mLatInt *v = qlua_newLatInt(L);
+    mLatInt *v = qlua_newLatInt(L, 1);
     
-    if ((d < 0) || (d >= qRank))
+    if ((d < 0) || (d >= S->rank))
         return luaL_error(L, "coordinate out of range");
     
     /* YYY global state */
     CALL_QDP(L);
     pcoord_d = d;
     QDP_I_eq_func(v->ptr, pcoord_set, *qCurrent);
+    pcoord_d = -1;
 
     return 1;
 }
@@ -97,6 +127,8 @@ q_pcoord(lua_State *L)
 static struct {
     int *s;
     int *p;
+    int rank;
+    int *dim;
 } PW_arg;
 
 static void
@@ -105,9 +137,9 @@ pw_simple(QLA_Complex *dst, int coord[])
     int i;
     double ph;
 
-    for (ph = 0, i = 0; i < qRank; i++) {
+    for (ph = 0, i = 0; i < PW_arg.rank; i++) {
         double d = (coord[i]-PW_arg.s[i]) * ((double)PW_arg.p[i]);
-        ph += 2 * M_PI * d / qDim[i];
+        ph += 2 * M_PI * d / PW_arg.dim[i];
     }
     *dst = QLA_cexpi(ph);
 }
@@ -115,68 +147,73 @@ pw_simple(QLA_Complex *dst, int coord[])
 static int
 q_planewave(lua_State *L)
 {
-    int *s = qlua_checklatcoord(L, 2);
-    int *p = qlua_checkintarray(L, 3, qRank, NULL);
-    mLatComplex *w = qlua_newLatComplex(L);
+    mLattice *S = qlua_checkLattice(L, 1);
+    QDP_Subset *qCurrent = S->qss;
+    int *s = qlua_checklatcoord(L, 2, S);
+    int *p = qlua_checkintarray(L, 3, S->rank, NULL);
+    mLatComplexD *w = qlua_newLatComplexD(L, 1);
 
     /* YYY global state */
     PW_arg.s = s;
     PW_arg.p = p;
+    PW_arg.rank = S->rank;
+    PW_arg.dim = S->dim;
     CALL_QDP(L);
-    QDP_C_eq_func(w->ptr, pw_simple, *qCurrent);
+    QDP_D_C_eq_func(w->ptr, pw_simple, *qCurrent);
 
     PW_arg.s = 0;
     PW_arg.p = 0;
+    PW_arg.rank = -1;
+    PW_arg.dim = 0;
     qlua_free(L, s);
     qlua_free(L, p);
     return 1;
-}
-
-static void
-set_Nd(lua_State *L)
-{
-    lua_getglobal(L, qcdlib);
-    lua_pushnumber(L, qRank);
-    lua_setfield(L, -2, "Nd");
-    lua_pop(L, 1);
 }
 
 static int
 q_lattice(lua_State *L)
 {
     int r, i;
-    mLattice *res;
-
-    if (qRank != 0)
-        return luaL_error(L, "redefining the lattice");
+    static int lat_id = 0;
+    mLattice *S = lua_newuserdata(L, sizeof (mLattice));
+    static const struct luaL_Reg mtLattice[] = {
+        { "__tostring",   q_L_fmt        },
+        { "__gc",         q_L_gc         },
+        { "__index",      q_L_get        },
+        { "__newindex",   qlua_nowrite   },
+        { "__len",        q_L_dim        },
+        { NULL,           NULL           }
+    };
+    
+    if (lat_id) /* XXX need more work for multiple lattices */
+        return luaL_error(L, "multiple lattices not supported yet");
 
     luaL_checktype(L, 1, LUA_TTABLE);
     r = lua_objlen(L, 1);
     if (r <= 0)
         return luaL_error(L, "Bad lattice rank");
-    qRank = r;
-    qDim = qlua_malloc(L, r * sizeof (int));
+    S->rank = r;
+    S->dim = qlua_malloc(L, r * sizeof (int));
     for (i = 0; i < r; i++) {
+        printf("XXXX: q_lattice(); dim=%d, stack=%d in\n", i, lua_gettop(L));
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 1);
-        qDim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
+        S->dim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
+        lua_pop(L, 1);
+        printf("XXXX: q_lattice(); dim=%d, stack=%d out\n", i, lua_gettop(L));
     }
     CALL_QDP(L);
-    QDP_set_latsize(qRank, qDim);
+    QDP_set_latsize(S->rank, S->dim);
     if (QDP_create_layout()) {
         return luaL_error(L, "can not create lattice");
     }
-    qCurrent = &QDP_all;
+    S->qss = &QDP_all;
+    S->lss.cl = qss_all;
+    S->id = lat_id;
+    lat_id++;
 
-    res = lua_newuserdata(L, sizeof (mLattice) + (qRank - 1) * sizeof (int));
-    res->rank = qRank;
-    for (i = 0; i < qRank; i++) {
-        res->dim[i] = qDim[i];
-    }
-    luaL_getmetatable(L, mtnLattice);
+    qlua_selftable(L, mtLattice, qLattice);
     lua_setmetatable(L, -2);
-
-    set_Nd(L);
     
     return 1;
 }
@@ -224,14 +261,14 @@ qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
 }
 
 int *
-qlua_latcoord(lua_State *L, int n)
+qlua_latcoord(lua_State *L, int n, mLattice *S)
 {
     int d, i;
     int *idx;
 
     luaL_checktype(L, n, LUA_TTABLE);
     d = lua_objlen(L, n);
-    if (d != qRank) {
+    if (d != S->rank) {
         return NULL;
     }
     idx = qlua_malloc(L, d * sizeof (int));
@@ -240,7 +277,7 @@ qlua_latcoord(lua_State *L, int n)
         lua_gettable(L, n);
         idx[i] = qlua_checkint(L, -1, "lattice coord %d", i);
         lua_pop(L, 1);
-        if ((idx[i] < 0) || (idx[i] >= qDim[i])) {
+        if ((idx[i] < 0) || (idx[i] >= S->dim[i])) {
             qlua_free(L, idx);        
             return NULL;
         }
@@ -252,20 +289,20 @@ qlua_latcoord(lua_State *L, int n)
 static const char *bad_lat_coords = "bad lattice coordinates";
 
 void
-qlua_verifylatcoord(lua_State *L, int *coord)
+qlua_verifylatcoord(lua_State *L, int *coord, mLattice *S)
 {
     int i;
 
-    for (i = 0; i < qRank; i++) {
-        if ((coord[i] < 0) || (coord[i] >= qDim[i]))
+    for (i = 0; i < S->rank; i++) {
+        if ((coord[i] < 0) || (coord[i] >= S->dim[i]))
             luaL_error(L, bad_lat_coords);
     }
 }
 
 int *
-qlua_checklatcoord(lua_State *L, int n)
+qlua_checklatcoord(lua_State *L, int n, mLattice *S)
 {
-    int *idx = qlua_latcoord(L, n);
+    int *idx = qlua_latcoord(L, n, S);
 
     if (idx == 0)
         luaL_error(L, bad_lat_coords);
@@ -274,11 +311,11 @@ qlua_checklatcoord(lua_State *L, int n)
 }
 
 QDP_Shift
-qlua_checkShift(lua_State *L, int idx)
+qlua_checkShift(lua_State *L, int idx, mLattice *S)
 {
     int d = luaL_checkint(L, idx);
 
-    if ((d < 0) || (d >= qRank))
+    if ((d < 0) || (d >= S->rank))
         luaL_error(L, "bad shift dimension");
 
     return QDP_neighbor[d];
@@ -295,7 +332,7 @@ qlua_checkShiftDir(lua_State *L, int idx)
         { "from_backward", QDP_backward },
         { "to_forward",    QDP_backward },
         { "to_backward",   QDP_forward },
-        { NULL,            QDP_forward }
+        { NULL,            QDP_forward } /* never used */
     };
     int i;
     const char *d = luaL_checkstring(L, idx);
@@ -332,13 +369,6 @@ static struct luaL_Reg LatticeMethods[] = {
     { NULL,           NULL },
 };
 
-static struct luaL_Reg mtLattice[] = {
-    { "__tostring",   q_L_fmt   },
-    { "__index",      q_L_get   },
-    { "__len",        q_L_dim   },
-    { NULL,           NULL      }
-};
-
 static struct luaL_Reg fLattice[] = {
     { "lattice",            q_lattice },
     { "network",            q_network },
@@ -349,10 +379,7 @@ int
 init_lattice(lua_State *L)
 {
     luaL_register(L, qcdlib, fLattice);
-    qlua_metatable(L, mtnLattice, mtLattice);
-    qlua_metatable(L, opLattice, LatticeMethods);
-
-    set_Nd(L);
+    qlua_metatable(L, opLattice, LatticeMethods, qNoType);
 
     return 0;
 }
@@ -360,8 +387,5 @@ init_lattice(lua_State *L)
 int
 fini_lattice(lua_State *L)
 {
-    qlua_free(L, qDim);
-    qDim = 0;
-    qRank = 0;
     return 0;
 }

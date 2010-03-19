@@ -56,19 +56,19 @@ headers = qlua.h
 libsrc = fix.c \
          qcomplex.c \
          qvector.c \
-         qxml.c
+         qxml.c \
+         lattice.c \
+         latint.c \
+	 latmulti.c \
+         latreal.c \
+         latrandom.c \
 
-#         qgamma.c \
-#         lattice.c \
-#         latint.c \
-#         latrandom.c \
-#         latreal.c \
 #         latcomplex.c \
+#         qgamma.c \
 #         latcolvec.c \
 #	 latcolmat.c \
 #         latdirferm.c \
 #         latdirprop.c \
-#	 latmulti.c \
 #         latsubset.c \
 #	 qio_utils.c \
 #         qdpc_io.c \

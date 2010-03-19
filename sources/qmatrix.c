@@ -346,7 +346,7 @@ md_put(lua_State *L)                                           /* (-3,+0,e) */
 }
 
 static int
-rm_add_rm(lua_State *L, void *env)
+rm_add_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
@@ -364,7 +364,7 @@ rm_add_rm(lua_State *L, void *env)
 }
 
 static int
-rm_sub_rm(lua_State *L, void *env)
+rm_sub_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
@@ -382,7 +382,7 @@ rm_sub_rm(lua_State *L, void *env)
 }
 
 static int
-rm_mul_rm(lua_State *L, void *env)
+rm_mul_rm(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     mMatReal *b = qlua_checkMatReal(L, 2);
@@ -412,7 +412,7 @@ do_rrmul(lua_State *L, mMatReal *a, double b)
 }
 
 static int
-rm_mul_r(lua_State *L, void *env)
+rm_mul_r(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     double b = luaL_checknumber(L, 2);
@@ -421,7 +421,7 @@ rm_mul_r(lua_State *L, void *env)
 }
 
 static int
-r_mul_rm(lua_State *L, void *env)
+r_mul_rm(lua_State *L)
 {
     double b = luaL_checknumber(L, 1);
     mMatReal *a = qlua_checkMatReal(L, 2);
@@ -430,7 +430,7 @@ r_mul_rm(lua_State *L, void *env)
 }
 
 static int
-rm_div_r(lua_State *L, void *env)
+rm_div_r(lua_State *L)
 {
     mMatReal *a = qlua_checkMatReal(L, 1);
     double b = luaL_checknumber(L, 2);
@@ -838,7 +838,7 @@ mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
 }
 
 static int
-cm_add_cm(lua_State *L, void *env)
+cm_add_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
@@ -856,7 +856,7 @@ cm_add_cm(lua_State *L, void *env)
 }
 
 static int
-cm_sub_cm(lua_State *L, void *env)
+cm_sub_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
@@ -887,7 +887,7 @@ do_ccmul(lua_State *L, mMatComplex *a, double b_re, double b_im)
 }
 
 static int
-cm_mul_r(lua_State *L, void *env)
+cm_mul_r(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     double b = luaL_checknumber(L, 2);
@@ -896,7 +896,7 @@ cm_mul_r(lua_State *L, void *env)
 }
 
 static int
-r_mul_cm(lua_State *L, void *env)
+r_mul_cm(lua_State *L)
 {
     double b = luaL_checknumber(L, 1);
     mMatComplex *a = qlua_checkMatComplex(L, 2);
@@ -905,7 +905,7 @@ r_mul_cm(lua_State *L, void *env)
 }
 
 static int
-cm_div_r(lua_State *L, void *env)
+cm_div_r(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     double b = luaL_checknumber(L, 2);
@@ -914,7 +914,7 @@ cm_div_r(lua_State *L, void *env)
 }
 
 static int
-cm_mul_c(lua_State *L, void *env)
+cm_mul_c(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -923,7 +923,7 @@ cm_mul_c(lua_State *L, void *env)
 }
 
 static int
-c_mul_cm(lua_State *L, void *env)
+c_mul_cm(lua_State *L)
 {
     QLA_D_Complex *b = qlua_checkComplex(L, 1);
     mMatComplex *a = qlua_checkMatComplex(L, 2);
@@ -932,7 +932,7 @@ c_mul_cm(lua_State *L, void *env)
 }
 
 static int
-cm_div_c(lua_State *L, void *env)
+cm_div_c(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     QLA_D_Complex *b = qlua_checkComplex(L, 2);
@@ -945,7 +945,7 @@ cm_div_c(lua_State *L, void *env)
 }
 
 static int
-cm_mul_cm(lua_State *L, void *env)
+cm_mul_cm(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
     mMatComplex *b = qlua_checkMatComplex(L, 2);
@@ -1012,28 +1012,32 @@ static const luaL_Reg fMatrix[] = {
 int
 init_matrix(lua_State *L)
 {
+    static const QLUA_Op2 ops[] = {
+        {qlua_add_table, qMatReal,    qMatReal,    rm_add_rm },
+        {qlua_add_table, qMatComplex, qMatComplex, cm_add_cm },
+        {qlua_sub_table, qMatReal,    qMatReal,    rm_sub_rm },
+        {qlua_sub_table, qMatComplex, qMatComplex, cm_sub_cm },
+        {qlua_mul_table, qMatReal,    qMatReal,    rm_mul_rm },
+        {qlua_mul_table, qReal,       qMatReal,    r_mul_rm  },
+        {qlua_mul_table, qMatReal,    qReal,       rm_mul_r  },
+        {qlua_mul_table, qMatComplex, qMatComplex, cm_mul_cm },
+        {qlua_mul_table, qReal,       qMatComplex, r_mul_cm  },
+        {qlua_mul_table, qComplex,    qMatComplex, c_mul_cm  },
+        {qlua_mul_table, qMatComplex, qComplex,    cm_mul_c  },
+        {qlua_mul_table, qMatComplex, qReal,       cm_mul_r  },
+        {qlua_div_table, qMatReal,    qReal,       rm_div_r  },
+        {qlua_div_table, qMatComplex, qComplex,    cm_div_c  },
+        {qlua_div_table, qMatComplex, qReal,       cm_div_r  },
+        {NULL,           qOther,      qOther,      NULL      }
+    };
+
     gsl_set_error_handler_off();
     luaL_register(L, matrix_ns,      fMatrix);
     qlua_metatable(L, mtnMatReal,    mtMatReal,          qMatReal);
     qlua_metatable(L, opMatReal,     MatRealMethods,     qNoType);
     qlua_metatable(L, mtnMatComplex, mtMatComplex,       qMatComplex);
     qlua_metatable(L, opMatComplex,  MatComplexMethods,  qNoType);
-
-    qlua_reg_add(qMatReal,    qMatReal,    rm_add_rm, NULL);
-    qlua_reg_sub(qMatReal,    qMatReal,    rm_sub_rm, NULL);
-    qlua_reg_mul(qMatReal,    qMatReal,    rm_mul_rm, NULL);
-    qlua_reg_mul(qReal,       qMatReal,    r_mul_rm,  NULL);
-    qlua_reg_mul(qMatReal,    qReal,       rm_mul_r,  NULL);
-    qlua_reg_div(qMatReal,    qReal,       rm_div_r,  NULL);
-    qlua_reg_add(qMatComplex, qMatComplex, cm_add_cm, NULL);
-    qlua_reg_sub(qMatComplex, qMatComplex, cm_sub_cm, NULL);
-    qlua_reg_mul(qMatComplex, qMatComplex, cm_mul_cm, NULL);
-    qlua_reg_mul(qReal,       qMatComplex, r_mul_cm,  NULL);
-    qlua_reg_mul(qComplex,    qMatComplex, c_mul_cm,  NULL);
-    qlua_reg_mul(qMatComplex, qComplex,    cm_mul_c,  NULL);
-    qlua_reg_mul(qMatComplex, qReal,       cm_mul_r,  NULL);
-    qlua_reg_div(qMatComplex, qComplex,    cm_div_c,  NULL);
-    qlua_reg_div(qMatComplex, qReal,       cm_div_r,  NULL);
+    qlua_reg_op2(ops);
 
     return 0;
 }

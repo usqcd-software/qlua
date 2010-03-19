@@ -53,6 +53,7 @@ typedef enum {
     qOther,          /* no operations for this type */
     qArithTypeCount, /* number of types in arith dispatch tables */
     qLattice,
+    qLatMulti,
     qString,
     qTable,
     qVecInt,
@@ -72,9 +73,29 @@ extern const char *progname;
 extern const char *qcdlib;
 extern int qlua_primary_node;
 
-void qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table,
+void qlua_metatable(lua_State *L,
+                    const char *name,
+                    const luaL_Reg *table,
                     QLUA_Type t_id);
+void qlua_selftable(lua_State *L,
+                    const luaL_Reg *table,
+                    QLUA_Type t_id);
+void qlua_latticetable(lua_State *L,
+                       const luaL_Reg *table,
+                       QLUA_Type t_id,
+                       int Sidx);
+int qlua_getlattice(lua_State *L, int idx); /* => [idx]'s lattice object */
 int qlua_lookup(lua_State *L, int idx, const char *table);
+int qlua_selflookup(lua_State *L, int idx, const char *key);
+void *qlua_checkLatticeType(lua_State *L,
+                            int idx,
+                            QLUA_Type t_id,
+                            const char *name);
+void qlua_createLatticeTable(lua_State *L,
+                             int Sidx,
+                             const struct luaL_Reg *ft,
+                             QLUA_Type t_id,
+                             const char *name);
 QLUA_Type qlua_qtype(lua_State *L, int idx);
 QLUA_Type qlua_atype(lua_State *L, int idx); /* non-arith types => qOther */
 const char *qlua_ptype(lua_State *L, int idx);
@@ -103,24 +124,30 @@ int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
 double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
 void qlua_checktable(lua_State *L, int idx, const char *fmt, ...);
 
-typedef int (*q_op)(lua_State *L, void *env);
-typedef struct {
-    q_op  op;
-    void *env;
-} q_op_table;
+typedef int (*q_op)(lua_State *L);
 
-void qlua_reg_add(QLUA_Type ta, QLUA_Type tb, q_op op, void *env);
+typedef struct {
+    q_op     *table;
+    QLUA_Type ta;
+    QLUA_Type tb;
+    q_op      op;
+} QLUA_Op2;
+
+extern q_op qlua_add_table[];
+extern q_op qlua_sub_table[];
+extern q_op qlua_mul_table[];
+extern q_op qlua_div_table[];
+extern q_op qlua_mod_table[];
+
+void qlua_reg_op2(const QLUA_Op2 *ops);
+
 int qlua_add(lua_State *L);
-void qlua_reg_sub(QLUA_Type ta, QLUA_Type tb, q_op op, void *env);
 int qlua_sub(lua_State *L);
-void qlua_reg_mul(QLUA_Type ta, QLUA_Type tb, q_op op, void *env);
 int qlua_mul(lua_State *L);
-void qlua_reg_div(QLUA_Type ta, QLUA_Type tb, q_op op, void *env);
 int qlua_div(lua_State *L);
-void qlua_reg_mod(QLUA_Type ta, QLUA_Type tb, q_op op, void *env);
 int qlua_mod(lua_State *L);
 
-void qlua_reg_dot(QLUA_Type ta, q_op op, void *env);
+void qlua_reg_dot(QLUA_Type ta, q_op op);
 
 int qlua_badconstr(lua_State *L, const char *name);
 int qlua_badindex(lua_State *L, const char *type);

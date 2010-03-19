@@ -17,8 +17,6 @@ typedef struct {
     int           position;
 } mLatSubset;
 
-extern const char mtnLatSubset[];
-
 int init_latsubset(lua_State *L);
 int fini_latsubset(lua_State *L);
 
