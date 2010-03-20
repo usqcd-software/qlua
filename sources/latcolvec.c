@@ -104,7 +104,6 @@ q_V_gaussian_N(lua_State *L)
 
 /* Lattice color vectors:
  *  L:ColorVector() -- zero vector in default colors
- *  L:ColorVector(V) -- copy of V
  *  L:ColorVector(C,m) -- default colors, X[m] = C
  */
 static int

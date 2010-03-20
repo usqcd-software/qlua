@@ -586,6 +586,23 @@ Qs(q_V_colors)(lua_State *L)
     return 1;
 }
 
+static int
+Qs(q_V_copy)(lua_State *L)
+{
+    Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(a));
+
+    CALL_QDP(L);
+#if QNc == 'N'
+    Qx(QDP_D,_V_eq_V)(QC(a), r->ptr, a->ptr, *S->qss);
+#else
+    Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
+#endif
+
+    return 1;
+}
+
 
 static struct luaL_Reg Qs(mtLatColVec)[] = {
     { "__tostring",        Qs(q_V_fmt)    },
@@ -602,7 +619,8 @@ static struct luaL_Reg Qs(mtLatColVec)[] = {
     { "conj",              Qs(q_V_conj)   },
     { "set",               Qs(q_V_set)    },
     { "colors",            Qs(q_V_colors) },
-    { NULL,                NULL }
+    { "copy",              Qs(q_V_copy)   },
+    { NULL,                NULL           }
 };
 
 Qs(mLatColVec) *

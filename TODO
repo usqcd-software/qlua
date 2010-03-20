@@ -16,5 +16,3 @@
 
 * Multiple Lattices
 -- see the latest QDP release
-
-* Metatables are writeable -- this is WRONG. -- seems an unfixible LUA problem.
