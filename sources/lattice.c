@@ -1,8 +1,8 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
-#include "latsubset.h"                                               /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "qmp.h"
@@ -151,7 +151,7 @@ q_planewave(lua_State *L)
     QDP_Subset *qCurrent = S->qss;
     int *s = qlua_checklatcoord(L, 2, S);
     int *p = qlua_checkintarray(L, 3, S->rank, NULL);
-    mLatComplexD *w = qlua_newLatComplexD(L, 1);
+    mLatComplex *w = qlua_newLatComplex(L, 1);
 
     /* YYY global state */
     PW_arg.s = s;
@@ -195,12 +195,10 @@ q_lattice(lua_State *L)
     S->rank = r;
     S->dim = qlua_malloc(L, r * sizeof (int));
     for (i = 0; i < r; i++) {
-        printf("XXXX: q_lattice(); dim=%d, stack=%d in\n", i, lua_gettop(L));
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 1);
         S->dim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
         lua_pop(L, 1);
-        printf("XXXX: q_lattice(); dim=%d, stack=%d out\n", i, lua_gettop(L));
     }
     CALL_QDP(L);
     QDP_set_latsize(S->rank, S->dim);
@@ -210,6 +208,7 @@ q_lattice(lua_State *L)
     S->qss = &QDP_all;
     S->lss.cl = qss_all;
     S->id = lat_id;
+    S->nc = 3;
     lat_id++;
 
     qlua_selftable(L, mtLattice, qLattice);
@@ -366,6 +365,7 @@ q_network(lua_State *L)
 static struct luaL_Reg LatticeMethods[] = {
     { "pcoord",           q_pcoord },
     { "planewave",        q_planewave },
+    /* XXX defaults */
     { NULL,           NULL },
 };
 

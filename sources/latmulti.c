@@ -1,6 +1,6 @@
 #include "qlua.h"                                                    /* DEPS */
-#include "latsubset.h"                                               /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
 
@@ -63,6 +63,7 @@ qlua_checkLatMulti(lua_State *L, int idx, mLattice *S)
         mLattice *S1 = qlua_ObjLattice(L, idx);
         if (S1->id != S->id)
             luaL_error(L, "%s on a wrong lattice", LatMultiName);
+        lua_pop(L, 1);
     }
 
     return (mLatMulti *)v;

@@ -1,0 +1,45 @@
+require "stdlib"
+d = 4
+LAT = qcd.lattice({d,d,d})
+function dump_meta(x)
+   local m = getmetatable(x)
+   if m then
+      printf("Metatable for %s\n", tostring(x))
+      for i, v in pairs(m) do
+         printf("   %-25s : %s\n", tostring(i), tostring(v))
+      end
+   else
+      printf("No metatable for %s\n", tostring(x))
+   end
+   printf("\n")
+end
+
+dump_meta(LAT)
+
+rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
+                         LAT:pcoord(1) * d +
+                         LAT:pcoord(2))
+
+crnd = rnd:gaussian_Complex()
+x = LAT:ColorVector(crnd, {c=0})
+printf("V(c,0) %s\n", tostring(x))
+
+dump_meta(LAT)
+dump_meta(crnd)
+dump_meta(x)
+dump_meta(rnd:gaussian_ColorVector())
+
+x = rnd:gaussian_ColorVectorN(7) * rnd:gaussian_Real()
+y = rnd:gaussian_Real() * x
+
+printf("consturcted ColVec: %s\n", tostring(x))
+printf("x:colors() = %d\n", x:colors())
+printf("x[{1,0,3,c=1}] = %s\n", tostring(x[{1,0,3,c=1}]))
+
+x[{c=0}] = LAT:Complex(complex(math.pi,1))
+x[{c=2}] = LAT:Complex(LAT:Real(0), LAT:Real(0))
+
+printf("%s %s\n", tostring(x[{0,0,1,c=0}]), tostring(x[{0,0,1,c=1}]))
+dump_meta(LAT)
+dump_meta(getmetatable(LAT)["lattice.RandomState"])
+printf("DONE\n")

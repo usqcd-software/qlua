@@ -5,20 +5,20 @@
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
 #include "qxml.h"                                                    /* DEPS */
-#include "latsubset.h"                                               /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
-
-#if 0
-#include "qgamma.h"                                                  /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
+
+#if 0 /* XXX other includes */
+#include "qgamma.h"                                                  /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
-#include "latmulti.h"                                                /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
@@ -39,7 +39,7 @@
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
 #endif
-#endif
+#endif /* XXX other includes */
 
 #include <string.h>
 #include <stdarg.h>
@@ -162,22 +162,18 @@ qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table,
 void
 qlua_selftable(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
 {
-    printf("XXX qlua_selftable(%d): top %d\n", t_id, lua_gettop(L));
     lua_createtable(L, 0, 0);
     qlua_fillmeta(L, table, t_id);
-    printf("XXX end: top %d\n", lua_gettop(L));
 }
 
 void
 qlua_latticetable(lua_State *L, const luaL_Reg *table, QLUA_Type t_id, int lidx)
 {
-    printf("XXX qlua_latticetable(%d): top %d\n", t_id, lua_gettop(L));
     lua_createtable(L, 0, 0);
     qlua_fillmeta(L, table, t_id);
     lua_pushstring(L, lattice_key);
     lua_pushvalue(L, lidx);
     lua_settable(L, -3);
-    printf("XXX end: top %d\n", lua_gettop(L));
 }
 
 void
@@ -187,7 +183,6 @@ qlua_createLatticeTable(lua_State *L,
                         QLUA_Type t_id,
                         const char *name)
 {
-    printf("XXX qlua_createLatticeTable(%s): %d in\n", name, lua_gettop(L));
     if (luaL_getmetafield(L, Sidx, name) != 0)
         goto end;
     lua_getmetatable(L, Sidx);
@@ -196,7 +191,6 @@ qlua_createLatticeTable(lua_State *L,
     lua_pop(L, 1);
     luaL_getmetafield(L, Sidx, name);
 end:
-    printf("XXX qlua_createLatticeTable(%s): %d out\n", name, lua_gettop(L));
     return;
 }
 
@@ -273,7 +267,7 @@ qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
     return d;
 }
 
-#if 0 /* XXX */
+#if 0 /* XXX  utility functions */
 void
 qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 {
@@ -287,6 +281,7 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
     }
 }
 
+#endif /* XXX utility functions */
 int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
@@ -303,7 +298,6 @@ qlua_index(lua_State *L, int n, const char *name, int max_value)
     
     return v;
 }
-#endif /* XXX */
 
 void
 qlua_checkindex2(lua_State *L, int n, const char *name, int *sl, int *sr)
@@ -320,7 +314,6 @@ qlua_checkindex2(lua_State *L, int n, const char *name, int *sl, int *sr)
     lua_pop(L, 1);
 }
 
-#if 0 /* XXX */
 int
 qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
 {
@@ -332,6 +325,7 @@ qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
     return v;
 }
 
+#if 0 /* XXX utility functions */
 int
 qlua_diracindex(lua_State *L, int n)
 {
@@ -343,19 +337,21 @@ qlua_checkdiracindex(lua_State *L, int n)
 {
     return qlua_checkindex(L, n, "d", QDP_Ns);
 }
+#endif /* XXX utility functions */
 
 int
-qlua_colorindex(lua_State *L, int n)
+qlua_colorindex(lua_State *L, int n, int nc)
 {
-    return qlua_index(L, n, "c", QDP_Nc);
+    return qlua_index(L, n, "c", nc);
 }
 
 int
-qlua_checkcolorindex(lua_State *L, int n)
+qlua_checkcolorindex(lua_State *L, int n, int nc)
 {
-    return qlua_checkindex(L, n, "c", QDP_Nc);
+    return qlua_checkindex(L, n, "c", nc);
 }
 
+#if 0 /* XXX utility functions */
 int
 qlua_leftindex(lua_State *L, int n)
 {
@@ -426,7 +422,8 @@ qlua_type(lua_State *L, int idx, const char *mt)
 
     return v;
 }
-#endif /* XXX */
+#endif /* XXX utility functions */
+
 void *
 qlua_checkLatticeType(lua_State *L, int idx, QLUA_Type t_id,
                       const char *name)
@@ -634,16 +631,16 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_lattice,
         init_latint,
         init_latreal,
-#if 0 /* XXX */
-        init_gamma,
         init_latrandom,
         init_latcomplex,
+        init_latsubset,
+        init_latmulti,
         init_latcolvec,
+#if 0 /* XXX inits */
+        init_gamma,
         init_latcolmat,
         init_latdirferm,
         init_latdirprop,
-        init_latsubset,
-        init_latmulti,
         init_qdpc_io,
         init_qdpcc_io,
         init_ddpairs_io,
@@ -661,7 +658,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_extras,
 #endif
         /* ZZZ add other packages here */
-#endif
+#endif /* XXX inits */
         NULL };
 
     int i;
@@ -703,7 +700,7 @@ qlua_fini(lua_State *L)
 {
     const static lua_CFunction qcd_finis[] = {
         /* ZZZ add other packages here */
-#if 0 /* XXX */
+#if 0 /* XXX finis */
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
@@ -720,16 +717,16 @@ qlua_fini(lua_State *L)
         fini_ddpairs_io,
         fini_qdpcc_io,
         fini_qdpc_io,
-        fini_latmulti,
-        fini_latsubset,
         fini_latdirprop,
         fini_latdirferm,
         fini_latcolmat,
+        fini_gamma,
+#endif /* XXX finis */
         fini_latcolvec,
+        fini_latmulti,
+        fini_latsubset,
         fini_latcomplex,
         fini_latrandom,
-        fini_gamma,
-#endif /* XXX */
         fini_latreal,
         fini_latint,
         fini_lattice,

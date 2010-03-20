@@ -1,10 +1,25 @@
 #ifndef MARK_B3A3A85C_2C48_4B4C_B926_440CBD0CB411
 #define MARK_B3A3A85C_2C48_4B4C_B926_440CBD0CB411
 
+typedef enum {
+    qss_all,
+    qss_even,
+    qss_odd,
+    qss_dynamic,
+    qss_slice,
+    qss_upper,
+    qss_lower
+} qSubsetClass;
+
+typedef struct {
+    qSubsetClass  cl;
+    int           axis;
+    int           position;
+} mLatSubset;
+
 typedef struct {
     int id;
-    int precision; /* 'F' or 'D' */
-    int Nc;
+    int nc;
     int rank;
     int *dim;
     QDP_Subset *qss;

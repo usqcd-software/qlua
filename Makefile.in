@@ -62,14 +62,14 @@ libsrc = fix.c \
 	 latmulti.c \
          latreal.c \
          latrandom.c \
+         latcomplex.c \
+         latsubset.c \
+         latcolvec.c \
 
-#         latcomplex.c \
 #         qgamma.c \
-#         latcolvec.c \
 #	 latcolmat.c \
 #         latdirferm.c \
 #         latdirprop.c \
-#         latsubset.c \
 #	 qio_utils.c \
 #         qdpc_io.c \
 #         qdpcc_io.c \

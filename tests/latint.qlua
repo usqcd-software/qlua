@@ -8,7 +8,7 @@ end
 LAT = qcd.lattice{7, 8}
 
 print("lattice:", LAT)
-for i = 0, qcd.Nd - 1 do
+for i = 0, #LAT - 1 do
    printf("dim[ %2d ] = %4d\n", i, LAT[i])
 end
 

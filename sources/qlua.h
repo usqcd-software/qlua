@@ -22,38 +22,25 @@ typedef enum {
     qMatReal,
     qMatComplex,
     qLatInt,
-    qLatRealF,
-    qLatRealD,
-    qLatComplexF,
-    qLatComplexD,
-    qLatColVecF2,
-    qLatColVecD2,
-    qLatColVecF3,
-    qLatColVecD3,
-    qLatColVecFn,
-    qLatColVecDn,
-    qLatColMatF2,
-    qLatColMatD2,
-    qLatColMatF3,
-    qLatColMatD3,
-    qLatColMatFn,
-    qLatColMatDn,
-    qLatDirFermF2,
-    qLatDirFermD2,
-    qLatDirFermF3,
-    qLatDirFermD3,
-    qLatDirFermFn,
-    qLatDirFermDn,
-    qLatDirPropF2,
-    qLatDirPropD2,
-    qLatDirPropF3,
-    qLatDirPropD3,
-    qLatDirPropFn,
-    qLatDirPropDn,
+    qLatReal,
+    qLatComplex,
+    qLatColVec2,
+    qLatColVec3,
+    qLatColVecN,
+    qLatColMat2,
+    qLatColMat3,
+    qLatColMatN,
+    qLatDirFerm2,
+    qLatDirFerm3,
+    qLatDirFermN,
+    qLatDirProp2,
+    qLatDirProp3,
+    qLatDirPropN,
     qOther,          /* no operations for this type */
     qArithTypeCount, /* number of types in arith dispatch tables */
     qLattice,
     qLatMulti,
+    qLatSubset,
     qString,
     qTable,
     qVecInt,
@@ -108,8 +95,8 @@ void qlua_checkindex2(lua_State *L, int idx, const char *nm, int *i0, int *i1);
 
 int qlua_diracindex(lua_State *L, int idx);               /* d = 0 .. Nf - 1 */
 int qlua_checkdiracindex(lua_State *L, int idx);
-int qlua_colorindex(lua_State *L, int idx);               /* c = 0 .. Nc - 1 */
-int qlua_checkcolorindex(lua_State *L, int idx);
+int qlua_colorindex(lua_State *L, int idx, int nc);       /* c = 0 .. Nc - 1 */
+int qlua_checkcolorindex(lua_State *L, int idx, int nc);
 int qlua_checkleftindex(lua_State *L, int idx);           /* a = 0 .. Nc - 1 */
 int qlua_leftindex(lua_State *L, int idx);
 int qlua_checkrightindex(lua_State *L, int idx);          /* b = 0 .. Nc - 1 */

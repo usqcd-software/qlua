@@ -23,4 +23,4 @@ xy = r:gaussian_Real()
 print("average random: ", xx:sum() / d, xx:norm2() / d)
 print("average gaussian: ", xy:sum() / d, xy:norm2() / d)
 
-
+print("DONE")

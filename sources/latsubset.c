@@ -3,37 +3,12 @@
 #include "latsubset.h"                                               /* DEPS */
 #include <string.h>
 
-const char mtnLatSubset[] = "lattice.subset";
-static const char LatSubsetStack[] = "lattice.subsetstack";
-
-static mLatSubset current_set;
-
-static mLatSubset *
-qlua_newLatSubset(lua_State *L)
-{
-    mLatSubset *v = lua_newuserdata(L, sizeof (mLatSubset));
-    
-    v->cl = qss_all;
-    luaL_getmetatable(L, mtnLatSubset);
-    lua_setmetatable(L, -2);
-
-    return v;
-}
-
-static mLatSubset *
-qlua_checkLatSubset(lua_State *L, int idx)
-{
-    void *v = luaL_checkudata(L, idx, mtnLatSubset);
-
-    luaL_argcheck(L, v != 0, idx, "lattice.Subset expected");
-
-    return v;
-}
+static const char LatSubsetName[] = "lattice.Subset";
 
 static int
 q_U_fmt(lua_State *L)
 {
-    mLatSubset *m = qlua_checkLatSubset(L, 1);
+    mLatSubset *m = qlua_checkLatSubset(L, 1, NULL);
     char fmt[72];
 
     switch (m->cl) {
@@ -91,63 +66,65 @@ subset_lower(int *coord, void *arg)
 }
 
 static void
-switch_subset(lua_State *L, mLatSubset *s)
+switch_subset(lua_State *L, mLattice *S, mLatSubset *v)
 {
-    if (current_set.cl > qss_dynamic)
-        QDP_destroy_subset(qCurrent);
+    if (S->lss.cl > qss_dynamic)
+        QDP_destroy_subset(S->qss);
 
-    switch (s->cl) {
-    case qss_all:  qCurrent = &QDP_all;  break;
-    case qss_even: qCurrent = &QDP_even; break;
-    case qss_odd:  qCurrent = &QDP_odd;  break;
+    S->lss = *v;
+    switch (S->lss.cl) {
+    case qss_all:  S->qss = &QDP_all;  break;
+    case qss_even: S->qss = &QDP_even; break;
+    case qss_odd:  S->qss = &QDP_odd;  break;
     case qss_slice:
-        qCurrent = QDP_create_subset(subset_slice, s, sizeof (*s), 1);
-        if (qCurrent == 0) {
+        S->qss = QDP_create_subset(subset_slice, v, sizeof (*v), 1);
+        if (S->qss == 0) {
             lua_gc(L, LUA_GCCOLLECT, 0);
-            qCurrent = QDP_create_subset(subset_slice, s, sizeof (*s), 1);
-            if (qCurrent == 0)
+            S->qss = QDP_create_subset(subset_slice, v, sizeof (*v), 1);
+            if (S->qss == 0)
                 luaL_error(L, "QDP_create_subset() failed");
         }
         break;
     case qss_upper:
-        qCurrent = QDP_create_subset(subset_upper, s, sizeof (*s), 1);
-        if (qCurrent == 0) {
+        S->qss = QDP_create_subset(subset_upper, v, sizeof (*v), 1);
+        if (S->qss == 0) {
             lua_gc(L, LUA_GCCOLLECT, 0);
-            qCurrent = QDP_create_subset(subset_upper, s, sizeof (*s), 1);
-            if (qCurrent == 0)
+            S->qss = QDP_create_subset(subset_upper, v, sizeof (*v), 1);
+            if (S->qss == 0)
                 luaL_error(L, "QDP_create_subset() failed");
         }
         break;
     case qss_lower:
-        qCurrent = QDP_create_subset(subset_lower, s, sizeof (*s), 1);
-        if (qCurrent == 0) {
+        S->qss = QDP_create_subset(subset_lower, v, sizeof (*v), 1);
+        if (S->qss == 0) {
             lua_gc(L, LUA_GCCOLLECT, 0);
-            qCurrent = QDP_create_subset(subset_lower, s, sizeof (*s), 1);
-            if (qCurrent == 0)
+            S->qss = QDP_create_subset(subset_lower, v, sizeof (*v), 1);
+            if (S->qss == 0)
                 luaL_error(L, "QDP_create_subset() failed");
         }
         break;
     default:
-        luaL_error(L, "unknown subset class %d", s->cl);
+        luaL_error(L, "unknown subset class %d", v->cl);
     }
-    current_set = *s;
 }
 
 static int
 q_U_where(lua_State *L)
 {
-    mLatSubset *v = qlua_checkLatSubset(L, 1);
+    mLatSubset *v = qlua_checkLatSubset(L, 1, NULL);
     int argc = lua_gettop(L) - 2;
     int resc;
-    mLatSubset old_subset = current_set;
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatSubset old_subset = S->lss;
+    
+    switch_subset(L, S, v);
 
-    switch_subset(L, v);
-
+    lua_pop(L, 1);
     if (lua_pcall(L, argc, LUA_MULTRET, 0))
         return luaL_error(L, lua_tostring(L, -1));
     resc = lua_gettop(L) - 1;
 
-    switch_subset(L, &old_subset);
+    switch_subset(L, S, &old_subset);
 
     return resc;
 }
@@ -155,50 +132,86 @@ q_U_where(lua_State *L)
 static int
 q_subset(lua_State *L)
 {
-    int d = qlua_checkindex(L, 2, "axis", qRank);
-    int p = qlua_checkindex(L, 2, "position", qDim[d]);
-    mLatSubset *m = qlua_newLatSubset(L);
-    const char *sub = 0;
+    mLattice *S = qlua_checkLattice(L, 1);
+    mLatSubset *m = qlua_newLatSubset(L, 1);
 
-    lua_getfield(L, 2, "semispace");
-    if (lua_type(L, -1) == LUA_TSTRING)
-        sub = lua_tostring(L, -1);
-    lua_pop(L, 1);
+    switch (qlua_qtype(L, 2)) {
+    case qTable: {
+        int d = qlua_checkindex(L, 2, "axis", S->rank);
+        int p = qlua_checkindex(L, 2, "position", S->dim[d]);
+        const char *sub = 0;
 
-    if (sub == 0)
-        m->cl = qss_slice;
-    else if (strcmp(sub, "upper") == 0)
-        m->cl = qss_upper;
-    else if (strcmp(sub, "lower") == 0)
-        m->cl = qss_lower;
-    else
-        luaL_error(L, "bad semispace specifier");
+        lua_getfield(L, 2, "semispace");
+        if (lua_type(L, -1) == LUA_TSTRING)
+            sub = lua_tostring(L, -1);
+        lua_pop(L, 1);
 
-    m->axis = d;
-    m->position = p;
-    luaL_getmetatable(L, mtnLatSubset);
-    lua_setmetatable(L, -2);
+        if (sub == 0)
+            m->cl = qss_slice;
+        else if (strcmp(sub, "upper") == 0)
+            m->cl = qss_upper;
+        else if (strcmp(sub, "lower") == 0)
+            m->cl = qss_lower;
+        else
+            luaL_error(L, "bad semispace specifier");
 
-    return 1;
-}
-
-static void
-add_static(lua_State *L, qSubsetClass cl, const char *name)
-{
-    mLatSubset *m = qlua_newLatSubset(L);
-
-    m->cl = cl;
-    luaL_getmetatable(L, mtnLatSubset);
-    lua_setmetatable(L, -2);
-
-    lua_setfield(L, -2, name);
+        m->axis = d;
+        m->position = p;
+        return 1;
+    }
+    case qString: {
+        const char *sset = lua_tostring(L, 2);
+        if (strcmp(sset, "all") == 0)
+            m->cl = qss_all;
+        else if (strcmp(sset, "even") == 0)
+            m->cl = qss_even;
+        else if (strcmp(sset, "odd") == 0)
+            m->cl = qss_odd;
+        else
+            break;
+        return 1;
+    }
+    default:
+        break;
+    }
+    return qlua_badconstr(L, "Subset");
 }
 
 static struct luaL_Reg mtLatSubset[] = {
-    { "__tostring",     q_U_fmt   },
-    { "where",          q_U_where },
-    { NULL,             NULL      }
+    { "__tostring",     q_U_fmt       },
+    { "__newindex",     qlua_nowrite  },
+    { "where",          q_U_where     },
+    /* "lattice" */
+    /* *a-type" */
+    { NULL,             NULL          }
 };
+
+mLatSubset *
+qlua_newLatSubset(lua_State *L, int Sidx)
+{
+    mLatSubset *v = lua_newuserdata(L, sizeof (mLatSubset));
+    
+    v->cl = qss_all;
+    qlua_createLatticeTable(L, Sidx, mtLatSubset, qLatSubset, LatSubsetName);
+    lua_setmetatable(L, -2);
+
+    return v;
+}
+
+mLatSubset *
+qlua_checkLatSubset(lua_State *L, int idx, mLattice *S)
+{
+    void *v = qlua_checkLatticeType(L, idx, qLatSubset, LatSubsetName);
+    
+    if (S) {
+        mLattice *S1 = qlua_ObjLattice(L, idx);
+        if (S1->id != S->id)
+            luaL_error(L, "%s on a wrong lattice", LatSubsetName);
+        lua_pop(L, 1);
+    }
+
+    return (mLatSubset *)v;
+}
 
 static struct luaL_Reg fLatSubset[] = {
     { "Subset",    q_subset },
@@ -208,18 +221,10 @@ static struct luaL_Reg fLatSubset[] = {
 int
 init_latsubset(lua_State *L)
 {    
-    luaL_newmetatable(L, LatSubsetStack);
-    qlua_metatable(L, mtnLatSubset, mtLatSubset);
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatSubset);
-    add_static(L, qss_all, "all");
-    add_static(L, qss_even, "even");
-    add_static(L, qss_odd, "odd");
     lua_pop(L, 1);
 
-    current_set.cl = qss_all;
-    
-    
     return 0;
 }
 

@@ -1,16 +1,16 @@
 #include "qlua.h"                                                    /* DEPS */
-#include "latsubset.h"                                               /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
-#if 0 /* XXX */
 #include "latcolvec.h"                                               /* DEPS */
+#if 0 /* XXX includes */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
-#endif
+#endif /* XXX includes */
 /* ZZZ other packages */
 
 static const char LatRandomName[] = "lattice.RandomState";
@@ -87,18 +87,15 @@ static struct luaL_Reg mtLatRandom[] = {
     { "__gc",                     q_S_gc },
     { "__newindex",               qlua_nowrite },
     { "random_Real",              q_R_random },
-    { "random_RealF",             q_RF_random },
-    { "random_RealD",             q_RD_random },
     { "gaussian_Real",            q_R_gaussian },
-    { "gaussian_RealF",           q_RF_gaussian },
-    { "gaussian_RealD",           q_RD_gaussian },
-#if 0 /* XXX */
     { "gaussian_Complex",         q_C_gaussian },
     { "gaussian_ColorVector",     q_V_gaussian },
+    { "gaussian_ColorVectorN",    q_V_gaussian_N },
+#if 0 /* XXX random objects */
     { "gaussian_ColorMatrix",     q_M_gaussian },
     { "gaussian_DiracFermion",    q_D_gaussian },
     { "gaussian_DiracPropagator", q_P_gaussian },
-#endif /* XXX */
+#endif /* XXX random objects */
     { "set",                      q_S_set },
     /* ZZZ other gaussian randoms */
     { NULL,          NULL}
@@ -133,6 +130,7 @@ qlua_checkLatRandom(lua_State *L, int idx, mLattice *S)
         mLattice *S1 = qlua_ObjLattice(L, idx);
         if (S1->id != S->id)
             luaL_error(L, "%s on a wrong lattice", LatRandomName);
+        lua_pop(L, 1);
     }
 
     return (mLatRandom *)v;

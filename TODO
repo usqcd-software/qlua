@@ -1,14 +1,24 @@
-Ticket #14: aff:building_blocks(Cf, p*, prefix, multiset)
-              p[i] = {L:complex phase, p[0], p[1], ..., p[#L-1]}
+* Changing and quering lattice defaults:
+   Lattice:defaults()
+ and
+   Lattice:defaults{colors=64, foo=false}
 
--- QDP/C QIO: writing sections of the fields -- extend the interface.
+* Rest of lattice objects:
+** latcolmat
+** latdirferm
+** latdirprop
+** qgamma
 
-MDWF
-  operator
-  conjugate operator
-  solvers
+* Clover - only for Nc = 3
+**  qclover
 
-Documentation
-+  Examples in the distribution tree  -- started
-+  User guide - started in wiki
-  Programming guide
+* I/O
+** qio_utils
+** ddpairs_io
+** qdpc_io
+** qdpcc_io
+** nersc_io
+
+* Multiple Lattices
+-- see the latest QDP release
+
