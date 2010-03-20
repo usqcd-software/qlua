@@ -49,52 +49,25 @@ save_bb(lua_State *L,
         int t_axis,                  /* 0-based */
         double bc_baryon_t)
 {
-    /* gamma matrix parameterization for left multiplication:
-       Gamma_n [i,j] = gamma_coeff[n][i] * \delta_{i,gamma_ind[n][i]}
-                
-                v[0]    a[0]*v[I[0]]
-        Gamma * v[1] =  a[1]*v[I[1]]
-                v[2]    a[2]*v[I[2]]
-                v[3]    a[3]*v[I[3]]
-        or
-        (Gamma * X)_{ik} = a[i] * X[I[i],k]
-     */
-    double complex gamma_left_coeff[16][4] = {
-        { 1, 1, 1, 1 },             /* G0 = 1 */
-        { I, I,-I,-I },             /* G1 = g1 */
-        {-1, 1, 1,-1 },             /* G2 = g2 */
-        {-I, I,-I, I },             /* G3 = g1 g2 */
-        { I,-I,-I, I },             /* G4 = g3 */
-        {-1, 1,-1, 1 },             /* G5 = g1 g3 */
-        {-I,-I,-I,-I },             /* G6 = g2 g3 */
-        { 1, 1,-1,-1 },             /* G7 = g1 g2 g3 */
-        { 1, 1, 1, 1 },             /* G8 = g4 */
-        { I, I,-I,-I },             /* G9 = g1 g4 */
-        {-1, 1, 1,-1 },             /* G10= g2 g4 */
-        {-I, I,-I, I },             /* G11= g1 g2 g4 */
-        { I,-I,-I, I },             /* G12= g3 g4 */
-        {-1, 1,-1, 1 },             /* G13= g1 g3 g4 */
-        {-I,-I,-I,-I },             /* G14= g2 g3 g4 */
-        { 1, 1,-1,-1 },             /* G15= g1 g2 g3 g4 */
-    };
-    int gamma_left_ind[16][4] = {
-        { 0, 1, 2, 3 },             /* G0 = 1 */
-        { 3, 2, 1, 0 },             /* G1 = g1 */
-        { 3, 2, 1, 0 },             /* G2 = g2 */
-        { 0, 1, 2, 3 },             /* G3 = g1 g2 */
-        { 2, 3, 0, 1 },             /* G4 = g3 */
-        { 1, 0, 3, 2 },             /* G5 = g1 g3 */
-        { 1, 0, 3, 2 },             /* G6 = g2 g3 */
-        { 2, 3, 0, 1 },             /* G7 = g1 g2 g3 */
-        { 2, 3, 0, 1 },             /* G8 = g4 */
-        { 1, 0, 3, 2 },             /* G9 = g1 g4 */
-        { 1, 0, 3, 2 },             /* G10= g2 g4 */
-        { 2, 3, 0, 1 },             /* G11= g1 g2 g4 */
-        { 0, 1, 2, 3 },             /* G12= g3 g4 */
-        { 3, 2, 1, 0 },             /* G13= g1 g3 g4 */
-        { 3, 2, 1, 0 },             /* G14= g2 g3 g4 */
-        { 0, 1, 2, 3 },             /* G15= g1 g2 g3 g4 */
-    };
+#define trace_with_Gamma(dst, s4x4) do { \
+    (dst)[ 0]   = +  (s4x4)[0][0] +  (s4x4)[1][1] +  (s4x4)[2][2] +  (s4x4)[3][3];\
+    (dst)[ 1]   = +I*(s4x4)[3][0] +I*(s4x4)[2][1] -I*(s4x4)[1][2] -I*(s4x4)[0][3];\
+    (dst)[ 2]   = -  (s4x4)[3][0] +  (s4x4)[2][1] +  (s4x4)[1][2] -  (s4x4)[0][3];\
+    (dst)[ 3]   = -I*(s4x4)[0][0] +I*(s4x4)[1][1] -I*(s4x4)[2][2] +I*(s4x4)[3][3];\
+    (dst)[ 4]   = +I*(s4x4)[2][0] -I*(s4x4)[3][1] -I*(s4x4)[0][2] +I*(s4x4)[1][3];\
+    (dst)[ 5]   = -  (s4x4)[1][0] +  (s4x4)[0][1] -  (s4x4)[3][2] +  (s4x4)[2][3];\
+    (dst)[ 6]   = -I*(s4x4)[1][0] -I*(s4x4)[0][1] -I*(s4x4)[3][2] -I*(s4x4)[2][3];\
+    (dst)[ 7]   = +  (s4x4)[2][0] +  (s4x4)[3][1] -  (s4x4)[0][2] -  (s4x4)[1][3];\
+    (dst)[ 8]   = +  (s4x4)[2][0] +  (s4x4)[3][1] +  (s4x4)[0][2] +  (s4x4)[1][3];\
+    (dst)[ 9]   = +I*(s4x4)[1][0] +I*(s4x4)[0][1] -I*(s4x4)[3][2] -I*(s4x4)[2][3];\
+    (dst)[10]   = -  (s4x4)[1][0] +  (s4x4)[0][1] +  (s4x4)[3][2] -  (s4x4)[2][3];\
+    (dst)[11]   = -I*(s4x4)[2][0] +I*(s4x4)[3][1] -I*(s4x4)[0][2] +I*(s4x4)[1][3];\
+    (dst)[12]   = +I*(s4x4)[0][0] -I*(s4x4)[1][1] -I*(s4x4)[2][2] +I*(s4x4)[3][3];\
+    (dst)[13]   = -  (s4x4)[3][0] +  (s4x4)[2][1] -  (s4x4)[1][2] +  (s4x4)[0][3];\
+    (dst)[14]   = -I*(s4x4)[3][0] -I*(s4x4)[2][1] -I*(s4x4)[1][2] -I*(s4x4)[0][3];\
+    (dst)[15]   = +  (s4x4)[0][0] +  (s4x4)[1][1] -  (s4x4)[2][2] -  (s4x4)[3][3];\
+    } while(0)
+
 #define get_mom(mom_list, i_mom) ((mom_list) + 4*(i_mom))
     if (4 != QDP_ndim() || 
             4 != QDP_Ns ||
@@ -134,6 +107,10 @@ save_bb(lua_State *L,
            
     int bb_arr_size = 16 * n_mom * (src_snk_dt + 1) * 2 * sizeof(double);
     double *bb_arr = qlua_malloc(L, bb_arr_size);
+    if (NULL == bb_arr) {
+        return "not enough memory";
+    }
+
     memset(bb_arr, 0, bb_arr_size);
 #define bb_real(i_gamma, i_mom) ((bb_arr) + (src_snk_dt + 1) * (0 + 2 * ((i_mom) + n_mom * (i_gamma))))
 #define bb_imag(i_gamma, i_mom) ((bb_arr) + (src_snk_dt + 1) * (1 + 2 * ((i_mom) + n_mom * (i_gamma))))
@@ -163,7 +140,6 @@ save_bb(lua_State *L,
         for (i_mom = 0 ; i_mom < n_mom ; i_mom++) {
             exp_iphase[i_mom] = calc_exp_iphase(coord, csrc, 
                     latsize, get_mom(mom, i_mom));
-//            printf("%e+I*%e\n", creal(exp_iphase[i_mom]), cimag(exp_iphase[i_mom]));
         }
 
         /* compute trace_{color} [ F * B^\dag] 
@@ -188,14 +164,16 @@ save_bb(lua_State *L,
 
         /* cycle over Gamma */
         int gn;
+        double complex tr_G_F_Bd[16];
+        trace_with_Gamma(tr_G_F_Bd, trc_FBd);
         for (gn = 0; gn < 16 ; gn++) {
-            double complex sum = 0.;
-            /* compute contractions Gamma(n) */
-            for (is = 0; is < 4; is++) 
-                sum += gamma_left_coeff[gn][is] * trc_FBd[gamma_left_ind[gn][is]][is];
             /* mult. by phase and add to timeslice sum */
             for (i_mom = 0; i_mom < n_mom; i_mom++) {
-                double complex aux = exp_iphase[i_mom] * sum;
+                /* FIXME do Fourier transf with optimized matrix-dot
+                   exp_ipx[\vec q, \vec x] . bb[\vec x, {Gamma,tau}] 
+                   #\vec q ~ 147,  #\vec x ~ 128, #{Gamma,tau} ~ 96
+                 */
+                double complex aux = exp_iphase[i_mom] * tr_G_F_Bd[gn];
                 bb_real(gn, i_mom)[t] += creal(aux);
                 bb_imag(gn, i_mom)[t] += cimag(aux);
             }
@@ -212,19 +190,48 @@ save_bb(lua_State *L,
     
     /* save to AFF */
     if (aff_w->master) {
-        struct AffNode_s *aff_top = NULL;
-        aff_top = aff_writer_mkpath(aff_w->ptr, aff_w->dir, aff_kpath);
+        struct AffNode_s *aff_top = aff_writer_mkpath(aff_w->ptr, 
+                                            aff_w->dir, aff_kpath);
         if (NULL == aff_top) {
             qlua_free(L, bb_arr);
             return aff_writer_errstr(aff_w->ptr);
         }
 
         double complex *cplx_buf = qlua_malloc(L, (src_snk_dt + 1) * sizeof(double complex));
-        char buf[200];
+        if (NULL == cplx_buf) {
+            qlua_free(L, bb_arr);
+            return "not enough memory";
+        }
         int gn, i_mom, t;
-        for (gn = 0; gn < 16; gn++)
+
+        /* generate qext keys */
+#define MOM_STR_STRIDE   32
+        char *mom_str_ = qlua_malloc(L, n_mom * MOM_STR_STRIDE * sizeof(char));
+        if (NULL == mom_str_) {
+            qlua_free(L, bb_arr);
+            qlua_free(L, cplx_buf);
+            return "not enough memory";
+        }
+#define MOM_STR(i_mom) ((mom_str_) + (i_mom) * (MOM_STR_STRIDE))
+        for (i_mom = 0; i_mom < n_mom; i_mom++)
+            snprintf(MOM_STR(i_mom), MOM_STR_STRIDE,
+                     "qx%d_qy%d_qz%d", get_mom(mom, i_mom)[0], 
+                     get_mom(mom, i_mom)[1], get_mom(mom, i_mom)[2]);
+
+        /* loop over gamma and qext */
+        for (gn = 0; gn < 16; gn++) {
+            char buf[16];
+            snprintf(buf, sizeof(buf), "g%d", gn);
+            struct AffNode_s *node_gn = aff_writer_mkdir(aff_w->ptr, aff_top, buf);
+            if (NULL == node_gn) {
+                qlua_free(L, bb_arr);
+                qlua_free(L, cplx_buf);
+                qlua_free(L, mom_str_);
+                return aff_writer_errstr(aff_w->ptr);
+            }
             for (i_mom = 0; i_mom < n_mom; i_mom++) {
                 /* copy & mult by bc, if necessary */
+                /* FIXME avoid copying: transform in-place and send to AFF */
                 const double *bb_re_cur = bb_real(gn, i_mom),
                              *bb_im_cur = bb_imag(gn, i_mom);
                 if (!time_rev) {    /* no bc */
@@ -240,23 +247,24 @@ save_bb(lua_State *L,
                     }
                 }
                 /* write to AFF */
-                snprintf(buf, sizeof(buf), "g%d/qx%d_qy%d_qz%d", 
-                         gn, get_mom(mom, i_mom)[0], 
-                         get_mom(mom, i_mom)[1], get_mom(mom, i_mom)[2]);
-                struct AffNode_s *node = aff_writer_mkpath(aff_w->ptr, aff_top, buf);
-                if (NULL == node) {
+                struct AffNode_s *node_gn_q = aff_writer_mkdir(aff_w->ptr, 
+                                    node_gn, MOM_STR(i_mom));
+                if (NULL == node_gn_q) {
                     qlua_free(L, bb_arr);
                     qlua_free(L, cplx_buf);
+                    qlua_free(L, mom_str_);
                     return aff_writer_errstr(aff_w->ptr);
                 }
-                if (aff_node_put_complex(aff_w->ptr, node, cplx_buf, src_snk_dt + 1)) {
+                if (aff_node_put_complex(aff_w->ptr, node_gn_q, cplx_buf, src_snk_dt + 1)) {
                     qlua_free(L, bb_arr);
                     qlua_free(L, cplx_buf);
+                    qlua_free(L, mom_str_);
                     return aff_writer_errstr(aff_w->ptr);
                 }
             }
-
+        }
         qlua_free(L, cplx_buf);
+        qlua_free(L, mom_str_);
     }
 
 #undef bb_real
