@@ -6,6 +6,7 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "qmp.h"
+#include "qla_types.h"
 #include <string.h>
 #include <math.h>
 
@@ -123,6 +124,57 @@ q_pcoord(lua_State *L)
 
     return 1;
 }
+
+static void
+add_default(lua_State *L, const char *key, int value)
+{
+    lua_pushnumber(L, value);
+    lua_setfield(L, -2, key);
+}
+
+static int
+set_default(lua_State *L, const char *key, int def)
+{
+    int v = def;
+
+    lua_getfield(L, 2, key);
+    if (qlua_qtype(L, -1) == qReal) {
+        v = luaL_checkint(L, -1);
+    }
+    lua_pop(L, 1);
+    return v;
+}
+
+static int
+q_defaults(lua_State *L)
+{
+    static const char *colors_key = "colors";
+
+    mLattice *S = qlua_checkLattice(L, 1);
+
+    switch (lua_gettop(L)) {
+    case 1: {
+        lua_createtable(L, 0, 1);
+        add_default(L, colors_key, S->nc);
+        return 1;
+    }
+    case 2: {
+        if (qlua_qtype(L, 2) == qTable) {
+            int nc = set_default(L, colors_key, S->nc);
+            if ((nc > 0) && (nc <= QLA_MAX_Nc))
+                S->nc = nc;
+            else
+                return luaL_error(L, "bad default number of colors %d", nc);
+            return 1;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return luaL_error(L, "bad parameters for L:defaults()");
+}
+
 
 static struct {
     int *s;
@@ -363,10 +415,10 @@ q_network(lua_State *L)
 }
 
 static struct luaL_Reg LatticeMethods[] = {
-    { "pcoord",           q_pcoord },
-    { "planewave",        q_planewave },
-    /* XXX defaults */
-    { NULL,           NULL },
+    { "pcoord",           q_pcoord     },
+    { "planewave",        q_planewave  },
+    { "defaults",         q_defaults   },
+    { NULL,               NULL         },
 };
 
 static struct luaL_Reg fLattice[] = {

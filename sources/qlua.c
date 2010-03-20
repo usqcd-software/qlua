@@ -134,9 +134,9 @@ qlua_fillmeta(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
 {
     int i;
 
-    lua_pushstring(L, "__index");
-    lua_pushvalue(L, -2);
-    lua_settable(L, -3);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    
     if (t_id != qNoType) {
         lua_pushstring(L, a_type_key);
         lua_pushnumber(L, t_id);

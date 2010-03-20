@@ -330,6 +330,14 @@ static struct luaL_Reg mtFile[] = {
     { NULL,         NULL}
 };
 
+static int
+qlua_getmetatable(lua_State *L)
+{
+    if (lua_type(L, 1) != LUA_TUSERDATA)
+        return lua_getmetatable(L, 1);
+    return 0;
+}
+
 int
 init_qlua_io(lua_State *L)
 {
@@ -378,6 +386,10 @@ init_qlua_io(lua_State *L)
     lua_pushstring(L, qlib_path);
     lua_setfield(L, -2, "path");
     lua_pop(L, 1);
+
+    /* fix getmetatable */
+    lua_pushcfunction(L, qlua_getmetatable);
+    lua_setglobal(L, "getmetatable");
 
     return 0;
 }

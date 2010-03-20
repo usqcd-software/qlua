@@ -10,6 +10,7 @@
 #include "qdp_d2.h"
 #include "qdp_d3.h"
 #include "qdp_dn.h"
+#include "qla_types.h"
 #include "qla_d2.h"
 #include "qla_d3.h"
 #include "qla_dn.h"
@@ -76,6 +77,9 @@ q_V_gaussian_N(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, 1);
     int nc = luaL_checkint(L, 2);
 
+    if ((nc < 2) || (nc > QLA_MAX_Nc))
+        return luaL_error(L, "bad number of colors %d (MAX=%d)",
+                          nc, QLA_MAX_Nc);
     switch (nc) {
     case 2: {
         mLatColVec2 *r = qlua_newLatColVec2(L, lua_gettop(L), 2);

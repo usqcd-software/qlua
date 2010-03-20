@@ -1,8 +1,3 @@
-* Changing and quering lattice defaults:
-   Lattice:defaults()
- and
-   Lattice:defaults{colors=64, foo=false}
-
 * Rest of lattice objects:
 ** latcolmat
 ** latdirferm
@@ -22,3 +17,4 @@
 * Multiple Lattices
 -- see the latest QDP release
 
+* Metatables are writeable -- this is WRONG. -- seems an unfixible LUA problem.
