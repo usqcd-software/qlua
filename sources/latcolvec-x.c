@@ -555,7 +555,6 @@ Qs(q_V_copy)(lua_State *L)
     return 1;
 }
 
-
 static struct luaL_Reg Qs(mtLatColVec)[] = {
     { "__tostring",        Qs(q_V_fmt)    },
     { "__gc",              Qs(q_V_gc)     },

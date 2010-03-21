@@ -57,7 +57,7 @@ do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
         return 1;
     }
     default: {
-        mLatColMatN *r = qlua_newLatColMatN(L, lua_gettop(L), S->nc);
+        mLatColMatN *r = qlua_newLatColMatN(L, lua_gettop(L), nc);
         CALL_QDP(L);
         QDP_DN_M_eq_gaussian_S(nc, r->ptr, a->ptr, *S->qss);
         return 1;

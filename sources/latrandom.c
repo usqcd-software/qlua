@@ -7,8 +7,8 @@
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
-#if 0 /* XXX includes */
 #include "latdirferm.h"                                              /* DEPS */
+#if 0 /* XXX includes */
 #include "latdirprop.h"                                              /* DEPS */
 #endif /* XXX includes */
 /* ZZZ other packages */
@@ -93,8 +93,9 @@ static struct luaL_Reg mtLatRandom[] = {
     { "gaussian_ColorVectorN",    q_V_gaussian_N },
     { "gaussian_ColorMatrix",     q_M_gaussian   },
     { "gaussian_ColorMatrixN",    q_M_gaussian_N },
-#if 0 /* XXX random objects */
     { "gaussian_DiracFermion",    q_D_gaussian   },
+    { "gaussian_DiracFermionN",   q_D_gaussian_N },
+#if 0 /* XXX random objects */
     { "gaussian_DiracPropagator", q_P_gaussian   },
 #endif /* XXX random objects */
     { "set",                      q_S_set        },

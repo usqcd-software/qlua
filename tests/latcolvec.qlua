@@ -40,6 +40,9 @@ printf("V(c,0) %s\n", tostring(x))
 dump_meta(LAT)
 dump_meta(crnd)
 dump_meta(x)
+-- metatable for all QLUA types are hidden
+-- getmetatable(x)["b-type"] = "XXXXXXXXXXXXXXXXXXXXX"
+-- dump_meta(x)
 dump_meta(rnd:gaussian_ColorVector())
 
 x = rnd:gaussian_ColorVectorN(4) * rnd:gaussian_Real()

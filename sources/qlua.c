@@ -14,10 +14,10 @@
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
 
 #if 0 /* XXX other includes */
 #include "qgamma.h"                                                  /* DEPS */
-#include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
@@ -325,7 +325,6 @@ qlua_checkindex(lua_State *L, int n, const char *name, int max_value)
     return v;
 }
 
-#if 0 /* XXX utility functions */
 int
 qlua_diracindex(lua_State *L, int n)
 {
@@ -337,7 +336,6 @@ qlua_checkdiracindex(lua_State *L, int n)
 {
     return qlua_checkindex(L, n, "d", QDP_Ns);
 }
-#endif /* XXX utility functions */
 
 int
 qlua_colorindex(lua_State *L, int n, int nc)
@@ -375,7 +373,6 @@ qlua_checkrightindex(lua_State *L, int n, int nc)
     return qlua_checkindex(L, n, "b", nc);
 }
 
-#if 0 /* XXX utility functions */
 int
 qlua_gammaindex(lua_State *L, int n)
 {
@@ -409,6 +406,7 @@ qlua_checkgammabinary(lua_State *L, int n)
     return qlua_checkindex(L, n, "n", 16);
 }
 
+#if 0 /* XXX utility functions */
 static int
 qlua_type(lua_State *L, int idx, const char *mt)
 {
@@ -637,9 +635,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latmulti,
         init_latcolvec,
         init_latcolmat,
+        init_latdirferm,
 #if 0 /* XXX inits */
         init_gamma,
-        init_latdirferm,
         init_latdirprop,
         init_qdpc_io,
         init_qdpcc_io,
@@ -718,9 +716,9 @@ qlua_fini(lua_State *L)
         fini_qdpcc_io,
         fini_qdpc_io,
         fini_latdirprop,
-        fini_latdirferm,
         fini_gamma,
 #endif /* XXX finis */
+        fini_latdirferm,
         fini_latcolmat,
         fini_latcolvec,
         fini_latmulti,

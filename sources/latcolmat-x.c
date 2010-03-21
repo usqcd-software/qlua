@@ -1122,9 +1122,9 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
     case 3: {
         switch (qlua_qtype(L, 2 + off)) {
         case qLatComplex: {
-            mLatComplex *z = qlua_checkLatComplex(L, 2, S);
-            int a = qlua_checkleftindex(L, 3, nc);
-            int b = qlua_checkrightindex(L, 3, nc);
+            mLatComplex *z = qlua_checkLatComplex(L, 2 + off, S);
+            int a = qlua_checkleftindex(L, 3 + off, nc);
+            int b = qlua_checkrightindex(L, 3 + off, nc);
             Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
 
             CALL_QDP(L);
