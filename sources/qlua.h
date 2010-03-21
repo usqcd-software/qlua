@@ -97,10 +97,10 @@ int qlua_diracindex(lua_State *L, int idx);               /* d = 0 .. Nf - 1 */
 int qlua_checkdiracindex(lua_State *L, int idx);
 int qlua_colorindex(lua_State *L, int idx, int nc);       /* c = 0 .. Nc - 1 */
 int qlua_checkcolorindex(lua_State *L, int idx, int nc);
-int qlua_checkleftindex(lua_State *L, int idx);           /* a = 0 .. Nc - 1 */
-int qlua_leftindex(lua_State *L, int idx);
-int qlua_checkrightindex(lua_State *L, int idx);          /* b = 0 .. Nc - 1 */
-int qlua_rightindex(lua_State *L, int idx);
+int qlua_checkleftindex(lua_State *L, int idx, int nc);   /* a = 0 .. Nc - 1 */
+int qlua_leftindex(lua_State *L, int idx, int nc);
+int qlua_checkrightindex(lua_State *L, int idx, int nc);  /* b = 0 .. Nc - 1 */
+int qlua_rightindex(lua_State *L, int idx, int nc);
 int qlua_gammaindex(lua_State *L, int idx);                /* mu = 0..3 or 5 */
 int qlua_checkgammaindex(lua_State *L, int idx);
 int qlua_gammabinary(lua_State *L, int idx);                  /* n = 0 .. 15 */

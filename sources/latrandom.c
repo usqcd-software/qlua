@@ -6,8 +6,8 @@
 #include "latreal.h"                                                 /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
-#if 0 /* XXX includes */
 #include "latcolmat.h"                                               /* DEPS */
+#if 0 /* XXX includes */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #endif /* XXX includes */
@@ -83,22 +83,23 @@ q_latrandom(lua_State *L)
 }
 
 static struct luaL_Reg mtLatRandom[] = {
-    { "__tostring",               q_S_fmt },
-    { "__gc",                     q_S_gc },
-    { "__newindex",               qlua_nowrite },
-    { "random_Real",              q_R_random },
-    { "gaussian_Real",            q_R_gaussian },
-    { "gaussian_Complex",         q_C_gaussian },
-    { "gaussian_ColorVector",     q_V_gaussian },
+    { "__tostring",               q_S_fmt        },
+    { "__gc",                     q_S_gc         },
+    { "__newindex",               qlua_nowrite   },
+    { "random_Real",              q_R_random     },
+    { "gaussian_Real",            q_R_gaussian   },
+    { "gaussian_Complex",         q_C_gaussian   },
+    { "gaussian_ColorVector",     q_V_gaussian   },
     { "gaussian_ColorVectorN",    q_V_gaussian_N },
+    { "gaussian_ColorMatrix",     q_M_gaussian   },
+    { "gaussian_ColorMatrixN",    q_M_gaussian_N },
 #if 0 /* XXX random objects */
-    { "gaussian_ColorMatrix",     q_M_gaussian },
-    { "gaussian_DiracFermion",    q_D_gaussian },
-    { "gaussian_DiracPropagator", q_P_gaussian },
+    { "gaussian_DiracFermion",    q_D_gaussian   },
+    { "gaussian_DiracPropagator", q_P_gaussian   },
 #endif /* XXX random objects */
-    { "set",                      q_S_set },
+    { "set",                      q_S_set        },
     /* ZZZ other gaussian randoms */
-    { NULL,          NULL}
+    { NULL,                       NULL           }
 };
 
 mLatRandom *

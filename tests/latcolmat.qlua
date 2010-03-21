@@ -60,10 +60,11 @@ print()
 
 z1 = complex(1,1)
 
+nc = yey:colors()
 for x = 0, LAT[0] - 1 do
   for y = 0, LAT[1] - 1 do
-    for i = 0, qcd.Nc - 1 do
-      for j = 0, qcd.Nc - 1 do
+    for i = 0, nc - 1 do
+      for j = 0, nc - 1 do
          print(x, y, i, j, z1 + yey[{x,y,a=i,b=j}] - z1)
       end
     end

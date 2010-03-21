@@ -36,16 +36,10 @@
 #define QC(x)    (x)->nc
 #include "latcolvec-x.c"                                            /* DEPS */
 
-/* Random vectors of default colors
- * S:gaussian_ColorVector()
- */
-int
-q_V_gaussian(lua_State *L)
+static int
+do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
 {
-    mLatRandom *a = qlua_checkLatRandom(L, 1, NULL);
-    mLattice *S = qlua_ObjLattice(L, 1);
-
-    switch (S->nc) {
+    switch (nc) {
     case 2: {
         mLatColVec2 *r = qlua_newLatColVec2(L, lua_gettop(L), 2);
         CALL_QDP(L);
@@ -61,10 +55,22 @@ q_V_gaussian(lua_State *L)
     default: {
         mLatColVecN *r = qlua_newLatColVecN(L, lua_gettop(L), S->nc);
         CALL_QDP(L);
-        QDP_DN_V_eq_gaussian_S(S->nc, r->ptr, a->ptr, *S->qss);
+        QDP_DN_V_eq_gaussian_S(nc, r->ptr, a->ptr, *S->qss);
         return 1;
     }
     }
+}
+
+/* Random vectors of default colors
+ * S:gaussian_ColorVector()
+ */
+int
+q_V_gaussian(lua_State *L)
+{
+    mLatRandom *a = qlua_checkLatRandom(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+
+    return do_gaussian(L, a, S, S->nc);
 }
 
 /* Random vectors of NC colors
@@ -80,26 +86,8 @@ q_V_gaussian_N(lua_State *L)
     if ((nc < 2) || (nc > QLA_MAX_Nc))
         return luaL_error(L, "bad number of colors %d (MAX=%d)",
                           nc, QLA_MAX_Nc);
-    switch (nc) {
-    case 2: {
-        mLatColVec2 *r = qlua_newLatColVec2(L, lua_gettop(L), 2);
-        CALL_QDP(L);
-        QDP_D2_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
-        return 1;
-    }
-    case 3: {
-        mLatColVec3 *r = qlua_newLatColVec3(L, lua_gettop(L), 3);
-        CALL_QDP(L);
-        QDP_D3_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
-        return 1;
-    }
-    default: {
-        mLatColVecN *r = qlua_newLatColVecN(L, lua_gettop(L), nc);
-        CALL_QDP(L);
-        QDP_DN_V_eq_gaussian_S(nc, r->ptr, a->ptr, *S->qss);
-        return 1;
-    }
-    }
+
+    return do_gaussian(L, a, S, nc);
 }
 
 /* Lattice color vectors:

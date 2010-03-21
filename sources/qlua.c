@@ -13,10 +13,10 @@
 #include "latrandom.h"                                               /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
 
 #if 0 /* XXX other includes */
 #include "qgamma.h"                                                  /* DEPS */
-#include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
@@ -351,31 +351,31 @@ qlua_checkcolorindex(lua_State *L, int n, int nc)
     return qlua_checkindex(L, n, "c", nc);
 }
 
+int
+qlua_leftindex(lua_State *L, int n, int nc)
+{
+    return qlua_index(L, n, "a", nc);
+}
+
+int
+qlua_checkleftindex(lua_State *L, int n, int nc)
+{
+    return qlua_checkindex(L, n, "a", nc);
+}
+
+int
+qlua_rightindex(lua_State *L, int n, int nc)
+{
+    return qlua_index(L, n, "b", nc);
+}
+
+int
+qlua_checkrightindex(lua_State *L, int n, int nc)
+{
+    return qlua_checkindex(L, n, "b", nc);
+}
+
 #if 0 /* XXX utility functions */
-int
-qlua_leftindex(lua_State *L, int n)
-{
-    return qlua_index(L, n, "a", QDP_Nc);
-}
-
-int
-qlua_checkleftindex(lua_State *L, int n)
-{
-    return qlua_checkindex(L, n, "a", QDP_Nc);
-}
-
-int
-qlua_rightindex(lua_State *L, int n)
-{
-    return qlua_index(L, n, "b", QDP_Nc);
-}
-
-int
-qlua_checkrightindex(lua_State *L, int n)
-{
-    return qlua_checkindex(L, n, "b", QDP_Nc);
-}
-
 int
 qlua_gammaindex(lua_State *L, int n)
 {
@@ -636,9 +636,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latsubset,
         init_latmulti,
         init_latcolvec,
+        init_latcolmat,
 #if 0 /* XXX inits */
         init_gamma,
-        init_latcolmat,
         init_latdirferm,
         init_latdirprop,
         init_qdpc_io,
@@ -719,9 +719,9 @@ qlua_fini(lua_State *L)
         fini_qdpc_io,
         fini_latdirprop,
         fini_latdirferm,
-        fini_latcolmat,
         fini_gamma,
 #endif /* XXX finis */
+        fini_latcolmat,
         fini_latcolvec,
         fini_latmulti,
         fini_latsubset,

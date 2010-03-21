@@ -7,11 +7,7 @@ Qs(q_V_fmt)(lua_State *L)
     char fmt[72];
     Qs(mLatColVec) *b = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
 
-#if QNc == 'N'
-    sprintf(fmt, "QDP:ColorVector%d(%p)", b->nc, b->ptr);
-#else
-    sprintf(fmt, "QDP:ColorVector" Qcolors "(%p)", b->ptr);
-#endif
+    sprintf(fmt, "QDP:ColorVector%d(%p)", QC(b), b->ptr);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -466,7 +462,7 @@ Qs(q_V_set)(lua_State *L)
 #else
     Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
 #endif
-    lua_pop(L, 1);
+    lua_pop(L, 2);
 
     return 1;
 }
@@ -530,56 +526,12 @@ Qs(q_V_div_c_)(lua_State *L)
 }
 
 static int
-Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
-{
-    switch (lua_gettop(L) - off) {
-    case 1: {
-        Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, 1, nc);
-
-        CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_V_eq_zero)(nc, v->ptr, *S->qss);
-#else
-        Qx(QDP_D,_V_eq_zero)(v->ptr, *S->qss);
-#endif
-        return 1;
-    }
-    case 2: {
-        Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 2 + off, S, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
-        
-        CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_V_eq_V)(nc, r->ptr, a->ptr, *S->qss);
-#else
-        Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
-#endif
-        
-        return 1;
-    }
-    case 3: {
-        mLatComplex *c = qlua_checkLatComplex(L, 2 + off, S);
-        int a = qlua_checkcolorindex(L, 3 + off, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
-
-        CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_V_eq_elem_C)(nc, r->ptr, c->ptr, a, *S->qss);
-#else
-        Qx(QDP_D,_V_eq_elem_C)(r->ptr, c->ptr, a, *S->qss);
-#endif
-
-        return 1;
-    }
-    }
-    return qlua_badconstr(L, "ColorVector");
-}
-
-static int
 Qs(q_V_colors)(lua_State *L)
 {
 #if QNc == 'N'
     Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
+#else
+    Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
 #endif
     lua_pushnumber(L, QC(a));
 
@@ -620,6 +572,8 @@ static struct luaL_Reg Qs(mtLatColVec)[] = {
     { "set",               Qs(q_V_set)    },
     { "colors",            Qs(q_V_colors) },
     { "copy",              Qs(q_V_copy)   },
+    /* "lattice" */
+    /* "a-type" */
     { NULL,                NULL           }
 };
 
@@ -675,7 +629,53 @@ Qs(qlua_checkLatColVec)(lua_State *L, int idx, mLattice *S, int nc)
     }
 #endif
 
-    return (Qs(mLatColVec) *)v;
+    return z;
+}
+
+static int
+Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
+{
+    switch (lua_gettop(L) - off) {
+    case 1: {
+        Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, 1, nc);
+
+        CALL_QDP(L);
+#if QNc == 'N'
+        Qx(QDP_D,_V_eq_zero)(nc, v->ptr, *S->qss);
+#else
+        Qx(QDP_D,_V_eq_zero)(v->ptr, *S->qss);
+#endif
+        return 1;
+    }
+    case 2: {
+        Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 2 + off, S, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+        
+        CALL_QDP(L);
+#if QNc == 'N'
+        Qx(QDP_D,_V_eq_V)(nc, r->ptr, a->ptr, *S->qss);
+#else
+        Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
+#endif
+        
+        return 1;
+    }
+    case 3: {
+        mLatComplex *c = qlua_checkLatComplex(L, 2 + off, S);
+        int a = qlua_checkcolorindex(L, 3 + off, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+
+        CALL_QDP(L);
+#if QNc == 'N'
+        Qx(QDP_D,_V_eq_elem_C)(nc, r->ptr, c->ptr, a, *S->qss);
+#else
+        Qx(QDP_D,_V_eq_elem_C)(r->ptr, c->ptr, a, *S->qss);
+#endif
+
+        return 1;
+    }
+    }
+    return qlua_badconstr(L, "ColorVector" Qcolors);
 }
 
 #undef QNc

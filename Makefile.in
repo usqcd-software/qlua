@@ -65,9 +65,9 @@ libsrc = fix.c \
          latcomplex.c \
          latsubset.c \
          latcolvec.c \
+	 latcolmat.c \
 
 #         qgamma.c \
-#	 latcolmat.c \
 #         latdirferm.c \
 #         latdirprop.c \
 #	 qio_utils.c \
