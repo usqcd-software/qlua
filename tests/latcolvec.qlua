@@ -49,8 +49,9 @@ printf("consturcted ColVec: %s\n", tostring(x))
 printf("x:colors() = %d\n", x:colors())
 printf("x[{1,0,3,c=1}] = %s\n", tostring(x[{1,0,3,c=1}]))
 
+printf("x=%s\n", tostring(x))
 x[{c=0}] = LAT:Complex(complex(math.pi,1))
-x[{c=2}] = LAT:Complex(LAT:Real(0), LAT:Real(0))
+x[{c=1}] = LAT:Complex(LAT:Real(0), LAT:Real(0))
 
 printf("%s %s\n", tostring(x[{0,0,1,c=0}]), tostring(x[{0,0,1,c=1}]))
 dump_meta(LAT)
