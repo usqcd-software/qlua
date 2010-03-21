@@ -15,10 +15,10 @@
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
 
 #if 0 /* XXX other includes */
 #include "qgamma.h"                                                  /* DEPS */
-#include "latdirprop.h"                                              /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
@@ -406,22 +406,6 @@ qlua_checkgammabinary(lua_State *L, int n)
     return qlua_checkindex(L, n, "n", 16);
 }
 
-#if 0 /* XXX utility functions */
-static int
-qlua_type(lua_State *L, int idx, const char *mt)
-{
-    int base = lua_gettop(L);
-    int v;
-
-    lua_getmetatable(L, idx);
-    luaL_getmetatable(L, mt);
-    v = lua_equal(L, -1, -2);
-    lua_settop(L, base);
-
-    return v;
-}
-#endif /* XXX utility functions */
-
 void *
 qlua_checkLatticeType(lua_State *L, int idx, QLUA_Type t_id,
                       const char *name)
@@ -636,9 +620,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latcolvec,
         init_latcolmat,
         init_latdirferm,
+        init_latdirprop,
 #if 0 /* XXX inits */
         init_gamma,
-        init_latdirprop,
         init_qdpc_io,
         init_qdpcc_io,
         init_ddpairs_io,
@@ -715,9 +699,9 @@ qlua_fini(lua_State *L)
         fini_ddpairs_io,
         fini_qdpcc_io,
         fini_qdpc_io,
-        fini_latdirprop,
         fini_gamma,
 #endif /* XXX finis */
+        fini_latdirprop,
         fini_latdirferm,
         fini_latcolmat,
         fini_latcolvec,

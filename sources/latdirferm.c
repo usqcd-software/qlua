@@ -93,8 +93,9 @@ q_D_gaussian_N(lua_State *L)
 }
 
 /* Lattice Dirac Fermions:
- *  L:DiracFermion() -- zero fermion in default colors
- *  ....
+ *  L:DiracFermion()             -- zero fermion in default colors
+ *  L:DiracFermion(C,{c=i,d=j})  -- default colors, D[i,j] = C zero otherwise
+ *  L:DiracFermion(V,{d=j})      -- default colors, D[.,j] = V zero otherwise
  */
 static int
 q_latdirferm(lua_State *L)
@@ -109,8 +110,9 @@ q_latdirferm(lua_State *L)
 }
 
 /* Lattice Dirac Fermions:
- *  L:DiracFermionN(n) -- zero fermion in n colors
- *  ....
+ *  L:DiracFermionN(n)              -- zero fermion in n colors
+ *  L:DiracFermionN(n,C,{c=i,d=j})  -- n colors, D[i,j] = C zero otherwise
+ *  L:DiracFermionN(n,V,{d=j})      -- n colors, D[.,j] = V zero otherwise
  */
 static int
 q_latdirfermN(lua_State *L)

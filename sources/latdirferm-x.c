@@ -98,7 +98,7 @@ Qs(q_D_get)(lua_State *L)
         return 1;
     }
     case qString:
-        return  qlua_selflookup(L, 1, luaL_checkstring(L, 2));
+        return qlua_selflookup(L, 1, luaL_checkstring(L, 2));
     default:
         break;
     }

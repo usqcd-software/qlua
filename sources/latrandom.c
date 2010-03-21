@@ -8,9 +8,7 @@
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
-#if 0 /* XXX includes */
 #include "latdirprop.h"                                              /* DEPS */
-#endif /* XXX includes */
 /* ZZZ other packages */
 
 static const char LatRandomName[] = "lattice.RandomState";
@@ -95,9 +93,8 @@ static struct luaL_Reg mtLatRandom[] = {
     { "gaussian_ColorMatrixN",    q_M_gaussian_N },
     { "gaussian_DiracFermion",    q_D_gaussian   },
     { "gaussian_DiracFermionN",   q_D_gaussian_N },
-#if 0 /* XXX random objects */
     { "gaussian_DiracPropagator", q_P_gaussian   },
-#endif /* XXX random objects */
+    { "gaussian_DiracPropagatorN",q_P_gaussian_N },
     { "set",                      q_S_set        },
     /* ZZZ other gaussian randoms */
     { NULL,                       NULL           }

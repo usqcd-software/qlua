@@ -4,7 +4,7 @@ LAT = qcd.lattice({d,d,d})
 function dump_meta(x)
    local m = getmetatable(x)
    if m then
-      printf("Metatable for %s\n", tostring(x))
+      printf("Metatable for %s: %s\n", tostring(x), tostring(m))
       for i, v in pairs(m) do
          printf("   %-25s : %s\n", tostring(i), tostring(v))
       end

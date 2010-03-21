@@ -6,7 +6,7 @@ s = LAT:RandomState(1, LAT:pcoord(0) + 6 * LAT:pcoord(1) + 70 * LAT:pcoord(2))
 M1 = s:gaussian_DiracPropagator()
 Mz = LAT:DiracPropagator()
 M2 = LAT:DiracPropagator(M1[{d=0,c=1}],{d=1,c=0})
-Mo = LAT:DiracPropagator(M1)
+Mo = M1:copy()
 
 q = M1 * M2 - M2 * 5.4 + complex(4,3) * s:gaussian_DiracPropagator()
 
