@@ -5,10 +5,18 @@
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #include "qdp.h"
+#include "qdp_d2.h"
+#include "qdp_d3.h"
+#include "qdp_dn.h"
+#include "qla_types.h"
+#include "qla_d2.h"
+#include "qla_d3.h"
+#include "qla_dn.h"
+
 #include <math.h>
 #include <string.h>
 
-const char mtnGamma[] = "qlua.mtGamma";
+static const char mtnGamma[] = "qlua.mtGamma";
 
 enum {
     qG_z,  /* zero */
@@ -22,8 +30,8 @@ enum {
 
 typedef struct mGamma_s {
     int t;
-    QLA_Real r;
-    QLA_Complex c;
+    QLA_D_Real r;
+    QLA_D_Complex c;
 } mGamma;
 
 typedef struct mClifford_s {
@@ -216,13 +224,8 @@ q_g_fmt(lua_State *L)
             fst = 0;
             break;
         case qG_c:
-            if (fst == 0) {
-                sprintf(fmt, "+complex(%g,%g)*", 
-                        QLA_real(v->g[i].c), QLA_imag(v->g[i].c));
-            } else {
-                sprintf(fmt, "complex(%g,%g)*", 
-                        QLA_real(v->g[i].c), QLA_imag(v->g[i].c));
-            }
+            sprintf(fmt, "%scomplex(%g,%g)*", fst ? "" : "+",
+                    QLA_real(v->g[i].c), QLA_imag(v->g[i].c));
             luaL_addstring(&b, fmt);
             fst = 0;
             break;
@@ -290,7 +293,7 @@ q_g_add_g(lua_State *L)
 static int
 q_r_add_g(lua_State *L)
 {
-    QLA_Real b = luaL_checknumber(L, 1);
+    QLA_D_Real b = luaL_checknumber(L, 1);
     mClifford *x = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -310,7 +313,7 @@ static int
 q_g_add_r(lua_State *L)
 {
     mClifford *x = qlua_checkClifford(L, 1);
-    QLA_Real b = luaL_checknumber(L, 2);
+    QLA_D_Real b = luaL_checknumber(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -328,7 +331,7 @@ q_g_add_r(lua_State *L)
 static int
 q_c_add_g(lua_State *L)
 {
-    QLA_Complex *b = qlua_checkComplex(L, 1);
+    QLA_D_Complex *b = qlua_checkComplex(L, 1);
     mClifford *x = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -348,7 +351,7 @@ static int
 q_g_add_c(lua_State *L)
 {
     mClifford *x = qlua_checkClifford(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
+    QLA_D_Complex *b = qlua_checkComplex(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -399,7 +402,7 @@ q_g_sub_g(lua_State *L)
 static int
 q_r_sub_g(lua_State *L)
 {
-    QLA_Real b = luaL_checknumber(L, 1);
+    QLA_D_Real b = luaL_checknumber(L, 1);
     mClifford *x = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -420,7 +423,7 @@ static int
 q_g_sub_r(lua_State *L)
 {
     mClifford *x = qlua_checkClifford(L, 1);
-    QLA_Real b = luaL_checknumber(L, 2);
+    QLA_D_Real b = luaL_checknumber(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -438,7 +441,7 @@ q_g_sub_r(lua_State *L)
 static int
 q_c_sub_g(lua_State *L)
 {
-    QLA_Complex *b = qlua_checkComplex(L, 1);
+    QLA_D_Complex *b = qlua_checkComplex(L, 1);
     mClifford *x = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -458,7 +461,7 @@ q_c_sub_g(lua_State *L)
 static int q_g_sub_c(lua_State *L)
 {
     mClifford *x = qlua_checkClifford(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
+    QLA_D_Complex *b = qlua_checkComplex(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -500,7 +503,7 @@ q_g_mul_g(lua_State *L)
 static int
 q_r_mul_g(lua_State *L)
 {
-    QLA_Real a = luaL_checknumber(L, 1);
+    QLA_D_Real a = luaL_checknumber(L, 1);
     mClifford *b = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -519,7 +522,7 @@ q_r_mul_g(lua_State *L)
 static int q_g_mul_r(lua_State *L)
 {
     mClifford *b = qlua_checkClifford(L, 1);
-    QLA_Real a = luaL_checknumber(L, 2);
+    QLA_D_Real a = luaL_checknumber(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -536,7 +539,7 @@ static int q_g_mul_r(lua_State *L)
 
 static int q_c_mul_g(lua_State *L)
 {
-    QLA_Complex *a = qlua_checkComplex(L, 1);
+    QLA_D_Complex *a = qlua_checkComplex(L, 1);
     mClifford *b = qlua_checkClifford(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
@@ -555,7 +558,7 @@ static int
 q_g_mul_c(lua_State *L)
 {
     mClifford *b = qlua_checkClifford(L, 1);
-    QLA_Complex *a = qlua_checkComplex(L, 2);
+    QLA_D_Complex *a = qlua_checkComplex(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -573,7 +576,7 @@ static int
 q_g_div_r(lua_State *L)
 {
     mClifford *b = qlua_checkClifford(L, 1);
-    QLA_Real a = luaL_checknumber(L, 2);
+    QLA_D_Real a = luaL_checknumber(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -592,7 +595,7 @@ static int
 q_g_div_c(lua_State *L)
 {
     mClifford *b = qlua_checkClifford(L, 1);
-    QLA_Complex *a = qlua_checkComplex(L, 2);
+    QLA_D_Complex *a = qlua_checkComplex(L, 2);
     mClifford *r = qlua_newClifford(L);
     int i;
     mGamma v;
@@ -606,111 +609,6 @@ q_g_div_c(lua_State *L)
         g_mul(&r->g[i], &b->g[i], &v);
     
     return c_norm(L, r);
-}
-
-static int
-q_g_mul_D(lua_State *L)
-{
-    mClifford *m = qlua_checkClifford(L, 1);
-    mLatDirFerm *f = qlua_checkLatDirFerm(L, 2);
-    mLatDirFerm *mf = qlua_newLatDirFerm(L);
-    mLatDirFerm *r = qlua_newLatDirFerm(L);
-    int i;
-
-    CALL_QDP(L);
-    QDP_D_eq_zero(r->ptr, *qCurrent);
-    for (i = 0; i < 16; i++) {
-        switch (m->g[i].t) {
-        case qG_z: continue;
-        case qG_p:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_D_peq_D(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_m:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_D_meq_D(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_r:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_D_peq_r_times_D(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
-            break;
-        case qG_c:
-            QDP_D_eq_gamma_times_D(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_D_peq_c_times_D(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
-            break;
-        }
-    }
-    return 1;
-}
-
-static int
-q_g_mul_P(lua_State *L)
-{
-    mClifford *m = qlua_checkClifford(L, 1);
-    mLatDirProp *f = qlua_checkLatDirProp(L, 2);
-    mLatDirProp *mf = qlua_newLatDirProp(L);
-    mLatDirProp *r = qlua_newLatDirProp(L);
-    int i;
-
-    CALL_QDP(L);
-    QDP_P_eq_zero(r->ptr, *qCurrent);
-    for (i = 0; i < 16; i++) {
-        switch (m->g[i].t) {
-        case qG_z: continue;
-        case qG_p:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_P(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_m:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_meq_P(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_r:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
-            break;
-        case qG_c:
-            QDP_P_eq_gamma_times_P(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
-            break;
-        }
-    }
-    return 1;
-}
-
-static int
-q_P_mul_g(lua_State *L)
-{
-    mLatDirProp *f = qlua_checkLatDirProp(L, 1);
-    mClifford *m = qlua_checkClifford(L, 2);
-    mLatDirProp *mf = qlua_newLatDirProp(L);
-    mLatDirProp *r = qlua_newLatDirProp(L);
-    int i;
-
-    CALL_QDP(L);
-    QDP_P_eq_zero(r->ptr, *qCurrent);
-    for (i = 0; i < 16; i++) {
-        switch (m->g[i].t) {
-        case qG_z: continue;
-        case qG_p:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_P(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_m:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_meq_P(r->ptr, mf->ptr, *qCurrent);
-            break;
-        case qG_r:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_r_times_P(r->ptr, &m->g[i].r, mf->ptr, *qCurrent);
-            break;
-        case qG_c:
-            QDP_P_eq_P_times_gamma(mf->ptr, f->ptr, i, *qCurrent);
-            QDP_P_peq_c_times_P(r->ptr, &m->g[i].c, mf->ptr, *qCurrent);
-            break;
-        }
-    }
-    return 1;
 }
 
 static int
@@ -749,7 +647,7 @@ q_g_conj(lua_State *L)
 static int
 q_gamma(lua_State *L)
 {
-    switch (qlua_gettype(L, 1)) {
+    switch (qlua_qtype(L, 1)) {
     case qTable: {
         int mu = qlua_gammaindex(L, 1);
         int n = qlua_gammabinary(L, 1);
@@ -770,297 +668,83 @@ q_gamma(lua_State *L)
         }
         break;
     }
+    default:
+        break;
     }
     return qlua_badconstr(L, "gamma");
 }
 
-typedef void X_project(lua_State *L,
-                       QLA_DiracFermion *r[QDP_Nc][QDP_Ns/2],
-                       int mu, int sign,
-                       QLA_DiracPropagator *f);
+#define QNc  '2'
+#define Qcolors "2"
+#define Qs(a)   a ## 2
+#define Qx(a,b)  a ## 2 ## b
+#define QC(x)    2
+#include "qgamma-x.c"                                               /* DEPS */
 
-static void
-q_P_left_proj(lua_State *L,
-              QLA_DiracFermion *r[QDP_Nc][QDP_Ns/2],
-              int mu,
-              int sign,
-              QLA_DiracPropagator *f)
-{
-    int count = QDP_sites_on_node;
-    int k, ic, is;
+#define QNc  '3'
+#define Qcolors "3"
+#define Qs(a)   a ## 3
+#define Qx(a,b)  a ## 3 ## b
+#define QC(x)    3
+#include "qgamma-x.c"                                               /* DEPS */
 
-    for (k = 0; k < count; k++) {
-        for (ic = 0; ic < QDP_Nc; ic++) {
-            for (is = 0; is < QDP_Ns; is++) {
-                int jc, js;
-                QLA_DiracFermion fk;
-                QLA_HalfFermion hk;
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns; js++) {
-                        QLA_c_eq_c(QLA_elem_D(fk, jc, js),
-                                   QLA_elem_P(*f, jc, js, ic, is));
-                    }
-                }
-                QLA_H_eq_spproj_D(&hk, &fk, mu, sign);
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns/2; js++) {
-                        QLA_c_eq_c(QLA_elem_D(*r[jc][js], ic, is),
-                                   QLA_elem_H(hk, jc, js));
-                    }
-                }
-            }
-        }
-        f++;
-        for (ic = 0; ic < QDP_Nc; ic++)
-            for (is = 0; is < QDP_Ns/2; is++)
-                r[ic][is]++;
-    }
-}
-
-static void
-q_P_right_proj(lua_State *L,
-               QLA_DiracFermion *r[QDP_Nc][QDP_Ns/2],
-               int mu,
-               int sign,
-               QLA_DiracPropagator *f)
-{
-    int count = QDP_sites_on_node;
-    int k, ic, is;
-
-    if (mu == 0 || mu == 2) sign = 1 - sign; /* AAA gamma basis dependent */
-
-    for (k = 0; k < count; k++) {
-        for (ic = 0; ic < QDP_Nc; ic++) {
-            for (is = 0; is < QDP_Ns; is++) {
-                int jc, js;
-                QLA_DiracFermion fk;
-                QLA_HalfFermion hk;
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns; js++) {
-                        QLA_c_eq_c(QLA_elem_D(fk, jc, js),
-                                   QLA_elem_P(*f, ic, is, jc, js));
-                    }
-                }
-                QLA_H_eq_spproj_D(&hk, &fk, mu, sign);
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns/2; js++) {
-                        QLA_c_eq_c(QLA_elem_D(*r[jc][js], ic, is),
-                                   QLA_elem_H(hk, jc, js));
-                    }
-                }
-            }
-        }
-        f++;
-        for (ic = 0; ic < QDP_Nc; ic++)
-            for (is = 0; is < QDP_Ns/2; is++)
-                r[ic][is]++;
-    }
-}
-
-static int
-q_P_project(lua_State *L, X_project *op)
-{
-    const char *sign = luaL_checkstring(L, 1);
-    int mu = qlua_checkgammaindex(L, 2);
-    mLatDirProp *f = qlua_checkLatDirProp(L, 3);
-    int isign = 0;
-    int ic, is;
-    QLA_DiracPropagator *ff;
-    mLatDirFerm *r[QDP_Nc][QDP_Ns/2];
-    QLA_DiracFermion *rr[QDP_Nc][QDP_Ns/2];
-
-    if (strcmp(sign, "plus") == 0)
-        isign = 1;
-    else if (strcmp(sign, "minus") == 0)
-        isign = 0;
-    else
-        return luaL_error(L, "bad sign parameter");
-    
-    lua_createtable(L, QDP_Nc, 0);
-    for (ic = 0; ic < QDP_Nc; ic++) {
-        lua_createtable(L, QDP_Ns/2, 0);
-        for (is = 0; is < QDP_Ns/2; is++) {
-            r[ic][is] = qlua_newLatDirFerm(L);
-            lua_rawseti(L, -2, is + 1);
-        }
-        lua_rawseti(L, -2, ic + 1);
-    }
-
-    if (mu == 5) mu = 4; /* [sic] -- funny numbering in QLA's spproj/sprecon */
-
-    CALL_QDP(L);
-    for (ic = 0; ic < QDP_Nc; ic++)
-        for (is = 0; is < QDP_Ns/2; is++) 
-            rr[ic][is] = QDP_expose_D(r[ic][is]->ptr);
-    ff = QDP_expose_P(f->ptr);
-
-    op(L, rr, mu, isign, ff);
-
-    QDP_reset_P(f->ptr);
-    for (ic = 0; ic < QDP_Nc; ic++)
-        for (is = 0; is < QDP_Ns/2; is++) 
-            QDP_reset_D(r[ic][is]->ptr);
-        
-    return 1;
-}
+#define QNc  'N'
+#define Qcolors "N"
+#define Qs(a)   a ## N
+#define Qx(a,b)  a ## N ## b
+#define QC(x)    (x)->nc
+#include "qgamma-x.c"                                               /* DEPS */
 
 static int
 q_left_project(lua_State *L)
 {
-    return q_P_project(L, q_P_left_proj);
+    switch (qlua_qtype(L, 3)) {
+    case qLatDirProp2: return q_P_project2(L, q_P_left_proj2);
+    case qLatDirProp3: return q_P_project3(L, q_P_left_proj3);
+    case qLatDirPropN: return q_P_projectN(L, q_P_left_projN);
+    default:
+        return luaL_error(L, "unexpected type in g:left_project()");
+    }
 }
 
 static int
 q_right_project(lua_State *L)
 {
-    return q_P_project(L, q_P_right_proj);
-}
-
-typedef void X_reconstruct(lua_State *L,
-                           QLA_DiracPropagator *r,
-                           int mu, int sign,
-                           QLA_DiracFermion *a[QDP_Nc][QDP_Ns/2]);
-
-static void
-q_P_left_recon(lua_State *L,
-               QLA_DiracPropagator *r,
-               int mu, int sign,
-               QLA_DiracFermion *a[QDP_Nc][QDP_Ns/2])
-{
-    int count = QDP_sites_on_node;
-    int k, ic, is;
-
-    for (k = 0; k < count; k++) {
-        for (ic = 0; ic < QDP_Nc; ic++) {
-            for (is = 0; is < QDP_Ns; is++) {
-                int jc, js;
-                QLA_DiracFermion fk;
-                QLA_HalfFermion hk;
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns/2; js++) {
-                        QLA_c_eq_c(QLA_elem_H(hk, jc, js),
-                                   QLA_elem_D(*a[jc][js], ic, is));
-                    }
-                }
-                QLA_D_eq_sprecon_H(&fk, &hk, mu, sign);
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns; js++) {
-                        QLA_c_eq_c(QLA_elem_P(*r, jc, js, ic, is),
-                                   QLA_elem_D(fk, jc, js));
-                    }
-                }
-            }
-        }
-        r++;
-        for (ic = 0; ic < QDP_Nc; ic++)
-            for (is = 0; is < QDP_Ns/2; is++)
-                a[ic][is]++;
+    switch (qlua_qtype(L, 3)) {
+    case qLatDirProp2: return q_P_project2(L, q_P_right_proj2);
+    case qLatDirProp3: return q_P_project3(L, q_P_right_proj3);
+    case qLatDirPropN: return q_P_projectN(L, q_P_right_projN);
+    default:
+        return luaL_error(L, "unexpected type in g:right_project()");
     }
-    
-}
-
-static void
-q_P_right_recon(lua_State *L,
-                QLA_DiracPropagator *r,
-                int mu, int sign,
-                QLA_DiracFermion *a[QDP_Nc][QDP_Ns/2])
-{
-    int count = QDP_sites_on_node;
-    int k, ic, is;
-
-    if (mu == 0 || mu == 2) sign = 1 - sign; /* AAA gamma basis dependent */
-
-    for (k = 0; k < count; k++) {
-        for (ic = 0; ic < QDP_Nc; ic++) {
-            for (is = 0; is < QDP_Ns; is++) {
-                int jc, js;
-                QLA_DiracFermion fk;
-                QLA_HalfFermion hk;
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns/2; js++) {
-                        QLA_c_eq_c(QLA_elem_H(hk, jc, js),
-                                   QLA_elem_D(*a[jc][js], ic, is));
-                    }
-                }
-                QLA_D_eq_sprecon_H(&fk, &hk, mu, sign);
-                for (jc = 0; jc < QDP_Nc; jc++) {
-                    for (js = 0; js < QDP_Ns; js++) {
-                        QLA_c_eq_c(QLA_elem_P(*r, ic, is, jc, js),
-                                   QLA_elem_D(fk, jc, js));
-                    }
-                }
-            }
-        }
-        r++;
-        for (ic = 0; ic < QDP_Nc; ic++)
-            for (is = 0; is < QDP_Ns/2; is++)
-                a[ic][is]++;
-    }
-    
-}
-
-static int
-q_P_reconstruct(lua_State *L, X_reconstruct *op)
-{
-    const char *sign = luaL_checkstring(L, 1);
-    int mu = qlua_checkgammaindex(L, 2);
-    mLatDirProp *r = qlua_newLatDirProp(L);
-    int isign = 0;
-    int ic, is;
-    mLatDirFerm *a[QDP_Nc][QDP_Ns/2];
-    QLA_DiracFermion *aa[QDP_Nc][QDP_Ns/2];
-    QLA_DiracPropagator *rr;
-
-    luaL_checktype(L, 3, LUA_TTABLE);
-    for (ic = 0; ic < QDP_Nc; ic++) {
-        lua_pushnumber(L, ic + 1);
-        lua_gettable(L, 3);
-        qlua_checktable(L, -1, "projected Prop (%d,*)", ic);
-        for (is = 0; is < QDP_Ns/2; is++) {
-            lua_pushnumber(L, is + 1);
-            lua_gettable(L, -2);
-            a[ic][is] = qlua_checkLatDirFerm(L, -1);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-    }
-
-    if (strcmp(sign, "plus") == 0)
-        isign = 1;
-    else if (strcmp(sign, "minus") == 0)
-        isign = 0;
-    else
-        return luaL_error(L, "bad sign parameter");
-
-    if (mu == 5) mu = 4; /* [sic] -- funny numbering in QLA's spproj/sprecon */
-
-    CALL_QDP(L);
-    /* ZZZ will break if any of a[][] is aliased */
-    for (ic = 0; ic < QDP_Nc; ic++)
-        for (is = 0; is < QDP_Ns/2; is++)
-            aa[ic][is] = QDP_expose_D(a[ic][is]->ptr);
-    rr = QDP_expose_P(r->ptr);
-
-    op(L, rr, mu, isign, aa);
-
-    QDP_reset_P(r->ptr);
-    for (ic = 0; ic < QDP_Nc; ic++)
-        for (is = 0; is < QDP_Ns/2; is++)
-            QDP_reset_D(a[ic][is]->ptr);
-
-    return 1;
 }
 
 static int
 q_left_reconstruct(lua_State *L)
 {
-    return q_P_reconstruct(L, q_P_left_recon);
+    int n = lua_objlen(L, 3);
+    if ((n < 2) || (n > QLA_MAX_Nc))
+        return luaL_error(L, "bad arg size for g:left_reconstruct");
+
+    switch (n) {
+    case 2: return q_P_reconstruct2(L, q_P_left_recon2, n);
+    case 3: return q_P_reconstruct3(L, q_P_left_recon3, n);
+    default: return q_P_reconstructN(L, q_P_left_reconN, n);
+    }
 }
 
 static int
 q_right_reconstruct(lua_State *L)
 {
-    return q_P_reconstruct(L, q_P_right_recon);
+    int n = lua_objlen(L, 3);
+    if ((n < 2) || (n > QLA_MAX_Nc))
+        return luaL_error(L, "bad arg size for g:right_reconstruct");
+
+    switch (n) {
+    case 2: return q_P_reconstruct2(L, q_P_right_recon2, n);
+    case 3: return q_P_reconstruct3(L, q_P_right_recon3, n);
+    default: return q_P_reconstructN(L, q_P_right_reconN, n);
+    }
 }
 
 static struct luaL_Reg mtGamma[] = {
@@ -1081,8 +765,8 @@ static struct luaL_Reg fGamma[] = {
 
 static struct luaL_Reg fProj[] = {
     { "left_project",       q_left_project },
-    { "left_reconstruct",   q_left_reconstruct },
     { "right_project",      q_right_project },
+    { "left_reconstruct",   q_left_reconstruct },
     { "right_reconstruct",  q_right_reconstruct },
     { NULL,                 NULL }
 };
@@ -1090,30 +774,40 @@ static struct luaL_Reg fProj[] = {
 int
 init_gamma(lua_State *L)
 {
+    static const QLUA_Op2 ops[] = {
+        { qlua_add_table, qGamma,        qGamma,        q_g_add_g    },
+        { qlua_add_table, qReal,         qGamma,        q_r_add_g    },
+        { qlua_add_table, qGamma,        qReal,         q_g_add_r    },
+        { qlua_add_table, qComplex,      qGamma,        q_c_add_g    },
+        { qlua_add_table, qGamma,        qComplex,      q_g_add_c    },
+        { qlua_sub_table, qGamma,        qGamma,        q_g_sub_g    },
+        { qlua_sub_table, qReal,         qGamma,        q_r_sub_g    },
+        { qlua_sub_table, qGamma,        qReal,         q_g_sub_r    },
+        { qlua_sub_table, qComplex,      qGamma,        q_c_sub_g    },
+        { qlua_sub_table, qGamma,        qComplex,      q_g_sub_c    },
+        { qlua_mul_table, qGamma,        qGamma,        q_g_mul_g    },
+        { qlua_mul_table, qReal,         qGamma,        q_r_mul_g    },
+        { qlua_mul_table, qGamma,        qReal,         q_g_mul_r    },
+        { qlua_mul_table, qComplex,      qGamma,        q_c_mul_g    },
+        { qlua_mul_table, qGamma,        qComplex,      q_g_mul_c    },
+        { qlua_mul_table, qGamma,        qLatDirFerm2,  q_g_mul_D_2  },
+        { qlua_mul_table, qGamma,        qLatDirFerm3,  q_g_mul_D_3  },
+        { qlua_mul_table, qGamma,        qLatDirFermN,  q_g_mul_D_N  },
+        { qlua_mul_table, qGamma,        qLatDirProp2,  q_g_mul_P_2  },
+        { qlua_mul_table, qGamma,        qLatDirProp3,  q_g_mul_P_3  },
+        { qlua_mul_table, qGamma,        qLatDirPropN,  q_g_mul_P_N  },
+        { qlua_mul_table, qLatDirProp2,  qGamma,        q_P_mul_g_2  },
+        { qlua_mul_table, qLatDirProp3,  qGamma,        q_P_mul_g_3  },
+        { qlua_mul_table, qLatDirPropN,  qGamma,        q_P_mul_g_N  },
+        { qlua_div_table, qGamma,        qReal,         q_g_div_r    },
+        { qlua_div_table, qGamma,        qComplex,      q_g_div_c    },
+        { NULL,           qNoType,       qNoType,       NULL         }
+    };
     luaL_register(L, qcdlib, fProj);
     lua_getglobal(L, "_G");
     luaL_register(L, NULL, fGamma);
-    qlua_metatable(L, mtnGamma, mtGamma);
-    qlua_reg_add(qGamma,      qGamma,      q_g_add_g);
-    qlua_reg_add(qReal,       qGamma,      q_r_add_g);
-    qlua_reg_add(qGamma,      qReal,       q_g_add_r);
-    qlua_reg_add(qComplex,    qGamma,      q_c_add_g);
-    qlua_reg_add(qGamma,      qComplex,    q_g_add_c);
-    qlua_reg_sub(qGamma,      qGamma,      q_g_sub_g);
-    qlua_reg_sub(qReal,       qGamma,      q_r_sub_g);
-    qlua_reg_sub(qGamma,      qReal,       q_g_sub_r);
-    qlua_reg_sub(qComplex,    qGamma,      q_c_sub_g);
-    qlua_reg_sub(qGamma,      qComplex,    q_g_sub_c);
-    qlua_reg_mul(qGamma,      qGamma,      q_g_mul_g);
-    qlua_reg_mul(qReal,       qGamma,      q_r_mul_g);
-    qlua_reg_mul(qGamma,      qReal,       q_g_mul_r);
-    qlua_reg_mul(qComplex,    qGamma,      q_c_mul_g);
-    qlua_reg_mul(qGamma,      qComplex,    q_g_mul_c);
-    qlua_reg_mul(qGamma,      qLatDirFerm, q_g_mul_D);
-    qlua_reg_mul(qGamma,      qLatDirProp, q_g_mul_P);
-    qlua_reg_mul(qLatDirProp, qGamma,      q_P_mul_g);
-    qlua_reg_div(qGamma,      qReal,       q_g_div_r);
-    qlua_reg_div(qGamma,      qComplex,    q_g_div_c);
+    qlua_metatable(L, mtnGamma, mtGamma, qGamma);
+    qlua_reg_op2(ops);
 
     return 0;
 }
@@ -1123,4 +817,3 @@ fini_gamma(lua_State *L)
 {
     return 0;
 }
-

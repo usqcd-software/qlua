@@ -16,9 +16,9 @@
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
+#include "qgamma.h"                                                  /* DEPS */
 
 #if 0 /* XXX other includes */
-#include "qgamma.h"                                                  /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
@@ -267,7 +267,6 @@ qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
     return d;
 }
 
-#if 0 /* XXX  utility functions */
 void
 qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 {
@@ -281,7 +280,6 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
     }
 }
 
-#endif /* XXX utility functions */
 int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
@@ -621,8 +619,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latcolmat,
         init_latdirferm,
         init_latdirprop,
-#if 0 /* XXX inits */
         init_gamma,
+#if 0 /* XXX inits */
         init_qdpc_io,
         init_qdpcc_io,
         init_ddpairs_io,
@@ -699,8 +697,8 @@ qlua_fini(lua_State *L)
         fini_ddpairs_io,
         fini_qdpcc_io,
         fini_qdpc_io,
-        fini_gamma,
 #endif /* XXX finis */
+        fini_gamma,
         fini_latdirprop,
         fini_latdirferm,
         fini_latcolmat,

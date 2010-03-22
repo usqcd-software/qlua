@@ -68,8 +68,8 @@ libsrc = fix.c \
 	 latcolmat.c \
          latdirferm.c \
          latdirprop.c \
+         qgamma.c \
 
-#         qgamma.c \
 #	 qio_utils.c \
 #         qdpc_io.c \
 #         qdpcc_io.c \
