@@ -2,7 +2,6 @@
 #define MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 
 #define QDP_Precision 'D' /* DO NOT CHANGE THESE DEFAULTS */
-#define QDP_Nc 3          /* DO NOT CHANGE THESE DEFAULTS */
 #define QDP_Ns 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
 #include <stdio.h>

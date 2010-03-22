@@ -408,7 +408,7 @@ Qs(q_P_left_recon)(lua_State *L,
 #else
                 Qx(QLA_D,_D_eq_sprecon_H)(&fk, &hk, mu, sign);
 #endif
-                for (jc = 0; jc < QDP_Nc; jc++) {
+                for (jc = 0; jc < nc; jc++) {
                     for (js = 0; js < QDP_Ns; js++) {
                         QLA_c_eq_c(Qx(QLA_D,_elem_P)(*r, jc, js, ic, is),
                                    Qx(QLA_D,_elem_D)(fk, jc, js));
@@ -442,7 +442,7 @@ Qs(q_P_right_recon)(lua_State *L,
                 int jc, js;
                 Qx(QLA_D,_DiracFermion) fk;
                 Qx(QLA_D,_HalfFermion) hk;
-                for (jc = 0; jc < QDP_Nc; jc++) {
+                for (jc = 0; jc < nc; jc++) {
                     for (js = 0; js < QDP_Ns/2; js++) {
                         QLA_c_eq_c(Qx(QLA_D,_elem_H)(hk, jc, js),
                                    Qx(QLA_D,_elem_D)(*a[PIDX(jc,js)], ic, is));

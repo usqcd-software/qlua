@@ -439,7 +439,7 @@ Qs(X_sun_proj_step)(Qx(QLA_D,_ColorMatrix) *u, Qx(QLA_D,_ColorMatrix) *w)
     }
 }
 
-#if QDP_Nc == 2
+#if QNc == '2'
 static void
 Qs(X_reunit)(Qx(QLA_D,_ColorMatrix) *u)
 {
@@ -457,7 +457,7 @@ Qs(X_reunit)(Qx(QLA_D,_ColorMatrix) *u)
     QLA_c_eq_r_plus_ir(Qx(QLA_D,_elem_M)(*u, 0, 1), -u10r,  u10i);
     QLA_c_eq_r_plus_ir(Qx(QLA_D,_elem_M)(*u, 1, 1),  u00r, -u00i);
 }
-#elif QDP_Nc == 3
+#elif QNc == '3'
 static void
 Qs(X_reunit)(Qx(QLA_D,_ColorMatrix) *u)
 {
