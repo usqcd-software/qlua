@@ -23,23 +23,22 @@
 #include "qdpcc_io.h"                                                /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
 #include "nersc_io.h"                                                /* DEPS */
+#endif /* XXX other includes */
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
 #endif
+#if 0 /* XXX other includes */
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
 #endif
-#ifdef HAS_MDWF
-#include "qmdwf.h"                                                   /* DEPS */
-#endif
+#endif /* XXX other includes */
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
 #endif
-#endif /* XXX other includes */
 
 #include <string.h>
 #include <stdarg.h>
@@ -62,7 +61,7 @@ static struct {
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
-    {"aff",    AFF_VERSION },
+    {"aff",    LHPC_AFF_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
@@ -620,19 +619,16 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latdirferm,
         init_latdirprop,
         init_gamma,
+#ifdef HAS_AFF
+        init_aff_io,
+#endif
 #if 0 /* XXX inits */
         init_qdpc_io,
         init_qdpcc_io,
         init_ddpairs_io,
         init_nersc_io,
-#ifdef HAS_AFF
-        init_aff_io,
-#endif
 #ifdef HAS_CLOVER
         init_clover,
-#endif
-#ifdef HAS_MDWF
-        init_mdwf,
 #endif
 #ifdef HAS_EXTRAS
         init_extras,
@@ -684,20 +680,17 @@ qlua_fini(lua_State *L)
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
-#ifdef HAS_MDWF
-        fini_mdwf,
-#endif
 #ifdef HAS_CLOVER
         fini_clover,
-#endif
-#ifdef HAS_AFF
-        fini_aff_io,
 #endif
         fini_nersc_io,
         fini_ddpairs_io,
         fini_qdpcc_io,
         fini_qdpc_io,
 #endif /* XXX finis */
+#ifdef HAS_AFF
+        fini_aff_io,
+#endif
         fini_gamma,
         fini_latdirprop,
         fini_latdirferm,

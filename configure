@@ -233,7 +233,7 @@ build_modules() {
   echo "#define QDP_VERSION \"$qdp\""
   if [ ! -z "$aff" ] ; then
     echo "#define HAS_AFF"
-    echo "#define AFF_VERSION \"$aff\""
+    echo "#define LHPC_AFF_VERSION \"$aff\""
   fi
   if [ ! -z "$mdwf" ] ; then
     echo "#define HAS_MDWF"

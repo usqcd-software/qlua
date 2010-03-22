@@ -463,7 +463,7 @@ qaff_w_write(lua_State *L)
         }
 
         msg = "Write error";
-        switch (qlua_atype(L, 3)) {
+        switch (qlua_qtype(L, 3)) {
         case qString: {
             const char *str = luaL_checkstring(L, 3);
             
