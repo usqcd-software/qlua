@@ -7,7 +7,7 @@ if not file_name then
   file_name = "./random-gauge.nersc"
 end
 
-U, msg = L:read_NERSC_gauge(file_name)
+U, msg = L:nersc_gauge(file_name)
 
 print("NERSC read:", U, msg)
 

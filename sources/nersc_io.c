@@ -717,8 +717,8 @@ q_nersc_read(lua_State *L)
 }
 
 static const struct luaL_Reg fNERSC[] = {
-    { "read_NERSC_gauge",     q_nersc_read},
-    { NULL,                   NULL}
+    { "nersc_gauge",     q_nersc_read },
+    { NULL,              NULL         }
 };
 
 int
