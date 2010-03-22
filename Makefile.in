@@ -69,12 +69,12 @@ libsrc = fix.c \
          latdirferm.c \
          latdirprop.c \
          qgamma.c \
+	 nersc_io.c \
 
 #	 qio_utils.c \
 #         qdpc_io.c \
 #         qdpcc_io.c \
 #         ddpairs_io.c \
-#	 nersc_io.c \
 #
 ###############################################################################
 ifneq ("$(AFF)", "")
