@@ -13,6 +13,10 @@
 
 #include <qdp.h>
 
+#ifndef QLA_MAX_Nc
+#define QLA_MAX_Nc 10 /* A stopgap to test QDP 1.9.0 */
+#endif
+
 typedef enum {
     /* start with all type that have any of arithmetic operations defined */
     qReal,

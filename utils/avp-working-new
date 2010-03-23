@@ -1,0 +1,18 @@
+#!/bin/sh
+PACKTOP=/Users/avp/Local/packages
+
+#TARGET=`(cd ..; pwd)`/install
+TARGET=$PACKTOP/qlua-1-xxx
+
+LD="gcc -g" \
+./configure \
+   --with-qdp=$PACKTOP/qdp-1.9.0-a5 \
+   --with-lua=$PACKTOP/lua-5.1.4 \
+   --with-gsl=$PACKTOP/gsl-1.13-qr-complex \
+   --with-atlas=$PACKTOP/atlas-3.9.23 \
+   --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
+   --prefix=$TARGET
+
+#   --with-extras \
+#   --with-clover=/Users/avp/Sandbox/USQCD/clover/install-x \
+#

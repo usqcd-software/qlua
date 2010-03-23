@@ -7,11 +7,7 @@ end
 Lx = 4
 Lt = 8
 -- this is probably a bad (chroma) sample file, but it should read OK
-gfile = os.getenv("QDP_FILE")
-if not gfile then 
-  gfile = "./tests/random-gauge.qio"
-end
-output = "xxx"
+output = "xxx" .. tostring(lattice_colors)
 
 -- start with some info about QLUA
 printf("QDP I/O test\n")
@@ -22,7 +18,6 @@ end
 printf("\n")
 printf("Lx = %d\n", Lx)
 printf("Lt = %d\n", Lt)
-printf("gauge file: %s\n\n", gfile)
 
 -- setup gauge
 L = qcd.lattice({Lx, Lx, Lx, Lt})
@@ -58,19 +53,21 @@ function try_write(output, finfo, fmt)
       os.exit(1)
    end
    
+if false then
    if not out:ColorMatrix(U, "") then
       printf("Error writing a vector of ColorMatrix\n")
       os.exit(1)
    end
-   
+end   
+
    printf("write complete\n")
    out:close()
 end
 
 try_write(output, "fmt=none")
-try_write("xxx-nil", "fmt=nil", nil)
-try_write("xxx-single", "fmt=single", "single")
-try_write("xxx-multi", "fmt=multi", "multi")
+try_write(output .. "-nil", "fmt=nil", nil)
+try_write(output .. "-single", "fmt=single", "single")
+try_write(output .. "-multi", "fmt=multi", "multi")
 
 xx, xinfo = qcd.qdpc.Reader(L, output)
 printf("xx  : %s\n", tostring(xx))
