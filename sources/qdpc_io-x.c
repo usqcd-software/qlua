@@ -3,23 +3,33 @@
  *  #define T_QTYPE  <name of the QDP type>
  *  #define QLUA_NAME(x)   x ## <QLUA type>
  *  #define X_ID(x)        x ## <QDP suffix>
+ *
+ * Used for the following Lattice objects:
+ *   T_QTYPE            QLUA_NAME         X_ID
+ *   QDP_Int            x ## LatInt       x ## I
+ *   QDP_RandomState    x ## LatRandom    x ## S
+ *   QDP_D_Real         x ## LatReal      x ## R
+ *   QDP_D_Complex      x ## LatComplex   x ## C
  */
 
 static int
 X_ID(qdpc_r_)(lua_State *L)
 {
-    mReader *reader = q_checkReader(L, 1);
+    mReader *reader = q_checkReader(L, 1, NULL);
+    int Sidx;
 
     check_reader(L, reader);
+    qlua_ObjLattice(L, 1);
+    Sidx = lua_gettop(L);
 
     /* collect garbage now */
     CALL_QDP(L);
     /* read either one or n lattice color matrices */
-    switch (lua_gettop(L)) {
+    switch (lua_gettop(L) - 1) {
     case 1: {
         /* one color matrix */
         QDP_String *info = QDP_string_create();
-        QLUA_NAME(m) *U = QLUA_NAME(qlua_new)(L);
+        QLUA_NAME(m) *U = QLUA_NAME(qlua_new)(L, Sidx);
         
         if (X_ID(QDP_read_)(reader->ptr, info, U->ptr) == 0) {
             /* read successful -- convert to LUA */
@@ -47,7 +57,7 @@ X_ID(qdpc_r_)(lua_State *L)
         U = qlua_malloc(L, n * sizeof (T_QTYPE *));
         lua_createtable(L, n, 0);
         for (i = 0; i < n; i++) {
-            QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L);
+            QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L, Sidx);
             U[i] = ui->ptr;
             lua_rawseti(L, -2, i + 1);
         }
@@ -75,7 +85,8 @@ X_ID(qdpc_r_)(lua_State *L)
 static int
 X_ID(qdpc_w_)(lua_State *L)
 {
-    mWriter *writer = q_checkWriter(L, 1);
+    mWriter *writer = q_checkWriter(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
     const char *info = luaL_checkstring(L, 3);
     QDP_String *xml;
 
@@ -89,9 +100,9 @@ X_ID(qdpc_w_)(lua_State *L)
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
     /* dispatch between single value and vector write */
-    switch (qlua_gettype(L, 2)) {
+    switch (qlua_qtype(L, 2)) {
     case QLUA_NAME(q): {
-        QLUA_NAME(m) *U = QLUA_NAME(qlua_check)(L, 2);
+        QLUA_NAME(m) *U = QLUA_NAME(qlua_check)(L, 2, S);
 
         if (X_ID(QDP_write_)(writer->ptr, xml, U->ptr) == 0) {
             /* success -- return true */
@@ -118,7 +129,7 @@ X_ID(qdpc_w_)(lua_State *L)
             /* full table indexing here */
             lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
             lua_gettable(L, 2);
-            ui = QLUA_NAME(qlua_check)(L, -1);
+            ui = QLUA_NAME(qlua_check)(L, -1, S);
             U[i] = ui->ptr;
         }
         
@@ -135,6 +146,8 @@ X_ID(qdpc_w_)(lua_State *L)
         /* failure to write */
         break;
     }
+    default:
+        break;
     }
 
     /* cleanup */

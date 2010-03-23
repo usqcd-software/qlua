@@ -1,0 +1,2 @@
+-- with with ./qlua tests/qdp-io-nc5.qlua tests/qdp-io-x.qlua
+lattice_colors = 5

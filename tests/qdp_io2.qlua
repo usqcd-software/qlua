@@ -7,7 +7,7 @@ L = qcd.lattice{3,2,4}
 d_name = "xxx-test-global.qdpc"
 
 -- writer
-w = qcd.qdpc.Writer(d_name, "global write test")
+w = qcd.qdpc.Writer(L, d_name, "global write test")
 --- iteger vectors
 i_v = vector.int(10)
 i_v[0] = 2
@@ -57,7 +57,7 @@ w:complex_matrix(c_m, "some complex matrix")
 w:close()
 
 -- reader
-r = qcd.qdpc.Reader(d_name)
+r = qcd.qdpc.Reader(L, d_name)
 r:int_vector(10)
 r:real_vector(37)
 r:complex_vector(14)

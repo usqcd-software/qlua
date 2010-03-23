@@ -717,15 +717,17 @@ q_nersc_read(lua_State *L)
 }
 
 static const struct luaL_Reg fNERSC[] = {
-    { "nersc_gauge",     q_nersc_read },
+    { "read_gauge",      q_nersc_read },
     { NULL,              NULL         }
 };
 
 int
 init_nersc_io(lua_State *L)
 {
-    luaL_getmetatable(L, opLattice);
+    lua_getglobal(L, qcdlib);
+    lua_newtable(L);
     luaL_register(L, NULL, fNERSC);
+    lua_setfield(L, -2, nersc_io);
     lua_pop(L, 1);
 
     return 0;
