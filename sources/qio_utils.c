@@ -36,7 +36,8 @@ qlua_qio_std_reader(mLattice *S, const char *fname, QIO_String *file_xml)
 }
 
 QIO_Writer *
-qlua_qio_std_writer(mLattice *S, const char *fname, QIO_String *file_xml)
+qlua_qio_std_writer(mLattice *S, const char *fname, QIO_String *file_xml,
+                    int volfmt)
 {
     QIO_Layout       layout;
     QIO_Oflag        oflag;
@@ -50,6 +51,5 @@ qlua_qio_std_writer(mLattice *S, const char *fname, QIO_String *file_xml)
     fs.my_io_node      = NULL;
     fs.master_io_node  = NULL;
 
-    return QIO_open_write(file_xml, fname, QIO_SINGLEFILE,
-                          &layout, &fs, &oflag);
+    return QIO_open_write(file_xml, fname, volfmt, &layout, &fs, &oflag);
 }

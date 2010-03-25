@@ -19,10 +19,10 @@
 #include "qgamma.h"                                                  /* DEPS */
 #include "nersc_io.h"                                                /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
+#include "ddpairs_io.h"                                              /* DEPS */
 
 #if 0 /* XXX other includes */
 #include "qdpcc_io.h"                                                /* DEPS */
-#include "ddpairs_io.h"                                              /* DEPS */
 #endif /* XXX other includes */
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
@@ -624,9 +624,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #endif
         init_nersc_io,
         init_qdpc_io,
+        init_ddpairs_io,
 #if 0 /* XXX inits */
         init_qdpcc_io,
-        init_ddpairs_io,
 #ifdef HAS_CLOVER
         init_clover,
 #endif
@@ -683,9 +683,9 @@ qlua_fini(lua_State *L)
 #ifdef HAS_CLOVER
         fini_clover,
 #endif
-        fini_ddpairs_io,
         fini_qdpcc_io,
 #endif /* XXX finis */
+        fini_ddpairs_io,
         fini_qdpc_io,
         fini_nersc_io,
 #ifdef HAS_AFF

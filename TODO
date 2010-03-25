@@ -2,7 +2,6 @@
 **  qclover
 
 * I/O
-** ddpairs_io -- Only Nc=3 for now, but full interface.
 ** qdpcc_io
 
 * Multiple Lattices

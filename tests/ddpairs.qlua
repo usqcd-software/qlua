@@ -1,0 +1,53 @@
+require("stdlib")
+
+L = qcd.lattice{4,4,4,8}
+
+do
+  local x = L:Int(0)
+  for i = 0, #L - 1 do
+    x = x * L[i] + L:pcoord(i)
+  end
+  S = L:RandomState(23423, x)
+end
+
+function show_prop(name, X, z)
+   printf("propagator %s at [%d %d %d %d]\n",
+          name, z[1], z[2], z[3], z[4])
+   local nc = L:defaults().colors
+   for ic = 0, nc - 1 do
+      for is = 0, qcd.Ns - 1 do
+         local Z = X[{c = ic, d = is}]
+         for jc = 0, nc - 1 do
+            for js = 0, qcd.Ns - 1 do
+               z.c = jc
+               z.d = js
+               local v = Z[z]
+               printf("%d %d %d %d : %15.7e %15.7e\n",
+                      ic, is, jc, js, v:real(), v:imag())
+            end
+         end
+      end
+   end
+   printf("\n")
+end
+
+V = S:gaussian_DiracPropagator()
+src = L:DiracPropagator()
+
+L:Subset{axis=#L-1,position=3}:where(function() src:set(V) end)
+prop = S:gaussian_DiracPropagator()
+
+show_prop("in prop", prop, {1,2,3,4})
+
+qcd.ddpairs.write("D", "test.DD", "file info 2",
+                  src, "src info", 3,
+                  prop, "prop info")
+
+sx, px, finfo = qcd.ddpairs.read(L, "test.DD")
+
+show_prop("out prop", px, {1,2,3,4})
+
+printf("file xml read: %s\n", finfo)
+printf("source diff: %g\n", (sx - src):norm2())
+printf("prop diff: %g\n", (px - prop):norm2())
+printf("----- all done\n")

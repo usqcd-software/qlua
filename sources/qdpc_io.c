@@ -766,6 +766,7 @@ init_qdpc_io(lua_State *L)
     lua_newtable(L);
     luaL_register(L, NULL, fQDPio);
     lua_setfield(L, -2, qdp_io);
+    lua_pop(L, 1);
     
     return 0;
 }

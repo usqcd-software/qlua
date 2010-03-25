@@ -335,7 +335,20 @@ qlua_getmetatable(lua_State *L)
 {
     if (lua_type(L, 1) != LUA_TUSERDATA)
         return lua_getmetatable(L, 1);
-    return 0;
+#if 0 /* ??? should work, but does not ... */
+    lua_createtable(L, 0, 0); /* proxy */
+    lua_createtable(L, 0, 3); /* proxy metatable */
+    lua_pushcfunction(L, qlua_nowrite);
+    lua_setfield(L, -2, "__newindex");
+    lua_pushvalue(L, -3);
+    lua_setfield(L, -2, "__index");
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__metatable");
+    lua_pushvalue(L, -1);
+    lua_setmetatable(L, -2);
+    lua_setmetatable(L, -2);
+#endif
+    return 1;
 }
 
 int
