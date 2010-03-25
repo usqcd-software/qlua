@@ -2,7 +2,7 @@ L = qcd.lattice{4,4,4,8}
 
 do
   local x = L:Int(0)
-  for i = 0, qcd.Nd - 1 do
+  for i = 0, #L - 1 do
     x = x * L[i] + L:pcoord(i)
   end
   S = L:RandomState(1235, x)
@@ -10,6 +10,7 @@ end
 
 F = S:gaussian_DiracPropagator()
 
-qcd.qdpcc.write_prop("D", "test-qdpcc.P", "file info", F, "record info")
+qcd.qdpcc.write_prop("double", "test-qdpcc.P", "file info", F, "record info",
+                     "multi")
 
 io.stdout:write("------ done\n")

@@ -49,11 +49,12 @@ function scan_right(mu, sign)
 end
 
 function check_left(mu, sign, g)
-  local z = qcd.left_reconstruct(sign, {mu=mu}, 
-                     qcd.left_project(sign, {mu=mu}, v))
-  local y = g * v
-  printf("check left  mu=%d, sign=%-6s, g=%-20s: D %.8e\n", mu, sign,
-         tostring(g), (y-z):norm2())
+   local qq =  qcd.left_project(sign, {mu=mu}, v)
+   local z = qcd.left_reconstruct(sign, {mu=mu}, qq)
+                    
+   local y = g * v
+   printf("check left  mu=%d, sign=%-6s, g=%-20s: D %.8e\n", mu, sign,
+          tostring(g), (y-z):norm2())
 end
 
 function check_right(mu, sign, g)

@@ -470,10 +470,11 @@ Qs(q_P_reconstruct)(lua_State *L, Qs(X_reconstruct) *op, int nc)
     for (ic = 0; ic < nc; ic++) {
         lua_pushnumber(L, ic + 1);
         lua_gettable(L, 3);
+        int tic_idx = lua_gettop(L);
         qlua_checktable(L, -1, "projected Prop" Qcolors " (%d,*)", ic);
         for (is = 0; is < QDP_Ns/2; is++) {
             lua_pushnumber(L, is + 1);
-            lua_gettable(L, -2);
+            lua_gettable(L, tic_idx);
             a[PIDX(ic, is)] = Qs(qlua_checkLatDirFerm)(L, -1, S, nc);
             if (S == 0) {
                 S = qlua_ObjLattice(L, -1);

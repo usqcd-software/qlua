@@ -1,11 +1,8 @@
 * Clover - only for Nc = 3
 **  qclover
 
-* I/O
-** qdpcc_io
-
 * Multiple Lattices
--- see the latest QDP release: does not build, docs are old (?)
+-- see the latest QDP release: requires new QLA, docs are old (?)
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:

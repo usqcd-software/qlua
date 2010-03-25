@@ -3,6 +3,8 @@
 #include "qio_utils.h"                                               /* DEPS */
 #include "qmp.h"
 
+#include <string.h>
+
 static void
 init_layout(QIO_Layout *layout, mLattice *S)
 {
@@ -52,4 +54,57 @@ qlua_qio_std_writer(mLattice *S, const char *fname, QIO_String *file_xml,
     fs.master_io_node  = NULL;
 
     return QIO_open_write(file_xml, fname, volfmt, &layout, &fs, &oflag);
+}
+
+char
+qlua_qio_file_precision(lua_State *L, int idx)
+{
+    static const struct {
+        char *name;
+        int value;
+    } fmts[] = {
+        { "double", 'D' },
+        { "float",  'F' },
+        { NULL,     -1  }
+    };
+    int i;
+    const char *prec = luaL_checkstring(L, idx);
+
+    for (i = 0; fmts[i].name; i++) {
+        if (strcmp(fmts[i].name, prec) == 0)
+            return fmts[i].value;
+    }
+    return luaL_error(L, "unsupported file format specification");
+}
+
+int 
+qlua_qio_volume_format(lua_State *L, int idx, int tmp_idx)
+{
+    static const struct {
+        char *name;
+        int value;
+    } fmts[] = {
+        { "single", QDP_SINGLEFILE },
+        { "multi",  QDP_MULTIFILE  },
+        { NULL,     -1  }
+    };
+
+    if (idx < tmp_idx) {
+        switch (lua_type(L, idx)) {
+        case LUA_TNONE:
+        case LUA_TNIL:
+            return QDP_SINGLEFILE;
+        default: {
+            int i;
+            const char *volfmt = luaL_checkstring(L, idx);
+            for (i = 0; fmts[i].name; i++) {
+                if (strcmp(fmts[i].name, volfmt) == 0)
+                    return fmts[i].value;
+            }
+            return luaL_error(L, "unsupported volume format");
+        }
+        }
+    } else {
+        return QDP_SINGLEFILE;
+    }
 }

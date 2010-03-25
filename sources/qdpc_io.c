@@ -1,6 +1,7 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
+#include "qio_utils.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
@@ -11,13 +12,6 @@
 #include "latreal.h"                                                 /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
-#include "qdp_d2.h"
-#include "qdp_d3.h"
-#include "qdp_dn.h"
-#include "qla_types.h"
-#include "qla_d2.h"
-#include "qla_d3.h"
-#include "qla_dn.h"
 
 #include <string.h>
 
@@ -707,28 +701,12 @@ q_qdpc_writer (lua_State *L)
 {
     const char *name = luaL_checkstring(L, 2);
     const char *info = luaL_checkstring(L, 3);
+    int volfmt = qlua_qio_volume_format(L, 4, lua_gettop(L));
     QDP_String *xml = 0;
     QDP_Writer *writer = 0;
     int rcount;
-    int volfmt;
 
     qlua_checkLattice(L, 1);
-
-    switch (lua_type(L, 4)) {
-    case LUA_TNONE:
-    case LUA_TNIL:
-        volfmt = QDP_SINGLEFILE;
-        break;
-    default: { /* must be LUA_TSTRING, which we check */
-        const char *fmt = luaL_checkstring(L, 4);
-        if (strcmp(fmt, "single") == 0)
-            volfmt = QDP_SINGLEFILE;
-        else if (strcmp(fmt, "multi") == 0)
-            volfmt = QDP_MULTIFILE;
-        else
-            return luaL_error(L, "unsupported file format");
-    }
-    }
 
     /* first collect garbage */
     CALL_QDP(L);

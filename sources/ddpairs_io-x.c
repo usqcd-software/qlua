@@ -16,8 +16,8 @@ Qs(float_DD_put)(char *buf, size_t index, int count, void *v_arg)
     typedef Qx(QLA_D,_DiracPropagator) Ptype;
 #endif
     Ptype *P = arg->P;
-    QLA_F_Complex *src = (void *)buf;
     Ptype *dst = &P[index];
+    QLA_F_Complex *src = (void *)buf;
     int js = arg->js;
     int jc = arg->jc;
     int is, ic;
@@ -106,7 +106,7 @@ Qs(dd_read_comp)(int nc,
         datum_size = sizeof (Dtype);
         break;
     default:
-        return luaL_error(L, "unsupported output precision");
+        return luaL_error(L, "unsupported file precision");
     }
 
     data.nc = nc;
@@ -131,12 +131,12 @@ Qs(dd_read)(lua_State *L, int off, int nc)
 #else
     typedef Qx(QLA_D,_DiracPropagator) Ptype;
 #endif
-    mLattice *S = qlua_checkLattice(L, off + 1);
-    const char *fname = luaL_checkstring(L, off + 2);
-    Qs(mLatDirProp) *src = Qs(qlua_newLatDirProp)(L, off + 1, nc);
-    Qs(mLatDirProp) *prop = Qs(qlua_newLatDirProp)(L, off + 1, nc);
-    QIO_String *file_xml = NULL;
-    QIO_Reader *reader = NULL;
+    mLattice          *S        = qlua_checkLattice(L, off + 1);
+    const char        *fname    = luaL_checkstring(L, off + 2);
+    Qs(mLatDirProp)   *src      = Qs(qlua_newLatDirProp)(L, off + 1, nc);
+    Qs(mLatDirProp)   *prop     = Qs(qlua_newLatDirProp)(L, off + 1, nc);
+    QIO_String        *file_xml = NULL;
+    QIO_Reader        *reader   = NULL;
     int js, jc;
     Ptype *xP;
     Ptype *xS;
@@ -223,51 +223,33 @@ Qs(dd_write)(lua_State *L, int nc)
     typedef Qx(QLA_F,_DiracFermion) Ftype;
 #endif
     typedef void Getter(char *buf, size_t index, int count, void *arg);
-    const char       *prec = luaL_checkstring(L, 1);
-    const char       *fname = luaL_checkstring(L, 2);
-    const char       *file_xml = luaL_checkstring(L, 3);
-    Qs(mLatDirProp)  *source = Qs(qlua_checkLatDirProp)(L, 4, NULL, nc);
-    mLattice         *S = qlua_ObjLattice(L, 4);
-    int               Sidx = lua_gettop(L);
-    const char       *source_xml = luaL_checkstring(L, 5);
-    int               time_slice = luaL_checkint(L, 6);
-    Qs(mLatDirProp)  *prop = Qs(qlua_checkLatDirProp)(L, 7, S, nc);
-    const char       *prop_xml = luaL_checkstring(L, 8);
-    int               volfmt = QDP_SINGLEFILE;
-    QIO_Writer       *writer = NULL;
-    char             *file_prec = NULL;
-    Getter           *getter = NULL;
-    int               typesize = 0;
-    int               datacount = 0;
-    int               datum_size = 0;
-    int               word_size = 0;
-    char             *datatype = NULL;
-    QIO_String       *f_xml = NULL;
-    QIO_String       *s_xml = NULL;
-    QIO_String       *p_xml = NULL;
+    const char        prec        = qlua_qio_file_precision(L, 1);
+    const char       *fname       = luaL_checkstring(L, 2);
+    const char       *file_xml    = luaL_checkstring(L, 3);
+    Qs(mLatDirProp)  *source      = Qs(qlua_checkLatDirProp)(L, 4, NULL, nc);
+    mLattice         *S           = qlua_ObjLattice(L, 4);
+    int               Sidx        = lua_gettop(L);
+    const char       *source_xml  = luaL_checkstring(L, 5);
+    int               time_slice  = luaL_checkint(L, 6);
+    Qs(mLatDirProp)  *prop        = Qs(qlua_checkLatDirProp)(L, 7, S, nc);
+    const char       *prop_xml    = luaL_checkstring(L, 8);
+    int               volfmt      = qlua_qio_volume_format(L, 9, Sidx);
+    QIO_Writer       *writer      = NULL;
+    char             *file_prec   = NULL;
+    Getter           *getter      = NULL;
+    int               typesize    = 0;
+    int               datacount   = 0;
+    int               datum_size  = 0;
+    int               word_size   = 0;
+    char             *datatype    = NULL;
+    QIO_String       *f_xml       = NULL;
+    QIO_String       *s_xml       = NULL;
+    QIO_String       *p_xml       = NULL;
+    int              *lo = qlua_malloc(L, S->rank * sizeof (int));
+    int              *hi = qlua_malloc(L, S->rank * sizeof (int));
     Qs(USQCDArgs)     dataP;
     Qs(USQCDArgs)     dataS;
     int               i, jc, js;
-    int              *lo = qlua_malloc(L, S->rank * sizeof (int));
-    int              *hi = qlua_malloc(L, S->rank * sizeof (int));
-
-    if (Sidx > 9) {
-        switch (lua_type(L, 9)) {
-        case LUA_TNONE:
-        case LUA_TNIL:
-            volfmt = QDP_SINGLEFILE;
-            break;
-        default: { /* must be LUA_TSTRING, which we check */
-            const char *fmt = luaL_checkstring(L, 9);
-            if (strcmp(fmt, "single") == 0)
-                volfmt = QDP_SINGLEFILE;
-            else if (strcmp(fmt, "multi") == 0)
-                volfmt = QDP_MULTIFILE;
-            else
-                return luaL_error(L, "unsupported file format");
-        }
-        }
-    }
 
     CALL_QDP(L);
     for (i = 0; i < S->rank; i++) {
@@ -276,17 +258,13 @@ Qs(dd_write)(lua_State *L, int nc)
     }
     if ((time_slice >= 0) && (time_slice < S->dim[S->rank - 1]))
         lo[S->rank - 1] = hi[S->rank - 1] = time_slice;
-    if ((prec[0] == 0) || (prec[1] != 0))
-        goto bad_output_prec;
-    switch (prec[0]) {
+    switch (prec) {
     case 'F':
         file_prec = "F";
         getter = Qs(float_DD_get);
         datatype = "QDP_F" Qcolors "_DiracFermion";
         word_size = sizeof (QLA_F_Real);
         datum_size = sizeof (Ftype);
-        datacount = 1;
-        typesize = datum_size;
         break;
     case 'D':
         file_prec = "D";
@@ -294,13 +272,13 @@ Qs(dd_write)(lua_State *L, int nc)
         datatype = "QDP_D" Qcolors "_DiracFermion";
         word_size = sizeof (QLA_D_Real);
         datum_size = sizeof (Dtype);
-        datacount = 1;
-        typesize = datum_size;
         break;
     default:
-    bad_output_prec:
         return luaL_error(L, "unsupported output precision");
     }
+    datacount = 1;
+    typesize = datum_size;
+
     f_xml = QIO_string_create();
     QIO_string_set(f_xml, file_xml);
     s_xml = QIO_string_create();
@@ -365,11 +343,6 @@ Qs(dd_write)(lua_State *L, int nc)
 
     return 0;
 }
-#if 0 /* XXX */
-/* writer */
-
-/******************************/
-#endif /* XXX */
 
 #undef Qs
 #undef Qx

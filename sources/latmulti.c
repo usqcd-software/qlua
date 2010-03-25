@@ -74,10 +74,12 @@ q_latmulti(lua_State *L)
 {
     int size = luaL_checkint(L, 2);
     mLatInt *m = qlua_checkLatInt(L, 3, NULL);
-    mLatMulti *v = qlua_newLatMulti(L, lua_gettop(L));
+    mLatMulti *v;
     QLA_Int *mm;
     int k;
 
+    qlua_ObjLattice(L, 3);
+    v = qlua_newLatMulti(L, lua_gettop(L));
     v->size = size;
     CALL_QDP(L);
     mm = QDP_expose_I(m->ptr);

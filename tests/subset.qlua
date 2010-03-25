@@ -4,8 +4,8 @@ L = qcd.lattice { 3, 4, 2, 4}
 
 printf("Lattice: %s\n", tostring(L))
 
-ALL = L.all
-Even = L.even
+ALL = L:Subset("all")
+Even = L:Subset("even")
 
 printf("ALL: %s\n", tostring(ALL))
 printf("Even: %s\n", tostring(Even))

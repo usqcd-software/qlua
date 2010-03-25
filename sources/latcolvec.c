@@ -7,15 +7,6 @@
 #include "latcomplex.h"                                              /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "qmp.h"
-/*
-#include "qdp_d2.h"
-#include "qdp_d3.h"
-#include "qdp_dn.h"
-#include "qla_types.h"
-#include "qla_d2.h"
-#include "qla_d3.h"
-#include "qla_dn.h"
-*/
 
 #define QNc  '2'
 #define Qcolors "2"

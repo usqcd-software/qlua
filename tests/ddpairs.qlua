@@ -39,9 +39,9 @@ prop = S:gaussian_DiracPropagator()
 
 show_prop("in prop", prop, {1,2,3,4})
 
-qcd.ddpairs.write("D", "test.DD", "file info 2",
+qcd.ddpairs.write("double", "test.DD", "file info 2",
                   src, "src info", 3,
-                  prop, "prop info")
+                  prop, "prop info", "multi")
 
 sx, px, finfo = qcd.ddpairs.read(L, "test.DD")
 

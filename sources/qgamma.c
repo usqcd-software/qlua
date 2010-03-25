@@ -4,14 +4,6 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
-#include "qdp.h"
-#include "qdp_d2.h"
-#include "qdp_d3.h"
-#include "qdp_dn.h"
-#include "qla_types.h"
-#include "qla_d2.h"
-#include "qla_d3.h"
-#include "qla_dn.h"
 
 #include <math.h>
 #include <string.h>

@@ -1,0 +1,49 @@
+require "stdlib"
+
+Lx = 4
+L = qcd.lattice{Lx,Lx + 1,Lx + 2}
+
+VOLUME = 1
+for i = 0, #L - 1 do
+   VOLUME = VOLUME * L[i]
+end
+
+printf("L: %d %s\n", #L, tostring(L))
+printf("VOLUME: %d\n", VOLUME)
+
+function show_x(n, d, x)
+  printf("%s: %s\n", tostring(n), tostring(x))
+  local v = 0
+  for i = 0, #x - 1 do
+    printf("  [%d] = %s\n", i, tostring(x[i]))
+    v = v + x[i]
+  end
+  printf(" sum: %s\n", tostring(v))
+end
+
+
+printf("sample multi: %s\n", tostring(L:MultiSet(8, L:pcoord(0))))
+
+for mu = 0, #L - 1 do
+  for x = 0, #L - 1 do
+     show_x("axis" .. mu .. " on " .. x, x,
+              L:pcoord(mu):sum(
+                 L:MultiSet(L[x],
+                            L:pcoord(x))))
+  end
+end
+
+S = L:RandomState(os.time(), L:pcoord(0) +
+                             L[0] * L:pcoord(1) + 
+                             L[0] * L[1] * L:pcoord(2))
+
+function check_X(m, x)
+   printf("checkX: %s %s\n", tostring(m), tostring(x))
+   for d = 0, #L - 1 do
+     show_x("partial", d, x:sum(L:MultiSet(L[d], L:pcoord(d))))
+   end
+   printf("full: %s\n", tostring(x:sum()))
+end
+
+check_X("real", S:gaussian_Real())
+check_X("complex", S:gaussian_Complex())

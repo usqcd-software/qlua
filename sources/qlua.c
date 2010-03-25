@@ -20,10 +20,7 @@
 #include "nersc_io.h"                                                /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
-
-#if 0 /* XXX other includes */
 #include "qdpcc_io.h"                                                /* DEPS */
-#endif /* XXX other includes */
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
@@ -625,8 +622,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_nersc_io,
         init_qdpc_io,
         init_ddpairs_io,
-#if 0 /* XXX inits */
         init_qdpcc_io,
+#if 0 /* XXX inits */
 #ifdef HAS_CLOVER
         init_clover,
 #endif
@@ -683,8 +680,8 @@ qlua_fini(lua_State *L)
 #ifdef HAS_CLOVER
         fini_clover,
 #endif
-        fini_qdpcc_io,
 #endif /* XXX finis */
+        fini_qdpcc_io,
         fini_ddpairs_io,
         fini_qdpc_io,
         fini_nersc_io,
