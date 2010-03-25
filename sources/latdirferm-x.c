@@ -18,11 +18,7 @@ Qs(q_D_gc)(lua_State *L)
 {
     Qs(mLatDirFerm) *b = Qs(qlua_checkLatDirFerm)(L, 1, NULL, -1);
 
-#if QNc == 'N'
-    Qx(QDP_D,_destroy_D)(QC(b), b->ptr);
-#else
     Qx(QDP_D,_destroy_D)(b->ptr);
-#endif
     b->ptr = 0;
 
     return 0;
@@ -44,20 +40,12 @@ Qs(q_D_get)(lua_State *L)
                                                           QC(V));
 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_V_eq_colorvec_D)(QC(V), r->ptr, V->ptr, d, *S->qss);
-#else
                 Qx(QDP_D,_V_eq_colorvec_D)(r->ptr, V->ptr, d, *S->qss);
-#endif
             } else {
                 mLatComplex *r = qlua_newLatComplex(L, lua_gettop(L));
 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_C_eq_elem_D)(QC(V), r->ptr, V->ptr, c, d, *S->qss);
-#else
                 Qx(QDP_D,_C_eq_elem_D)(r->ptr, V->ptr, c, d, *S->qss);
-#endif
             }
         } else {
             if (c == -1) {
@@ -65,16 +53,17 @@ Qs(q_D_get)(lua_State *L)
                 return qlua_badindex(L, "DiracFermion" Qcolors);
             } else {
                 QLA_Complex *W = qlua_newComplex(L);
-                Qx(QLA_D,_DiracFermion) *locked;
+#if QNc == 'N'
+                typedef QLA_DN_DiracFermion(V->nc, Vtype);
+#else
+                typedef Qx(QLA_D,_DiracFermion) Vtype;
+#endif
+                Vtype *locked;
                 double zri[2];
 
                 qlua_verifylatcoord(L, idx, S);
                 CALL_QDP(L);
-#if QNc == 'N'
-                locked = Qx(QDP_D,_expose_D)(QC(V), V->ptr);
-#else
                 locked = Qx(QDP_D,_expose_D)(V->ptr);
-#endif
                 if (QDP_node_number(idx) == QDP_this_node) {
                     QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[QDP_index(idx)],
                                                          c, d);
@@ -84,14 +73,9 @@ Qs(q_D_get)(lua_State *L)
                     zri[0] = 0;
                     zri[1] = 0;
                 }
-#if QNc == 'N'
-                Qx(QDP_D,_reset_D)(QC(V), V->ptr);
-#else
                 Qx(QDP_D,_reset_D)(V->ptr);
-#endif
                 QMP_sum_double_array(zri, 2);
                 QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
-
             }
         }
         qlua_free(L, idx);
@@ -119,20 +103,12 @@ Qs(q_D_put)(lua_State *L)
             Qs(mLatColVec) *z = Qs(qlua_checkLatColVec)(L, 3, S, QC(V));
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_D_eq_colorvec_V)(QC(V), V->ptr, z->ptr, d, *S->qss);
-#else
             Qx(QDP_D,_D_eq_colorvec_V)(V->ptr, z->ptr, d, *S->qss);
-#endif
         } else {
             mLatComplex *z = qlua_checkLatComplex(L, 3, S);
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_D_eq_elem_C)(QC(V), V->ptr, z->ptr, c, d, *S->qss);
-#else
             Qx(QDP_D,_D_eq_elem_C)(V->ptr, z->ptr, c, d, *S->qss);
-#endif
         }
     } else {
         if (c == -1) {
@@ -142,24 +118,19 @@ Qs(q_D_put)(lua_State *L)
             QLA_Complex *z = qlua_checkComplex(L, 3);
             qlua_verifylatcoord(L, idx, S);
             CALL_QDP(L);
-            if (QDP_node_number(idx) == QDP_this_node) {
 #if QNc == 'N'
-                Qx(QLA_D,_DiracFermion) *locked = Qx(QDP_D,_expose_D)(QC(V),
-                                                                      V->ptr);
-                QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[QDP_index(idx)],
-                                                     c, d);
-
-                QLA_c_eq_c(*zz, *z);
-                Qx(QDP_D,_reset_D)(QC(V), V->ptr);
+            typedef QLA_DN_DiracFermion(V->nc, Vtype);
 #else
-                Qx(QLA_D,_DiracFermion) *locked = Qx(QDP_D,_expose_D)(V->ptr);
+            typedef Qx(QLA_D,_DiracFermion) Vtype;
+#endif
+            Vtype *locked = Qx(QDP_D,_expose_D)(V->ptr);
+            if (QDP_node_number(idx) == QDP_this_node) {
                 QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[QDP_index(idx)],
                                                      c, d);
 
                 QLA_c_eq_c(*zz, *z);
-                Qx(QDP_D,_reset_D)(V->ptr);
-#endif
             }
+            Qx(QDP_D,_reset_D)(V->ptr);
         }
     }
     qlua_free(L, idx);
@@ -176,11 +147,7 @@ Qs(q_D_neg)(lua_State *L)
     QLA_D_Real m1 = -1;
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_r_times_D)(QC(a), r->ptr, &m1, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_r_times_D)(r->ptr, &m1, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -193,11 +160,7 @@ Qs(q_D_norm2_)(lua_State *L)
     QLA_D_Real n;
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_r_eq_norm2_D)(QC(a), &n, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_r_eq_norm2_D)(&n, a->ptr, *S->qss);
-#endif
     lua_pushnumber(L, n);
     
     return 1;
@@ -213,11 +176,7 @@ Qs(q_D_shift)(lua_State *L)
     Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_sD)(QC(a), r->ptr, a->ptr, shift, dir, *S->qss);
-#else
     Qx(QDP_D,_D_eq_sD)(r->ptr, a->ptr, shift, dir, *S->qss);
-#endif
 
     return 1;
 }
@@ -230,11 +189,7 @@ Qs(q_D_conj)(lua_State *L)
     Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_conj_D)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_conj_D)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -253,22 +208,12 @@ Qs(q_D_gamma)(lua_State *L)
         Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(f));
 
         CALL_QDP(L);
-#if QNc == 'N'
-        if (mu < 5) {
-            Qx(QDP_D,_D_eq_gamma_times_D)(QC(f), r->ptr, f->ptr, 1 << mu,
-                                          *S->qss);
-
-        } else {
-            Qx(QDP_D,_D_eq_gamma_times_D)(QC(f), r->ptr, f->ptr, 15, *S->qss);
-        }
-#else
         if (mu < 5) {
             Qx(QDP_D,_D_eq_gamma_times_D)(r->ptr, f->ptr, 1 << mu, *S->qss);
 
         } else {
             Qx(QDP_D,_D_eq_gamma_times_D)(r->ptr, f->ptr, 15, *S->qss);
         }
-#endif
 
         return 1;
     }
@@ -276,11 +221,7 @@ Qs(q_D_gamma)(lua_State *L)
         Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(f));
 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_D_eq_gamma_times_D)(QC(f), r->ptr, f->ptr, n, *S->qss);
-#else
         Qx(QDP_D,_D_eq_gamma_times_D)(r->ptr, f->ptr, n, *S->qss);
-#endif
         
         return 1;
     }
@@ -296,11 +237,7 @@ Qs(q_D_set)(lua_State *L)
     Qs(mLatDirFerm) *a = Qs(qlua_checkLatDirFerm)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_D)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_D)(r->ptr, a->ptr, *S->qss);
-#endif
     lua_pop(L, 2);
 
     return 1;
@@ -315,11 +252,8 @@ Qs(q_D_dot_)(lua_State *L)
     mLatComplex *s = qlua_newLatComplex(L, lua_gettop(L));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_C_eq_D_dot_D)(QC(a), s->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_C_eq_D_dot_D)(s->ptr, a->ptr, b->ptr, *S->qss);
-#endif
+
     return 1;
 }
 
@@ -332,11 +266,7 @@ Qs(q_D_add_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_D_plus_D)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_D_plus_D)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -350,11 +280,7 @@ Qs(q_D_sub_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_D_minus_D)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_D_minus_D)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -368,11 +294,7 @@ Qs(q_D_mul_r_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_r_times_D)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_r_times_D)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -386,11 +308,7 @@ Qs(q_r_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_r_times_D)(QC(b), c->ptr, &a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_r_times_D)(c->ptr, &a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -404,11 +322,7 @@ Qs(q_D_mul_c_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_c_times_D)(QC(a), c->ptr, b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_c_times_D)(c->ptr, b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -422,11 +336,7 @@ Qs(q_c_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_c_times_D)(QC(b), c->ptr, a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_c_times_D)(c->ptr, a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -434,39 +344,38 @@ Qs(q_c_mul_D_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Real *a;
-    Qx(QLA_D,_DiracFermion) *b;
+    void *b; /* Qx(QLA_D,_DiracFermion) *b; */
 } Qs(RDmul_args); /* YYY global state */
 
+
+#if QNc == 'N'
+static void
+Qs(do_RDmul)(int nc, QLA_DN_DiracFermion(nc, (*r)), int idx)
+{
+    QLA_DN_DiracFermion(nc, (*b)) = Qs(RDmul_args).b;
+    Qx(QLA_D,_D_eq_r_times_D)(nc, r, &Qs(RDmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_RDmul)(Qx(QLA_D,_DiracFermion) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_D_eq_r_times_D)(Qs(RDmul_args).nc, r,
-                              &Qs(RDmul_args).a[idx], &Qs(RDmul_args).b[idx]);
-#else
-    Qx(QLA_D,_D_eq_r_times_D)(r,
-                              &Qs(RDmul_args).a[idx], &Qs(RDmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_DiracFermion) *b = Qs(RDmul_args).b;
+    Qx(QLA_D,_D_eq_r_times_D)(r, &Qs(RDmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_D_eq_R_times_D)(Qx(QDP_D,_DiracFermion) *r,
+Qs(X_D_eq_R_times_D)(int nc,
+                     Qx(QDP_D,_DiracFermion) *r,
                      QDP_D_Real *a,
                      Qx(QDP_D,_DiracFermion) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(RDmul_args).nc = nc;
     Qs(RDmul_args).a = QDP_D_expose_R(a);
-#if QNc == 'N'
-    Qs(RDmul_args).b = Qx(QDP_D,_expose_D)(nc, b);
-    Qx(QDP_D,_D_eq_funci)(nc, r, Qs(do_RDmul), s);
-    Qx(QDP_D,_reset_D)(nc, b);
-#else
     Qs(RDmul_args).b = Qx(QDP_D,_expose_D)(b);
     Qx(QDP_D,_D_eq_funci)(r, Qs(do_RDmul), s);
     Qx(QDP_D,_reset_D)(b);
-#endif
     QDP_D_reset_R(a);
     Qs(RDmul_args).a = 0;
     Qs(RDmul_args).b = 0;
@@ -482,7 +391,7 @@ Qs(q_R_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_D_eq_R_times_D)(c->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_D_eq_R_times_D)(QC(b), c->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -496,7 +405,7 @@ Qs(q_D_mul_R_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_D_eq_R_times_D)(c->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_D_eq_R_times_D)(QC(a), c->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -504,39 +413,37 @@ Qs(q_D_mul_R_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Complex *a;
-    Qx(QLA_D,_DiracFermion) *b;
+    void *b; /* Qx(QLA_D,_DiracFermion) *b; */
 } Qs(CDmul_args); /* YYY global state */
 
+#if QNc == 'N'
+static void
+Qs(do_CDmul)(int nc, QLA_DN_DiracFermion(nc, (*r)), int idx)
+{
+    QLA_DN_DiracFermion(nc, (*b)) = Qs(CDmul_args).b;
+    Qx(QLA_D,_D_eq_c_times_D)(nc, r, &Qs(CDmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_CDmul)(Qx(QLA_D,_DiracFermion) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_D_eq_c_times_D)(Qs(CDmul_args).nc, r,
-                              &Qs(CDmul_args).a[idx], &Qs(CDmul_args).b[idx]);
-#else
-    Qx(QLA_D,_D_eq_c_times_D)(r,
-                              &Qs(CDmul_args).a[idx], &Qs(CDmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_DiracFermion) *b = Qs(CDmul_args).b;
+    Qx(QLA_D,_D_eq_c_times_D)(r, &Qs(CDmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_D_eq_C_times_D)(Qx(QDP_D,_DiracFermion) *r,
+Qs(X_D_eq_C_times_D)(int nc,
+                     Qx(QDP_D,_DiracFermion) *r,
                      QDP_D_Complex *a,
                      Qx(QDP_D,_DiracFermion) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(CDmul_args).nc = nc;
     Qs(CDmul_args).a = QDP_D_expose_C(a);
-#if QNc == 'N'
-    Qs(CDmul_args).b = Qx(QDP_D,_expose_D)(nc, b);
-    Qx(QDP_D,_D_eq_funci)(nc, r, Qs(do_CDmul), s);
-    Qx(QDP_D,_reset_D)(nc, b);
-#else
     Qs(CDmul_args).b = Qx(QDP_D,_expose_D)(b);
     Qx(QDP_D,_D_eq_funci)(r, Qs(do_CDmul), s);
     Qx(QDP_D,_reset_D)(b);
-#endif
     QDP_D_reset_C(a);
     Qs(CDmul_args).a = 0;
     Qs(CDmul_args).b = 0;
@@ -552,7 +459,7 @@ Qs(q_C_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_D_eq_C_times_D)(c->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_D_eq_C_times_D)(QC(b), c->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -566,7 +473,7 @@ Qs(q_D_mul_C_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_D_eq_C_times_D)(c->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_D_eq_C_times_D)(QC(a), c->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -580,11 +487,7 @@ Qs(q_M_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_M_times_D)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_M_times_D)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -598,11 +501,7 @@ Qs(q_D_div_r_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_r_times_D)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_r_times_D)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -620,11 +519,7 @@ Qs(q_D_div_c_)(lua_State *L)
     CALL_QDP(L);
     QLA_real(s) = n * QLA_real(*b);
     QLA_imag(s) = -n * QLA_imag(*b);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_c_times_D)(QC(a), c->ptr, &s, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_c_times_D)(c->ptr, &s, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -650,11 +545,7 @@ Qs(q_D_copy)(lua_State *L)
     Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_D_eq_D)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_D_eq_D)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -745,11 +636,8 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
         Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_D_eq_zero)(nc, v->ptr, *S->qss);
-#else
         Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
-#endif
+
         return 1;
     }
     case 3: {
@@ -761,13 +649,8 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
             Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_D_eq_zero)(nc, v->ptr, *S->qss);
-            Qx(QDP_D,_D_eq_elem_C)(nc, v->ptr, z->ptr, c, d, *S->qss);
-#else
             Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
             Qx(QDP_D,_D_eq_elem_C)(v->ptr, z->ptr, c, d, *S->qss);
-#endif
 
             return 1;
         }
@@ -777,13 +660,8 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
             Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_D_eq_zero)(nc, v->ptr, *S->qss);
-            Qx(QDP_D,_D_eq_colorvec_V)(nc, v->ptr, w->ptr, d, *S->qss);
-#else
             Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
             Qx(QDP_D,_D_eq_colorvec_V)(v->ptr, w->ptr, d, *S->qss);
-#endif
             return 1;
         }
         default:

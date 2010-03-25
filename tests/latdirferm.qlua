@@ -23,7 +23,7 @@ w0 = x6[{d=2}]
 cc = x3[{c=1,d=0}]
 x0[{c=0,d=0}] = qcd.dot(w0, v0)
 
-print("element: " .. tostring(x3[{1,2,3,c=0,d=1}]))
+print("element: " .. tostring(x6[{1,2,3,c=0,d=1}]))
 
 y = x0 + x2 * 6 + complex(2,3) * x3 + x6 * complex(5,4) + x0 * 5
 z = y:gamma{mu=0}

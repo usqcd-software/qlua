@@ -1,21 +1,26 @@
 #ifndef MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 #define MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 
+#define QDP_Nc 'Z' /* Try to confuse QDP & QLA to warn about undefined Nc */
 #define QDP_Precision 'D' /* DO NOT CHANGE THESE DEFAULTS */
 #define QDP_Ns 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
 #include <stdio.h>
 
 #define lua_c
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
+#include "lua.h"
+#include "lauxlib.h"
+#include "lualib.h"
 
-#include <qdp.h>
-
-#ifndef QLA_MAX_Nc
-#define QLA_MAX_Nc 10 /* A stopgap to test QDP 1.9.0 */
-#endif
+#include "qdp.h"
+#include "qdp_d2.h"
+#include "qdp_d3.h"
+#include "qdp_dn.h"
+#include "qla_types.h"
+#include "qla.h"
+#include "qla_d2.h"
+#include "qla_d3.h"
+#include "qla_dn.h"
 
 typedef enum {
     /* start with all type that have any of arithmetic operations defined */

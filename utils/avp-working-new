@@ -4,7 +4,7 @@ PACKTOP=/Users/avp/Local/packages
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$PACKTOP/qlua-1-xxx
 
-LD="gcc -g" \
+CC="gcc -g -std=c99" \
 ./configure \
    --with-qdp=$PACKTOP/qdp-1.9.0-a5 \
    --with-lua=$PACKTOP/lua-5.1.4 \

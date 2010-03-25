@@ -18,11 +18,7 @@ Qs(q_P_gc)(lua_State *L)
 {
     Qs(mLatDirProp) *b = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
 
-#if QNc == 'N'
-    Qx(QDP_D,_destroy_P)(QC(b), b->ptr);
-#else
     Qx(QDP_D,_destroy_P)(b->ptr);
-#endif
     b->ptr = 0;
 
     return 0;
@@ -40,11 +36,7 @@ Qs(q_P_get)(lua_State *L)
         Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(V));
                 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_D_eq_diracvec_P)(QC(V), r->ptr, V->ptr, c, d, *S->qss);
-#else
         Qx(QDP_D,_D_eq_diracvec_P)(r->ptr, V->ptr, c, d, *S->qss);
-#endif
 
         return 1;
     }
@@ -66,11 +58,7 @@ Qs(q_P_put)(lua_State *L)
     Qs(mLatDirFerm) *r = Qs(qlua_checkLatDirFerm)(L, 3, S, QC(V));
             
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_diracvec_D)(QC(V), V->ptr, r->ptr, c, d, *S->qss);
-#else
     Qx(QDP_D,_P_eq_diracvec_D)(V->ptr, r->ptr, c, d, *S->qss);
-#endif
 
     return 0;
 }
@@ -83,11 +71,7 @@ Qs(q_P_norm2_)(lua_State *L)
     QLA_D_Real n;
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_r_eq_norm2_P)(QC(a), &n, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_r_eq_norm2_P)(&n, a->ptr, *S->qss);
-#endif
     lua_pushnumber(L, n);
     
     return 1;
@@ -103,11 +87,7 @@ Qs(q_P_shift)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_sP)(QC(a), r->ptr, a->ptr, shift, dir, *S->qss);
-#else
     Qx(QDP_D,_P_eq_sP)(r->ptr, a->ptr, shift, dir, *S->qss);
-#endif
 
     return 1;
 }
@@ -120,11 +100,7 @@ Qs(q_P_conj)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_conj_P)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_conj_P)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -137,11 +113,7 @@ Qs(q_P_trans)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_transpose_P)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_transpose_P)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -154,11 +126,7 @@ Qs(q_P_adjoin)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_Pa)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_Pa)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -171,25 +139,31 @@ Qs(q_P_spintrace)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_spintrace_P)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_spintrace_P)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
 
 static struct {
     int nc;
-    Qx(QLA_D,_DiracPropagator) *a;
+    void *a; /* Qx(QLA_D,_DiracPropagator) *a; */
 } Qs(Pst_args); /* YYY global state */
 
 static void
+#if QNc == 'N'
+Qs(do_Pst)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
+#else
 Qs(do_Pst)(Qx(QLA_D,_DiracPropagator) *r, int idx)
+#endif
 {
-    Qx(QLA_D,_DiracPropagator) *a = &Qs(Pst_args).a[idx];
-    int nc = Qs(Pst_args).nc;
+#if QNc == 'N'
+    QLA_DN_DiracPropagator(nc, (*ai)) = Qs(Pst_args).a;
+    QLA_DN_DiracPropagator(nc, (*a)) = &ai[idx];
+#else
+    Qx(QLA_D,_DiracPropagator) *ai = Qs(Pst_args).a;
+    Qx(QLA_D,_DiracPropagator) *a = &ai[idx];
+    int nc = QC(a);
+#endif
     int is, ic, js, jc;
 
     for (is = 0; is < QDP_Ns; is++) {
@@ -213,15 +187,9 @@ Qs(q_P_spintranspose)(lua_State *L)
 
     CALL_QDP(L);
     Qs(Pst_args).nc = QC(a);
-#if QNc == 'N'
-    Qs(Pst_args).a = Qx(QDP_D,_expose_P)(QC(a), a->ptr);
-    Qx(QDP_D,_P_eq_funci)(QC(a), r->ptr, Qs(do_Pst), *S->qss);
-    Qx(QDP_D,_reset_P)(QC(a), a->ptr);
-#else
     Qs(Pst_args).a = Qx(QDP_D,_expose_P)(a->ptr);
     Qx(QDP_D,_P_eq_funci)(r->ptr, Qs(do_Pst), *S->qss);
     Qx(QDP_D,_reset_P)(a->ptr);
-#endif
     Qs(Pst_args).a = 0;
     Qs(Pst_args).nc = -1;
 
@@ -231,8 +199,14 @@ Qs(q_P_spintranspose)(lua_State *L)
 static void
 Qs(do_Ptrace)(QLA_D_Complex *r, int idx)
 {
-    Qx(QLA_D,_DiracPropagator) *a = &Qs(Pst_args).a[idx];
     int nc = Qs(Pst_args).nc;
+#if QNc == 'N'
+    QLA_DN_DiracPropagator(nc, (*ai)) = Qs(Pst_args).a;
+    QLA_DN_DiracPropagator(nc, (*a)) = &ai[idx];
+#else
+    Qx(QLA_D,_DiracPropagator) *ai = Qs(Pst_args).a;
+    Qx(QLA_D,_DiracPropagator) *a = &ai[idx];
+#endif
     int is, ic;
 
     QLA_c_eq_r_plus_ir(*r, 0, 0);
@@ -252,15 +226,9 @@ Qs(q_P_trace)(lua_State *L)
 
     CALL_QDP(L);
     Qs(Pst_args).nc = QC(a);
-#if QNc == 'N'
-    Qs(Pst_args).a = Qx(QDP_D,_expose_P)(QC(a), a->ptr);
-    QDP_D_C_eq_funci(r->ptr, Qs(do_Ptrace), *S->qss);
-    Qx(QDP_D,_reset_P)(QC(a), a->ptr);
-#else
     Qs(Pst_args).a = Qx(QDP_D,_expose_P)(a->ptr);
     QDP_D_C_eq_funci(r->ptr, Qs(do_Ptrace), *S->qss);
     Qx(QDP_D,_reset_P)(a->ptr);
-#endif
     Qs(Pst_args).a = 0;
     Qs(Pst_args).nc = -1;
 
@@ -275,11 +243,7 @@ Qs(q_P_set)(lua_State *L)
     Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P)(QC(r), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P)(r->ptr, a->ptr, *S->qss);
-#endif
     lua_pop(L, 1);
 
     return 1;
@@ -294,11 +258,7 @@ Qs(q_P_add_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P_plus_P)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P_plus_P)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -312,11 +272,7 @@ Qs(q_P_sub_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P_minus_P)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P_minus_P)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -330,11 +286,7 @@ Qs(q_P_mul_r_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_r_times_P)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_r_times_P)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -348,11 +300,7 @@ Qs(q_r_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_r_times_P)(QC(b), c->ptr, &a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_r_times_P)(c->ptr, &a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -366,11 +314,7 @@ Qs(q_P_mul_c_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_c_times_P)(QC(a), c->ptr, b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_c_times_P)(c->ptr, b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -384,11 +328,7 @@ Qs(q_c_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_c_times_P)(QC(b), c->ptr, a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_c_times_P)(c->ptr, a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -396,39 +336,37 @@ Qs(q_c_mul_P_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Real *a;
-    Qx(QLA_D,_DiracPropagator) *b;
+    void *b; /* Qx(QLA_D,_DiracPropagator) */
 } Qs(RPmul_args); /* YYY global state */
 
+#if QNc == 'N'
+static void
+Qs(do_RPmul)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
+{
+    QLA_DN_DiracPropagator(nc, (*b)) = Qs(RPmul_args).b;
+    Qx(QLA_D,_P_eq_r_times_P)(nc, r, &Qs(RPmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_RPmul)(Qx(QLA_D,_DiracPropagator) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_P_eq_r_times_P)(Qs(RPmul_args).nc, r,
-                              &Qs(RPmul_args).a[idx], &Qs(RPmul_args).b[idx]);
-#else
-    Qx(QLA_D,_P_eq_r_times_P)(r,
-                              &Qs(RPmul_args).a[idx], &Qs(RPmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_DiracPropagator) *b = Qs(RPmul_args).b;
+    Qx(QLA_D,_P_eq_r_times_P)(r, &Qs(RPmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_P_eq_R_times_P)(Qx(QDP_D,_DiracPropagator) *r,
+Qs(X_P_eq_R_times_P)(int nc,
+                     Qx(QDP_D,_DiracPropagator) *r,
                      QDP_D_Real *a,
                      Qx(QDP_D,_DiracPropagator) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(RPmul_args).nc = nc;
     Qs(RPmul_args).a = QDP_D_expose_R(a);
-#if QNc == 'N'
-    Qs(RPmul_args).b = Qx(QDP_D,_expose_P)(nc, b);
-    Qx(QDP_D,_P_eq_funci)(nc, r, Qs(do_RPmul), s);
-    Qx(QDP_D,_reset_P)(nc, b);
-#else
     Qs(RPmul_args).b = Qx(QDP_D,_expose_P)(b);
     Qx(QDP_D,_P_eq_funci)(r, Qs(do_RPmul), s);
     Qx(QDP_D,_reset_P)(b);
-#endif
     QDP_D_reset_R(a);
     Qs(RPmul_args).a = 0;
     Qs(RPmul_args).b = 0;
@@ -444,7 +382,7 @@ Qs(q_R_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_P_eq_R_times_P)(r->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_P_eq_R_times_P)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -458,7 +396,7 @@ Qs(q_P_mul_R_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_P_eq_R_times_P)(r->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_P_eq_R_times_P)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -466,39 +404,37 @@ Qs(q_P_mul_R_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Complex *a;
-    Qx(QLA_D,_DiracPropagator) *b;
+    void *b; /* Qx(QLA_D,_DiracPropagator) */
 } Qs(CPmul_args); /* YYY global state */
 
+#if QNc == 'N'
+static void
+Qs(do_CPmul)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
+{
+    QLA_DN_DiracPropagator(nc, (*b)) = Qs(CPmul_args).b;
+    Qx(QLA_D,_P_eq_c_times_P)(nc, r, &Qs(CPmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_CPmul)(Qx(QLA_D,_DiracPropagator) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_P_eq_c_times_P)(Qs(CPmul_args).nc, r,
-                              &Qs(CPmul_args).a[idx], &Qs(CPmul_args).b[idx]);
-#else
-    Qx(QLA_D,_P_eq_c_times_P)(r,
-                              &Qs(CPmul_args).a[idx], &Qs(CPmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_DiracPropagator) *b = Qs(CPmul_args).b;
+    Qx(QLA_D,_P_eq_c_times_P)(r, &Qs(CPmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_P_eq_C_times_P)(Qx(QDP_D,_DiracPropagator) *r,
+Qs(X_P_eq_C_times_P)(int nc,
+                     Qx(QDP_D,_DiracPropagator) *r,
                      QDP_D_Complex *a,
                      Qx(QDP_D,_DiracPropagator) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(CPmul_args).nc = nc;
     Qs(CPmul_args).a = QDP_D_expose_C(a);
-#if QNc == 'N'
-    Qs(CPmul_args).b = Qx(QDP_D,_expose_P)(nc, b);
-    Qx(QDP_D,_P_eq_funci)(nc, r, Qs(do_CPmul), s);
-    Qx(QDP_D,_reset_P)(nc, b);
-#else
     Qs(CPmul_args).b = Qx(QDP_D,_expose_P)(b);
     Qx(QDP_D,_P_eq_funci)(r, Qs(do_CPmul), s);
     Qx(QDP_D,_reset_P)(b);
-#endif
     QDP_D_reset_C(a);
     Qs(CPmul_args).a = 0;
     Qs(CPmul_args).b = 0;
@@ -514,7 +450,7 @@ Qs(q_C_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_P_eq_C_times_P)(r->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_P_eq_C_times_P)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -529,7 +465,7 @@ Qs(q_P_mul_C_)(lua_State *L)
 
     CALL_QDP(L);
 
-    Qs(X_P_eq_C_times_P)(r->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_P_eq_C_times_P)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -542,11 +478,7 @@ Qs(q_P_neg)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_meq_P)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_meq_P)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -560,11 +492,7 @@ Qs(q_P_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P_times_P)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P_times_P)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -578,11 +506,7 @@ Qs(q_P_mul_M_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P_times_M)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P_times_M)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -596,11 +520,7 @@ Qs(q_M_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_M_times_P)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_M_times_P)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -614,11 +534,7 @@ Qs(q_P_div_r_)(lua_State *L)
     Qs(mLatDirProp) *c = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_r_times_P)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_r_times_P)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -636,11 +552,7 @@ Qs(q_P_div_c_)(lua_State *L)
     CALL_QDP(L);
     QLA_real(s) = n * QLA_real(*b);
     QLA_imag(s) = -n * QLA_imag(*b);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_c_times_P)(QC(a), c->ptr, &s, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_c_times_P)(c->ptr, &s, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -654,11 +566,7 @@ Qs(q_P_dot_)(lua_State *L)
     mLatComplex *s = qlua_newLatComplex(L, lua_gettop(L));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_C_eq_P_dot_P)(QC(a), s->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_C_eq_P_dot_P)(s->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -684,11 +592,7 @@ Qs(q_P_copy)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_P_eq_P)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_P_eq_P)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -708,8 +612,8 @@ static struct luaL_Reg Qs(mtLatDirProp)[] = {
     { "conj",              Qs(q_P_conj)           },
     { "transpose",         Qs(q_P_trans)          },
     { "adjoin",            Qs(q_P_adjoin)         },
-    { "spintranspose",     Qs(q_P_spintranspose)  },
     { "spintrace",         Qs(q_P_spintrace)      },
+    { "spintranspose",     Qs(q_P_spintranspose)  },
     { "trace",             Qs(q_P_trace)          },
     { "set",               Qs(q_P_set)            },
     { "colors",            Qs(q_P_colors)         },
@@ -783,11 +687,7 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
         Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_P_eq_zero)(nc, v->ptr, *S->qss);
-#else
         Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
-#endif
         
         return 1;
     }
@@ -801,24 +701,13 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
             int ic, jc, ks;
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_P_eq_zero)(nc, v->ptr, *S->qss);
-#else
             Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
-#endif
             for (ic = 0; ic < nc; ic++) {
                 for (jc = 0; jc < nc; jc++) {
-#if QNc == 'N'
-                    Qx(QDP_D,_C_eq_elem_M)(nc, c->ptr, w->ptr, ic, jc, *S->qss);
-                    for (ks = 0; ks < QDP_Ns; ks++)
-                        Qx(QDP_D,_P_eq_elem_C)(nc, v->ptr, c->ptr,
-                                               ic, ks, jc, ks, *S->qss);
-#else
                     Qx(QDP_D,_C_eq_elem_M)(c->ptr, w->ptr, ic, jc, *S->qss);
                     for (ks = 0; ks < QDP_Ns; ks++)
                         Qx(QDP_D,_P_eq_elem_C)(v->ptr, c->ptr,
                                                ic, ks, jc, ks, *S->qss);
-#endif
                 }
             }
             lua_pop(L, 1);
@@ -836,13 +725,8 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
         Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_P_eq_zero)(nc, v->ptr, *S->qss);
-        Qx(QDP_D,_P_eq_diracvec_D)(nc, v->ptr, z->ptr, c, d, *S->qss);
-#else
         Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
         Qx(QDP_D,_P_eq_diracvec_D)(v->ptr, z->ptr, c, d, *S->qss);
-#endif
         return 1;
     }
     }

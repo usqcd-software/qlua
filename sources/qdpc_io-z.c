@@ -27,11 +27,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         /* one colored object */
         QDP_String *info = QDP_string_create();
         Qs(m) *X = Qs(qlua_new)(L, Sidx, nc);
-#if QNc == 'N'
-        int status = Qop(read)(nc, reader->ptr, info, X->ptr);
-#else
         int status = Qop(read)(reader->ptr, info, X->ptr);
-#endif
         if (status == 0) {
             /* read successful -- convert to LUA */
             lua_pushstring(L, QDP_string_ptr(info));
@@ -65,11 +61,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         info = QDP_string_create();
 
         /* do the reading */
-#if QNc == 'N'
-        status = Qop(vread)(nc, reader->ptr, info, X, n);
-#else
         status = Qop(vread)(reader->ptr, info, X, n);
-#endif
         qlua_free(L, X);
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
@@ -79,11 +71,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         /* read failed */
         QDP_string_destroy(info);
         for (i = 0; i < n; i++)
-#if QNc == 'N'
-            Qop(destroy)(nc, X[i]);
-#else
             Qop(destroy)(X[i]);
-#endif
 
         break;
     }
@@ -108,11 +96,7 @@ Qs(w_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer)
     xml = QDP_string_create();
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
-#if QNc == 'N'
-    status = Qop(write)(QC(X), writer->ptr, xml, X->ptr);
-#else
     status = Qop(write)(writer->ptr, xml, X->ptr);
-#endif
     QDP_string_destroy(xml);
     if (status == 0) {
         /* success -- return true */
@@ -156,11 +140,7 @@ Qs(wt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc)
         }
         
     /* do the write */
-#if QNc == 'N'
-    status = Qop(vwrite)(nc, writer->ptr, xml, X, n);
-#else
     status = Qop(vwrite)(writer->ptr, xml, X, n);
-#endif
     qlua_free(L, X);
     QDP_string_destroy(xml);
     if (status == 0) {

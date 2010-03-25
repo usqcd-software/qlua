@@ -284,11 +284,11 @@ nersc_read_master(lua_State *L,
     char *site_buf;
     int site_size;
     int big_endian;
-    QLA_ColorMatrix *CM;
+    QLA_D3_ColorMatrix *CM;
     int CM_size;
     double uni_eps;
-    QLA_ColorMatrix mone;
-    QLA_Complex cone;
+    QLA_D3_ColorMatrix mone;
+    QLA_D_Complex cone;
     double max_eps = 0.0;
 
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
@@ -408,7 +408,7 @@ eoh:
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
     site_buf = qlua_malloc(L, site_size);
-    CM_size = S->rank * sizeof (QLA_ColorMatrix);
+    CM_size = S->rank * sizeof (QLA_D3_ColorMatrix);
     CM = qlua_malloc(L, CM_size);
 
     /* find out our endianess */
@@ -686,8 +686,8 @@ q_nersc_read(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
-    QDP_ColorMatrix **M;
-    QLA_ColorMatrix **U;
+    QDP_D3_ColorMatrix **M;
+    QLA_D3_ColorMatrix **U;
     int status;
     int i;
     

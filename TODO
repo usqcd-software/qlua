@@ -2,8 +2,6 @@
 **  qclover
 
 * I/O
-** qdpc_io -- more tests needed. Otherwise done.
----- Bug in Nc=4 code. Check with the latest QLA & QDP
 ** ddpairs_io -- Only Nc=3 for now, but full interface.
 ** qdpcc_io
 

@@ -53,12 +53,10 @@ function try_write(output, finfo, fmt)
       os.exit(1)
    end
    
-if false then
    if not out:ColorMatrix(U, "") then
       printf("Error writing a vector of ColorMatrix\n")
       os.exit(1)
    end
-end   
 
    printf("write complete\n")
    out:close()

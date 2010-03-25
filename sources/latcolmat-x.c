@@ -17,11 +17,7 @@ Qs(q_M_gc)(lua_State *L)
 {
     Qs(mLatColMat) *b = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
 
-#if QNc == 'N'
-    QDP_DN_destroy_M(b->nc, b->ptr);
-#else
     Qx(QDP_D,_destroy_M)(b->ptr);
-#endif
     b->ptr = 0;
 
     return 0;
@@ -44,20 +40,12 @@ Qs(q_M_get)(lua_State *L)
                 Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, Sidx, QC(V));
                 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_V_eq_colorvec_M)(V->nc, r->ptr, V->ptr, b, *S->qss);
-#else
                 Qx(QDP_D,_V_eq_colorvec_M)(r->ptr, V->ptr, b, *S->qss);
-#endif
             } else {
                 mLatComplex *r = qlua_newLatComplex(L, Sidx);
                 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_C_eq_elem_M)(V->nc, r->ptr, V->ptr, a, b, *S->qss);
-#else
                 Qx(QDP_D,_C_eq_elem_M)(r->ptr, V->ptr, a, b, *S->qss);
-#endif
             }
         } else {
             if (a == -1) {
@@ -65,16 +53,17 @@ Qs(q_M_get)(lua_State *L)
                 return qlua_badindex(L, "ColorMatrix" Qcolors);
             } else {
                 QLA_Complex *W = qlua_newComplex(L);
-                Qx(QLA_D,_ColorMatrix) *locked;
+#if QNc == 'N'
+                typedef QLA_DN_ColorMatrix(V->nc, Vtype);
+#else
+                typedef Qx(QLA_D,_ColorMatrix) Vtype;
+#endif
+                Vtype *locked;
                 double zri[2];
                 
                 qlua_verifylatcoord(L, idx, S);
                 CALL_QDP(L);
-#if QNc == 'N'
-                locked = Qx(QDP_D,_expose_M)(V->nc, V->ptr);
-#else
                 locked = Qx(QDP_D,_expose_M)(V->ptr);
-#endif
                 if (QDP_node_number(idx) == QDP_this_node) {
                     QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[QDP_index(idx)], a, b);
                     zri[0] = QLA_real(*zz);
@@ -83,11 +72,7 @@ Qs(q_M_get)(lua_State *L)
                     zri[0] = 0;
                     zri[1] = 0;
                 }
-#if QNc == 'N'
-                Qx(QDP_D,_reset_M)(V->nc, V->ptr);
-#else
                 Qx(QDP_D,_reset_M)(V->ptr);
-#endif
                 QMP_sum_double_array(zri, 2);
                 QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
             }
@@ -116,44 +101,31 @@ Qs(q_M_put)(lua_State *L)
         CALL_QDP(L);
         if (a == -1) {
             Qs(mLatColVec) *z = Qs(qlua_checkLatColVec)(L, 3, S, QC(V));
-
-#if QNc == 'N'
-            Qx(QDP_D,_M_eq_colorvec_V)(V->nc, V->ptr, z->ptr, b, *S->qss);
-#else
             Qx(QDP_D,_M_eq_colorvec_V)(V->ptr, z->ptr, b, *S->qss);
-#endif
         } else {
             mLatComplex *z = qlua_checkLatComplex(L, 3, S);
 
-#if QNc == 'N'            
-            Qx(QDP_D,_M_eq_elem_C)(V->nc, V->ptr, z->ptr, a, b, *S->qss);
-#else
             Qx(QDP_D,_M_eq_elem_C)(V->ptr, z->ptr, a, b, *S->qss);
-#endif
         }
     } else {
         if (a == -1) {
             qlua_free(L, idx);
             return qlua_badindex(L, "ColorMatrix" Qcolors);
         } else {
+#if QNc == 'N'
+            typedef QLA_DN_ColorMatrix(V->nc, Vtype);
+#else
+            typedef Qx(QLA_D,_ColorMatrix) Vtype;
+#endif
+            CALL_QDP(L);
+            Vtype *locked = Qx(QDP_D,_expose_M)(V->ptr);
+            QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[QDP_index(idx)], a, b);
             QLA_Complex *z = qlua_checkComplex(L, 3);
             qlua_verifylatcoord(L, idx, S);
             if (QDP_node_number(idx) == QDP_this_node) {
-                CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QLA_D,_ColorMatrix) *locked = Qx(QDP_D,_expose_M)(V->nc,
-                                                                     V->ptr);
-#else
-                Qx(QLA_D,_ColorMatrix) *locked = Qx(QDP_D,_expose_M)(V->ptr);
-#endif
-                QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[QDP_index(idx)], a, b);
                 QLA_c_eq_c(*zz, *z);
-#if QNc == 'N'
-                Qx(QDP_D,_reset_M)(V->nc, V->ptr);
-#else
-                Qx(QDP_D,_reset_M)(V->ptr);
-#endif
             }
+            Qx(QDP_D,_reset_M)(V->ptr);
         }
     }
     qlua_free(L, idx);
@@ -168,11 +140,8 @@ Qs(q_M_norm2_)(lua_State *L)
     QLA_Real n;
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_r_eq_norm2_M)(a->nc, &n, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_r_eq_norm2_M)(&n, a->ptr, *S->qss);
-#endif
+
     lua_pushnumber(L, n);
     
     return 1;
@@ -188,11 +157,7 @@ Qs(q_M_shift)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_sM)(a->nc, r->ptr, a->ptr, shift, dir, *S->qss);
-#else
     Qx(QDP_D,_M_eq_sM)(r->ptr, a->ptr, shift, dir, *S->qss);
-#endif
 
     return 1;
 }
@@ -205,11 +170,7 @@ Qs(q_M_conj)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_conj_M)(a->nc, r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_conj_M)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -222,11 +183,7 @@ Qs(q_M_trans)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_transpose_M)(a->nc, r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_transpose_M)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -239,11 +196,7 @@ Qs(q_M_adjoin)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_Ma)(a->nc, r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_Ma)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -256,29 +209,35 @@ Qs(q_M_trace)(lua_State *L)
     mLatComplex *r = qlua_newLatComplex(L, lua_gettop(L));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_C_eq_trace_M)(a->nc, r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_C_eq_trace_M)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
 
 static struct {
     int nc;
-    Qx(QLA_D,_ColorMatrix) *a;
+    void *a;
 } Qs(Mop_arg); /* YYY global state */
 
 static void
+#if QNc == 'N'
+Qs(do_Mexp)(int nc, QLA_DN_ColorMatrix(nc, (*r)), int idx)
+#else
 Qs(do_Mexp)(Qx(QLA_D,_ColorMatrix) *r, int idx)
+#endif
 {
+#if QNc == 'N'
+    typedef QLA_DN_ColorMatrix(nc, Mtype);
+#else
+    typedef Qx(QLA_D,_ColorMatrix) Mtype;
+#endif
     static const int n = 15; /* terms in the Taylor series */
-    QLA_Complex cone;
-    Qx(QLA_D,_ColorMatrix) mone;
-    Qx(QLA_D,_ColorMatrix) axs;
-    Qx(QLA_D,_ColorMatrix) v;
-    Qx(QLA_D,_ColorMatrix) *a = &Qs(Mop_arg).a[idx];
+    QLA_D_Complex cone;
+    Mtype mone;
+    Mtype axs;
+    Mtype v;
+    Mtype *ax = Qs(Mop_arg).a;
+    Mtype *a = &ax[idx];
     int i, j, k;
     double max_el;
     double s;
@@ -286,10 +245,10 @@ Qs(do_Mexp)(Qx(QLA_D,_ColorMatrix) *r, int idx)
 
     for (max_el = 0, i = 0; i < Qs(Mop_arg).nc; i++) {
         for (j = 0; j < Qs(Mop_arg).nc; j++) {
-            QLA_Complex z;
+            QLA_D_Complex z;
             double v;
 #if QNc == 'N'
-            Qx(QLA_D,_C_eq_elem_M)(Qs(Mop_arg).nc, &z, a, i, j);
+            Qx(QLA_D,_C_eq_elem_M)(nc, &z, a, i, j);
 #else
             Qx(QLA_D,_C_eq_elem_M)(&z, a, i, j);
 #endif
@@ -301,74 +260,64 @@ Qs(do_Mexp)(Qx(QLA_D,_ColorMatrix) *r, int idx)
     pw = (unsigned int)(ceil(max_el * 2 * Qs(Mop_arg).nc));
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
 #if QNc == 'N'
-    Qx(QLA_D,_M_eq_c)(Qs(Mop_arg).nc, &mone, &cone);
+    Qx(QLA_D,_M_eq_c)(nc, &mone, &cone);
+    s = 1.0 / (n * pw);
+    Qx(QLA_D,_M_eq_r_times_M_plus_M)(nc, &v, &s, a, &mone);
+    for (k = n; --k;) {
+        Qx(QLA_D,_M_eq_M_times_M)(nc, &axs, a, &v);
+        s = 1.0 / (k * pw);
+        Qx(QLA_D,_M_eq_r_times_M_plus_M)(nc, &v, &s, &axs, &mone);
+    }
 #else
     Qx(QLA_D,_M_eq_c)(&mone, &cone);
-#endif
-
     s = 1.0 / (n * pw);
-#if QNc == 'N'
-    Qx(QLA_D,_M_eq_r_times_M_plus_M)(Qs(Mop_arg).nc, &v, &s, a, &mone);
-#else
     Qx(QLA_D,_M_eq_r_times_M_plus_M)(&v, &s, a, &mone);
-#endif
     for (k = n; --k;) {
-#if QNc == 'N'
-        Qx(QLA_D,_M_eq_M_times_M)(Qs(Mop_arg).nc, &axs, a, &v);
-#else
         Qx(QLA_D,_M_eq_M_times_M)(&axs, a, &v);
-#endif
         s = 1.0 / (k * pw);
-#if QNc == 'N'
-        Qx(QLA_D,_M_eq_r_times_M_plus_M)(Qs(Mop_arg).nc, &v, &s, &axs, &mone);
-#else
         Qx(QLA_D,_M_eq_r_times_M_plus_M)(&v, &s, &axs, &mone);
-#endif
     }
+#endif
 
 #if QNc == 'N'
-    Qx(QLA_D,_M_eq_M)(Qs(Mop_arg).nc, r, &mone);
-#else
-    Qx(QLA_D,_M_eq_M)(r, &mone);
-#endif
+    Qx(QLA_D,_M_eq_M)(nc, r, &mone);
     while (pw) {
         if (pw & 1) {
-#if QNc == 'N'
-            Qx(QLA_D,_M_eq_M_times_M)(Qs(Mop_arg).nc, &axs, r, &v);
-            Qx(QLA_D,_M_eq_M)(Qs(Mop_arg).nc, r, &axs);
-#else
-            Qx(QLA_D,_M_eq_M_times_M)(&axs, r, &v);
-            Qx(QLA_D,_M_eq_M)(r, &axs);
-#endif
+            Qx(QLA_D,_M_eq_M_times_M)(nc, &axs, r, &v);
+            Qx(QLA_D,_M_eq_M)(nc, r, &axs);
         }
         pw >>= 1;
         if (pw > 0) {
-#if QNc == 'N'
-            Qx(QLA_D,_M_eq_M_times_M)(Qs(Mop_arg).nc, &axs, &v, &v);
-            Qx(QLA_D,_M_eq_M)(Qs(Mop_arg).nc, &v, &axs);
-#else
-            Qx(QLA_D,_M_eq_M_times_M)(&axs, &v, &v);
-            Qx(QLA_D,_M_eq_M)(&v, &axs);
-#endif
+            Qx(QLA_D,_M_eq_M_times_M)(nc, &axs, &v, &v);
+            Qx(QLA_D,_M_eq_M)(nc, &v, &axs);
         }
     }
+#else
+    Qx(QLA_D,_M_eq_M)(r, &mone);
+    while (pw) {
+        if (pw & 1) {
+            Qx(QLA_D,_M_eq_M_times_M)(&axs, r, &v);
+            Qx(QLA_D,_M_eq_M)(r, &axs);
+        }
+        pw >>= 1;
+        if (pw > 0) {
+            Qx(QLA_D,_M_eq_M_times_M)(&axs, &v, &v);
+            Qx(QLA_D,_M_eq_M)(&v, &axs);
+        }
+    }
+#endif
 }
 
 static void
-Qs(X_M_eq_exp_M)(Qx(QDP_D,_ColorMatrix) *r,
-                 Qx(QDP_D,_ColorMatrix) *a, QDP_Subset s,
-                 int nc)
+Qs(X_M_eq_exp_M)(int nc,
+                 Qx(QDP_D,_ColorMatrix) *r,
+                 Qx(QDP_D,_ColorMatrix) *a,
+                 QDP_Subset s)
 {
     Qs(Mop_arg).nc = nc;
-#if QNc == 'N'
-    Qs(Mop_arg).a = Qx(QDP_D,_expose_M)(nc, a);
-    Qx(QDP_D,_M_eq_funci)(nc, r, Qs(do_Mexp), s);
-    Qx(QDP_D,_reset_M)(nc, a);
-#else
     Qs(Mop_arg).a = Qx(QDP_D,_expose_M)(a);
     Qx(QDP_D,_M_eq_funci)(r, Qs(do_Mexp), s);
     Qx(QDP_D,_reset_M)(a);
-#endif
     Qs(Mop_arg).a = 0;
     Qs(Mop_arg).nc = -1;
 }
@@ -381,11 +330,10 @@ Qs(q_M_exp)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_M_eq_exp_M)(r->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_M_eq_exp_M)(QC(a), r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
-
 
 #if (QNc == '2') || (QNc == '3')
 
@@ -586,11 +534,7 @@ Qs(q_M_set)(lua_State *L)
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 2, S, QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_M)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
-#endif
     lua_pop(L, 2);
 
     return 1;
@@ -605,11 +549,7 @@ Qs(q_M_dot_)(lua_State *L)
     mLatComplex *s = qlua_newLatComplex(L, lua_gettop(L));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_C_eq_M_dot_M)(QC(a), s->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_C_eq_M_dot_M)(s->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -623,11 +563,7 @@ Qs(q_M_add_M_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_M_plus_M)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_M_plus_M)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -641,11 +577,7 @@ Qs(q_M_sub_M_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_M_minus_M)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_M_minus_M)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -658,11 +590,8 @@ Qs(q_M_neg)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_meq_M)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_meq_M)(r->ptr, a->ptr, *S->qss);
-#endif
+
     return 1;
 }
 
@@ -675,11 +604,7 @@ Qs(q_M_mul_M_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_M_times_M)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_M_times_M)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
     
     return 1;
 }
@@ -693,11 +618,7 @@ Qs(q_M_mul_V_)(lua_State *L)
     Qs(mLatColVec) *c = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_V_eq_M_times_V)(QC(a), c->ptr, a->ptr, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_V_eq_M_times_V)(c->ptr, a->ptr, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -711,11 +632,7 @@ Qs(q_M_mul_r_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_r_times_M)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_r_times_M)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -729,11 +646,7 @@ Qs(q_r_mul_M_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_r_times_M)(QC(b), c->ptr, &a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_r_times_M)(c->ptr, &a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -747,11 +660,7 @@ Qs(q_M_mul_c_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_c_times_M)(QC(a), c->ptr, b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_c_times_M)(c->ptr, b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -765,11 +674,7 @@ Qs(q_c_mul_M_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_c_times_M)(QC(b), c->ptr, a, b->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_c_times_M)(c->ptr, a, b->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -777,39 +682,37 @@ Qs(q_c_mul_M_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Real *a;
-    Qx(QLA_D,_ColorMatrix) *b;
+    void *b; /* Qx(QLA_D,_ColorMatrix) */
 } Qs(RMmul_args); /* YYY global state */
 
+#if QNc == 'N'
+static void
+Qs(do_RMmul)(int nc, QLA_DN_ColorMatrix(nc, (*r)), int idx)
+{
+    QLA_DN_ColorMatrix(nc, (*b)) = Qs(RMmul_args).b;
+    Qx(QLA_D,_M_eq_r_times_M)(nc, r, &Qs(RMmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_RMmul)(Qx(QLA_D,_ColorMatrix) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_M_eq_r_times_M)(Qs(RMmul_args).nc, r,
-                              &Qs(RMmul_args).a[idx], &Qs(RMmul_args).b[idx]);
-#else
-    Qx(QLA_D,_M_eq_r_times_M)(r,
-                              &Qs(RMmul_args).a[idx], &Qs(RMmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_ColorMatrix) *b = Qs(RMmul_args).b;
+    Qx(QLA_D,_M_eq_r_times_M)(r, &Qs(RMmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_M_eq_R_times_M)(Qx(QDP_D,_ColorMatrix) *r,
+Qs(X_M_eq_R_times_M)(int nc,
+                     Qx(QDP_D,_ColorMatrix) *r,
                      QDP_D_Real *a,
                      Qx(QDP_D, _ColorMatrix) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(RMmul_args).nc = nc;
     Qs(RMmul_args).a = QDP_D_expose_R(a);
-#if QNc == 'N'
-    Qs(RMmul_args).b = Qx(QDP_D,_expose_M)(nc, b);
-    Qx(QDP_D,_M_eq_funci)(nc, r, Qs(do_RMmul), s);
-    Qx(QDP_D,_reset_M)(nc, b);
-#else
     Qs(RMmul_args).b = Qx(QDP_D,_expose_M)(b);
     Qx(QDP_D,_M_eq_funci)(r, Qs(do_RMmul), s);
     Qx(QDP_D,_reset_M)(b);
-#endif
     QDP_D_reset_R(a);
     Qs(RMmul_args).a = 0;
     Qs(RMmul_args).b = 0;
@@ -825,7 +728,7 @@ Qs(q_R_mul_M_)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_M_eq_R_times_M)(r->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_M_eq_R_times_M)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -839,7 +742,7 @@ Qs(q_M_mul_R_)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_M_eq_R_times_M)(r->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_M_eq_R_times_M)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -847,39 +750,37 @@ Qs(q_M_mul_R_)(lua_State *L)
 static struct {
     int nc;
     QLA_D_Complex *a;
-    Qx(QLA_D,_ColorMatrix) *b;
+    void *b; /* Qx(QLA_D,_ColorMatrix) */
 } Qs(CMmul_args); /* YYY global state */
 
+#if QNc == 'N'
+static void
+Qs(do_CMmul)(int nc, QLA_DN_ColorMatrix(nc, (*r)), int idx)
+{
+    QLA_DN_ColorMatrix(nc, (*b)) = Qs(CMmul_args).b;
+    Qx(QLA_D,_M_eq_c_times_M)(nc, r, &Qs(CMmul_args).a[idx], &b[idx]);
+}
+#else
 static void
 Qs(do_CMmul)(Qx(QLA_D,_ColorMatrix) *r, int idx)
 {
-#if QNc == 'N'
-    Qx(QLA_D,_M_eq_c_times_M)(Qs(CMmul_args).nc, r,
-                              &Qs(CMmul_args).a[idx], &Qs(CMmul_args).b[idx]);
-#else
-    Qx(QLA_D,_M_eq_c_times_M)(r,
-                              &Qs(CMmul_args).a[idx], &Qs(CMmul_args).b[idx]);
-#endif
+    Qx(QLA_D,_ColorMatrix) *b = Qs(CMmul_args).b;
+    Qx(QLA_D,_M_eq_c_times_M)(r, &Qs(CMmul_args).a[idx], &b[idx]);
 }
+#endif
 
 static void
-Qs(X_M_eq_C_times_M)(Qx(QDP_D,_ColorMatrix) *r,
+Qs(X_M_eq_C_times_M)(int nc,
+                     Qx(QDP_D,_ColorMatrix) *r,
                      QDP_D_Complex *a,
                      Qx(QDP_D,_ColorMatrix) *b,
-                     QDP_Subset s,
-                     int nc)
+                     QDP_Subset s)
 {
     Qs(CMmul_args).nc = nc;
     Qs(CMmul_args).a = QDP_D_expose_C(a);
-#if QNc == 'N'
-    Qs(CMmul_args).b = Qx(QDP_D,_expose_M)(nc, b);
-    Qx(QDP_D,_M_eq_funci)(nc, r, Qs(do_CMmul), s);
-    Qx(QDP_D,_reset_M)(nc, b);
-#else
     Qs(CMmul_args).b = Qx(QDP_D,_expose_M)(b);
     Qx(QDP_D,_M_eq_funci)(r, Qs(do_CMmul), s);
     Qx(QDP_D,_reset_M)(b);
-#endif
     QDP_D_reset_C(a);
     Qs(CMmul_args).a = 0;
     Qs(CMmul_args).b = 0;
@@ -895,7 +796,7 @@ Qs(q_C_mul_M_)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_M_eq_C_times_M)(r->ptr, a->ptr, b->ptr, *S->qss, QC(b));
+    Qs(X_M_eq_C_times_M)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -909,7 +810,7 @@ Qs(q_M_mul_C_)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_M_eq_C_times_M)(r->ptr, b->ptr, a->ptr, *S->qss, QC(a));
+    Qs(X_M_eq_C_times_M)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -923,11 +824,7 @@ Qs(q_M_div_r_)(lua_State *L)
     Qs(mLatColMat) *c = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_r_times_M)(QC(a), c->ptr, &b, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_r_times_M)(c->ptr, &b, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -945,11 +842,7 @@ Qs(q_M_div_c_)(lua_State *L)
     CALL_QDP(L);
     QLA_real(s) = n * QLA_real(*b);
     QLA_imag(s) = -n * QLA_imag(*b);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_c_times_M)(QC(a), c->ptr, &s, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_c_times_M)(c->ptr, &s, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -975,11 +868,7 @@ Qs(q_M_copy)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-#if QNc == 'N'
-    Qx(QDP_D,_M_eq_M)(QC(a), r->ptr, a->ptr, *S->qss);
-#else
     Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
-#endif
 
     return 1;
 }
@@ -1075,11 +964,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
         Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
 
         CALL_QDP(L);
-#if QNc == 'N'
-        Qx(QDP_D,_M_eq_zero)(nc, v->ptr, *S->qss);
-#else
         Qx(QDP_D,_M_eq_zero)(v->ptr, *S->qss);
-#endif
         
         return 1;
     }
@@ -1093,11 +978,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
             CALL_QDP(L);
             QLA_real(z) = x;
             QLA_imag(z) = 0;
-#if QNc == 'N'
-            Qx(QDP_D,_M_eq_c)(nc, v->ptr, &z, *S->qss);
-#else
             Qx(QDP_D,_M_eq_c)(v->ptr, &z, *S->qss);
-#endif
 
             return 1;
         }
@@ -1106,11 +987,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
             Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_M_eq_c)(nc, v->ptr, z, *S->qss);
-#else
             Qx(QDP_D,_M_eq_c)(v->ptr, z, *S->qss);
-#endif
 
             return 1;
         }
@@ -1128,13 +1005,8 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
             Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
 
             CALL_QDP(L);
-#if QNc == 'N'
-            Qx(QDP_D,_M_eq_zero)(nc, v->ptr, *S->qss);
-            Qx(QDP_D,_M_eq_elem_C)(nc, v->ptr, z->ptr, a, b, *S->qss);
-#else
             Qx(QDP_D,_M_eq_zero)(v->ptr, *S->qss);
             Qx(QDP_D,_M_eq_elem_C)(v->ptr, z->ptr, a, b, *S->qss);
-#endif
 
             return 1;
         }
@@ -1146,13 +1018,9 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
                 Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
                 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_M_eq_zero)(nc, v->ptr, *S->qss);
-                Qx(QDP_D,_M_eq_colorvec_V)(nc, v->ptr, f->ptr, b, *S->qss);
-#else
                 Qx(QDP_D,_M_eq_zero)(v->ptr, *S->qss);
                 Qx(QDP_D,_M_eq_colorvec_V)(v->ptr, f->ptr, b, *S->qss);
-#endif
+
                 return 1;
             }
             case Qs(qLatColVec): {
@@ -1160,11 +1028,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
                 Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
 
                 CALL_QDP(L);
-#if QNc == 'N'
-                Qx(QDP_D,_M_eq_V_times_Va)(nc, v->ptr, f->ptr, g->ptr, *S->qss);
-#else
                 Qx(QDP_D,_M_eq_V_times_Va)(v->ptr, f->ptr, g->ptr, *S->qss);
-#endif
 
                 return 1;
             }

@@ -161,7 +161,7 @@ q_defaults(lua_State *L)
     case 2: {
         if (qlua_qtype(L, 2) == qTable) {
             int nc = set_default(L, colors_key, S->nc);
-            if ((nc > 0) && (nc <= QLA_MAX_Nc))
+            if (nc > 0)
                 S->nc = nc;
             else
                 return luaL_error(L, "bad default number of colors %d", nc);

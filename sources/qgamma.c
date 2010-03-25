@@ -723,7 +723,7 @@ static int
 q_left_reconstruct(lua_State *L)
 {
     int n = lua_objlen(L, 3);
-    if ((n < 2) || (n > QLA_MAX_Nc))
+    if (n < 2)
         return luaL_error(L, "bad arg size for g:left_reconstruct");
 
     switch (n) {
@@ -737,7 +737,7 @@ static int
 q_right_reconstruct(lua_State *L)
 {
     int n = lua_objlen(L, 3);
-    if ((n < 2) || (n > QLA_MAX_Nc))
+    if (n < 2)
         return luaL_error(L, "bad arg size for g:right_reconstruct");
 
     switch (n) {

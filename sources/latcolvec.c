@@ -7,6 +7,7 @@
 #include "latcomplex.h"                                              /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "qmp.h"
+/*
 #include "qdp_d2.h"
 #include "qdp_d3.h"
 #include "qdp_dn.h"
@@ -14,6 +15,7 @@
 #include "qla_d2.h"
 #include "qla_d3.h"
 #include "qla_dn.h"
+*/
 
 #define QNc  '2'
 #define Qcolors "2"
@@ -55,7 +57,7 @@ do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
     default: {
         mLatColVecN *r = qlua_newLatColVecN(L, lua_gettop(L), nc);
         CALL_QDP(L);
-        QDP_DN_V_eq_gaussian_S(nc, r->ptr, a->ptr, *S->qss);
+        QDP_DN_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
     }
@@ -83,9 +85,8 @@ q_V_gaussian_N(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, 1);
     int nc = luaL_checkint(L, 2);
 
-    if ((nc < 2) || (nc > QLA_MAX_Nc))
-        return luaL_error(L, "bad number of colors %d (MAX=%d)",
-                          nc, QLA_MAX_Nc);
+    if (nc < 2)
+        return luaL_error(L, "bad number of colors");
 
     return do_gaussian(L, a, S, nc);
 }
