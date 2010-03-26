@@ -11,7 +11,7 @@ L = qcd.lattice {Lx, Lx, Lx, Lt}
 function rnd_init(x)
   local l_s = 1
   l_id = L:Int(0)
-  for d = 0, qcd.Nd - 1 do
+  for d = 0, #L - 1 do
     l_id = l_id + l_s * L:pcoord(d)
     l_s = l_s * L[d]
   end
@@ -26,9 +26,10 @@ end
 
 function check_solver(x, b, name, s)
    printf("----- checking %s: %s\n", name, tostring(s))
-   local y = s(b)
+   local y, xx = s(b)
    printf("|b| = %15.7e\n", b:norm2())
    printf("|x| = %15.7e\n", x:norm2())
+   printf("y=%s, xx=%s\n", tostring(y), tostring(xx))
    printf("|y| = %15.7e\n", y:norm2())
    printf("residue: %15.7e\n", (x - y):norm2())
    printf("----- check done\n\n")

@@ -25,10 +25,10 @@
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
 #endif
-#if 0 /* XXX other includes */
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
+#if 0 /* XXX other includes */
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
 #endif
@@ -623,10 +623,10 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_qdpc_io,
         init_ddpairs_io,
         init_qdpcc_io,
-#if 0 /* XXX inits */
 #ifdef HAS_CLOVER
         init_clover,
 #endif
+#if 0 /* XXX inits */
 #ifdef HAS_EXTRAS
         init_extras,
 #endif
@@ -677,10 +677,10 @@ qlua_fini(lua_State *L)
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
+#endif /* XXX finis */
 #ifdef HAS_CLOVER
         fini_clover,
 #endif
-#endif /* XXX finis */
         fini_qdpcc_io,
         fini_ddpairs_io,
         fini_qdpc_io,

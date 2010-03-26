@@ -1,8 +1,14 @@
-* Clover - only for Nc = 3
-**  qclover
+* Extras
+  move them to extras/lhpc, change config etc. accordingly
+
+* qcd.min, .max, .lt, .gt, .le, .ge, .eq -- including qReal
+
+* use integer masks as subsets (only if other subsets do not work)
+   in :set() and :sum()
 
 * Multiple Lattices
 -- see the latest QDP release: requires new QLA, docs are old (?)
+-- check that clover still works.
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:

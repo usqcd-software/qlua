@@ -255,19 +255,17 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
     int Sidx;
     int isign = 0;
     int ic, is;
-    Qs(mLatDirFerm) **r;
+    Qs(mLatDirFerm) *r[QC(f) * QDP_Ns / 2];
 #if QNc == 'N'
     QLA_DN_DiracPropagator(f->nc, (*ff));
-    QLA_DN_DiracFermion(f->nc, (**rr));
+    QLA_DN_DiracFermion(f->nc, (*rr[QC(f) * QDP_Ns/2]));
 #else
     Qx(QLA_D,_DiracPropagator) *ff;
-    Qx(QLA_D,_DiracFermion) **rr;
+    Qx(QLA_D,_DiracFermion) *rr[QC(f) * QDP_Ns/2];
 #endif
 
     qlua_ObjLattice(L, 3);
     Sidx = lua_gettop(L);
-    r = qlua_malloc(L, QC(f) * QDP_Ns/2 * sizeof (Qs(mLatDirFerm) *));
-    rr = qlua_malloc(L, QC(f) * QDP_Ns/2 * sizeof (rr[0]));
 
     if (strcmp(sign, "plus") == 0)
         isign = 1;
@@ -306,8 +304,6 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
             Qx(QDP_D,_reset_D)(r[idx_cs]->ptr);
         }
     }
-    qlua_free(L, r);
-    qlua_free(L, rr);
 
     return 1;
 }
@@ -454,18 +450,16 @@ Qs(q_P_reconstruct)(lua_State *L, Qs(X_reconstruct) *op, int nc)
     int isign = 0;
     int ic, is;
     mLattice *S = NULL;
-    int Sidx;
-    Qs(mLatDirFerm) **a;
+    int Sidx = 0;
+    Qs(mLatDirFerm) *a[nc * QDP_Ns/2];
 #if QNc == 'N'
-    QLA_DN_DiracPropagator(r->nc, (*rr));
-    QLA_DN_DiracFermion(r->nc, (**aa));
+    QLA_DN_DiracPropagator(nc, (*rr));
+    QLA_DN_DiracFermion(nc, (*aa[nc * QDP_Ns/2]));
 #else
     Qx(QLA_D,_DiracPropagator) *rr;
-    Qx(QLA_D,_DiracFermion) **aa;
+    Qx(QLA_D,_DiracFermion) *aa[nc * QDP_Ns/2];
 #endif
     
-    a = qlua_malloc(L, nc * QDP_Ns/2 * sizeof (Qs(mLatDirFerm) *));
-    aa = qlua_malloc(L, nc * QDP_Ns/2 * sizeof (aa[0]));
     luaL_checktype(L, 3, LUA_TTABLE);
     for (ic = 0; ic < nc; ic++) {
         lua_pushnumber(L, ic + 1);

@@ -243,7 +243,6 @@ qdpc_r_rm(lua_State *L)
     int r_size = luaL_checkint(L, 3);
     mMatReal *v = qlua_newMatReal(L, l_size, r_size);
     QLA_Int f_size[2];
-    QLA_Real *d;
     QDP_String *info;
     int i, j;
 
@@ -262,21 +261,21 @@ qdpc_r_rm(lua_State *L)
         goto error;
     if (strcmp(QDP_string_ptr(info), qio_matrix_magic) != 0)
         goto error;
-    d = qlua_malloc(L, l_size * r_size *  sizeof (QLA_Real));
-    if (QDP_D_vread_r(reader->ptr, info, d, l_size * r_size) != 0) {
-        qlua_free(L, d);
-        goto error;
-    }
-    /* must only agree with the writer below */
-    for (j = 0; j < r_size; j++) {
-        for (i = 0; i < l_size; i++) {
-            gsl_matrix_set(v->m, i, j, d[i + l_size * j]);
+    {
+        QLA_D_Real d[l_size * r_size];
+        if (QDP_D_vread_r(reader->ptr, info, d, l_size * r_size) != 0) {
+            goto error;
         }
+        /* must only agree with the writer below */
+        for (j = 0; j < r_size; j++) {
+            for (i = 0; i < l_size; i++) {
+                gsl_matrix_set(v->m, i, j, d[i + l_size * j]);
+            }
+        }
+        lua_pushstring(L, QDP_string_ptr(info));
+        QDP_string_destroy(info);
+        return 2;
     }
-    qlua_free(L, d);
-    lua_pushstring(L, QDP_string_ptr(info));
-    QDP_string_destroy(info);
-    return 2;
 error:
     QDP_string_destroy(info);
     return luaL_error(L, "qdpc read error");
@@ -290,7 +289,6 @@ qdpc_r_cm(lua_State *L)
     int r_size = luaL_checkint(L, 3);
     mMatComplex *v = qlua_newMatComplex(L, l_size, r_size);
     QLA_Int f_size[2];
-    QLA_Complex *d;
     QDP_String *info;
     int i, j;
 
@@ -309,25 +307,25 @@ qdpc_r_cm(lua_State *L)
         goto error;
     if (strcmp(QDP_string_ptr(info), qio_matrix_magic) != 0)
         goto error;
-    d = qlua_malloc(L, l_size * r_size *  sizeof (QLA_Complex));
-    if (QDP_D_vread_c(reader->ptr, info, d, l_size * r_size) != 0) {
-        qlua_free(L, d);
-        goto error;
-    }
-    /* must only agree with the writer below */
-    for (j = 0; j < r_size; j++) {
-        for (i = 0; i < l_size; i++) {
-            QLA_Complex z = d[i + l_size * j];
-            gsl_complex zz;
-
-            GSL_SET_COMPLEX(&zz, QLA_real(z), QLA_imag(z));
-            gsl_matrix_complex_set(v->m, i, j, zz);
+    {
+        QLA_D_Complex d[l_size * r_size];
+        if (QDP_D_vread_c(reader->ptr, info, d, l_size * r_size) != 0) {
+            goto error;
         }
+        /* must only agree with the writer below */
+        for (j = 0; j < r_size; j++) {
+            for (i = 0; i < l_size; i++) {
+                QLA_D_Complex z = d[i + l_size * j];
+                gsl_complex zz;
+                
+                GSL_SET_COMPLEX(&zz, QLA_real(z), QLA_imag(z));
+                gsl_matrix_complex_set(v->m, i, j, zz);
+            }
+        }
+        lua_pushstring(L, QDP_string_ptr(info));
+        QDP_string_destroy(info);
+        return 2;
     }
-    qlua_free(L, d);
-    lua_pushstring(L, QDP_string_ptr(info));
-    QDP_string_destroy(info);
-    return 2;
 error:
     QDP_string_destroy(info);
     return luaL_error(L, "qdpc read error");
@@ -559,7 +557,6 @@ qdpc_w_rm(lua_State *L)
     int l_size = v->l_size;
     int r_size = v->r_size;
     QLA_Int f_size[2];
-    QLA_Real *d;
     QDP_String *xml;
     int i, j;
 
@@ -567,7 +564,7 @@ qdpc_w_rm(lua_State *L)
 
     f_size[0] = l_size;
     f_size[1] = r_size;
-    d = qlua_malloc(L, l_size * r_size * sizeof (QLA_Real));
+    QLA_D_Real d[l_size * r_size];
     /* must only agree with the reader above */
     for (j = 0; j < r_size; j++) {
         for (i = 0; i < l_size; i++) {
@@ -585,12 +582,10 @@ qdpc_w_rm(lua_State *L)
     if (QDP_D_vwrite_r(writer->ptr, xml, d, l_size * r_size) != 0)
         goto error;
     QDP_string_destroy(xml);
-    qlua_free(L, d);
     lua_pushboolean(L, 1);
     return 1;
 error:
     QDP_string_destroy(xml);
-    qlua_free(L, d);
     return luaL_error(L, "qdpc write error");
 }
 
@@ -603,7 +598,6 @@ qdpc_w_cm(lua_State *L)
     int l_size = v->l_size;
     int r_size = v->r_size;
     QLA_Int f_size[2];
-    QLA_Complex *d;
     QDP_String *xml;
     int i, j;
 
@@ -611,7 +605,7 @@ qdpc_w_cm(lua_State *L)
 
     f_size[0] = l_size;
     f_size[1] = r_size;
-    d = qlua_malloc(L, l_size * r_size * sizeof (QLA_Complex));
+    QLA_D_Complex d[l_size * r_size];
     /* must only agree with the reader above */
     for (j = 0; j < r_size; j++) {
         for (i = 0; i < l_size; i++) {
@@ -631,12 +625,10 @@ qdpc_w_cm(lua_State *L)
     if (QDP_D_vwrite_c(writer->ptr, xml, d, l_size * r_size) != 0)
         goto error;
     QDP_string_destroy(xml);
-    qlua_free(L, d);
     lua_pushboolean(L, 1);
     return 1;
 error:
     QDP_string_destroy(xml);
-    qlua_free(L, d);
     return luaL_error(L, "qdpc write error");
 }
 

@@ -47,14 +47,13 @@ X_ID(qdpc_r_)(lua_State *L)
         int n = luaL_checkint(L, 2);
         int i;
         QDP_String *info;
-        T_QTYPE **U;
         int status;
         
         /* sanity check */
         if (n <= 0)
             return luaL_error(L, "field count out of range");
 
-        U = qlua_malloc(L, n * sizeof (T_QTYPE *));
+        T_QTYPE *U[n];
         lua_createtable(L, n, 0);
         for (i = 0; i < n; i++) {
             QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L, Sidx);
@@ -65,7 +64,6 @@ X_ID(qdpc_r_)(lua_State *L)
 
         /* do the reading */
         status = X_ID(QDP_vread_)(reader->ptr, info, U, n);
-        qlua_free(L, U);
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
@@ -115,7 +113,6 @@ X_ID(qdpc_w_)(lua_State *L)
     }
     case qTable: {
         QLUA_NAME(m) *ui;
-        T_QTYPE **U;
         int n, i;
         int status;
 
@@ -124,7 +121,7 @@ X_ID(qdpc_w_)(lua_State *L)
             QDP_string_destroy(xml);
             return luaL_error(L, "qdpc.write: bad table ");
         }
-        U = qlua_malloc(L, n * sizeof (T_QTYPE *));
+        T_QTYPE *U[n];
         for (i = 0; i < n; i++) {
             /* full table indexing here */
             lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
@@ -135,7 +132,6 @@ X_ID(qdpc_w_)(lua_State *L)
         
         /* do the write */
         status = X_ID(QDP_vwrite_)(writer->ptr, xml, U, n);
-        qlua_free(L, U);
         if (status == 0) {
             /* success -- clean up everything and return true */
             QDP_string_destroy(xml);

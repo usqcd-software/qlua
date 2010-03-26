@@ -972,7 +972,7 @@ q_C_project(lua_State *L)
     mLatMulti *m = qlua_checkLatMulti(L, 3, S);
     int size = m->size;
     mVecComplex *r = qlua_newVecComplex(L, size);
-    QLA_Real *rr = qlua_malloc(L, 2 * size * sizeof (QLA_Real));
+    QLA_Real rr[2 * size];
     QLA_Int *ii = m->idx;
     QLA_Complex *aa;
     QLA_Complex *bb;
@@ -1001,7 +1001,6 @@ q_C_project(lua_State *L)
     for (k = 0; k < size; k++) {
         QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
     }
-    qlua_free(L, rr);
 
     return 1;
 }
@@ -1029,9 +1028,8 @@ q_C_sum(lua_State *L)
         mVecComplex *r = qlua_newVecComplex(L, size);
         int k;
         QLA_Complex *xx;
-        QLA_Real *rr;
+        QLA_Real rr[2 * size];
         
-        rr = qlua_malloc(L, size * 2 * sizeof (QLA_Real));
         for (k = 0; k < 2 * size; k++)
             rr[k] = 0;
 
@@ -1049,7 +1047,6 @@ q_C_sum(lua_State *L)
         for (k = 0; k < size; k++) {
             QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
         }
-        qlua_free(L, rr);
 
         return 1;
     }

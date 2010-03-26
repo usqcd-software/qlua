@@ -245,8 +245,8 @@ Qs(dd_write)(lua_State *L, int nc)
     QIO_String       *f_xml       = NULL;
     QIO_String       *s_xml       = NULL;
     QIO_String       *p_xml       = NULL;
-    int              *lo = qlua_malloc(L, S->rank * sizeof (int));
-    int              *hi = qlua_malloc(L, S->rank * sizeof (int));
+    int               lo[S->rank];
+    int               hi[S->rank];
     Qs(USQCDArgs)     dataP;
     Qs(USQCDArgs)     dataS;
     int               i, jc, js;
@@ -338,8 +338,6 @@ Qs(dd_write)(lua_State *L, int nc)
     QIO_string_destroy(p_xml);
     QIO_string_destroy(s_xml);
     QIO_string_destroy(f_xml);
-    qlua_free(L, lo);
-    qlua_free(L, hi);
 
     return 0;
 }

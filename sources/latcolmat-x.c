@@ -531,7 +531,7 @@ Qs(q_M_set)(lua_State *L)
 {
     Qs(mLatColMat) *r = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 2, S, QC(a));
+    Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 2, S, QC(r));
 
     CALL_QDP(L);
     Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);

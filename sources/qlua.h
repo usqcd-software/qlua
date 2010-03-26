@@ -60,6 +60,8 @@ typedef enum {
     qAffReader,
     qAffWriter,
     qClover,
+    qDeflator,
+    qDeflatorState,
     /* ZZZ add types for other packages here */
     qNoType
 } QLUA_Type;

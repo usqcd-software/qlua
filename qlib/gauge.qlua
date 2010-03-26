@@ -24,11 +24,11 @@ function naive_q(U)
 end
 
 -- project a matrix to SU(n)
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
+function toSUn(X)
+   local ScaledOne = X.lattice:ColorMatrix(complex(1.0/X:colors(), 0))
+   local ahX = (X - X:adjoin()) / 2
+   local algX = ahX - ScaledOne * ahX:trace()
+   return algX:exp()
 end
 
 -- gauge transformations

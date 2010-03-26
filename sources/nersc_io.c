@@ -268,11 +268,11 @@ nersc_read_master(lua_State *L,
     FILE *f = fopen(name, "rb");
     char buffer[NERSC_BUFSIZE];
     char *key, *value;
-    int *coord = qlua_malloc(L, S->rank * sizeof (int));
+    int  coord[S->rank];
     long long volume;
     long long site;
     int s_node;
-    char *dim_ok = qlua_malloc(L, S->rank * sizeof (char));
+    char dim_ok[S->rank];
     int i;
     int f_format = ntNONE;
     int f_fp = 0;
@@ -281,11 +281,8 @@ nersc_read_master(lua_State *L,
     uint32_t d_checksum = 0;
     GaugeReader read_matrix;
     RealReader read_real;
-    char *site_buf;
     int site_size;
     int big_endian;
-    QLA_D3_ColorMatrix *CM;
-    int CM_size;
     double uni_eps;
     QLA_D3_ColorMatrix mone;
     QLA_D_Complex cone;
@@ -400,16 +397,14 @@ eoh:
         if (!dim_ok[i])
             return nersc_master_error(L, "missing DIMENSION spec");
     }
-    qlua_free(L, dim_ok);
     if (f_cs_p == 0)
         return nersc_master_error(L, "missing CHECKSUM");
 
     /* Read the data and send it to the target host */
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
-    site_buf = qlua_malloc(L, site_size);
-    CM_size = S->rank * sizeof (QLA_D3_ColorMatrix);
-    CM = qlua_malloc(L, CM_size);
+    char site_buf[site_size];
+    QLA_D3_ColorMatrix CM[S->rank];
 
     /* find out our endianess */
     {
@@ -496,7 +491,7 @@ eoh:
         /* send CM to everyone
          *  -- this makes all slaves receive previous errors as well.
          */
-        nersc_master_bcast(L, nerscDATA, CM_size, CM);
+        nersc_master_bcast(L, nerscDATA, sizeof (CM), CM);
         /* place ColorMatrix in U if it belongs to this site */
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number(coord);
@@ -517,13 +512,8 @@ eoh:
 
     lua_pushnumber(L, max_eps);
     lua_setfield(L, -2, ukey);
-
     nersc_master_bcast(L, nerscVALUE, sizeof (double), &max_eps);
-
     nersc_master_cmd(L, nerscOK, 0);
-    qlua_free(L, CM);
-    qlua_free(L, site_buf);
-    qlua_free(L, coord);
 
     return 2;
 }
@@ -582,11 +572,10 @@ nersc_read_slave(lua_State *L,
     char value[NERSC_BUFSIZE];
     long long volume;
     long long site;
-    int *coord = qlua_malloc(L, S->rank * sizeof (int));
+    int coord[S->rank];
     int s_node;
     int i;
-    QLA_D3_ColorMatrix *CM;
-    int CM_size = S->rank * sizeof (QLA_D3_ColorMatrix);
+    QLA_D3_ColorMatrix CM[S->rank];
     double max_eps;
 
     /* get header elements */
@@ -634,7 +623,6 @@ eoh:
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
 
-    CM = qlua_malloc(L, CM_size);
     for (site = 0; site < volume; site++) {
         switch (nersc_slave_cmd(L, &code, &arg)) {
         case nerscDATA:
@@ -642,7 +630,7 @@ eoh:
         default:
             return luaL_error(L, "internal error (DATA %d)", code);
         }
-        nersc_slave_bcast(L, CM_size, CM);
+        nersc_slave_bcast(L, sizeof (CM), CM);
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number(coord);
         if (s_node == QDP_this_node) {
@@ -653,8 +641,6 @@ eoh:
                 QLA_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
-    qlua_free(L, CM);
-    qlua_free(L, coord);
 
     /* get the maximal unitary violation */
     switch (nersc_slave_cmd(L, &code, &arg)) {
@@ -686,14 +672,12 @@ q_nersc_read(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
-    QDP_D3_ColorMatrix **M;
-    QLA_D3_ColorMatrix **U;
+    QDP_D3_ColorMatrix *M[S->rank];
+    QLA_D3_ColorMatrix *U[S->rank];
     int status;
     int i;
     
     lua_createtable(L, S->rank, 0);
-    M = qlua_malloc(L, S->rank * sizeof (QDP_D3_ColorMatrix *));
-    U = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix *));
     CALL_QDP(L);
     for (i = 0; i < S->rank; i++) {
         M[i] = qlua_newLatColMat3(L, 1, 3)->ptr;
@@ -710,8 +694,6 @@ q_nersc_read(lua_State *L)
     for (i = 0; i < S->rank; i++) {
         QDP_D3_reset_M(M[i]);
     }
-    qlua_free(L, M);
-    qlua_free(L, U);
     
     return status;
 }
