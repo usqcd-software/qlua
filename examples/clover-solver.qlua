@@ -17,22 +17,22 @@ eps         = 1e-12
 L = qcd.lattice{Lx, Lx, Lx, Lt}
 
 volume = 1
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   volume = volume * L[i]
 end
 
 do
   local idx = L:Int(0)
-  for d = 0, qcd.Nd - 1 do
+  for d = 0, #L - 1 do
     idx = idx * L[d] + L:pcoord(d)
   end
   S = L:RandomState(1984, idx)
 end
 
-U = { toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
-      toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
-      toSUn(L, rnd_f * S:gaussian_ColorMatrix()),
-      toSUn(L, rnd_f * S:gaussian_ColorMatrix()) }
+U = { toSUn(rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(rnd_f * S:gaussian_ColorMatrix()),
+      toSUn(rnd_f * S:gaussian_ColorMatrix()) }
 
 CL = qcd.Clover(U, kappa, c_sw, {1, 1, 1, -1}) -- antiperiodic only in T
 mixed_solver = CL:mixed_solver(inn_eps, inn_iters, eps, max_iters)

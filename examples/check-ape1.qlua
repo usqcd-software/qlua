@@ -12,7 +12,7 @@ end
 L = qcd.lattice{4,4,4,8}
 
 volume = 1
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   volume = volume * L[i]
 end
 
@@ -28,7 +28,7 @@ show_gauge("ape", vm)
 printf("APE_smear output: %s\n", tostring(Z))
 
 function compare(name, u, v)
-  for i in interval(1,qcd.Nd) do
+  for i in interval(1,#L) do
      printf("diff (%s[%d]): %e\n",
               name, i,
               (u[i] - v[i]):norm2() / volume)

@@ -1,3 +1,6 @@
+require "stdlib"
+require "gauge"
+
 L = qcd.lattice{4,4,4,8}
 kappa = 1.4235
 c_sw = 2.3344
@@ -7,13 +10,6 @@ c_sw = 2.3344
 -------------------------------------------------------------------------------
 function printf(fmt, ...)
   io.stdout:write(string.format(fmt, ...))
-end
-
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1.0/3.0, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
 end
 
 local function clovF(i,j)
@@ -72,7 +68,7 @@ S = L:RandomState(12345, ix)
 
 U = {}
 for i = 1, #L do
- U[i] = toSUn(L, S:gaussian_ColorMatrix())
+ U[i] = toSUn(S:gaussian_ColorMatrix())
 end
 
 

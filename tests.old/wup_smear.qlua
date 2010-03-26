@@ -25,7 +25,7 @@ end
 
 function wuppertal_smear_qlua(U, alpha, N, F, axis)
   local v = 1
-  for i in skip(axis + 1, interval(1, qcd.Nd)) do
+  for i in skip(axis + 1, interval(1, #U)) do
     v = v + 2 * alpha
   end
   local a = 1 / v
@@ -33,7 +33,7 @@ function wuppertal_smear_qlua(U, alpha, N, F, axis)
   local G = F
   for k = 1, N do
     local H = a * G
-    for i in skip(axis + 1, interval(1, qcd.Nd)) do
+    for i in skip(axis + 1, interval(1, #U)) do
       H = H + b *
                 (U[i] * G:shift(i-1, "from_forward") +
                  (U[i]:adjoin() * G):shift(i-1, "from_backward"))

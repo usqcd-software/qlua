@@ -1,8 +1,8 @@
 -- compute ij plaquette on each lattice site
 
 function plaquette(i, j, U)
-   assert(i >= 0 and i < qcd.Nd, "plaquette index out of range")
-   assert(j >= 0 and j < qcd.Nd, "plaquette index out of range")
+   assert(i >= 0 and i < #U, "plaquette index out of range")
+   assert(j >= 0 and j < #U, "plaquette index out of range")
    assert(not i == j, "collapsed plaquette")
 
    return U[i+1] *

@@ -4,8 +4,8 @@ require("stdlib")
 
 function wuppertal_smear(U, alpha, N, G, axis)
   local dim_smear
-  if axis and (0 <= axis) and (axis < qcd.Nd) then dim_smear = qcd.Nd - 1
-  else dim_smear = qcd.Nd end
+  if axis and (0 <= axis) and (axis < #U) then dim_smear = #U - 1
+  else dim_smear = #U end
   
   local v = 1 + 2 * alpha * dim_smear
   local b = alpha / v

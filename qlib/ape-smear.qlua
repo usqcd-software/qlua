@@ -5,9 +5,9 @@ function APE_smear(U, A, N, accu, imax, axis)
   local function ape_step(u)
      local w = {}
      for i, v in pairs(u) do w[i] = v end
-     for i in skip(axis+1, interval(1, qcd.Nd)) do
+     for i in skip(axis+1, interval(1, #U)) do
        local v = A * u[i]
-       for j in skip(i, skip(axis+1, interval(1, qcd.Nd))) do
+       for j in skip(i, skip(axis+1, interval(1, #U))) do
          local ux = u[j]:shift(i - 1, "from_forward")
          v = v + u[j] * u[i]:shift(j-1, "from_forward") * ux:adjoin() +
                  (u[j]:adjoin() * u[i] * ux):shift(j-1, "from_backward")
