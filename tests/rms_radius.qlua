@@ -18,7 +18,7 @@ function make_unit_gauge()
   local g = L:ColorMatrix(complex(1,0))
   local garr = {}
   for i = 0, #L-1 do
-    garr[1+i] = L:ColorMatrix(g)
+     garr[1+i] = g:copy()
   end
   return garr
 end

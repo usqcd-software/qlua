@@ -6,6 +6,7 @@
 #include "lhpc-aff.h"
 
 #include "qlua.h"                                                   /* DEPS */
+#include "lattice.h"                                                /* DEPS */
 #include "aff_io.h"                                                 /* DEPS */
 #include "extras.h"                                                 /* DEPS */
 
@@ -37,10 +38,11 @@ calc_exp_iphase(const int coord[], const int c0[],
  */
 const char *
 save_bb(lua_State *L,
+        mLattice *S,
         mAffWriter *aff_w,
         const char *aff_kpath,
-        QDP_DiracPropagator *F,
-        QDP_DiracPropagator *B,
+        QDP_D3_DiracPropagator *F,
+        QDP_D3_DiracPropagator *B,
         const int *csrc,             /* [qRank] */
         int tsnk,
         int n_mom,
@@ -96,9 +98,8 @@ save_bb(lua_State *L,
         { 0, 1, 2, 3 },             /* G15= g1 g2 g3 g4 */
     };
 #define get_mom(mom_list, i_mom) ((mom_list) + 4*(i_mom))
-    if (4 != QDP_ndim() || 
+    if (4 != S->rank || 
             4 != QDP_Ns ||
-            3 != QDP_Nc ||
             3 != t_axis) {
         return "not implemented for this dim, spin, color, or t-axis";
     }
@@ -112,7 +113,7 @@ save_bb(lua_State *L,
         return "incorrect pointer parameters";
     }
     int i;
-    for (i = 0 ; i < 4; i++) {
+    for (i = 0 ; i < S->rank; i++) {
         if (csrc[i] < 0 || latsize[i] <= csrc[i]) {
             return "incorrect source coordinates";
         }
@@ -142,8 +143,8 @@ save_bb(lua_State *L,
     
     int coord[4];
     double complex trc_FBd[4][4];
-    QLA_DiracPropagator *F_exp = QDP_expose_P(F);
-    QLA_DiracPropagator *B_exp = QDP_expose_P(B);
+    QLA_D3_DiracPropagator *F_exp = QDP_D3_expose_P(F);
+    QLA_D3_DiracPropagator *B_exp = QDP_D3_expose_P(B);
 
     int i_site;
     for (i_site = 0; i_site < QDP_sites_on_node; i_site++) {
@@ -173,7 +174,7 @@ save_bb(lua_State *L,
         int is, js, ks, ic, jc;
         for (is = 0; is < 4; is++) {
             for (js = 0; js < 4; js++) {
-                QLA_Complex sum;
+                QLA_D_Complex sum;
                 QLA_c_eq_r(sum, 0);
                 for (ks = 0; ks < 4; ks++) {
                     for (ic = 0; ic < 3 ; ic++)
@@ -263,7 +264,7 @@ save_bb(lua_State *L,
 #undef bb_imag
 #undef get_mom
     qlua_free(L, bb_arr);   
-    QDP_reset_P(F);
-    QDP_reset_P(B);
+    QDP_D3_reset_P(F);
+    QDP_D3_reset_P(B);
     return 0;
 }

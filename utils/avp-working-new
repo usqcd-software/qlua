@@ -12,7 +12,5 @@ CC="gcc -g -std=c99"                          \
    --with-atlas=$PACKTOP/atlas-3.9.23         \
    --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0    \
    --with-clover=/Users/avp/Sandbox/USQCD/clover/install-x \
+   --with-extras \
    --prefix=$TARGET 
-
-#   --with-extras \
-#

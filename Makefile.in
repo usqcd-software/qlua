@@ -113,11 +113,11 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF) \
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) \
               $(GSL_CF)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
-LLIBS = $(MDWF_LIBS) $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) \
+              $(QDP_LF) $(AFF_LF) $(CLOVER_LF)
+LLIBS = $(CLOVER_LIBS) $(AFF_LIBS) $(QDP_LIBS) \
         $(GSL_LIBS) $(CBLAS_LIBS) \
         -llua $(LIBS)
 

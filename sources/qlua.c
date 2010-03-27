@@ -28,11 +28,9 @@
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
-#if 0 /* XXX other includes */
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
 #endif
-#endif /* XXX other includes */
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
 #endif
@@ -626,12 +624,10 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_CLOVER
         init_clover,
 #endif
-#if 0 /* XXX inits */
 #ifdef HAS_EXTRAS
         init_extras,
 #endif
         /* ZZZ add other packages here */
-#endif /* XXX inits */
         NULL };
 
     int i;
@@ -673,11 +669,9 @@ qlua_fini(lua_State *L)
 {
     const static lua_CFunction qcd_finis[] = {
         /* ZZZ add other packages here */
-#if 0 /* XXX finis */
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
-#endif /* XXX finis */
 #ifdef HAS_CLOVER
         fini_clover,
 #endif

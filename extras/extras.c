@@ -12,29 +12,32 @@ q_save_bb(lua_State *L)
 {
     mAffWriter *aff_w = qlua_checkAffWriter(L, 1);
     const char *key_path = luaL_checkstring(L, 2);
-    mLatDirProp *F = qlua_checkLatDirProp(L, 3);
-    mLatDirProp *B = qlua_checkLatDirProp(L, 4);
-    int *csrc = qlua_checkintarray(L, 5, qRank, NULL);
+    mLatDirProp3 *F = qlua_checkLatDirProp3(L, 3, NULL, 3);
+    mLattice *S = qlua_ObjLattice(L, 3);
+    int Sidx = lua_gettop(L);
+    mLatDirProp3 *B = qlua_checkLatDirProp3(L, 4, S, 3);
+    int *csrc = qlua_checkintarray(L, 5, S->rank, NULL);
     int tsnk = luaL_checkint(L, 6);
-    int n_qext; /* extracted from #7 */
-    int *qext; /* #7 */
     int time_rev = luaL_checkint(L, 8);
     int t_axis = luaL_checkint(L, 9);
     double bc_baryon = luaL_checknumber(L, 10);
     int i, j, k;
     const char *status = NULL;
 
+    if (Sidx < 11)
+        return luaL_error(L, "bad arguments");
+
     if (csrc == NULL)
         return luaL_error(L, "bad value for coord_src");
 
     luaL_checktype(L, 7, LUA_TTABLE);
-    n_qext = lua_objlen(L, 7);
-    qext = qlua_malloc(L, n_qext * qRank * sizeof (int));
+    int n_qext = lua_objlen(L, 7);
+    int qext[n_qext * S->rank];
     for (k = i = 0; i < n_qext; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 7);
         qlua_checktable(L, -1, "momentum at #7[%d]", i + 1);
-        for (j = 0; j < qRank; j++, k++) {
+        for (j = 0; j < S->rank; j++, k++) {
             lua_pushnumber(L, j + 1);
             lua_gettable(L, -2);
             qext[k] = qlua_checkint(L, -1, "momentum component at #7[%d][%d]",
@@ -47,12 +50,11 @@ q_save_bb(lua_State *L)
     qlua_Aff_enter(L);
     CALL_QDP(L);
     
-    status = save_bb(L, aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
+    status = save_bb(L, S, aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
                      time_rev, t_axis, bc_baryon);
     qlua_Aff_leave();
     
     qlua_free(L, csrc);
-    qlua_free(L, qext);
 
     if (status)
         luaL_error(L, status);
@@ -65,7 +67,7 @@ q_laplacian(lua_State *L)
 {
     double a = luaL_checknumber(L, 1); /* [1] : a */
     double b = luaL_checknumber(L, 2); /* [2] : b */
-    QDP_ColorMatrix **g; /* [3]: { U[0], ... } */
+    /* [3]: { U[0], ... } */
     /* [4]: input */
     int skip; /* [5]: skip axis (if present) */
     int i;
@@ -83,49 +85,55 @@ q_laplacian(lua_State *L)
         return luaL_error(L, "axis must be a number");
     }
 
-    g = qlua_malloc(L, qRank * sizeof (QDP_ColorMatrix *));
     qlua_checktable(L, 3, "gauge field expected");
-    for (i = 0; i < qRank; i++) {
+    lua_pushnumber(L, 1);
+    lua_gettable(L, 3);
+    mLattice *S = qlua_ObjLattice(L, -1);
+    int Sidx = lua_gettop(L);
+    if (Sidx < 6)
+        return luaL_error(L, "bad arguments");
+    
+    QDP_D3_ColorMatrix *g[S->rank];
+    for (i = 0; i < S->rank; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 3);
-        g[i] = qlua_checkLatColMat(L, -1)->ptr;
+        g[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
         lua_pop(L, 1);
     }
 
-    switch (qlua_gettype(L, 4)) {
-    case qLatColVec: {
-        mLatColVec *x = qlua_checkLatColVec(L, 4);
-        mLatColVec *r = qlua_newLatColVec(L);
+    switch (qlua_qtype(L, 4)) {
+    case qLatColVec3: {
+        mLatColVec3 *x = qlua_checkLatColVec3(L, 4, S, 3);
+        mLatColVec3 *r = qlua_newLatColVec3(L, Sidx, 3);
         CALL_QDP(L);
-        status = gen_laplace_V(L, r->ptr, a, b, g, x->ptr, skip);
+        status = gen_laplace_V(L, S, r->ptr, a, b, g, x->ptr, skip);
         break;
     }
-    case qLatColMat: {
-        mLatColMat *x = qlua_checkLatColMat(L, 4);
-        mLatColMat *r = qlua_newLatColMat(L);
+    case qLatColMat3: {
+        mLatColMat3 *x = qlua_checkLatColMat3(L, 4, S, 3);
+        mLatColMat3 *r = qlua_newLatColMat3(L, Sidx, 3);
         CALL_QDP(L);
-        status = gen_laplace_M(L, r->ptr, a, b, g, x->ptr, skip);
+        status = gen_laplace_M(L, S, r->ptr, a, b, g, x->ptr, skip);
         break;
     }
-    case qLatDirFerm: {
-        mLatDirFerm *x = qlua_checkLatDirFerm(L, 4);
-        mLatDirFerm *r = qlua_newLatDirFerm(L);
+    case qLatDirFerm3: {
+        mLatDirFerm3 *x = qlua_checkLatDirFerm3(L, 4, S, 3);
+        mLatDirFerm3 *r = qlua_newLatDirFerm3(L, Sidx, 3);
         CALL_QDP(L);
-        status = gen_laplace_D(L, r->ptr, a, b, g, x->ptr, skip);
+        status = gen_laplace_D(L, S, r->ptr, a, b, g, x->ptr, skip);
         break;
     }
-    case qLatDirProp: {
-        mLatDirProp *x = qlua_checkLatDirProp(L, 4);
-        mLatDirProp *r = qlua_newLatDirProp(L);
+    case qLatDirProp3: {
+        mLatDirProp3 *x = qlua_checkLatDirProp3(L, 4, S, 3);
+        mLatDirProp3 *r = qlua_newLatDirProp3(L, Sidx, 3);
         CALL_QDP(L);
-        status = gen_laplace_P(L, r->ptr, a, b, g, x->ptr, skip);
+        status = gen_laplace_P(L, S, r->ptr, a, b, g, x->ptr, skip);
         break;
     }
     default:
         return luaL_error(L, "arg #4 must be colored");
     }
 
-    qlua_free(L, g);
     if (status)
         return luaL_error(L, status);
     return 1;
