@@ -18,11 +18,12 @@ end
 function check_hex(name, L, U, g)
   function check_plaquettes(name, U)
     local function plaq(i, j)
+       local nc = U[1]:colors()
        local P = plaquette(U, i, j):trace():real()
        local px = P:sum() / volume
        local z = (P - L:Real(px))
        local dp = (z*z):sum() / volume
-       return px / qcd.Nc , dp / (qcd.Nc * qcd.Nc)
+       return px / nc , dp / (nc * nc)
     end
     printf("Plaquettes of %s\n", name)
     for mu in interval(0, #L - 1) do

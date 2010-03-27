@@ -6,9 +6,9 @@ require("wuppertal-smear")
 function show_F(name, F, x)
   y = {}
   for i, v in pairs(x) do y[i] = v end
-  for c = 0, qcd.Nc - 1 do
+  for c = 0, F:colors() - 1 do
     y.c = c
-    for d = 0, qcd.Nf - 1 do
+    for d = 0, qcd.Ns - 1 do
       y.d = d
       local z = F[y]
       printf("%s[%d, %d] = %20.10e  %20.10e\n", name, c, d, z:real(), z:imag())

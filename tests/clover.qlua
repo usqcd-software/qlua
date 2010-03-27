@@ -107,19 +107,3 @@ io.stdout:write("prop residue norm2 " ..
                 tostring((P - CL:D(X)):norm2() / P:norm2()) .. "\n")
 
 os.exit(0)
-
-for x = 0, L[0] - 1 do
-  for y = 0, L[1] - 1 do
-    for z = 0, L[2] - 1 do
-      for t = 0, L[3] - 1 do
-        for cx = 0, qcd.Nc - 1 do
-          for dx = 0, qcd.Ns - 1 do
-            idx = {x,y,z,t,c=cx,d=dx}
-            print(x, y, z, t, cx, dx, Z[idx], F[idx], Q[idx])
-          end
-        end
-      end
-    end
-  end
-end
-

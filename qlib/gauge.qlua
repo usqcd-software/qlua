@@ -18,9 +18,9 @@ function naive_q(U)
               (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward")
     return (F - F:adjoin()) / complex(0,8)
   end
-  return 8 / qcd.Nc * (clovF(1,2) * clovF(3,4) +
-                       clovF(1,3) * clovF(4,2) +
-                       clovF(1,4) * clovF(2,3)):trace():real()
+  return 8 / U[1]:colors() * (clovF(1,2) * clovF(3,4) +
+                              clovF(1,3) * clovF(4,2) +
+                              clovF(1,4) * clovF(2,3)):trace():real()
 end
 
 -- project a matrix to SU(n)

@@ -69,46 +69,6 @@ max_iters = 20000
 wup_alpha = 3.0
 wup_N = 25
 
---function timer(start)
---  local t0 = os.time()
---  return function(stop)
---    local t1 = os.time()
---    printf("TIME(%q,%q) = %.3f secs\n", start, stop, t1 - t0)
---    return t1 - t0
---  end
---end
---
---
---function make_source(Z, csrc)
---  local F=L:DiracPropagator()
---  for c = 0, qcd.Nc - 1 do
---    for d = 0, qcd.Ns - 1 do
---      local dv = L:DiracFermion()
---      dv[{csrc[1], csrc[2], csrc[3], csrc[4],c=c,d=d}] = complex(1,0)
---      F[{c=c,d=d}] = dv
---    end
---  end
---  L:Subset{axis=3, position=csrc[4]}:where(
---     function()
---       F:set(wuppertal_smear(Z, wup_alpha, wup_N, F, 3))
---     end)
---  return F
---end
---
---function propagator_projected(sign, mu, src, solver)
---  local z = qcd.right_project(sign, {mu=mu}, src)
---  local z_sol = {}
---  for i = 1, #z do
---    z_sol[i] = {}
---    for j = 1, #z[i] do 
---      printf('%d,%d:%s\n', i,j, tostring(z[i][j]))
---      z_sol[i][j] = solver(z[i][j]) / 2.
---    end
---  end
---  return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
---end
-
-
 U, hdr = qcd.nersc.read_gauge('input/gauge_disord_4c8.NERSC')
 
 c2pt_timer = timer('c3pt')

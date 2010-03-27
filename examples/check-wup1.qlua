@@ -10,22 +10,22 @@ function show_gauge(name, nt)
 end
 
 function show_F(name, f, x)
-  local y = {}
-  for i, v in pairs(x) do y[i] = v end
-  for c1 = 0, qcd.Nc - 1 do
-    for d1 = 0, qcd.Nf - 1 do
-      for c = 0, qcd.Nc - 1 do
-        y.c = c
-        for d = 0, qcd.Nf - 1 do
-          y.d = d
-          local Z = f[{c=c1,d=d1}][y]
-          printf("  %s[%d,%d,%d,%d] =  %20.10e  %20.10e\n",
-                name, c1, d1, c, d, Z:real(), Z:imag())
-        end
+   local y = {}
+   for i, v in pairs(x) do y[i] = v end
+   for c1 = 0, f:colors() - 1 do
+      for d1 = 0, qcd.Ns - 1 do
+         for c = 0, f:colors() - 1 do
+            y.c = c
+            for d = 0, qcd.Ns - 1 do
+               y.d = d
+               local Z = f[{c=c1,d=d1}][y]
+               printf("  %s[%d,%d,%d,%d] =  %20.10e  %20.10e\n",
+                      name, c1, d1, c, d, Z:real(), Z:imag())
+            end
+         end
       end
-    end
-  end
-  printf("\n")
+   end
+   printf("\n")
 end
 
 -------------------------------------
