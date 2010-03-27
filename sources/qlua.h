@@ -66,6 +66,14 @@ typedef enum {
     qNoType
 } QLUA_Type;
 
+typedef enum { /* simple arithmetic types */
+    zReal,
+    zLatInt,
+    zLatReal,
+    zNoType,
+    zArithTypeCount, /* number of types in simple arith dispatch tables */
+} QLUA_Ztype;
+
 extern const char *progname;
 extern const char *qcdlib;
 extern int qlua_primary_node;
@@ -94,6 +102,7 @@ void qlua_createLatticeTable(lua_State *L,
                              QLUA_Type t_id,
                              const char *name);
 QLUA_Type qlua_qtype(lua_State *L, int idx);
+QLUA_Ztype qlua_ztype(lua_State *L, int idx);
 QLUA_Type qlua_atype(lua_State *L, int idx); /* non-arith types => qOther */
 const char *qlua_ptype(lua_State *L, int idx);
 void *qlua_malloc(lua_State *L, int size);
@@ -130,13 +139,29 @@ typedef struct {
     q_op      op;
 } QLUA_Op2;
 
+typedef struct {
+    q_op      *table;
+    QLUA_Ztype ta;
+    QLUA_Ztype tb;
+    q_op       op;
+} QLUA_ZOp2;
+
 extern q_op qlua_add_table[];
 extern q_op qlua_sub_table[];
 extern q_op qlua_mul_table[];
 extern q_op qlua_div_table[];
 extern q_op qlua_mod_table[];
+extern q_op qlua_min_table[];
+extern q_op qlua_max_table[];
+extern q_op qlua_eq_table[];
+extern q_op qlua_ne_table[];
+extern q_op qlua_lt_table[];
+extern q_op qlua_le_table[];
+extern q_op qlua_gt_table[];
+extern q_op qlua_ge_table[];
 
 void qlua_reg_op2(const QLUA_Op2 *ops);
+void qlua_reg_zop2(const QLUA_ZOp2 *ops);
 
 int qlua_add(lua_State *L);
 int qlua_sub(lua_State *L);

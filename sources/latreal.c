@@ -673,6 +673,376 @@ q_r_div_R(lua_State *L)
 }
 
 static int
+q_r_min_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_R_eq_R_min_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_min_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_R_eq_R_min_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_min_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_R_min_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_max_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_R_eq_R_max_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_max_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_R_eq_R_max_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_max_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_R_max_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_eq_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_eq_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_eq_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_eq_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_eq_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_eq_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_ne_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_ne_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_ne_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_ne_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_ne_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_ne_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_lt_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_lt_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_lt_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_lt_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_lt_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_lt_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_le_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_le_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_le_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_le_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_le_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_le_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_gt_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_gt_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_gt_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_gt_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_gt_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_gt_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_r_ge_R(lua_State *L)
+{
+    QLA_D_Real a = luaL_checknumber(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, NULL);
+    mLattice *S = qlua_ObjLattice(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &a, *S->qss);
+    QDP_I_eq_R_ge_R(r->ptr, c->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_ge_r(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    QLA_D_Real b = luaL_checkint(L, 2);
+    mLatReal *c = qlua_newLatReal(L, lua_gettop(L));
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_R_eq_r(c->ptr, &b, *S->qss);
+    QDP_I_eq_R_ge_R(r->ptr, a->ptr, c->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+q_R_ge_R(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    
+    CALL_QDP(L);
+    QDP_I_eq_R_ge_R(r->ptr, a->ptr, b->ptr, *S->qss);
+
+    return 1;
+}
+
+
+
+static int
 q_latreal(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
@@ -845,11 +1215,39 @@ init_latreal(lua_State *L)
         {qlua_div_table, qLatReal,  qReal,    q_R_div_r  },
         {NULL,           qNoType,   qNoType,  NULL        }
     };
+    static const QLUA_ZOp2 zops[] = {
+        {qlua_min_table,  zReal,    zLatReal, q_r_min_R },
+        {qlua_min_table,  zLatReal, zReal,    q_R_min_r },
+        {qlua_min_table,  zLatReal, zLatReal, q_R_min_R },
+        {qlua_max_table,  zReal,    zLatReal, q_r_max_R },
+        {qlua_max_table,  zLatReal, zReal,    q_R_max_r },
+        {qlua_max_table,  zLatReal, zLatReal, q_R_max_R },
+        {qlua_eq_table,   zReal,    zLatReal, q_r_eq_R  },
+        {qlua_eq_table,   zLatReal, zReal,    q_R_eq_r  },
+        {qlua_eq_table,   zLatReal, zLatReal, q_R_eq_R  },
+        {qlua_ne_table,   zReal,    zLatReal, q_r_ne_R  },
+        {qlua_ne_table,   zLatReal, zReal,    q_R_ne_r  },
+        {qlua_ne_table,   zLatReal, zLatReal, q_R_ne_R  },
+        {qlua_lt_table,   zReal,    zLatReal, q_r_lt_R  },
+        {qlua_lt_table,   zLatReal, zReal,    q_R_lt_r  },
+        {qlua_lt_table,   zLatReal, zLatReal, q_R_lt_R  },
+        {qlua_le_table,   zReal,    zLatReal, q_r_le_R  },
+        {qlua_le_table,   zLatReal, zReal,    q_R_le_r  },
+        {qlua_le_table,   zLatReal, zLatReal, q_R_le_R  },
+        {qlua_gt_table,   zReal,    zLatReal, q_r_gt_R  },
+        {qlua_gt_table,   zLatReal, zReal,    q_R_gt_r  },
+        {qlua_gt_table,   zLatReal, zLatReal, q_R_gt_R  },
+        {qlua_ge_table,   zReal,    zLatReal, q_r_ge_R  },
+        {qlua_ge_table,   zLatReal, zReal,    q_R_ge_r  },
+        {qlua_ge_table,   zLatReal, zLatReal, q_R_ge_R  },
+        {NULL,            zNoType, zNoType, NULL      }
+    };
 
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatReal);
     lua_pop(L, 1);
     qlua_reg_op2(ops);
+    qlua_reg_zop2(zops);
     qlua_reg_dot(qLatReal, q_R_mul_R);
 
     return 0;

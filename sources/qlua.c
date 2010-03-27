@@ -460,14 +460,33 @@ qlua_atype(lua_State *L, int idx)
     return tv;
 }
 
+QLUA_Ztype
+qlua_ztype(lua_State *L, int idx)
+{
+    switch (qlua_qtype(L, idx)) {
+    case qReal:     return zReal;
+    case qLatInt:   return zLatInt;
+    case qLatReal:  return zLatReal;
+    default:        return zNoType;
+    }
+}
 /* generic operations dispatchers */
-#define Op2Idx(a,b) ((a)*(qOther + 1) + (b))
+#define Op2Idx(a,b) ((a)*qArithTypeCount + (b))
+#define zOp2Idx(a,b) ((a)*zArithTypeCount + (b))
 
 q_op qlua_add_table[qArithTypeCount * qArithTypeCount];
 q_op qlua_sub_table[qArithTypeCount * qArithTypeCount];
 q_op qlua_mul_table[qArithTypeCount * qArithTypeCount];
 q_op qlua_div_table[qArithTypeCount * qArithTypeCount];
 q_op qlua_mod_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_min_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_max_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_eq_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_ne_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_lt_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_le_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_gt_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_ge_table[zArithTypeCount * zArithTypeCount];
 
 void
 qlua_reg_op2(const QLUA_Op2 *ops)
@@ -478,6 +497,16 @@ qlua_reg_op2(const QLUA_Op2 *ops)
         assert(ops[i].ta < qOther);
         assert(ops[i].tb < qOther);
         ops[i].table[Op2Idx(ops[i].ta, ops[i].tb)] = ops[i].op;
+    }
+}
+
+void
+qlua_reg_zop2(const QLUA_ZOp2 *ops)
+{
+    int i;
+
+    for (i = 0; ops[i].table; i++) {
+        ops[i].table[zOp2Idx(ops[i].ta, ops[i].tb)] = ops[i].op;
     }
 }
 
@@ -557,8 +586,104 @@ q_dot(lua_State *L)
         return luaL_error(L, "bad argument for inner dot");
 }
 
+static int 
+q_min(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_min_table[idx])
+        return qlua_min_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <?");
+}
+
+static int 
+q_max(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_max_table[idx])
+        return qlua_max_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >?");
+}
+
+static int 
+q_eq(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_eq_table[idx])
+        return qlua_eq_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for ==");
+}
+
+static int 
+q_ne(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_ne_table[idx])
+        return qlua_ne_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for !=");
+}
+
+static int 
+q_lt(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_lt_table[idx])
+        return qlua_lt_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <");
+}
+
+static int 
+q_le(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_le_table[idx])
+        return qlua_le_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <=");
+}
+
+static int 
+q_gt(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_gt_table[idx])
+        return qlua_gt_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >");
+}
+
+static int 
+q_ge(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_ge_table[idx])
+        return qlua_ge_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >=");
+}
+
 static struct luaL_Reg fQCD[] = {
-    { "dot",    q_dot}, /* local inner dot */
+    { "dot",    q_dot }, /* local inner dot */
+    { "min",    q_min }, /* local min */
+    { "max",    q_max }, /* local min */
+    { "ne",     q_ne  }, /* local  != */
+    { "eq",     q_eq  }, /* local  == */
+    { "lt",     q_lt  }, /* local  <  */
+    { "le",     q_le  }, /* local  <= */
+    { "gt",     q_gt  }, /* local  >  */
+    { "ge",     q_ge  }, /* local  >= */
     { NULL,     NULL}
 };
 
