@@ -4,6 +4,8 @@
 mLatSubset *qlua_checkLatSubset(lua_State *L, int idx, mLattice *S);
 mLatSubset *qlua_newLatSubset(lua_State *L, int Sidx);
 
+int qlua_everywhere(lua_State *L);
+
 int init_latsubset(lua_State *L);
 int fini_latsubset(lua_State *L);
 

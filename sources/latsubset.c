@@ -118,12 +118,29 @@ q_U_where(lua_State *L)
     mLatSubset old_subset = S->lss;
     
     switch_subset(L, S, v);
-
     lua_pop(L, 1);
     if (lua_pcall(L, argc, LUA_MULTRET, 0))
         return luaL_error(L, lua_tostring(L, -1));
     resc = lua_gettop(L) - 1;
+    switch_subset(L, S, &old_subset);
 
+    return resc;
+}
+
+int
+qlua_everywhere(lua_State *L)
+{
+    mLattice *S = qlua_checkLattice(L, 1);
+    mLatSubset old_subset = S->lss;
+    int argc = lua_gettop(L) - 1;
+    int resc;
+    mLatSubset all;
+
+    all.cl = qss_all;
+    switch_subset(L, S, &all);
+    if (lua_pcall(L, argc, LUA_MULTRET, 0))
+        return luaL_error(L, lua_tostring(L, -1));
+    resc = lua_gettop(L) - 1;
     switch_subset(L, S, &old_subset);
 
     return resc;

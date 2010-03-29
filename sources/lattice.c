@@ -415,10 +415,11 @@ q_network(lua_State *L)
 }
 
 static struct luaL_Reg LatticeMethods[] = {
-    { "pcoord",           q_pcoord     },
-    { "planewave",        q_planewave  },
-    { "defaults",         q_defaults   },
-    { NULL,               NULL         },
+    { "pcoord",           q_pcoord        },
+    { "planewave",        q_planewave     },
+    { "defaults",         q_defaults      },
+    { "everywhere",       qlua_everywhere },
+    { NULL,               NULL            }
 };
 
 static struct luaL_Reg fLattice[] = {
