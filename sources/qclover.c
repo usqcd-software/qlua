@@ -676,78 +676,11 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
 }
 
 static int
-q_CL_D(lua_State *L)
-{
-    mClover *c = qlua_checkClover(L, 1, NULL, 1);
-    mLattice *S = qlua_ObjLattice(L, 1);
-    int Sidx = lua_gettop(L);
-
-    switch (qlua_qtype(L, 2)) {
-    case qLatDirFerm3: {
-        mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 2, S, 3);
-        mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        QLA_D_DiracFermion *e_psi;
-        QLA_D_DiracFermion *e_eta;
-
-        CALL_QDP(L);
-        e_psi = QDP_D3_expose_D(psi->ptr);
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
-            return luaL_error(L, "CLOVER_import_fermion() failed");
-        QDP_D3_reset_D(psi->ptr);
-
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        QOP_CLOVER_D_operator(c_eta, c->gauge, c_psi);
-        
-        e_eta = QDP_D3_expose_D(eta->ptr);
-        QOP_CLOVER_export_fermion(q_CL_D_writer, e_eta, c_eta);
-        QDP_D3_reset_D(eta->ptr);
-        
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
-
-        return 1;
-    }
-    case qLatDirProp3: {
-        mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 2, S, 3);
-        mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        qCL_P_env env;
-
-        CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        env.in = QDP_D3_expose_P(psi->ptr);
-        env.out = QDP_D3_expose_P(eta->ptr);
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader, &env))
-                    return luaL_error(L, "CLOVER_import_fermion failed");
-                QOP_CLOVER_D_operator(c_eta, c->gauge, c_psi);
-                QOP_CLOVER_free_fermion(&c_psi);
-                QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
-            }
-        }
-        QOP_CLOVER_free_fermion(&c_eta);
-        QDP_D3_reset_P(psi->ptr);
-        QDP_D3_reset_P(eta->ptr);
-
-        return 1;
-    }
-    default:
-        break;
-    }
-    return luaL_error(L, "bad arguments in Clover:D");
-}
-
-static int
-q_CL_Dx(lua_State *L)
+q_CL_operator(lua_State *L,
+              const char *name,
+              int (*op)(struct QOP_D3_CLOVER_Fermion *result,
+                        const struct QOP_D3_CLOVER_Gauge *gauge,
+                        const struct QOP_D3_CLOVER_Fermion *source))
 {
     mClover *c = qlua_checkClover(L, 1, NULL, 1);
     mLattice *S = qlua_ObjLattice(L, 1);
@@ -771,11 +704,12 @@ q_CL_Dx(lua_State *L)
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
-        QOP_CLOVER_D_operator_conjugated(c_eta, c->gauge, c_psi);
+        (*op)(c_eta, c->gauge, c_psi);
+        
         e_eta = QDP_D3_expose_D(eta->ptr);
         QOP_CLOVER_export_fermion(q_CL_D_writer, e_eta, c_eta);
         QDP_D3_reset_D(eta->ptr);
-     
+        
         QOP_CLOVER_free_fermion(&c_eta);
         QOP_CLOVER_free_fermion(&c_psi);
 
@@ -799,7 +733,9 @@ q_CL_Dx(lua_State *L)
                 if (QOP_CLOVER_import_fermion(&c_psi, c->state,
                                               q_CL_P_reader, &env))
                     return luaL_error(L, "CLOVER_import_fermion failed");
-                QOP_CLOVER_D_operator_conjugated(c_eta, c->gauge, c_psi);
+
+                (*op)(c_eta, c->gauge, c_psi);
+                
                 QOP_CLOVER_free_fermion(&c_psi);
                 QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
             }
@@ -813,7 +749,19 @@ q_CL_Dx(lua_State *L)
     default:
         break;
     }
-    return luaL_error(L, "bad arguments in Clover:Dx");
+    return luaL_error(L, "bad arguments in Clover:%s", name);
+}
+
+static int
+q_CL_D(lua_State *L)
+{
+    return q_CL_operator(L, "D", QOP_D3_CLOVER_D_operator);
+}
+
+static int
+q_CL_Dx(lua_State *L)
+{
+    return q_CL_operator(L, "Dx", QOP_D3_CLOVER_D_operator_conjugated);
 }
 
 /* the standard clover solver */

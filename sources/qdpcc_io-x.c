@@ -292,39 +292,6 @@ Qs(cc_write_P_)(lua_State *L, int nc)
     return 0;
 }
 
-#if 0 /* XXX */
-
-
-
-static struct luaL_Reg fQDPCCio[] = {
-    { "read_prop",     qdpcc_read_P },
-    { "write_prop",    qdpcc_write_P },
-    { NULL,       NULL }
-};
-
-int
-init_qdpcc_io(lua_State *L)
-{
-    int i;
-
-    lua_getglobal(L, qcdlib);
-    lua_newtable(L);
-    for (i = 0; fQDPCCio[i].name; i++) {
-        lua_pushcfunction(L, fQDPCCio[i].func);
-        lua_setfield(L, -2, fQDPCCio[i].name);
-    }
-    lua_setfield(L, -2, qdpcc_io);
-    lua_pop(L, 1);
-    return 0;
-}
-
-int
-fini_qdpcc_io(lua_State *L)
-{
-    return 0;
-}
-#endif /* XXX */
-
 #undef Qs
 #undef Qx
 #undef QC
