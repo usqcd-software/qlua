@@ -8,7 +8,7 @@ function show_2d(name, v)
    for i = 0, l[0] - 1 do
       printf(" %3d:", i)
       for j = 0, l[1] - 1 do
-         printf(" %1d", v[{i,j}])
+         printf(" %+1d", v[{i,j}])
       end
       printf("\n")
    end
