@@ -1011,13 +1011,21 @@ q_C_sum(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 1, NULL);
     int argc = lua_gettop(L);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
 
     switch (argc) {
     case 1: {
         QLA_Complex *s = qlua_newComplex(L);
 
         CALL_QDP(L);
-        QDP_c_eq_sum_C(s, a->ptr, *S->qss);
+        if (S->lss.mask) {
+            mLatComplex *b = qlua_newLatComplex(L, Sidx);
+            QDP_C_eq_zero(b->ptr, *S->qss);
+            QDP_C_eq_C_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+            QDP_c_eq_sum_C(s, b->ptr, *S->qss);
+        } else {
+            QDP_c_eq_sum_C(s, a->ptr, *S->qss);
+        }
 
         return 1;
     }
@@ -1062,7 +1070,13 @@ q_C_norm2(lua_State *L)
     QLA_Real n;
 
     CALL_QDP(L);
-    QDP_r_eq_norm2_C(&n, a->ptr, *S->qss);
+    if (S->lss.mask) {
+        mLatComplex *b = qlua_newLatComplex(L, lua_gettop(L));
+        QDP_C_eq_C_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+        QDP_r_eq_norm2_C(&n, b->ptr, *S->qss);
+    } else {
+        QDP_r_eq_norm2_C(&n, a->ptr, *S->qss);
+    }
     lua_pushnumber(L, n);
     
     return 1;
@@ -1169,7 +1183,10 @@ q_C_set(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 2, S);
 
     CALL_QDP(L);
-    QDP_C_eq_C(r->ptr, a->ptr, *S->qss);
+    if (S->lss.mask)
+        QDP_C_eq_C_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
+    else
+        QDP_C_eq_C(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 1);
 
     return 1;

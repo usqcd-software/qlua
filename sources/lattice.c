@@ -61,6 +61,14 @@ q_L_gc(lua_State *L)
         qlua_free(L, S->dim);
     S->dim = 0;
 
+    if (S->lss.cl > qss_last_static)
+        QDP_destroy_subset(S->qss);
+    S->lss.cl = qss_none;
+
+    if (S->lss.mask)
+        QDP_destroy_I(S->lss.mask);
+    S->lss.mask = NULL;
+
     return 0;
 }
 
@@ -259,6 +267,7 @@ q_lattice(lua_State *L)
     }
     S->qss = &QDP_all;
     S->lss.cl = qss_all;
+    S->lss.mask = NULL;
     S->id = lat_id;
     S->nc = 3;
     lat_id++;

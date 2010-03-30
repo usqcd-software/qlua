@@ -44,7 +44,11 @@ q_S_set(lua_State *L)
     mLatRandom *a = qlua_checkLatRandom(L, 2, S);
 
     CALL_QDP(L);
-    QDP_S_eq_S(r->ptr, a->ptr, *S->qss);
+    if (S->lss.mask)
+        luaL_error(L, "XXXX missing  QDP_S_eq_S_mask_I()");
+        /* QDP_S_eq_S_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss); */
+    else
+        QDP_S_eq_S(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 1);
 
     return 1;

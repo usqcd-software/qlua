@@ -52,13 +52,21 @@ q_R_sum(lua_State *L)
     mLatReal *a = qlua_checkLatReal(L, 1, NULL);
     int argc = lua_gettop(L);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     
     switch (argc) {
     case 1: {
         QLA_Real sum;
 
         CALL_QDP(L);
-        QDP_r_eq_sum_R(&sum, a->ptr, *S->qss);
+        if (S->lss.mask) {
+            mLatReal *b = qlua_newLatReal(L, Sidx);
+            QDP_R_eq_zero(b->ptr, QDP_all);
+            QDP_R_eq_R_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+            QDP_r_eq_sum_R(&sum, b->ptr, *S->qss);
+        } else {
+            QDP_r_eq_sum_R(&sum, a->ptr, *S->qss);
+        }
         lua_pushnumber(L, sum);
 
         return 1;
@@ -99,7 +107,13 @@ q_R_norm2(lua_State *L)
     QLA_Real n;
 
     CALL_QDP(L);
-    QDP_r_eq_norm2_R(&n, a->ptr, *S->qss);
+    if (S->lss.mask) {
+        mLatReal *b = qlua_newLatReal(L, lua_gettop(L));
+        QDP_R_eq_R_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+        QDP_r_eq_norm2_R(&n, b->ptr, *S->qss);
+    } else {
+        QDP_r_eq_norm2_R(&n, a->ptr, *S->qss);
+    }
     lua_pushnumber(L, n);
 
     return 1;
@@ -391,7 +405,10 @@ q_R_set(lua_State *L)
     mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
 
     CALL_QDP(L);
-    QDP_R_eq_R(r->ptr, a->ptr, *S->qss);
+    if (S->lss.mask)
+        QDP_R_eq_R_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
+    else
+        QDP_R_eq_R(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }

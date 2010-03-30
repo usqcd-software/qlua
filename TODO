@@ -1,6 +1,3 @@
-* use integer masks as subsets (only if other subsets do not work)
-   in :set(), norm2(), and :sum().
-
 * Multiple Lattices
 -- see the latest QDP release: requires new QLA, docs are old (?)
 -- check that clover still works.

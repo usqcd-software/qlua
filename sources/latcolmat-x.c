@@ -140,7 +140,13 @@ Qs(q_M_norm2_)(lua_State *L)
     QLA_Real n;
 
     CALL_QDP(L);
-    Qx(QDP_D,_r_eq_norm2_M)(&n, a->ptr, *S->qss);
+    if (S->lss.mask) {
+        Qs(mLatColMat) *b = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
+        Qx(QDP_D,_M_eq_M_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
+        Qx(QDP_D,_r_eq_norm2_M)(&n, b->ptr, *S->qss);
+    } else {
+        Qx(QDP_D,_r_eq_norm2_M)(&n, a->ptr, *S->qss);
+    }
 
     lua_pushnumber(L, n);
     
@@ -534,7 +540,10 @@ Qs(q_M_set)(lua_State *L)
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-    Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
+    if (S->lss.mask)
+        Qx(QDP_D,_M_eq_M_mask_I)(r->ptr, a->ptr, S->lss.mask, *S->qss);
+    else
+        Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 2);
 
     return 1;

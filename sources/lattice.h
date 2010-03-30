@@ -5,7 +5,8 @@ typedef enum {
     qss_all,
     qss_even,
     qss_odd,
-    qss_dynamic,
+    qss_none,
+    qss_last_static = qss_none,
     qss_slice,
     qss_upper,
     qss_lower
@@ -15,6 +16,7 @@ typedef struct {
     qSubsetClass  cl;
     int           axis;
     int           position;
+    QDP_Int      *mask;
 } mLatSubset;
 
 typedef struct {

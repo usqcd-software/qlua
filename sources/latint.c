@@ -40,13 +40,21 @@ q_I_sum(lua_State *L)
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     int argc = lua_gettop(L);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
 
     switch (argc) {
     case 1: {
         QLA_Real sum;
 
         CALL_QDP(L);
-        QDP_r_eq_sum_I(&sum, a->ptr, *S->qss);
+        if (S->lss.mask) {
+            mLatInt *b = qlua_newLatInt(L, Sidx);
+            QDP_I_eq_zero(b->ptr, QDP_all);
+            QDP_I_eq_I_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+            QDP_r_eq_sum_I(&sum, b->ptr, *S->qss);
+        } else {
+            QDP_r_eq_sum_I(&sum, a->ptr, *S->qss);
+        }
         lua_pushnumber(L, sum);
         
         return 1;
@@ -87,7 +95,10 @@ q_I_set(lua_State *L)
     mLatInt *a = qlua_checkLatInt(L, 2, S);
 
     CALL_QDP(L);
-    QDP_I_eq_I(r->ptr, a->ptr, *S->qss);
+    if (S->lss.mask)
+        QDP_I_eq_I_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
+    else
+        QDP_I_eq_I(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 1);
 
     return 1;
@@ -98,11 +109,17 @@ q_I_norm2(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_Real sum;
+    QLA_Real n;
 
     CALL_QDP(L);
-    QDP_r_eq_norm2_I(&sum, a->ptr, *S->qss);
-    lua_pushnumber(L, sum);
+    if (S->lss.mask) {
+        mLatInt *b = qlua_newLatInt(L, lua_gettop(L));
+        QDP_I_eq_I_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
+        QDP_r_eq_norm2_I(&n, b->ptr, *S->qss);
+    } else {
+        QDP_r_eq_norm2_I(&n, a->ptr, *S->qss);
+    }
+    lua_pushnumber(L, n);
 
     return 1;
 }
