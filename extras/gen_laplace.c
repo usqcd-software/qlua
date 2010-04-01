@@ -6,7 +6,7 @@
 
 #define gen_laplace_ID              gen_laplace_P
 #define QDP_Type                    QDP_D3_DiracPropagator
-#define QDP_create_ID               QDP_D3_create_P
+#define QDP_create_ID               QDP_D3_create_P_L
 #define QDP_destroy_ID              QDP_D3_destroy_P
 #define QDP_ID_eq_zero              QDP_D3_P_eq_zero
 #define QDP_ID_eq_r_times_ID        QDP_D3_P_eq_r_times_P
@@ -17,7 +17,7 @@
 
 #define gen_laplace_ID              gen_laplace_V
 #define QDP_Type                    QDP_D3_ColorVector
-#define QDP_create_ID               QDP_D3_create_V
+#define QDP_create_ID               QDP_D3_create_V_L
 #define QDP_destroy_ID              QDP_D3_destroy_V
 #define QDP_ID_eq_zero              QDP_D3_V_eq_zero
 #define QDP_ID_eq_r_times_ID        QDP_D3_V_eq_r_times_V
@@ -28,7 +28,7 @@
 
 #define gen_laplace_ID              gen_laplace_M
 #define QDP_Type                    QDP_D3_ColorMatrix
-#define QDP_create_ID               QDP_D3_create_M
+#define QDP_create_ID               QDP_D3_create_M_L
 #define QDP_destroy_ID              QDP_D3_destroy_M
 #define QDP_ID_eq_zero              QDP_D3_M_eq_zero
 #define QDP_ID_eq_r_times_ID        QDP_D3_M_eq_r_times_M
@@ -39,7 +39,7 @@
 
 #define gen_laplace_ID              gen_laplace_D
 #define QDP_Type                    QDP_D3_DiracFermion
-#define QDP_create_ID               QDP_D3_create_D
+#define QDP_create_ID               QDP_D3_create_D_L
 #define QDP_destroy_ID              QDP_D3_destroy_D
 #define QDP_ID_eq_zero              QDP_D3_D_eq_zero
 #define QDP_ID_eq_r_times_ID        QDP_D3_D_eq_r_times_D

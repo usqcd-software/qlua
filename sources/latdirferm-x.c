@@ -585,19 +585,20 @@ static struct luaL_Reg Qs(mtLatDirFerm)[] = {
 Qs(mLatDirFerm) *
 Qs(qlua_newLatDirFerm)(lua_State *L, int Sidx, int nc)
 {
+    mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
-    Qx(QDP_D,_DiracFermion) *v = Qx(QDP_D,_create_D)(nc);
+    Qx(QDP_D,_DiracFermion) *v = Qx(QDP_D,_create_D_L)(nc, S->lat);
 #else
-    Qx(QDP_D,_DiracFermion) *v = Qx(QDP_D,_create_D)();
+    Qx(QDP_D,_DiracFermion) *v = Qx(QDP_D,_create_D_L)(S->lat);
 #endif
     Qs(mLatDirFerm) *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
 #if QNc == 'N'
-        v = Qx(QDP_D,_create_D)(nc);
+        v = Qx(QDP_D,_create_D_L)(nc, S->lat);
 #else
-        v = Qx(QDP_D,_create_D)();
+        v = Qx(QDP_D,_create_D_L)(S->lat);
 #endif
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_DiracFermion" Qcolors ")");

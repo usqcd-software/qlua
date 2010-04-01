@@ -105,7 +105,7 @@ save_bb(lua_State *L,
     }
 
     int latsize[4];
-    QDP_latsize(latsize);
+    QDP_latsize_L(S->lat, latsize);
     if (NULL == aff_w ||
             NULL == aff_kpath || 
             NULL == mom ||
@@ -147,8 +147,9 @@ save_bb(lua_State *L,
     QLA_D3_DiracPropagator *B_exp = QDP_D3_expose_P(B);
 
     int i_site;
-    for (i_site = 0; i_site < QDP_sites_on_node; i_site++) {
-        QDP_get_coords(coord, QDP_this_node, i_site);
+    int sites = QDP_sites_on_node_L(S->lat);
+    for (i_site = 0; i_site < sites; i_site++) {
+        QDP_get_coords_L(S->lat, coord, QDP_this_node, i_site);
         
         int t = -1;
         if (!time_rev) {

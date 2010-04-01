@@ -916,19 +916,20 @@ static struct luaL_Reg Qs(mtLatColMat)[] = {
 Qs(mLatColMat) *
 Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
 {
+    mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
-    Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M)(nc);
+    Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M_L)(nc, S->lat);
 #else
-    Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M)();
+    Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M_L)(S->lat);
 #endif
     Qs(mLatColMat) *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
 #if QNc == 'N'
-        v = Qx(QDP_D,_create_M)(nc);
+        v = Qx(QDP_D,_create_M_L)(nc, S->lat);
 #else
-        v = Qx(QDP_D,_create_M)();
+        v = Qx(QDP_D,_create_M_L)(S->lat);
 #endif
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_ColorMatrix" Qcolors ")");

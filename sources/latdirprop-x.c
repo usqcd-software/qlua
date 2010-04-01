@@ -635,19 +635,20 @@ static struct luaL_Reg Qs(mtLatDirProp)[] = {
 Qs(mLatDirProp) *
 Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
 {
+    mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
-    Qx(QDP_D,_DiracPropagator) *v = Qx(QDP_D,_create_P)(nc);
+    Qx(QDP_D,_DiracPropagator) *v = Qx(QDP_D,_create_P_L)(nc, S->lat);
 #else
-    Qx(QDP_D,_DiracPropagator) *v = Qx(QDP_D,_create_P)();
+    Qx(QDP_D,_DiracPropagator) *v = Qx(QDP_D,_create_P_L)(S->lat);
 #endif
     Qs(mLatDirProp) *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
 #if QNc == 'N'
-        v = Qx(QDP_D,_create_P)(nc);
+        v = Qx(QDP_D,_create_P_L)(nc, S->lat);
 #else
-        v = Qx(QDP_D,_create_P)();
+        v = Qx(QDP_D,_create_P_L)(S->lat);
 #endif
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_DiracPropagator" Qcolors ")");
