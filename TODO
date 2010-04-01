@@ -1,6 +1,8 @@
 * Multiple Lattices
--- see the latest QDP release: requires new QLA, docs are old (?)
+** How one gets the QMP geometry from QDP?
 -- check that clover still works.
+
+* MDWF - start from clover, add a vector of fermions as input to ops and invs.
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:

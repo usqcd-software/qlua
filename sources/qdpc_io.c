@@ -393,19 +393,18 @@ q_newReader(lua_State *L, QDP_Reader *reader)
 static int
 q_qdpc_reader (lua_State *L)
 {
+    mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
     QDP_String *xml = 0;
     QDP_Reader *reader = 0;
     int rcount;
-
-    qlua_checkLattice(L, 1);
 
     /* first collect garbage */
     CALL_QDP(L);
 
     /* go through the motions of opening a QDP reader */
     xml = QDP_string_create();
-    reader = QDP_open_read(xml, (char *)name); /* [sic] */
+    reader = QDP_open_read_L(S->lat, xml, (char *)name); /* [sic] */
 
     /* convert QDP results to LUA */
     if (reader == 0) {
@@ -691,6 +690,7 @@ q_newWriter(lua_State *L, QDP_Writer *writer)
 static int
 q_qdpc_writer (lua_State *L)
 {
+    mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
     const char *info = luaL_checkstring(L, 3);
     int volfmt = qlua_qio_volume_format(L, 4, lua_gettop(L));
@@ -698,15 +698,13 @@ q_qdpc_writer (lua_State *L)
     QDP_Writer *writer = 0;
     int rcount;
 
-    qlua_checkLattice(L, 1);
-
     /* first collect garbage */
     CALL_QDP(L);
     
     /* open the QDP writer */
     xml = QDP_string_create();
     QDP_string_set(xml, (char *)info); /* [ sic ] */
-    writer = QDP_open_write(xml, (char *)name, volfmt); /* [ sic ] */
+    writer = QDP_open_write_L(S->lat, xml, (char *)name, volfmt); /* [ sic ] */
 
     /* convert QDP results into LUA values */
     if (writer == 0) {

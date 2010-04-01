@@ -61,7 +61,7 @@ q_R_sum(lua_State *L)
         CALL_QDP(L);
         if (S->lss.mask) {
             mLatReal *b = qlua_newLatReal(L, Sidx);
-            QDP_R_eq_zero(b->ptr, QDP_all);
+            QDP_R_eq_zero(b->ptr, S->all);
             QDP_R_eq_R_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
             QDP_r_eq_sum_R(&sum, b->ptr, *S->qss);
         } else {
@@ -76,6 +76,7 @@ q_R_sum(lua_State *L)
         int size = m->size;
         QLA_Int *ii = m->idx;
         mVecReal *r = qlua_newVecReal(L, size);
+        int sites = QDP_sites_on_node_L(S->lat);
         int k;
         QLA_Real *xx;
         
@@ -84,7 +85,7 @@ q_R_sum(lua_State *L)
 
         CALL_QDP(L);
         xx = QDP_expose_R(a->ptr);
-        for (k = 0; k < QDP_sites_on_node; k++, xx++, ii++) {
+        for (k = 0; k < sites; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
@@ -427,8 +428,8 @@ q_R_get(lua_State *L)
         idx = qlua_checklatcoord(L, 2, S);
         CALL_QDP(L);
         locked = QDP_expose_R(V->ptr);
-        if (QDP_node_number(idx) == QDP_this_node) {
-            z = QLA_elem_R(locked[QDP_index(idx)]);
+        if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+            z = QLA_elem_R(locked[QDP_index_L(S->lat, idx)]);
         } else {
             z = 0;
         }
@@ -460,8 +461,8 @@ q_R_put(lua_State *L)
     idx = qlua_checklatcoord(L, 2, S);
     CALL_QDP(L);
     locked = QDP_expose_R(V->ptr);
-    if (QDP_node_number(idx) == QDP_this_node) {
-        QLA_elem_R(locked[QDP_index(idx)]) = z;
+    if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+        QLA_elem_R(locked[QDP_index_L(S->lat, idx)]) = z;
     }
     QDP_reset_R(V->ptr);
     qlua_free(L, idx);
@@ -1151,12 +1152,13 @@ static struct luaL_Reg mtLatReal[] = {
 mLatReal *
 qlua_newLatReal(lua_State *L, int Sidx)
 {
-    QDP_Real *v = QDP_create_R();
+    mLattice *S = qlua_checkLattice(L, Sidx);
+    QDP_Real *v = QDP_create_R_L(S->lat);
     mLatReal *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_create_R();
+        v = QDP_create_R_L(S->lat);
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_Real)");
     }

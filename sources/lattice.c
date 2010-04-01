@@ -69,6 +69,15 @@ q_L_gc(lua_State *L)
         QDP_destroy_I(S->lss.mask);
     S->lss.mask = NULL;
 
+    if (S->none)
+        QDP_destroy_subset(S->none);
+    S->none = NULL;
+    /* standard subsets are freed by the lattice */
+
+    if (S->lat)
+        QDP_destroy_lattice(S->lat);
+    S->lat = NULL;
+
     return 0;
 }
 
@@ -231,6 +240,12 @@ q_planewave(lua_State *L)
 }
 
 static int
+subset_none(QDP_Lattice *S, int *coord, void *arg)
+{
+    return 2;
+}
+
+static int
 q_lattice(lua_State *L)
 {
     int r, i;
@@ -261,11 +276,15 @@ q_lattice(lua_State *L)
         lua_pop(L, 1);
     }
     CALL_QDP(L);
-    QDP_set_latsize(S->rank, S->dim);
-    if (QDP_create_layout()) {
+    S->lat = QDP_create_lattice(QDP_layout_hyper_eo, NULL, S->rank, S->dim);
+    if (S->lat == 0) {
         return luaL_error(L, "can not create lattice");
     }
-    S->qss = &QDP_all;
+    S->all = QDP_all_L(S->lat);
+    S->even = QDP_even_L(S->lat);
+    S->odd = QDP_odd_L(S->lat);
+    S->none = QDP_create_subset_L(S->lat, subset_none, 0, 0, 1);
+    S->qss = &S->all;
     S->lss.cl = qss_all;
     S->lss.mask = NULL;
     S->id = lat_id;
@@ -378,7 +397,7 @@ qlua_checkShift(lua_State *L, int idx, mLattice *S)
     if ((d < 0) || (d >= S->rank))
         luaL_error(L, "bad shift dimension");
 
-    return QDP_neighbor[d];
+    return QDP_neighbor_L(S->lat)[d];
 }
 
 QDP_ShiftDir

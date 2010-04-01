@@ -20,12 +20,17 @@ typedef struct {
 } mLatSubset;
 
 typedef struct {
+    QDP_Lattice *lat;
     int id;
     int nc;
     int rank;
     int *dim;
     QDP_Subset *qss;
     mLatSubset lss;
+    QDP_Subset *none;
+    QDP_Subset all;
+    QDP_Subset even;
+    QDP_Subset odd;
 } mLattice;
 
 extern const char opLattice[];

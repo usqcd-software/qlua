@@ -54,10 +54,10 @@ Qs(q_V_get)(lua_State *L)
             CALL_QDP(L);
             locked = Qx(QDP_D,_expose_V)(V->ptr);
 
-            if (QDP_node_number(idx) == QDP_this_node) {
+            if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
                 QLA_D_Complex *zz;
 
-                zz = &Qx(QLA_D,_elem_V)(locked[QDP_index(idx)], c);
+                zz = &Qx(QLA_D,_elem_V)(locked[QDP_index_L(S->lat, idx)], c);
                 zri[0] = QLA_real(*zz);
                 zri[1] = QLA_imag(*zz);
             } else {
@@ -105,8 +105,8 @@ Qs(q_V_put)(lua_State *L)
         
         CALL_QDP(L);
         locked = Qx(QDP_D,_expose_V)(V->ptr);
-        if (QDP_node_number(idx) == QDP_this_node) {
-            zz = &Qx(QLA_D,_elem_V)(locked[QDP_index(idx)], c);
+        if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+            zz = &Qx(QLA_D,_elem_V)(locked[QDP_index_L(S->lat, idx)], c);
             QLA_c_eq_c(*zz, *z);
         }
         Qx(QDP_D,_reset_V)(V->ptr);

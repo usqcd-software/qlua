@@ -112,23 +112,26 @@ Qs(q_P_mul_g_)(lua_State *L)
 
 #if QNc == 'N'
 typedef void Qs(X_project)(int nc,
-                  lua_State *L,
-                  QLA_DN_DiracFermion(nc, (**r)),
-                  int mu,
-                  int sign,
-                  QLA_DN_DiracPropagator(nc, (*f)));
+                           lua_State *L,
+                           mLattice *S,
+                           QLA_DN_DiracFermion(nc, (**r)),
+                           int mu,
+                           int sign,
+                           QLA_DN_DiracPropagator(nc, (*f)));
 #else
 typedef void Qs(X_project)(int nc,
-                  lua_State *L,
-                  Qx(QLA_D,_DiracFermion) **r,
-                  int mu,
-                  int sign,
-                  Qx(QLA_D,_DiracPropagator) *f);
+                           lua_State *L,
+                           mLattice *S,
+                           Qx(QLA_D,_DiracFermion) **r,
+                           int mu,
+                           int sign,
+                           Qx(QLA_D,_DiracPropagator) *f);
 #endif
 
 static void
 Qs(q_P_left_proj)(int nc,
                   lua_State *L,
+                  mLattice *S,
 #if QNc == 'N'                  
                   QLA_DN_DiracFermion(nc, (**r)),
 #else
@@ -150,7 +153,7 @@ Qs(q_P_left_proj)(int nc,
     typedef Qx(QLA_D,_DiracFermion) Vtype;
     typedef Qx(QLA_D,_HalfFermion) Htype;
 #endif
-    int count = QDP_sites_on_node;
+    int count = QDP_sites_on_node_L(S->lat);
     int k, ic, is;
 
     for (k = 0; k < count; k++) {
@@ -188,6 +191,7 @@ Qs(q_P_left_proj)(int nc,
 static void
 Qs(q_P_right_proj)(int nc,
                    lua_State *L,
+                   mLattice *S,
 #if QNc == 'N'
                    QLA_DN_DiracFermion(nc, (**r)),
 #else
@@ -209,7 +213,7 @@ Qs(q_P_right_proj)(int nc,
     typedef Qx(QLA_D,_DiracFermion) Vtype;
     typedef Qx(QLA_D,_HalfFermion) Htype;
 #endif
-    int count = QDP_sites_on_node;
+    int count = QDP_sites_on_node_L(S->lat);
     int k, ic, is;
 
     if (mu == 0 || mu == 2) sign = 1 - sign; /* AAA gamma basis dependent */
@@ -252,7 +256,6 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
     const char *sign = luaL_checkstring(L, 1);
     int mu = qlua_checkgammaindex(L, 2);
     Qs(mLatDirProp) *f = Qs(qlua_checkLatDirProp)(L, 3, NULL, -1);
-    int Sidx;
     int isign = 0;
     int ic, is;
     Qs(mLatDirFerm) *r[QC(f) * QDP_Ns / 2];
@@ -264,8 +267,8 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
     Qx(QLA_D,_DiracFermion) *rr[QC(f) * QDP_Ns/2];
 #endif
 
-    qlua_ObjLattice(L, 3);
-    Sidx = lua_gettop(L);
+    mLattice *S = qlua_ObjLattice(L, 3);
+    int Sidx = lua_gettop(L);
 
     if (strcmp(sign, "plus") == 0)
         isign = 1;
@@ -295,7 +298,7 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
     }
     ff = Qx(QDP_D,_expose_P)(f->ptr);
 
-    op(QC(f), L, rr, mu, isign, ff);
+    op(QC(f), L, S, rr, mu, isign, ff);
 
     Qx(QDP_D,_reset_P)(f->ptr);
     for (ic = 0; ic < QC(f); ic++) {
@@ -311,12 +314,14 @@ Qs(q_P_project)(lua_State *L, Qs(X_project) *op)
 #if QNc == 'N'
 typedef void Qs(X_reconstruct)(int nc,
                                lua_State *L,
+                               mLattice *S,
                                QLA_DN_DiracPropagator(nc, (*r)),
                                int mu, int sign,
                                QLA_DN_DiracFermion(nc, (**a)));
 #else
 typedef void Qs(X_reconstruct)(int nc,
                                lua_State *L,
+                               mLattice *S,
                                Qx(QLA_D,_DiracPropagator) *r,
                                int mu, int sign,
                                Qx(QLA_D,_DiracFermion) **a);
@@ -326,6 +331,7 @@ typedef void Qs(X_reconstruct)(int nc,
 static void
 Qs(q_P_left_recon)(int nc,
                    lua_State *L,
+                   mLattice *S,
                    QLA_DN_DiracPropagator(nc, (*r)),
                    int mu, int sign,
                    QLA_DN_DiracFermion(nc, (**a)))
@@ -333,6 +339,7 @@ Qs(q_P_left_recon)(int nc,
 static void
 Qs(q_P_left_recon)(int nc,
                    lua_State *L,
+                   mLattice *S,
                    Qx(QLA_D,_DiracPropagator) *r,
                    int mu, int sign,
                    Qx(QLA_D,_DiracFermion) **a)
@@ -345,7 +352,7 @@ Qs(q_P_left_recon)(int nc,
     typedef Qx(QLA_D,_DiracFermion) Vtype;
     typedef Qx(QLA_D,_HalfFermion) Htype;
 #endif
-    int count = QDP_sites_on_node;
+    int count = QDP_sites_on_node_L(S->lat);
     int k, ic, is;
 
     for (k = 0; k < count; k++) {
@@ -385,6 +392,7 @@ Qs(q_P_left_recon)(int nc,
 static void
 Qs(q_P_right_recon)(int nc,
                     lua_State *L,
+                    mLattice *S,
                     QLA_DN_DiracPropagator(nc, (*r)),
                     int mu, int sign,
                     QLA_DN_DiracFermion(nc, (**a)))
@@ -392,6 +400,7 @@ Qs(q_P_right_recon)(int nc,
 static void
 Qs(q_P_right_recon)(int nc,
                     lua_State *L,
+                    mLattice *S,
                     Qx(QLA_D,_DiracPropagator) *r,
                     int mu, int sign,
                     Qx(QLA_D,_DiracFermion) **a)
@@ -404,7 +413,7 @@ Qs(q_P_right_recon)(int nc,
     typedef Qx(QLA_D,_DiracFermion) Vtype;
     typedef Qx(QLA_D,_HalfFermion) Htype;
 #endif
-    int count = QDP_sites_on_node;
+    int count = QDP_sites_on_node_L(S->lat);
     int k, ic, is;
 
     if (mu == 0 || mu == 2) sign = 1 - sign; /* AAA gamma basis dependent */
@@ -498,7 +507,7 @@ Qs(q_P_reconstruct)(lua_State *L, Qs(X_reconstruct) *op, int nc)
     }
     rr = Qx(QDP_D,_expose_P)(r->ptr);
 
-    op(nc, L, rr, mu, isign, aa);
+    op(nc, L, S, rr, mu, isign, aa);
 
     Qx(QDP_D,_reset_P)(r->ptr);
     for (ic = 0; ic < nc; ic++) {

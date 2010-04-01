@@ -107,12 +107,13 @@ static struct luaL_Reg mtLatRandom[] = {
 mLatRandom *
 qlua_newLatRandom(lua_State *L, int Sidx)
 {
-    QDP_RandomState *v = QDP_create_S();
+    mLattice *S = qlua_checkLattice(L, Sidx);
+    QDP_RandomState *v = QDP_create_S_L(S->lat);
     mLatRandom *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_create_S();
+        v = QDP_create_S_L(S->lat);
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_RandomState)");
     }

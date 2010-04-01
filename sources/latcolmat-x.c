@@ -64,8 +64,10 @@ Qs(q_M_get)(lua_State *L)
                 qlua_verifylatcoord(L, idx, S);
                 CALL_QDP(L);
                 locked = Qx(QDP_D,_expose_M)(V->ptr);
-                if (QDP_node_number(idx) == QDP_this_node) {
-                    QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[QDP_index(idx)], a, b);
+                if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+                    QLA_Complex *zz;
+                    zz = &Qx(QLA_D,_elem_M)(locked[QDP_index_L(S->lat, idx)],
+                                            a, b);
                     zri[0] = QLA_real(*zz);
                     zri[1] = QLA_imag(*zz);
                 } else {
@@ -119,10 +121,11 @@ Qs(q_M_put)(lua_State *L)
 #endif
             CALL_QDP(L);
             Vtype *locked = Qx(QDP_D,_expose_M)(V->ptr);
-            QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[QDP_index(idx)], a, b);
+            int ix = QDP_index_L(S->lat, idx);
+            QLA_Complex *zz = &Qx(QLA_D,_elem_M)(locked[ix], a, b);
             QLA_Complex *z = qlua_checkComplex(L, 3);
             qlua_verifylatcoord(L, idx, S);
-            if (QDP_node_number(idx) == QDP_this_node) {
+            if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
                 QLA_c_eq_c(*zz, *z);
             }
             Qx(QDP_D,_reset_M)(V->ptr);

@@ -5,17 +5,48 @@
 
 #include <string.h>
 
+/* This works only because all users of qlua_qio_std do not return open files to
+ * QLUA. If they ever do, changes are required!
+ */
+
+static QDP_Lattice *q_lat = NULL; 
+
+static int
+x_node_number(const int coord[])
+{
+    return QDP_node_number_L(q_lat, coord);
+}
+
+static int
+x_index(const int coord[])
+{
+    return QDP_index_L(q_lat, coord);
+}
+
+static void
+x_get_coords(int x[], int node, int index)
+{
+    QDP_get_coords_L(q_lat, x, node, index);
+}
+
+static int
+x_numsites(int node)
+{
+    return QDP_numsites_L(q_lat, node);
+}
+
 static void
 init_layout(QIO_Layout *layout, mLattice *S)
 {
-    layout->node_number     = &QDP_node_number;
-    layout->node_index      = &QDP_index;
-    layout->get_coords      = &QDP_get_coords;
-    layout->num_sites       = &QDP_numsites;
+    q_lat = S->lat;
+    layout->node_number     = &x_node_number;
+    layout->node_index      = &x_index;
+    layout->get_coords      = &x_get_coords;
+    layout->num_sites       = &x_numsites;
     layout->latsize         = S->dim;
     layout->latdim          = S->rank;
-    layout->volume          = QDP_volume();
-    layout->sites_on_node   = QDP_sites_on_node;
+    layout->volume          = QDP_volume_L(S->lat);
+    layout->sites_on_node   = QDP_sites_on_node_L(S->lat);
     layout->this_node       = QDP_this_node;
     layout->number_of_nodes = QMP_get_number_of_nodes();
 }

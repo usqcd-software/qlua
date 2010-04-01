@@ -44,10 +44,11 @@ static struct luaL_Reg mtLatMulti[] = {
 mLatMulti *
 qlua_newLatMulti(lua_State *L, int Sidx)
 {
+    mLattice *S = qlua_checkLattice(L, Sidx);
     mLatMulti *v = lua_newuserdata(L, sizeof (mLatMulti));
     
     v->size = 0;
-    v->idx = qlua_malloc(L, QDP_sites_on_node * sizeof (int));
+    v->idx = qlua_malloc(L, QDP_sites_on_node_L(S->lat) * sizeof (int));
     qlua_createLatticeTable(L, Sidx, mtLatMulti, qLatMulti, LatMultiName);
     lua_setmetatable(L, -2);
 
@@ -74,6 +75,8 @@ q_latmulti(lua_State *L)
 {
     int size = luaL_checkint(L, 2);
     mLatInt *m = qlua_checkLatInt(L, 3, NULL);
+    mLattice *S = qlua_ObjLattice(L, 3);
+    int sites = QDP_sites_on_node_L(S->lat);
     mLatMulti *v;
     QLA_Int *mm;
     int k;
@@ -83,7 +86,7 @@ q_latmulti(lua_State *L)
     v->size = size;
     CALL_QDP(L);
     mm = QDP_expose_I(m->ptr);
-    for (k = 0; k < QDP_sites_on_node; k++)
+    for (k = 0; k < sites; k++)
         v->idx[k] = mm[k];
     QDP_reset_I(m->ptr);
 

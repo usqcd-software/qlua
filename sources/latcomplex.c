@@ -64,8 +64,8 @@ q_C_get(lua_State *L)
         idx = qlua_checklatcoord(L, 2, S);
         CALL_QDP(L);
         locked = QDP_expose_C(V->ptr);
-        if (QDP_node_number(idx) == QDP_this_node) {
-            QLA_Complex *zz = &QLA_elem_C(locked[QDP_index(idx)]);
+        if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+            QLA_Complex *zz = &QLA_elem_C(locked[QDP_index_L(S->lat, idx)]);
 
             zri[0] = QLA_real(*zz);
             zri[1] = QLA_imag(*zz);
@@ -115,8 +115,8 @@ q_C_put(lua_State *L)
     idx = qlua_checklatcoord(L, 2, S);
     CALL_QDP(L);
     locked = QDP_expose_C(V->ptr);
-    if (QDP_node_number(idx) == QDP_this_node) {
-        QLA_Complex *zz = &QLA_elem_C(locked[QDP_index(idx)]);
+    if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+        QLA_Complex *zz = &QLA_elem_C(locked[QDP_index_L(S->lat, idx)]);
 
         QLA_real(*zz) = z_re;
         QLA_imag(*zz) = z_im;
@@ -972,6 +972,7 @@ q_C_project(lua_State *L)
     mLatMulti *m = qlua_checkLatMulti(L, 3, S);
     int size = m->size;
     mVecComplex *r = qlua_newVecComplex(L, size);
+    int sites = QDP_sites_on_node_L(S->lat);
     QLA_Real rr[2 * size];
     QLA_Int *ii = m->idx;
     QLA_Complex *aa;
@@ -983,7 +984,7 @@ q_C_project(lua_State *L)
     CALL_QDP(L);
     aa = QDP_expose_C(a->ptr);
     bb = QDP_expose_C(b->ptr);
-    for (k = 0; k < QDP_sites_on_node; k++, ii++, aa++, bb++) {
+    for (k = 0; k < sites; k++, ii++, aa++, bb++) {
         int idx = *ii;
         double var, vai, vbr, vbi;
         if ((idx < 0) || (idx >= size))
@@ -1034,6 +1035,7 @@ q_C_sum(lua_State *L)
         int size = m->size;
         QLA_Int *ii = m->idx;
         mVecComplex *r = qlua_newVecComplex(L, size);
+        int sites = QDP_sites_on_node_L(S->lat);
         int k;
         QLA_Complex *xx;
         QLA_Real rr[2 * size];
@@ -1043,7 +1045,7 @@ q_C_sum(lua_State *L)
 
         CALL_QDP(L);
         xx = QDP_expose_C(a->ptr);
-        for (k = 0; k < QDP_sites_on_node; k++, xx++, ii++) {
+        for (k = 0; k < sites; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
@@ -1322,12 +1324,13 @@ static struct luaL_Reg mtLatComplex[] = {
 mLatComplex *
 qlua_newLatComplex(lua_State *L, int Sidx)
 {
-    QDP_Complex *v = QDP_create_C();
+    mLattice *S = qlua_checkLattice(L, Sidx);
+    QDP_Complex *v = QDP_create_C_L(S->lat);
     mLatComplex *hdr;
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_create_C();
+        v = QDP_create_C_L(S->lat);
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_Complex)");
     }

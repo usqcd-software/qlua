@@ -64,9 +64,10 @@ Qs(q_D_get)(lua_State *L)
                 qlua_verifylatcoord(L, idx, S);
                 CALL_QDP(L);
                 locked = Qx(QDP_D,_expose_D)(V->ptr);
-                if (QDP_node_number(idx) == QDP_this_node) {
-                    QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[QDP_index(idx)],
-                                                         c, d);
+                if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+                    QLA_Complex *zz;
+                    zz = &Qx(QLA_D,_elem_D)(locked[QDP_index_L(S->lat, idx)],
+                                            c, d);
                     zri[0] = QLA_real(*zz);
                     zri[1] = QLA_imag(*zz);
                 } else {
@@ -124,9 +125,9 @@ Qs(q_D_put)(lua_State *L)
             typedef Qx(QLA_D,_DiracFermion) Vtype;
 #endif
             Vtype *locked = Qx(QDP_D,_expose_D)(V->ptr);
-            if (QDP_node_number(idx) == QDP_this_node) {
-                QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[QDP_index(idx)],
-                                                     c, d);
+            if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+                int ix = QDP_index_L(S->lat, idx);
+                QLA_Complex *zz = &Qx(QLA_D,_elem_D)(locked[ix], c, d);
 
                 QLA_c_eq_c(*zz, *z);
             }

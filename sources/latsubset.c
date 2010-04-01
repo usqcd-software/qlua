@@ -45,7 +45,7 @@ q_U_fmt(lua_State *L)
 
 /* local subset function returns 0 on positions belonging to the subset */
 static int
-subset_local(int *coord, void *arg)
+subset_local(QDP_Lattice *lat, int *coord, void *arg)
 {
     mLatSubset *x = arg;
 
@@ -64,14 +64,14 @@ subset_local(int *coord, void *arg)
 static QDP_Int *
 subset_mask(lua_State *L, mLattice *S, QDP_Int *w)
 {
-    QDP_Int *v = QDP_create_I();
+    QDP_Int *v = QDP_create_I_L(S->lat);
     if (v == 0) {
         CALL_QDP(L);
-        v = QDP_create_I();
+        v = QDP_create_I_L(S->lat);
         if (v == 0)
             luaL_error(L, "not enough memory (subset mask)");
     }
-    QDP_I_eq_zero(v, QDP_all);
+    QDP_I_eq_zero(v, S->all);
     if (w)
         QDP_I_eq_I(v, w, *S->qss);
 
@@ -92,13 +92,14 @@ static struct {
     QLA_Int *a_mask;
     QLA_Int *b_mask;
     mLatSubset b;
+    QDP_Lattice *lat;
     int rank;
 } sjArg;
 
 static void
 build_mask(QLA_Int *r, int coord[])
 {
-    int idx = QDP_index(coord);
+    int idx = QDP_index_L(sjArg.lat, coord);
     int i;
     int p;
     int v = 0;
@@ -187,6 +188,7 @@ subset_join(lua_State *L,
     }
     if (!refine)
         return;
+    sjArg.lat = S->lat;
     sjArg.rank = S->rank;
     sjArg.a_mask = S->lss.mask ? QDP_expose_I(S->lss.mask): NULL;
     sjArg.b_mask = b->mask ? QDP_expose_I(b->mask): NULL;
@@ -213,17 +215,19 @@ switch_subset(lua_State *L, mLattice *S, const mLatSubset *v)
 
     S->lss = *v;
     switch (S->lss.cl) {
-    case qss_none: /* XXX */ S->qss = &QDP_even; break;
-    case qss_all:  S->qss = &QDP_all;  break;
-    case qss_even: S->qss = &QDP_even; break;
-    case qss_odd:  S->qss = &QDP_odd;  break;
+    case qss_none: S->qss = S->none; break;
+    case qss_all:  S->qss = &S->all;  break;
+    case qss_even: S->qss = &S->even; break;
+    case qss_odd:  S->qss = &S->odd;  break;
     case qss_lower:
     case qss_upper:
     case qss_slice:
-        S->qss = QDP_create_subset(subset_local, &S->lss, sizeof (S->lss), 1);
+        S->qss = QDP_create_subset_L(S->lat, subset_local,
+                                     &S->lss, sizeof (S->lss), 1);
         if (S->qss == 0) {
             lua_gc(L, LUA_GCCOLLECT, 0);
-            S->qss = QDP_create_subset(subset_local,&S->lss,sizeof (S->lss),1);
+            S->qss = QDP_create_subset_L(S->lat, subset_local,
+                                         &S->lss, sizeof (S->lss), 1);
             if (S->qss == 0)
                 luaL_error(L, "QDP_create_subset() failed");
         }

@@ -51,6 +51,7 @@ static mClover *qlua_checkClover(lua_State *L,
 
 /* The generic solver */
 typedef struct {
+    QDP_Lattice *lat;
     int c, d;
     QLA_D3_DiracPropagator *in;
     QLA_D3_DiracPropagator *out;
@@ -58,6 +59,7 @@ typedef struct {
 } qCL_P_env;
 
 typedef struct {
+    QDP_Lattice *lat;
     QLA_D3_DiracFermion *f;
     double s;
 } CL_D_env;
@@ -65,8 +67,8 @@ typedef struct {
 static double
 q_CL_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 {
-    int i = QDP_index(p);
     CL_D_env *env = e;
+    int i = QDP_index_L(env->lat, p);
     QLA_D3_DiracFermion *f = env->f;
     double s = env->s;
     QLA_D_Real xx;
@@ -83,8 +85,8 @@ q_CL_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 static void
 q_CL_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    int i = QDP_index(p);
     CL_D_env *env = e;
+    int i = QDP_index_L(env->lat, p);
     QLA_D3_DiracFermion *f = env->f;
     double s = env->s;
  
@@ -97,33 +99,32 @@ q_CL_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 }
 
 static double
-q_CL_P_reader_scaled(const int p[], int c, int d, int re_im, void *env)
+q_CL_P_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 {
-    int i = QDP_index(p);
-    qCL_P_env *e = env;
+    qCL_P_env *env = e;
+    int i = QDP_index_L(env->lat, p);
     QLA_D_Real xx;
 
     if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+        QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
     } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+        QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
     }
 
-    return xx * e->s;
+    return xx * env->s;
 }
 
 static void
-q_CL_P_writer_scaled(const int p[], int c, int d, int re_im, double v,
-                     void *env)
+q_CL_P_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    int i = QDP_index(p);
-    qCL_P_env *e = env;
+    qCL_P_env *env = e;
+    int i = QDP_index_L(env->lat, p);
 
-    v = v * e->s;
+    v = v * env->s;
     if (re_im == 0) {
-        QLA_real(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+        QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
     } else {
-        QLA_imag(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+        QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
     }
 }
 
@@ -173,9 +174,9 @@ q_dirac_solver(lua_State *L)
         int status;
 
         CALL_QDP(L);
-        QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, QDP_all);
+        QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_D_eq_zero(eta->ptr, QDP_all);
+            QDP_D3_D_eq_zero(eta->ptr, S->all);
             lua_pushnumber(L, 0.0);
             lua_pushnumber(L, 0);
             lua_pushnumber(L, 0);
@@ -183,6 +184,7 @@ q_dirac_solver(lua_State *L)
             return 5;
         }
         rhs_n = sqrt(rhs_norm2);
+        env.lat = S->lat;
         env.f = QDP_D3_expose_D(psi->ptr);
         env.s = 1 / rhs_n;
         if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled,
@@ -205,6 +207,7 @@ q_dirac_solver(lua_State *L)
                    solver->name, status,
                    out_eps, out_iters, t1, fl1 * 1e-6 / t1);
 
+        env.lat = S->lat;
         env.f = QDP_D3_expose_D(eta->ptr);
         env.s = rhs_n;
         QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
@@ -246,12 +249,13 @@ q_dirac_solver(lua_State *L)
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
-        QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, QDP_all);
+        QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_P_eq_zero(eta->ptr, QDP_all);
+            QDP_D3_P_eq_zero(eta->ptr, S->all);
             return 3;
         }
         rhs_n = sqrt(rhs_norm2);
+        env.lat = S->lat;
         env.in = QDP_D3_expose_P(psi->ptr);
         env.out = QDP_D3_expose_P(eta->ptr);
         for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
@@ -618,10 +622,11 @@ q_CL_close(lua_State *L)
 }
 
 static double
-q_CL_D_reader(const int p[], int c, int d, int re_im, void *env)
+q_CL_D_reader(const int p[], int c, int d, int re_im, void *e)
 {
-    int i = QDP_index(p);
-    QLA_D3_DiracFermion *f = env;
+    CL_D_env *env = e;
+    int i = QDP_index_L(env->lat, p);
+    QLA_D3_DiracFermion *f = env->f;
     QLA_D_Real xx;
 
     if (re_im == 0) {
@@ -634,10 +639,11 @@ q_CL_D_reader(const int p[], int c, int d, int re_im, void *env)
 }
 
 static void
-q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *env)
+q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    int i = QDP_index(p);
-    QLA_D3_DiracFermion *f = env;
+    CL_D_env *env = e;
+    int i = QDP_index_L(env->lat, p);
+    QLA_D3_DiracFermion *f = env->f;
  
     if (re_im == 0) {
         QLA_real(QLA_elem_D(f[i], c, d)) = v;
@@ -647,31 +653,31 @@ q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *env)
 }
 
 static double
-q_CL_P_reader(const int p[], int c, int d, int re_im, void *env)
+q_CL_P_reader(const int p[], int c, int d, int re_im, void *e)
 {
-    int i = QDP_index(p);
-    qCL_P_env *e = env;
+    qCL_P_env *env = e;
+    int i = QDP_index_L(env->lat, p);
     QLA_D_Real xx;
 
     if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+        QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
     } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_P(e->in[i], c, d, e->c, e->d));
+        QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
     }
 
     return xx;
 }
 
 static void
-q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *env)
+q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    int i = QDP_index(p);
-    qCL_P_env *e = env;
+    qCL_P_env *env = e;
+    int i = QDP_index_L(env->lat, p);
 
     if (re_im == 0) {
-        QLA_real(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+        QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
     } else {
-        QLA_imag(QLA_elem_P(e->out[i], c, d, e->c, e->d)) = v;
+        QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
     }
 }
 
@@ -694,10 +700,13 @@ q_CL_operator(lua_State *L,
         struct QOP_CLOVER_Fermion *c_eta;
         QLA_D3_DiracFermion *e_psi;
         QLA_D3_DiracFermion *e_eta;
+        CL_D_env env;
 
         CALL_QDP(L);
         e_psi = QDP_D3_expose_D(psi->ptr);
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, e_psi))
+        env.lat = S->lat;
+        env.f = e_psi;
+        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
         QDP_D3_reset_D(psi->ptr);
 
@@ -707,7 +716,8 @@ q_CL_operator(lua_State *L,
         (*op)(c_eta, c->gauge, c_psi);
         
         e_eta = QDP_D3_expose_D(eta->ptr);
-        QOP_CLOVER_export_fermion(q_CL_D_writer, e_eta, c_eta);
+        env.f = e_eta;
+        QOP_CLOVER_export_fermion(q_CL_D_writer, &env, c_eta);
         QDP_D3_reset_D(eta->ptr);
         
         QOP_CLOVER_free_fermion(&c_eta);
@@ -726,6 +736,7 @@ q_CL_operator(lua_State *L,
         if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
+        env.lat = S->lat;
         env.in = QDP_D3_expose_P(psi->ptr);
         env.out = QDP_D3_expose_P(eta->ptr);
         for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
@@ -850,6 +861,7 @@ q_CL_make_mixed_solver(lua_State *L)
 #define Nz  (Nu + Nf + 6)
 
 typedef struct {
+    QDP_Lattice *lat;
     int lattice[QOP_CLOVER_DIM];
     int network[QOP_CLOVER_DIM];
     QLA_D_Complex bf[QOP_CLOVER_DIM];
@@ -884,7 +896,7 @@ q_CL_u_reader(int d, const int p[], int a, int b, int re_im, void *env)
 {
     QLA_D_Complex z;
     QCArgs *args = env;
-    int i = QDP_index(p);
+    int i = QDP_index_L(args->lat, p);
 
     if (p[d] == (args->lattice[d] - 1)) {
         QLA_c_eq_c_times_c(z, args->bf[d], QLA_elem_M(args->uf[d][i], a, b));
@@ -903,7 +915,7 @@ q_CL_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
 {
     QLA_D_Real xx;
     QCArgs *args = env;
-    int i = QDP_index(p);
+    int i = QDP_index_L(args->lat, p);
     int d, xm, xn;
 
     for (d = 0, xm = 0; xm < QOP_CLOVER_DIM; xm++) {
@@ -981,53 +993,55 @@ q_clover(lua_State *L)
 
     /* create a temporary U, F, and temp M */
     for (i = 0; i < Nz; i++)
-        UF[i] = QDP_D3_create_M();
+        UF[i] = QDP_D3_create_M_L(S->lat);
 
     /* extract U from the arguments */
     for (i = 0; i < QOP_CLOVER_DIM; i++) {
         lua_pushnumber(L, i + 1); /* [sic] lua indexing */
         lua_gettable(L, 1);
         /* avoid aliased Us in arg[1] */
-        QDP_D3_M_eq_M(UF[i], qlua_checkLatColMat3(L, -1, S, 3)->ptr, QDP_all);
+        QDP_D3_M_eq_M(UF[i], qlua_checkLatColMat3(L, -1, S, 3)->ptr, S->all);
         lua_pop(L, 1);
     }
 
     int mu, nu;
+    QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
     CALL_QDP(L); /* just in case, because we touched LUA state above */
     /* compute 8i*F[mu,nu] in UF[Nf...] */
     for (i = 0, mu = 0; mu < QOP_CLOVER_DIM; mu++) {
         for (nu = mu + 1; nu < QOP_CLOVER_DIM; nu++, i++) {
             /* clover in [mu, nu] --> UF[Nu + i] */
-            QDP_D3_M_eq_sM(UF[Nt], UF[nu], QDP_neighbor[mu], QDP_forward,
-                           QDP_all);
-            QDP_D3_M_eq_Ma_times_M(UF[Nt+1], UF[nu], UF[mu], QDP_all);
-            QDP_D3_M_eq_M_times_M(UF[Nt+2], UF[Nt+1], UF[Nt], QDP_all);
-            QDP_D3_M_eq_sM(UF[Nt+3], UF[Nt+2], QDP_neighbor[nu], QDP_backward,
-                           QDP_all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+4], UF[Nt+3], UF[mu], QDP_all);
-            QDP_D3_M_eq_sM(UF[Nt+1], UF[mu], QDP_neighbor[nu], QDP_forward,
-                        QDP_all);
-            QDP_D3_M_eq_Ma_times_M(UF[Nt+5], UF[mu], UF[Nt+3], QDP_all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+2], UF[Nt], UF[Nt+1], QDP_all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+3], UF[Nt+2], UF[nu], QDP_all);
-            QDP_D3_M_peq_M_times_M(UF[Nt+4], UF[mu], UF[Nt+3], QDP_all);
-            QDP_D3_M_peq_M_times_M(UF[Nt+5], UF[Nt+3], UF[mu], QDP_all);
-            QDP_D3_M_eq_sM(UF[Nt+2], UF[Nt+5], QDP_neighbor[mu], QDP_backward,
-                        QDP_all);
-            QDP_D3_M_peq_M(UF[Nt+4], UF[Nt+2], QDP_all);
-            QDP_D3_M_eq_M(UF[Nu+i], UF[Nt+4], QDP_all);
-            QDP_D3_M_meq_Ma(UF[Nu+i], UF[Nt+4], QDP_all);
+            QDP_D3_M_eq_sM(UF[Nt], UF[nu], neighbor[mu], QDP_forward,
+                           S->all);
+            QDP_D3_M_eq_Ma_times_M(UF[Nt+1], UF[nu], UF[mu], S->all);
+            QDP_D3_M_eq_M_times_M(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
+            QDP_D3_M_eq_sM(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward,
+                           S->all);
+            QDP_D3_M_eq_M_times_Ma(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
+            QDP_D3_M_eq_sM(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward,
+                        S->all);
+            QDP_D3_M_eq_Ma_times_M(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
+            QDP_D3_M_eq_M_times_Ma(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
+            QDP_D3_M_eq_M_times_Ma(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
+            QDP_D3_M_peq_M_times_M(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
+            QDP_D3_M_peq_M_times_M(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
+            QDP_D3_M_eq_sM(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward,
+                        S->all);
+            QDP_D3_M_peq_M(UF[Nt+4], UF[Nt+2], S->all);
+            QDP_D3_M_eq_M(UF[Nu+i], UF[Nt+4], S->all);
+            QDP_D3_M_meq_Ma(UF[Nu+i], UF[Nt+4], S->all);
         }
     }
 
     int node[QOP_CLOVER_DIM];
 
+    args.lat = S->lat;
     /* create the clover state */
     get_vector(args.network, 1, QMP_get_logical_number_of_dimensions(),
                QMP_get_logical_dimensions());
     get_vector(node, 0, QMP_get_logical_number_of_dimensions(),
                QMP_get_logical_coordinates());
-    QDP_latsize(args.lattice);
+    QDP_latsize_L(S->lat, args.lattice);
     if (QOP_CLOVER_init(&c->state, args.lattice, args.network, node,
                         QMP_is_primary_node(), q_clover_sublattice, &args))
         return luaL_error(L, "CLOVER_init() failed");

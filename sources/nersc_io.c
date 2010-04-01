@@ -494,9 +494,9 @@ eoh:
         nersc_master_bcast(L, nerscDATA, sizeof (CM), CM);
         /* place ColorMatrix in U if it belongs to this site */
         site2coord(coord, site, S->rank, S->dim);
-        s_node = QDP_node_number(coord);
+        s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-            int idx = QDP_index(coord);
+            int idx = QDP_index_L(S->lat, coord);
             int d;
             
             for (d = 0; d < S->rank; d++)
@@ -632,9 +632,9 @@ eoh:
         }
         nersc_slave_bcast(L, sizeof (CM), CM);
         site2coord(coord, site, S->rank, S->dim);
-        s_node = QDP_node_number(coord);
+        s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-            int idx = QDP_index(coord);
+            int idx = QDP_index_L(S->lat, coord);
             int d;
             
             for (d = 0; d < S->rank; d++)
