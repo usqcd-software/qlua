@@ -3,6 +3,7 @@
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "qlayout.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
@@ -863,11 +864,14 @@ q_CL_make_mixed_solver(lua_State *L)
 typedef struct {
     QDP_Lattice *lat;
     int lattice[QOP_CLOVER_DIM];
+#if 0 /* XXX */
     int network[QOP_CLOVER_DIM];
+#endif /* XXX */
     QLA_D_Complex bf[QOP_CLOVER_DIM];
     QLA_D3_ColorMatrix *uf[Nu + Nf];
 } QCArgs;
 
+#if 0 /* XXX */
 static void
 q_clover_sublattice(int lo[], int hi[], const int node[], void *env)
 {
@@ -890,6 +894,7 @@ get_vector(int v[], int def, int dim, const int d[])
     for (;i < QOP_CLOVER_DIM; i++)
         v[i] = def;
 }
+#endif /* XXX*/
 
 static double
 q_CL_u_reader(int d, const int p[], int a, int b, int re_im, void *env)
@@ -1033,17 +1038,30 @@ q_clover(lua_State *L)
         }
     }
 
+#if 0 /* XXX */
     int node[QOP_CLOVER_DIM];
+#endif /* XXX */
 
     args.lat = S->lat;
     /* create the clover state */
+#if 0 /* XXX */
     get_vector(args.network, 1, QMP_get_logical_number_of_dimensions(),
                QMP_get_logical_dimensions());
     get_vector(node, 0, QMP_get_logical_number_of_dimensions(),
                QMP_get_logical_coordinates());
+#endif /* XXX */
     QDP_latsize_L(S->lat, args.lattice);
-    if (QOP_CLOVER_init(&c->state, args.lattice, args.network, node,
-                        QMP_is_primary_node(), q_clover_sublattice, &args))
+    struct QOP_CLOVER_Config cc;
+    cc.self = S->node;
+    cc.master_p = QMP_is_primary_node();
+    cc.rank = S->rank;
+    cc.lat = S->dim;
+    cc.net = S->net;
+    cc.neighbor_up = S->neighbor_up;
+    cc.neighbor_down = S->neighbor_down;
+    cc.sublattice = qlua_sublattice;
+    cc.env = S;
+    if (QOP_CLOVER_init(&c->state, &cc))
         return luaL_error(L, "CLOVER_init() failed");
     
     /* import the gauge field */

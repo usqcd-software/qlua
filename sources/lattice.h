@@ -25,6 +25,10 @@ typedef struct {
     int nc;
     int rank;
     int *dim;
+    int node;
+    int *net;
+    int *neighbor_up;
+    int *neighbor_down;
     QDP_Subset *qss;
     mLatSubset lss;
     QDP_Subset *none;

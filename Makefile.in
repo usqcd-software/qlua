@@ -57,6 +57,7 @@ libsrc = fix.c \
          qcomplex.c \
          qvector.c \
          qxml.c \
+	 qlayout.c \
          lattice.c \
          latint.c \
 	 latmulti.c \

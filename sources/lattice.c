@@ -2,6 +2,7 @@
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "qlayout.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
@@ -56,6 +57,18 @@ static int
 q_L_gc(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
+
+    if (S->neighbor_up)
+        qlua_free(L, S->neighbor_up);
+    S->neighbor_up = 0;
+
+    if (S->neighbor_down)
+        qlua_free(L, S->neighbor_down);
+    S->neighbor_down = 0;
+
+    if (S->net)
+        qlua_free(L, S->net);
+    S->net = 0;
 
     if (S->dim)
         qlua_free(L, S->dim);
@@ -268,6 +281,10 @@ q_lattice(lua_State *L)
     if (r <= 0)
         return luaL_error(L, "Bad lattice rank");
     S->rank = r;
+    S->node = 0;
+    S->neighbor_up = qlua_malloc(L, r * sizeof (int));
+    S->neighbor_down = qlua_malloc(L, r * sizeof (int));
+    S->net = qlua_malloc(L, r * sizeof (int));
     S->dim = qlua_malloc(L, r * sizeof (int));
     for (i = 0; i < r; i++) {
         lua_pushnumber(L, i + 1);
@@ -276,7 +293,7 @@ q_lattice(lua_State *L)
         lua_pop(L, 1);
     }
     CALL_QDP(L);
-    S->lat = QDP_create_lattice(QDP_layout_hyper_eo, NULL, S->rank, S->dim);
+    S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
     if (S->lat == 0) {
         return luaL_error(L, "can not create lattice");
     }
