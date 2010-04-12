@@ -223,14 +223,14 @@ q_dirac_solver(lua_State *L)
         CALL_QDP(L);
         norm5 = 0;
         for (i = 0; i < c->Ls; i++) {
+            QLA_D_Real normi;
+
             lua_pushnumber(L, i + 1); /* [sic] lua indexing */
             lua_gettable(L, 1);
             psi[i] = qlua_checkLatDirFerm3(L, -1, S, 3);
-            lua_pop(L, 1);
-            QLA_D_Real normi;
-
-            QDP_D3_r_eq_norm2_D(&normi, psi[i]->ptr, QDP_all);
+            QDP_D3_r_eq_norm2_D(&normi, psi[i]->ptr, S->all);
             norm5 += normi;
+            lua_pop(L, 1);
         }
         if (norm5 == 0) {
             lua_createtable(L, c->Ls, 0);
@@ -275,8 +275,8 @@ q_dirac_solver(lua_State *L)
         lua_createtable(L, c->Ls, 0);
         for (i = 0; i < c->Ls; i++) {
             eta[i] = qlua_newLatDirFerm3(L, Sidx, 3);
-            lua_rawseti(L, -2, i + 1); /* [sic] Lua indexing */
             e_eta[i] = QDP_D3_expose_D(eta[i]->ptr);
+            lua_rawseti(L, -2, i + 1); /* [sic] Lua indexing */
         }
 
         env.lat = S->lat;

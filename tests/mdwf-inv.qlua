@@ -1,0 +1,71 @@
+require "stdlib"
+require "gauge"
+
+-- check of the 5d inverter vs DW:D
+
+L = qcd.lattice{4,4,6,8}
+M5 = 0.345623
+mf = 1.123453
+Ls = 10
+bc = {complex(5.534123, 2.1234),
+      complex(-1.23445, 0.2341),
+      complex(7.342511, -3.476),
+      complex(0.023452, 2.643)}
+b5 = {1.2, 6.2, 9.5, 8.7, 0.9, 1.7, 8.2, 4.9, 2.6, 6.5}
+c5 = {2.3, 9.0, 4.7, 0.8, 3.4, 5.7, 0.1, 3.4, 6.7, 5.4}
+seed = 45671
+
+do
+   local ix = L:Int(0)
+   for i = 0, #L - 1 do
+      ix = ix * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(seed, ix)
+end
+
+U = {}
+for i = 0, #L - 1 do
+   U[i+1] = toSUn(4.123 * S:gaussian_ColorMatrix())
+end
+F = {}
+for i = 0, Ls - 1 do
+   F[i+1] = S:gaussian_DiracFermion()
+end
+
+function mdwf_norm2(F)
+   local n = 0
+   for i = 1, #F do
+      n = n + F[i]:norm2()
+   end
+   return n
+end
+
+function mdwf_sub(A,B)
+   local X = {}
+   for i = 1, #A do
+      X[i] = A[i] - B[i]
+   end
+   return X
+end
+
+function mdwf_dot(A,B)
+   local r = complex(0,0)
+   for i = 1, #A do
+      r = r + qcd.dot(A[i],B[i]):sum()
+   end
+   return r
+end
+
+-------------------------------------------------------------------------------
+DW = qcd.MDWF.generic(U, bc, Ls, M5, mf, b5, c5)
+solver = DW:solver(1e-15, 50000)
+printf("DW=%s\n", tostring(DW))
+dF = DW:D(F)
+sF = solver(dF, true, true)
+
+printf("|dF| = %25.15e\n", mdwf_norm2(dF))
+printf("|F|  = %25.15e\n", mdwf_norm2(F))
+printf("|sF| = %25.15e\n", mdwf_norm2(sF))
+printf("dddd = %25.15e\n", mdwf_norm2(mdwf_sub(DW:D(sF), dF)))
+
+printf("DONE\n")
