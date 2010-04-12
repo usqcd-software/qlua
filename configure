@@ -20,6 +20,7 @@ show_help() {
 
    Supported packages:
      clover                   SciDAC L3 clover inverter
+     mdwf                     SciDAC L3 Moebius Domain Wall inverter
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
@@ -77,6 +78,7 @@ process_args() {
       --with-lua=*)     lua=`echo "$1" | sed -e 's/--with-lua=//'`    ;;
       --with-qdp=*)     qdp=`echo "$1" | sed -e 's/--with-qdp=//'`    ;;
       --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
+      --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'` ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
@@ -125,6 +127,14 @@ normalize() {
      clover_libs=`$clover/bin/clover-config --libs`
      [ -z "$gsl" ] && show_error "CLOVER requires GSL"
   fi
+  if [ ! -z "$mdwf" ] ; then
+     [ -x "$mdwf/bin/mdwf-config" ] \
+        || show_error "No mdwf-config under $mdwf"
+     mdwf_cflags=`$mdwf/bin/mdwf-config --cflags`
+     mdwf_ldflags=`$mdwf/bin/mdwf-config --ldflags`
+     mdwf_libs=`$mdwf/bin/mdwf-config --libs`
+     [ -z "$gsl" ] && show_error "MDWF requires GSL"
+  fi
   if [ ! -z "$aff" ] ; then
      [ -x "$aff/bin/lhpc-aff-config" ] \
         || show_error "No lhpc-aff-config under $aff"
@@ -167,6 +177,7 @@ show_config() {
    echo "LUA location            $lua"
    echo "QDP location            $qdp"
    [ -z "$clover" ]  || echo "Clover location         $clover"
+   [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
@@ -204,6 +215,10 @@ build() {
         -e "s|@clover_cflags@|$clover_cflags|g" \
         -e "s|@clover_ldflags@|$clover_ldflags|g" \
         -e "s|@clover_libs@|$clover_libs|g" \
+  | sed -e "s|@mdwf@|$mdwf|g" \
+        -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
+        -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
+        -e "s|@mdwf_libs@|$mdwf_libs|g" \
   | sed -e "s|@gsl@|$gsl|g" \
         -e "s|@gsl_cflags@|$gsl_cflags|g" \
         -e "s|@gsl_libs@|$gsl_libs|g" \
@@ -224,6 +239,10 @@ build_modules() {
   if [ ! -z "$clover" ] ; then
     echo "#define HAS_CLOVER"
     echo "#define CLOVER_VERSION \"$clover\""
+  fi
+  if [ ! -z "$mdwf" ] ; then
+    echo "#define HAS_MDWF"
+    echo "#define MDWF_VERSION \"$mdwf\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
   if [ ! -z "$cblas_libs" ] ; then

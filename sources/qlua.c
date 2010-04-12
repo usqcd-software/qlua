@@ -28,6 +28,9 @@
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
+#ifdef HAS_MDWF
+#include "qmdwf.h"                                                   /* DEPS */
+#endif
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
 #endif
@@ -60,6 +63,9 @@ static struct {
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
+#endif
+#ifdef HAS_MDWF
+    {"mdwf", MDWF_VERSION },
 #endif
 #ifdef HAS_MDWF
     {"mdwf",   MDWF_VERSION },
@@ -749,6 +755,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_CLOVER
         init_clover,
 #endif
+#ifdef HAS_MDWF
+        init_mdwf,
+#endif
 #ifdef HAS_EXTRAS
         init_extras,
 #endif
@@ -796,6 +805,9 @@ qlua_fini(lua_State *L)
         /* ZZZ add other packages here */
 #ifdef HAS_EXTRAS
         fini_extras,
+#endif
+#ifdef HAS_MDWF
+        fini_mdwf,
 #endif
 #ifdef HAS_CLOVER
         fini_clover,

@@ -678,10 +678,7 @@ static const struct luaL_Reg mtWriter[] = {
 };
 
 /* names and routines for qcd.qdpc table */
-static const struct {
-    char *name;
-    int (*func)(lua_State *L);
-} fAFFio[] = {
+static const struct luaL_Reg fAFFio[] = {
     { "Reader",   q_aff_reader},
     { "Writer",   q_aff_writer},
     { NULL,       NULL }
@@ -690,15 +687,11 @@ static const struct {
 int
 init_aff_io(lua_State *L)
 {
-    int i;
-
     lua_getglobal(L, qcdlib);
     lua_newtable(L);
-    for (i = 0; fAFFio[i].name; i++) {
-        lua_pushcfunction(L, fAFFio[i].func);
-        lua_setfield(L, -2, fAFFio[i].name);
-    }
+    luaL_register(L, NULL, fAFFio);
     lua_setfield(L, -2, aff_io);
+    lua_pop(L, 1);
     qlua_metatable(L, mtnReader, mtReader, qAffReader);
     qlua_metatable(L, mtnWriter, mtWriter, qAffWriter);
     

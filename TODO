@@ -1,8 +1,9 @@
 * Multiple Lattices
-** How one gets the QMP geometry from QDP?
--- check that clover still works.
+-- send and receive operations
 
 * MDWF - start from clover, add a vector of fermions as input to ops and invs.
+
+* Multi and part files for qdpcc and ddpairs
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:
