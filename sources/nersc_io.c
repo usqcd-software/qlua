@@ -463,19 +463,19 @@ eoh:
         /* check unitarity */
         {
             int d, a, b;
-            QLA_ColorMatrix UxU;
+            QLA_D3_ColorMatrix UxU;
 
             for (d = 0; d < S->rank; d++) {
                 double er, ei;
 
                 /* multiplcation order helps to detect reconstruction bugs */
-                QLA_M_eq_M_times_Ma(&UxU, &CM[d], &CM[d]);
-                QLA_M_meq_M(&UxU, &mone);
-                for (a = 0; a < QDP_Nc; a++) {
-                    for (b = 0; b < QDP_Nc; b++) {
+                QLA_D3_M_eq_M_times_Ma(&UxU, &CM[d], &CM[d]);
+                QLA_D3_M_meq_M(&UxU, &mone);
+                for (a = 0; a < 3; a++) {
+                    for (b = 0; b < 3; b++) {
                         QLA_Complex z;
 
-                        QLA_C_eq_elem_M(&z, &UxU, a, b);
+                        QLA_D3_C_eq_elem_M(&z, &UxU, a, b);
                         er = fabs(QLA_real(z));
                         ei = fabs(QLA_imag(z));
                         if ((er > uni_eps) || (ei > uni_eps))
@@ -500,7 +500,7 @@ eoh:
             int d;
             
             for (d = 0; d < S->rank; d++)
-                QLA_M_eq_M(&U[d][idx], &CM[d]);
+                QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
 
@@ -638,7 +638,7 @@ eoh:
             int d;
             
             for (d = 0; d < S->rank; d++)
-                QLA_M_eq_M(&U[d][idx], &CM[d]);
+                QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
 

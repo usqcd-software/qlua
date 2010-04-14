@@ -67,9 +67,6 @@ static struct {
 #ifdef HAS_MDWF
     {"mdwf", MDWF_VERSION },
 #endif
-#ifdef HAS_MDWF
-    {"mdwf",   MDWF_VERSION },
-#endif
 #ifdef HAS_EXTRAS
     {"extras", "included" },
 #endif
