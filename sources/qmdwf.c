@@ -286,7 +286,8 @@ q_dirac_solver(lua_State *L)
         for (i = 0; i < c->Ls; i++) {
             QDP_D3_reset_D(eta[i]->ptr);
         }
-        
+        QOP_MDWF_free_fermion(&c_eta);
+
         lua_pushnumber(L, out_eps * norm5);
         lua_pushnumber(L, out_iters);
         return 3;
