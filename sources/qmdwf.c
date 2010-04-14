@@ -787,68 +787,6 @@ DW_5_writer(const int p[], int c, int d, int re_im, double v, void *e)
     }
 }
 
-#if 0 /* XXX export/import */
-static double
-q_CL_D_reader(const int p[], int c, int d, int re_im, void *e)
-{
-    CL_D_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
-    QLA_D_Real xx;
-
-    if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_D(f[i], c, d));
-    } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
-    }
-
-    return xx;
-}
-
-static void
-q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *e)
-{
-    CL_D_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
- 
-    if (re_im == 0) {
-        QLA_real(QLA_elem_D(f[i], c, d)) = v;
-    } else {
-        QLA_imag(QLA_elem_D(f[i], c, d)) = v;
-    }
-}
-
-static double
-q_CL_P_reader(const int p[], int c, int d, int re_im, void *e)
-{
-    qCL_P_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-    QLA_D_Real xx;
-
-    if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
-    } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
-    }
-
-    return xx;
-}
-
-static void
-q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *e)
-{
-    qCL_P_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-
-    if (re_im == 0) {
-        QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
-    } else {
-        QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
-    }
-}
-#endif /* XXX export/import */
-
 static int
 q_DW_operator(lua_State *L,
               const char *name,
@@ -916,69 +854,6 @@ q_DW_operator(lua_State *L,
 
         return 1;
     }
-#if 0 /* XXX D&P operators */
-    case qLatDirFerm3: {
-        mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 2, S, 3);
-        mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        CL_D_env env;
-
-        CALL_QDP(L);
-        env.lat = S->lat;
-        env.f = QDP_D3_expose_D(psi->ptr);
-
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, &env))
-            return luaL_error(L, "CLOVER_import_fermion() failed");
-        QDP_D3_reset_D(psi->ptr);
-
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        (*op)(c_eta, c->gauge, c_psi);
-        
-        env.f = QDP_D3_expose_D(eta->ptr);
-        QOP_CLOVER_export_fermion(q_CL_D_writer, &env, c_eta);
-        QDP_D3_reset_D(eta->ptr);
-        
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
-
-        return 1;
-    }
-    case qLatDirProp3: {
-        mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 2, S, 3);
-        mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        qCL_P_env env;
-
-        CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
-
-        env.lat = S->lat;
-        env.in = QDP_D3_expose_P(psi->ptr);
-        env.out = QDP_D3_expose_P(eta->ptr);
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader, &env))
-                    return luaL_error(L, "CLOVER_import_fermion failed");
-
-                (*op)(c_eta, c->gauge, c_psi);
-                
-                QOP_CLOVER_free_fermion(&c_psi);
-                QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
-            }
-        }
-        QOP_CLOVER_free_fermion(&c_eta);
-        QDP_D3_reset_P(psi->ptr);
-        QDP_D3_reset_P(eta->ptr);
-
-        return 1;
-    }
-#endif /* XXX D&P operators */
     default:
         break;
     }

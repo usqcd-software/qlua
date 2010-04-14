@@ -1,9 +1,12 @@
 * Multiple Lattices
 -- send and receive operations
 
-* MDWF - start from clover, add a vector of fermions as input to ops and invs.
+* MDWF
+-- D4 and P4 solvers
 
 * Multi and part files for qdpcc and ddpairs
+
+* Scalar types mirroring lattice types.
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:
