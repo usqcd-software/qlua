@@ -1,0 +1,29 @@
+require "stdlib"
+-- require "dwf_5d_4d"
+
+printf("Checking MDWF P definition against chroma ref data\n")
+
+L = qcd.lattice{4,4,4,8}
+Ls = 16
+M_5 = 1.8
+m_f = 0.04
+a5 = 1.0
+kiters = 10000
+eps1 = 1e-14
+eps = 1e-18
+
+gauge_name = "../data/gauge_disord_4c8.NERSC"
+src_name   = "../data/source_point_4c8.qdpcc.F"
+prop_name  = "../data/prop_4c8.qdpcc.F"
+
+U           = qcd.nersc.read_gauge(L, gauge_name)
+src4_prop   = qcd.qdpcc.read_prop(L, src_name)
+prop4_prop  = qcd.qdpcc.read_prop(L, prop_name)
+
+DW = qcd.MDWF.Shamir(U, {1, 1, 1, -1}, Ls, M_5, m_f, a5)
+solver = DW:mixed_solver(eps1, kiters, eps, kiters)
+
+my_prop4_prop = solver(src4_prop)
+max_err = (my_prop4_prop - prop4_prop):norm2()
+printf("MAX ERROR %15.7e\n", max_err)
+printf("ALL DONE\n")

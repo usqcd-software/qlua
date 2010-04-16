@@ -11,6 +11,7 @@
 #include "qop-mdwf3.h"
 #include "qmp.h"
 
+/* NB: Code in this file relies on \gamma_5 = diag(1,1,-1,-1) */
 #include <math.h>
 
 static const char mdwf_name[] = "MDWF";
@@ -59,12 +60,14 @@ typedef struct {
     QLA_D3_DiracPropagator *in;
     QLA_D3_DiracPropagator *out;
     double s;
+    int Ls;
 } DW_P_env;
 
 typedef struct {
     QDP_Lattice *lat;
     QLA_D3_DiracFermion *f;
     double s;
+    int Ls;
 } DW_D_env;
 
 typedef struct {
@@ -107,71 +110,129 @@ q_DW_5_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
     }
 }
 
-#if 0 /* XXX scaled reader */
 static double
-q_CL_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
+q_DW_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 {
-    CL_D_env *env = e;
+    DW_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
     QLA_D3_DiracFermion *f = env->f;
     double s = env->s;
     QLA_D_Real xx;
 
-    if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_D(f[i], c, d));
+    if (p[QOP_MDWF_DIM] == 0) {
+        if (d < QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_r_eq_Re_c(xx, QLA_elem_D(f[i], c, d));
+            } else {
+                QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
+            }
+        } else {
+            return 0;
+        }
+    } else if (p[QOP_MDWF_DIM] == env->Ls - 1) {
+        if (d >= QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_r_eq_Re_c(xx, QLA_elem_D(f[i], c, d));
+            } else {
+                QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
+            }
+        } else {
+            return 0;
+        }
     } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_D(f[i], c, d));
+        return 0;
     }
 
     return xx * s;
 }
 
 static void
-q_CL_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
+q_DW_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    CL_D_env *env = e;
+    DW_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
     QLA_D3_DiracFermion *f = env->f;
     double s = env->s;
  
     v = v * s;
-    if (re_im == 0) {
-        QLA_real(QLA_elem_D(f[i], c, d)) = v;
-    } else {
-        QLA_imag(QLA_elem_D(f[i], c, d)) = v;
+    if (p[QOP_MDWF_DIM] == 0) {
+        if (d >= QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_real(QLA_elem_D(f[i], c, d)) = v;
+            } else {
+                QLA_imag(QLA_elem_D(f[i], c, d)) = v;
+            }
+        }
+    } else if (p[QOP_MDWF_DIM] == env->Ls - 1) {
+        if (d < QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_real(QLA_elem_D(f[i], c, d)) = v;
+            } else {
+                QLA_imag(QLA_elem_D(f[i], c, d)) = v;
+            }
+        }
     }
 }
 
 static double
-q_CL_P_reader_scaled(const int p[], int c, int d, int re_im, void *e)
+q_DW_P_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 {
-    qCL_P_env *env = e;
+    DW_P_env *env = e;
     int i = QDP_index_L(env->lat, p);
     QLA_D_Real xx;
 
-    if (re_im == 0) {
-        QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+    if (p[QOP_MDWF_DIM] == 0) {
+        if (d < QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+            } else {
+                QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+            }
+        } else {
+            return 0;
+        }
+    } else if (p[QOP_MDWF_DIM] == env->Ls - 1) {
+        if (d >= QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_r_eq_Re_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+            } else {
+                QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+            }
+        } else {
+            return 0;
+        }
     } else {
-        QLA_r_eq_Im_c(xx, QLA_elem_P(env->in[i], c, d, env->c, env->d));
+        return 0;
     }
 
     return xx * env->s;
 }
 
 static void
-q_CL_P_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
+q_DW_P_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 {
-    qCL_P_env *env = e;
+    DW_P_env *env = e;
     int i = QDP_index_L(env->lat, p);
 
     v = v * env->s;
-    if (re_im == 0) {
-        QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
-    } else {
-        QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
+    if (p[QOP_MDWF_DIM] == 0) {
+        if (d >= QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
+            } else {
+                QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
+            }
+        }
+    } else if (p[QOP_MDWF_DIM] == env->Ls - 1) {
+        if (d < QOP_MDWF_FERMION_DIM / 2) {
+            if (re_im == 0) {
+                QLA_real(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
+            } else {
+                QLA_imag(QLA_elem_P(env->out[i], c, d, env->c, env->d)) = v;
+            }
+        }
     }
 }
-#endif /* XXX scaled reader */
 
 static int
 q_dirac_solver(lua_State *L)
@@ -265,7 +326,7 @@ q_dirac_solver(lua_State *L)
         if (t1 == 0)
             t1 = -1;
         if (qlua_primary_node)
-            printf("CLOVER %s solver: status = %d,"
+            printf("MDWF %s solver: status = %d,"
                    " eps = %.4e, iters = %d, time = %.3f sec,"
                    " perf = %.2f MFlops/sec\n",
                    solver->name, status,
@@ -292,13 +353,12 @@ q_dirac_solver(lua_State *L)
         lua_pushnumber(L, out_iters);
         return 3;
     }
-#if 0 /* XXX solver */
     case qLatDirFerm3: {
         mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 1, S, 3);
         mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        CL_D_env env;
+        struct QOP_MDWF_Fermion *c_psi;
+        struct QOP_MDWF_Fermion *c_eta;
+        DW_D_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
         int status;
@@ -309,29 +369,28 @@ q_dirac_solver(lua_State *L)
             QDP_D3_D_eq_zero(eta->ptr, S->all);
             lua_pushnumber(L, 0.0);
             lua_pushnumber(L, 0);
-            lua_pushnumber(L, 0);
-            lua_pushnumber(L, 0);
-            return 5;
+            return 3;
         }
         rhs_n = sqrt(rhs_norm2);
         env.lat = S->lat;
+        env.Ls = c->Ls;
         env.f = QDP_D3_expose_D(psi->ptr);
         env.s = 1 / rhs_n;
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled,
-                                      &env))
-            return luaL_error(L, "CLOVER_import_fermion() failed");
+        if (QOP_MDWF_import_fermion(&c_psi, c->state, q_DW_D_reader_scaled,
+                                    &env))
+            return luaL_error(L, "MDWF_import_fermion() failed");
         QDP_D3_reset_D(psi->ptr);
 
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
+        if (QOP_MDWF_allocate_fermion(&c_eta, c->state))
+            return luaL_error(L, "MDWF_allocate_fermion() failed");
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
-        QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
+        QOP_MDWF_performance(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
         if (qlua_primary_node)
-            printf("CLOVER %s solver: status = %d,"
+            printf("MDWF %s solver: status = %d,"
                    " eps = %.4e, iters = %d, time = %.3f sec,"
                    " perf = %.2f MFlops/sec\n",
                    solver->name, status,
@@ -340,44 +399,42 @@ q_dirac_solver(lua_State *L)
         env.lat = S->lat;
         env.f = QDP_D3_expose_D(eta->ptr);
         env.s = rhs_n;
-        QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
+        QOP_MDWF_export_fermion(q_DW_D_writer_scaled, &env, c_eta);
         QDP_D3_reset_D(eta->ptr);
         
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
+        QOP_MDWF_free_fermion(&c_eta);
+        QOP_MDWF_free_fermion(&c_psi);
 
         if (status) {
             if (relaxed_p)
                 return 0;
             else
-                return luaL_error(L, QOP_CLOVER_error(c->state));
+                return luaL_error(L, QOP_MDWF_error(c->state));
         }
 
         /* eta is on the stack already */
         lua_pushnumber(L, out_eps);
         lua_pushnumber(L, out_iters);
-        lua_pushnumber(L, t1);
-        lua_pushnumber(L, (double)fl1);
 
-        return 5;
+        return 3;
     }
 
     case qLatDirProp3: {
         mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 1, S, 3);
         mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
+        struct QOP_MDWF_Fermion *c_psi;
+        struct QOP_MDWF_Fermion *c_eta;
         int gstatus = 0;
         int status;
-        qCL_P_env env;
+        DW_P_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
 
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* iters */
+        lua_createtable(L, QOP_MDWF_COLORS, 0);  /* eps */
+        lua_createtable(L, QOP_MDWF_COLORS, 0);  /* iters */
         CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
-            return luaL_error(L, "CLOVER_allocate_fermion() failed");
+        if (QOP_MDWF_allocate_fermion(&c_eta, c->state))
+            return luaL_error(L, "MDWF_allocate_fermion() failed");
 
         QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
@@ -385,41 +442,42 @@ q_dirac_solver(lua_State *L)
             return 3;
         }
         rhs_n = sqrt(rhs_norm2);
+        env.Ls = c->Ls;
         env.lat = S->lat;
         env.in = QDP_D3_expose_P(psi->ptr);
         env.out = QDP_D3_expose_P(eta->ptr);
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* eps.c */
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
+        for (env.c = 0; env.c < QOP_MDWF_COLORS; env.c++) {
+            lua_createtable(L, QOP_MDWF_FERMION_DIM, 0); /* eps.c */
+            lua_createtable(L, QOP_MDWF_FERMION_DIM, 0); /* iters.c */
 
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
+            for (env.d = 0; env.d < QOP_MDWF_FERMION_DIM; env.d++) {
                 env.s = 1 / rhs_n;
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
-                                              q_CL_P_reader_scaled, &env))
-                    return luaL_error(L, "CLOVER_import_fermion() failed");
+                if (QOP_MDWF_import_fermion(&c_psi, c->state,
+                                              q_DW_P_reader_scaled, &env))
+                    return luaL_error(L, "MDWF_import_fermion() failed");
                 status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
                                       log_level);
 
-                QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
+                QOP_MDWF_performance(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
                 if (qlua_primary_node)
-                    printf("CLOVER %s solver: status = %d, c = %d, d = %d,"
+                    printf("MDWF %s solver: status = %d, c = %d, d = %d,"
                            " eps = %.4e, iters = %d, time = %.3f sec,"
                            " perf = %.2f MFlops/sec\n",
                            solver->name, status,
                            env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
-                QOP_CLOVER_free_fermion(&c_psi);
+                QOP_MDWF_free_fermion(&c_psi);
                 if (status) {
                     if (relaxed_p)
                         gstatus = 1;
                     else
-                        return luaL_error(L, QOP_CLOVER_error(c->state));
+                        return luaL_error(L, QOP_MDWF_error(c->state));
                 }
 
                 env.s = rhs_n;
-                QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
+                QOP_MDWF_export_fermion(q_DW_P_writer_scaled, &env, c_eta);
                 lua_pushnumber(L, out_eps);
                 lua_rawseti(L, -3, env.d + 1);
                 lua_pushnumber(L, out_iters);
@@ -430,18 +488,17 @@ q_dirac_solver(lua_State *L)
         }
         QDP_D3_reset_P(psi->ptr);
         QDP_D3_reset_P(eta->ptr);
-        QOP_CLOVER_free_fermion(&c_eta);
+        QOP_MDWF_free_fermion(&c_eta);
 
         if (gstatus)
             return 0;
         else
             return 3;
     }
-#endif /* XXX solver */
     default:
         break;
     }
-    return luaL_error(L, "bad argument to CLOVER solver");
+    return luaL_error(L, "bad argument to MDWF solver");
 }
 
 /***** deflator state interface */
@@ -690,7 +747,7 @@ q_DW_make_deflator(lua_State *L)
     CALL_QDP(L);
     if (QOP_MDWF_create_deflator(&d->deflator, c->state,
                                    vmax, nev, eps, umax))
-        return luaL_error(L, "CLOVER_create_deflator() failed");
+        return luaL_error(L, "MDWF_create_deflator() failed");
 
     lua_rawseti(L, -2, 2);
     qlua_createLatticeTable(L, Sidx, mtMDWFDeflator, qMDWFDeflator,
@@ -1095,7 +1152,7 @@ q_mdwf_generic(lua_State *L)
     }
 
     M->name = "generic";
-    if (QOP_MDWF_set_generic(&M->params, M->state, b5, c5, M5, mf))
+    if (QOP_MDWF_set_generic(&M->params, M->state, b5, c5, -M5, mf))
         return luaL_error(L, "Not enough space");
 
     return 1;
@@ -1129,7 +1186,7 @@ q_mdwf_Moebius(lua_State *L)
     }
 
     M->name = "Moebius";
-    if (QOP_MDWF_set_Moebius(&M->params, M->state, b5, kappa, M5, mf))
+    if (QOP_MDWF_set_Moebius(&M->params, M->state, b5, kappa, -M5, mf))
         return luaL_error(L, "Not enough space");
 
     return 1;
@@ -1152,7 +1209,7 @@ q_mdwf_Shamir(lua_State *L)
     double a5 = luaL_checknumber(L, 6);
 
     M->name = "Shamir";
-    if (QOP_MDWF_set_Shamir(&M->params, M->state, a5, M5, mf))
+    if (QOP_MDWF_set_Shamir(&M->params, M->state, a5, -M5, mf))
         return luaL_error(L, "Not enough space");
 
     return 1;
@@ -1175,7 +1232,7 @@ q_mdwf_Borichi(lua_State *L)
     double a5 = luaL_checknumber(L, 6);
 
     M->name = "Borichi";
-    if (QOP_MDWF_set_Borichi(&M->params, M->state, a5, M5, mf))
+    if (QOP_MDWF_set_Borichi(&M->params, M->state, a5, -M5, mf))
         return luaL_error(L, "Not enough space");
 
     return 1;
@@ -1207,7 +1264,7 @@ q_mdwf_Chiu(lua_State *L)
     }
 
     M->name = "Chiu";
-    if (QOP_MDWF_set_Chiu(&M->params, M->state, a5, M5, mf))
+    if (QOP_MDWF_set_Chiu(&M->params, M->state, a5, -M5, mf))
         return luaL_error(L, "Not enough space");
 
     return 1;

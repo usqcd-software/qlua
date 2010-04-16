@@ -1,0 +1,172 @@
+
+-- XXX remember that in QLUA array index starts with 1
+
+function convert_fermion_D4_to_D5(src_d4, L5)
+  local src_d5 = {}
+  for s = 0, L5-1 do src_d5[1+s] = L:DiracFermion() end
+  src_d5[1] = 0.5 * (1 + gamma{n=15}) * src_d4
+  src_d5[L5]= 0.5 * (1 - gamma{n=15}) * src_d4
+  return src_d5
+end
+
+function convert_fermion_D5_to_D4(prop_d5, L5)
+  return 0.5 * ((1 - gamma{n=15}) * prop_d5[1] +
+                (1 + gamma{n=15}) * prop_d5[L5])
+end
+
+
+-- functions
+--    calc_corr_conserved_axial_current_pseudoscalar
+--    calc_midpoint_sol
+-- must be incorporated into dwf solver (4D) because they cannot be
+-- restored from 4d solution vector
+
+-- mu         direction of current, = 0 .. 3
+-- gauge      gauge links
+function calc_corr_conserved_axial_current_pseudoscalar(prop_d5, L5, gauge, mu)
+  local res = L:Complex()  
+  for s = 0, L5-1 do
+    local cur = 
+            qcd.dot(gauge[1+mu] * prop_d5[L5-s]:shift(mu, "from_forward"),
+                  gamma{n=15} * (1 + gamma{mu=mu}) * prop_d5[1+s]) -
+            qcd.dot(prop_d5[L5-s], 
+                    gamma{n=15} * (1 - gamma{mu=mu}) * 
+                    gauge[1+mu] * prop_d5[1+s]:shift(mu, "from_forward"))
+    -- two halves are treated differently
+    if s <= L5/2 then res = res - cur
+    else res = res + cur end
+  end
+  return 0.5 * res
+end
+
+-- compute propagator to "flavor"-space mid-point
+function calc_midpoint_sol(prop_d5, L5)
+  local Ls2 = L5/2  -- FIXME is there any way to do integer division in QLUA?
+  return 0.5 * ((1 + gamma{n=15}) * prop_d5[Ls2] +
+                (1 - gamma{n=15}) * prop_d5[1+Ls2])
+end
+function calc_corr_midpoint_pseudoscalar(prop_d5, L5)
+  local mp = calc_midpoint_sol(prop_d5, L5)
+  return mp:norm2()
+end
+
+-- additional quantities computed in Chroma DWF wrappers; these are 
+-- not necessary since they can be computed from a 4d propagator
+function calc_corr_pseudoscalar_pseudoscalar(prop_d4)
+  return prop_d4:norm2()
+end
+function calc_corr_local_axial_current_pseudoscalar(prop_d4, mu)
+  return (-qcd.dot(prop_d4, gamma{mu=mu} * prop_d4)):real()
+end
+
+
+
+
+-- solvers
+-- a prototype
+function solver_D5(src_d5)
+  -- TODO
+  return sol_d5, eps, niters
+end
+
+-- solver_D4: find DW op. solution for one rhs and compute correlators
+-- L            lattice object
+-- src_d4       D4 DiracFermion
+-- L5           length of 5th(flavor) dimension
+-- gauge        array[1..#L] of gauge links (needed for conserved axial current)
+-- RETURN       DiracFermion, eps, <num-iterations>, cons_axial[1..#L],midpoint
+function solver_D4(L, src_d4, L5, gauge)
+  local src_d5 = convert_fermion_D4_to_D5(src_d4, L5)
+  local sol_d5, eps, niters = solve_D5(src_d5)
+  local cons_axial_ps = {}
+  for mu = 0, #L-1 do
+    cons_axial_ps[1+mu] = calc_corr_conserved_axial_current_pseudoscalar(
+                            sol_d5, L5, gauge, mu)
+  end
+  local midpoint_ps = calc_corr_midpoint_pseudoscalar(sol_d5, L5)
+  return convert_fermion_D5_to_D4(sol_d5, L5), eps, niters,
+         cons_axial_ps, midpoint_ps
+end
+
+-- solver_P4: find DW op. solution for Nc*Nd rhs' and compute correlators
+-- L            lattice object
+-- src_d4       D4 DiracPropagator
+-- L5           length of 5th(flavor) dimension
+-- gauge        array[1..#L] of gauge links (needed for conserved axial current)
+-- RETURN       DiracPropagator, eps, <num-iterations>, cons_axial[1..#L],midpoint
+-- XXX the function below relies on solver_D4; this is may be important
+-- to save memory since the cons_axial_ps and midpoint_ps are constructed 
+-- as a sum over 12 propagator components; otherwise, storing the full 
+-- D5 propagator (12*L5*sizeof(DiracFermion)) would be required; look below 
+-- for the full version of solver_P4 does not use solver_D4; these two should 
+-- produce identical results
+function solver_P4(L, src_d4, L5, gauge)
+  -- init to zero for summation over j_color,j_spin
+  local cons_axial_ps = {}
+  for mu = 0, #L-1 do
+    cons_axial_ps[1+mu] = L:Complex()
+  end
+  local midpoint_ps = L:Complex()
+  -- result
+  local prop_d4 = L:DiracPropagator()
+  -- FIXME any better ideas what to use as total eps and niters?
+  local eps_total = -1      -- maximum
+  local niters_total = 0    -- iters overall
+  -- cycle over color, spin
+  for j_color = 0, qcd.Nc-1 do     -- FIXME does qcd.Nc exist?
+    for j_spin = 0, qcd.Ns-1 do     -- FIXME does qcd.Ns exist?
+      -- FIXME is indexing below correct? I want to pick a matrix _column_ 
+      -- at {j_color,j_spin}; 
+      -- code in sources/latdirprop.c: q_P_get, q_P_put appears right
+      local sol_d4, eps, niters, c_ax_ps, mp_ps =
+              solver_D4(src_d4[{d=j_spin,c=j_color}])
+      prop_d4:put({d=j_spin,c=j_color}, sol_d4)
+      -- update sums over j_color,j_spin
+      for mu = 0, #L-1 do
+        cons_axial_ps[1+mu] = cons_axial_ps[1+mu] + c_ax_ps
+      end
+      midpoint_ps = midpoint_ps + mp_ps
+      if eps_total < eps or eps_total < 0 then eps_total = eps end
+      niters_total = niters_total + niters
+    end
+  end
+  return prop_d5, eps_total, niters_total,
+         cons_axial_ps, midpoint_ps
+end
+
+function solver_P4_v2(L, src_d4, L5, gauge)
+  -- result
+  local prop_d4 = L:DiracPropagator()
+  local prop_d5 = {}    -- this one takes a lot of space
+  for s = 0, L5-1 do
+    prop_d5[1+s] = L:DiracPropagator()
+  end
+  -- FIXME any better ideas what to use as total eps and niters?
+  local eps_total = -1      -- maximal eps
+  local niters_total = 0    -- iters overall
+  -- cycle over color, spin
+  for j_color = 0, qcd.Nc-1 do     -- FIXME does qcd.Nc exist?
+    for j_spin = 0, qcd.Ns-1 do     -- FIXME does qcd.Ns exist?
+      local src_d5 = convert_fermion_D4_to_D5(src_d4[{d=j_spin,c=j_color}], L5)
+      local sol_d5, eps, niters = solver_D5(src_d5)
+      local sol_d4 = convert_fermion_D5_to_D4(sol_d5, L5)
+      prop_d4:put({d=j_spin,c=j_color}, sol_d4)
+      for s = 0, L5-1 do
+        prop_d5[1+s]:put({d=j_spin,c=j_color}, sol_d5[1+s])
+      end
+      -- update sums over j_color,j_spin
+      if eps_total < eps or eps_total < 0 then eps_total = eps end
+      niters_total = niters_total + niters
+    end
+  end
+  local cons_axial_ps = {}
+  for mu = 0, #L-1 do
+    cons_axial_ps[1+mu] = calc_corr_conserved_axial_current_pseudoscalar(
+                            prop_d5, L5, gauge, mu)
+  end
+  local midpoint_ps = calc_corr_midpoint_pseudoscalar(prop_d5, L5)
+  return prop_d4, eps_total, niters_total,
+         cons_axial_ps, midpoint_ps
+end
+
+

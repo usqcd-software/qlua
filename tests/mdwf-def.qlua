@@ -60,7 +60,7 @@ end
 
 ------------------------ standard definition ----------------------------------
 function Dw(U,F)
-   local X = (4 + M5) * F
+   local X = (4 - M5) * F
    for i = 0, #L - 1 do
       local Ui = U[i+1]:copy()
       L:Subset{axis=i,position=L[i]-1}:where(function() Ui:set(bc[i+1]*Ui) end)

@@ -1,0 +1,44 @@
+require "stdlib"
+-- require "dwf_5d_4d"
+
+printf("Checking MDWF 5D definition against chroma ref data\n")
+
+L = qcd.lattice{4,4,4,8}
+Ls = 16
+M_5 = 1.8
+m_f = 0.04
+a5 = 1.0
+kiters = 10000
+eps1 = 1e-14
+eps = 1e-18
+
+gauge_name = "../data/gauge_disord_4c8.NERSC"
+src_name   = "../data/source_point_4c8.qdpcc.F"
+prop_name  = "../data/prop_4c8.qdpcc.F"
+
+U      = qcd.nersc.read_gauge(L, gauge_name)
+src4_prop   = qcd.qdpcc.read_prop(L, src_name)
+prop4_prop  = qcd.qdpcc.read_prop(L, prop_name)
+
+DW = qcd.MDWF.Shamir(U, {1, 1, 1, -1}, Ls, M_5, m_f, a5)
+solver = DW:mixed_solver(eps1, kiters, eps, kiters)
+
+max_err = 0.0
+for c = 0, src4_prop:colors() - 1 do
+   for d = 0, qcd.Ns - 1 do
+      src4 = src4_prop[{c=c,d=d}]
+      prop4 = prop4_prop[{c=c,d=d}]
+      src5 = convert_fermion_D4_to_D5(src4, Ls)
+
+      prop5 = solver(src5)
+      my_prop4 = convert_fermion_D5_to_D4(prop5, Ls)
+      local err = (prop4 - my_prop4):norm2()
+      printf("%d %d delta norm2  = %15.7e -- must be small\n", c, d, err)
+      if (err > max_err) then
+         max_err = err
+      end
+   end
+end
+printf("MAX ERROR %15.7e\n", max_err)
+printf("ALL DONE\n")
+
