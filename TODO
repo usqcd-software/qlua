@@ -4,15 +4,6 @@
 * MDWF 4d solvers: compute and return two extra values as described in
   dwf_5d_4d.qlua
 
-* control Nc in configure (in any combination, left to right)
-   --with-nc=2
-   --with-nc=3
-   --with-nc=N
-   --without-nc=2
-   --without-nc=3
-   --without-nc=N
-   
-
 * Multi and part files for qdpcc and ddpairs
 
 * Scalar types mirroring lattice types.
