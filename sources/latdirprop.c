@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
@@ -10,49 +11,64 @@
 #include "latint.h"                                                  /* DEPS */
 #include "qmp.h"
 
+#if USE_Nc2
 #define QNc  '2'
 #define Qcolors "2"
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
 #include "latdirprop-x.c"                                           /* DEPS */
+#endif
 
+#if USE_Nc3
 #define QNc  '3'
 #define Qcolors "3"
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
 #include "latdirprop-x.c"                                           /* DEPS */
+#endif
 
+#if USE_NcN
 #define QNc  'N'
 #define Qcolors "N"
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
 #include "latdirprop-x.c"                                           /* DEPS */
+#endif
 
 static int
 do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
 {
     switch (nc) {
+#if USE_Nc2
     case 2: {
         mLatDirProp2 *r = qlua_newLatDirProp2(L, lua_gettop(L), 2);
         CALL_QDP(L);
         QDP_D2_P_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#endif
+#if USE_Nc3
     case 3: {
         mLatDirProp3 *r = qlua_newLatDirProp3(L, lua_gettop(L), 3);
         CALL_QDP(L);
         QDP_D3_P_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#endif
+#if USE_NcN
     default: {
         mLatDirPropN *r = qlua_newLatDirPropN(L, lua_gettop(L), nc);
         CALL_QDP(L);
         QDP_DN_P_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#else
+    default:
+        return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -95,9 +111,17 @@ q_latdirprop(lua_State *L)
     mLattice *S = qlua_checkLattice(L, 1);
 
     switch (S->nc) {
+#if USE_Nc2
     case 2: return q_latdirprop_2(L, S, 2, 0);
+#endif
+#if USE_Nc3
     case 3: return q_latdirprop_3(L, S, 3, 0);
+#endif
+#if USE_NcN
     default: return q_latdirprop_N(L, S, S->nc, 0);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -109,16 +133,27 @@ q_latdirprop(lua_State *L)
 static int
 q_latdirpropN(lua_State *L)
 {
+#if USE_Nc2 || USE_Nc3 || USE_NcN
     mLattice *S = qlua_checkLattice(L, 1);
+#endif
     int nc = luaL_checkint(L, 2);
 
     switch (nc) {
+#if USE_Nc2
     case 2: return q_latdirprop_2(L, S, 2, 1);
+#endif
+#if USE_Nc3
     case 3: return q_latdirprop_3(L, S, 3, 1);
+#endif
+#if USE_NcN
     default: return q_latdirprop_N(L, S, nc, 1);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
+#if USE_Nc3
 static struct {
     QLA_D3_DiracPropagator *a;
     QLA_D3_DiracPropagator *b;
@@ -201,6 +236,7 @@ q_su3contract_func(23);
 q_su3contract_func(24);
 q_su3contract_func(34);
 #undef q_su3contract_func
+#endif /* USE_Nc3 */
 
 static struct luaL_Reg fLatDirProp[] = {
     { "DiracPropagator",   q_latdirprop  },
@@ -209,12 +245,14 @@ static struct luaL_Reg fLatDirProp[] = {
 };
 
 static struct luaL_Reg fQCDDirProp[] = {
+#if USE_Nc3
     { "quarkContract12",   q_su3contract12 },
     { "quarkContract13",   q_su3contract13 },
     { "quarkContract14",   q_su3contract14 },
     { "quarkContract23",   q_su3contract23 },
     { "quarkContract24",   q_su3contract24 },
     { "quarkContract34",   q_su3contract34 },
+#endif
     { NULL,                NULL            }
 };
 
@@ -222,51 +260,57 @@ int
 init_latdirprop(lua_State *L)
 {
     static const QLUA_Op2 ops[] = {
+#if USE_Nc2
         { qlua_add_table, qLatDirProp2,  qLatDirProp2,  q_P_add_P_2 },
-        { qlua_add_table, qLatDirProp3,  qLatDirProp3,  q_P_add_P_3 },
-        { qlua_add_table, qLatDirPropN,  qLatDirPropN,  q_P_add_P_N },
         { qlua_sub_table, qLatDirProp2,  qLatDirProp2,  q_P_sub_P_2 },
-        { qlua_sub_table, qLatDirProp3,  qLatDirProp3,  q_P_sub_P_3 },
-        { qlua_sub_table, qLatDirPropN,  qLatDirPropN,  q_P_sub_P_N },
         { qlua_mul_table, qReal,         qLatDirProp2,  q_r_mul_P_2 },
-        { qlua_mul_table, qReal,         qLatDirProp3,  q_r_mul_P_3 },
-        { qlua_mul_table, qReal,         qLatDirPropN,  q_r_mul_P_N },
         { qlua_mul_table, qLatDirProp2,  qReal,         q_P_mul_r_2 },
-        { qlua_mul_table, qLatDirProp3,  qReal,         q_P_mul_r_3 },
-        { qlua_mul_table, qLatDirPropN,  qReal,         q_P_mul_r_N },
         { qlua_mul_table, qComplex,      qLatDirProp2,  q_c_mul_P_2 },
-        { qlua_mul_table, qComplex,      qLatDirProp3,  q_c_mul_P_3 },
-        { qlua_mul_table, qComplex,      qLatDirPropN,  q_c_mul_P_N },
         { qlua_mul_table, qLatDirProp2,  qComplex,      q_P_mul_c_2 },
-        { qlua_mul_table, qLatDirProp3,  qComplex,      q_P_mul_c_3 },
-        { qlua_mul_table, qLatDirPropN,  qComplex,      q_P_mul_c_N },
         { qlua_mul_table, qLatReal,      qLatDirProp2,  q_R_mul_P_2 },
-        { qlua_mul_table, qLatReal,      qLatDirProp3,  q_R_mul_P_3 },
-        { qlua_mul_table, qLatReal,      qLatDirPropN,  q_R_mul_P_N },
         { qlua_mul_table, qLatDirProp2,  qLatReal,      q_P_mul_R_2 },
-        { qlua_mul_table, qLatDirProp3,  qLatReal,      q_P_mul_R_3 },
-        { qlua_mul_table, qLatDirPropN,  qLatReal,      q_P_mul_R_N },
         { qlua_mul_table, qLatComplex,   qLatDirProp2,  q_C_mul_P_2 },
-        { qlua_mul_table, qLatComplex,   qLatDirProp3,  q_C_mul_P_3 },
-        { qlua_mul_table, qLatComplex,   qLatDirPropN,  q_C_mul_P_N },
         { qlua_mul_table, qLatDirProp2,  qLatComplex,   q_P_mul_C_2 },
-        { qlua_mul_table, qLatDirProp3,  qLatComplex,   q_P_mul_C_3 },
-        { qlua_mul_table, qLatDirPropN,  qLatComplex,   q_P_mul_C_N },
         { qlua_mul_table, qLatDirProp2,  qLatDirProp2,  q_P_mul_P_2 },
-        { qlua_mul_table, qLatDirProp3,  qLatDirProp3,  q_P_mul_P_3 },
-        { qlua_mul_table, qLatDirPropN,  qLatDirPropN,  q_P_mul_P_N },
         { qlua_mul_table, qLatDirProp2,  qLatColMat2,   q_P_mul_M_2 },
-        { qlua_mul_table, qLatDirProp3,  qLatColMat3,   q_P_mul_M_3 },
-        { qlua_mul_table, qLatDirPropN,  qLatColMatN,   q_P_mul_M_N },
         { qlua_mul_table, qLatColMat2,   qLatDirProp2,  q_M_mul_P_2 },
-        { qlua_mul_table, qLatColMat3,   qLatDirProp3,  q_M_mul_P_3 },
-        { qlua_mul_table, qLatColMatN,   qLatDirPropN,  q_M_mul_P_N },
         { qlua_div_table, qLatDirProp2,  qReal,         q_P_div_r_2 },
-        { qlua_div_table, qLatDirProp3,  qReal,         q_P_div_r_3 },
-        { qlua_div_table, qLatDirPropN,  qReal,         q_P_div_r_N },
         { qlua_div_table, qLatDirProp2,  qComplex,      q_P_div_c_2 },
+#endif
+#if USE_Nc3
+        { qlua_add_table, qLatDirProp3,  qLatDirProp3,  q_P_add_P_3 },
+        { qlua_sub_table, qLatDirProp3,  qLatDirProp3,  q_P_sub_P_3 },
+        { qlua_mul_table, qReal,         qLatDirProp3,  q_r_mul_P_3 },
+        { qlua_mul_table, qLatDirProp3,  qReal,         q_P_mul_r_3 },
+        { qlua_mul_table, qComplex,      qLatDirProp3,  q_c_mul_P_3 },
+        { qlua_mul_table, qLatDirProp3,  qComplex,      q_P_mul_c_3 },
+        { qlua_mul_table, qLatReal,      qLatDirProp3,  q_R_mul_P_3 },
+        { qlua_mul_table, qLatDirProp3,  qLatReal,      q_P_mul_R_3 },
+        { qlua_mul_table, qLatComplex,   qLatDirProp3,  q_C_mul_P_3 },
+        { qlua_mul_table, qLatDirProp3,  qLatComplex,   q_P_mul_C_3 },
+        { qlua_mul_table, qLatDirProp3,  qLatDirProp3,  q_P_mul_P_3 },
+        { qlua_mul_table, qLatDirProp3,  qLatColMat3,   q_P_mul_M_3 },
+        { qlua_mul_table, qLatColMat3,   qLatDirProp3,  q_M_mul_P_3 },
+        { qlua_div_table, qLatDirProp3,  qReal,         q_P_div_r_3 },
         { qlua_div_table, qLatDirProp3,  qComplex,      q_P_div_c_3 },
+#endif
+#if USE_NcN
+        { qlua_add_table, qLatDirPropN,  qLatDirPropN,  q_P_add_P_N },
+        { qlua_sub_table, qLatDirPropN,  qLatDirPropN,  q_P_sub_P_N },
+        { qlua_mul_table, qReal,         qLatDirPropN,  q_r_mul_P_N },
+        { qlua_mul_table, qLatDirPropN,  qReal,         q_P_mul_r_N },
+        { qlua_mul_table, qComplex,      qLatDirPropN,  q_c_mul_P_N },
+        { qlua_mul_table, qLatDirPropN,  qComplex,      q_P_mul_c_N },
+        { qlua_mul_table, qLatReal,      qLatDirPropN,  q_R_mul_P_N },
+        { qlua_mul_table, qLatDirPropN,  qLatReal,      q_P_mul_R_N },
+        { qlua_mul_table, qLatComplex,   qLatDirPropN,  q_C_mul_P_N },
+        { qlua_mul_table, qLatDirPropN,  qLatComplex,   q_P_mul_C_N },
+        { qlua_mul_table, qLatDirPropN,  qLatDirPropN,  q_P_mul_P_N },
+        { qlua_mul_table, qLatDirPropN,  qLatColMatN,   q_P_mul_M_N },
+        { qlua_mul_table, qLatColMatN,   qLatDirPropN,  q_M_mul_P_N },
+        { qlua_div_table, qLatDirPropN,  qReal,         q_P_div_r_N },
         { qlua_div_table, qLatDirPropN,  qComplex,      q_P_div_c_N },
+#endif
         { NULL,           qNoType,       qNoType,       NULL        }
     };
     luaL_register(L, qcdlib, fQCDDirProp);
@@ -274,9 +318,15 @@ init_latdirprop(lua_State *L)
     luaL_register(L, NULL, fLatDirProp);
     lua_pop(L, 1);
     qlua_reg_op2(ops);
+#if USE_Nc2
     qlua_reg_dot(qLatDirProp2,  q_P_dot_2);
+#endif
+#if USE_Nc3
     qlua_reg_dot(qLatDirProp3,  q_P_dot_3);
+#endif
+#if USE_NcN
     qlua_reg_dot(qLatDirPropN,  q_P_dot_N);
+#endif
 
     return 0;
 }

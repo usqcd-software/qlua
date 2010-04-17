@@ -1,5 +1,5 @@
 /* Only Nc=3 reader is supported */
-
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <math.h>
 
+#if USE_Nc3
 static const char nersc_io[] = "nersc";
 
 enum {
@@ -714,6 +715,13 @@ init_nersc_io(lua_State *L)
 
     return 0;
 }
+#else /* USE_Nc3 */
+int
+init_nersc_io(lua_State *L)
+{
+    return 0;
+}
+#endif /* USE_Nc3 == 0 */
 
 int
 fini_nersc_io(lua_State *L)

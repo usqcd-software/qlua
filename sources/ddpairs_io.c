@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
@@ -8,27 +9,32 @@
 
 static const char ddpairs_io[] = "ddpairs";
 
+#if USE_Nc2
 #define Qs(a)    a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
 #define QNc     '2'
 #define Qcolors  "2"
 #include "ddpairs_io-x.c"                                            /* DEPS */
+#endif
 
+#if USE_Nc3
 #define Qs(a)    a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
 #define QNc     '3'
 #define Qcolors  "3"
 #include "ddpairs_io-x.c"                                            /* DEPS */
+#endif
 
+#if USE_NcN
 #define Qs(a)    a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
 #define QNc     'N'
 #define Qcolors  "N"
 #include "ddpairs_io-x.c"                                            /* DEPS */
-
+#endif
 
 /* qcd.ddpairs.read(Lattice,       -- 1, mLattice
  *                  fname)         -- 2, file name string
@@ -39,9 +45,17 @@ ddpairs_read(lua_State *L)
     mLattice *S = qlua_checkLattice(L, 1);
 
     switch (S->nc) {
+#if USE_Nc2
     case 2:   return dd_read2(L, 0, 2);
+#endif
+#if USE_Nc3
     case 3:   return dd_read3(L, 0, 3);
+#endif
+#if USE_NcN
     default:  return dd_readN(L, 0, S->nc);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -57,9 +71,17 @@ ddpairs_readN(lua_State *L)
     if (nc < 2)
         return luaL_error(L, "bad number of colors in qcd.ddpairs.readN()");
     switch (nc) {
+#if USE_Nc2
     case 2:   return dd_read2(L, 1, 2);
+#endif
+#if USE_Nc3
     case 3:   return dd_read3(L, 1, 3);
+#endif
+#if USE_NcN
     default:  return dd_readN(L, 1, nc);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -77,12 +99,18 @@ static int
 ddpairs_write(lua_State *L)
 {
     switch (qlua_qtype(L, 4)) { /* get nc from Source */
+#if USE_Nc2
     case qLatDirProp2: return dd_write2(L, 2);
+#endif
+#if USE_Nc3
     case qLatDirProp3: return dd_write3(L, 3);
+#endif
+#if USE_NcN
     case qLatDirPropN: {
         mLatDirPropN *src = qlua_checkLatDirPropN(L, 5, NULL, -1);
         return dd_writeN(L, src->nc);
     }
+#endif
     default:
         return luaL_error(L, "bad arguments for qcd.ddpairs.write()");
     }

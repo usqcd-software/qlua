@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qmdwf.h"                                                   /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
@@ -14,6 +15,7 @@
 /* NB: Code in this file relies on \gamma_5 = diag(1,1,-1,-1) */
 #include <math.h>
 
+#if USE_Nc3
 static const char mdwf_name[] = "MDWF";
 
 static const char MDWFName[]         = "lattice.MDWF";
@@ -1333,6 +1335,13 @@ init_mdwf(lua_State *L)
     lua_pop(L, 1);
     return 0;
 }
+#else /* USE_Nc3 */
+int
+init_mdwf(lua_State *L)
+{
+    return 0;
+}
+#endif /* USE_Nc3 */
 
 int
 fini_mdwf(lua_State *L)

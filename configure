@@ -17,6 +17,11 @@ show_help() {
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
      --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
      --with-<package>=DIR     use DIR/bin/<package>-config to query package
+     --with[out]-nc=2         include [exclude] Nc=2 special case
+     --with[out]-nc=3         include [exclude] Nc=3 special case
+     --with[out]-nc=N         include [exclude] Nc=N special case
+     --with-nc=all            include all special Nc cases
+     --without-nc=any         exclude all special Nc cases
 
    Supported packages:
      clover                   SciDAC L3 clover inverter
@@ -64,6 +69,9 @@ default_ld="gcc -g"
 default_ldflags=""
 default_ar=ar
 default_ranlib="echo RANLIB"
+use_nc2=1
+use_nc3=1
+use_ncN=1
 
 # process_args arg ...
 process_args() {
@@ -82,12 +90,26 @@ process_args() {
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
+      --with-nc=2)        use_nc2=1 ;;
+      --with-nc=3)        use_nc3=1 ;;
+      --with-nc=N)        use_ncN=1 ;;
+      --with-nc=all)      use_nc2=1 ; use_nc3=1 ; use_ncN=1 ;;
+      --without-nc=2)     use_nc2=0 ;;
+      --without-nc=3)     use_nc3=0 ;;
+      --without-nc=N)     use_ncN=0 ;;
+      --without-nc=any)   use_nc2=0 ; use_nc3=0 ; use_ncN=0 ;;
       --with-extras)      extras=true ;;
       ## add other packages here
       *) show_error "Unknown argument $1" ;;
     esac
     shift
   done
+
+  if [ "$use_nc3" -eq "0" ] ; then
+      clover=
+      mdwf=
+      extras=
+  fi
 }
 
 # normalize
@@ -181,6 +203,9 @@ show_config() {
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
+   [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
+   [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
+   [ "$use_ncN" == 0 ] || echo "Nc=N included"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
@@ -223,6 +248,9 @@ build() {
         -e "s|@gsl_cflags@|$gsl_cflags|g" \
         -e "s|@gsl_libs@|$gsl_libs|g" \
         -e "s|@cblas_libs@|$cblas_libs|g" \
+  | sed -e "s|@use_nc2@|$use_nc2|g " \
+        -e "s|@use_nc3@|$use_nc3|g " \
+        -e "s|@use_ncN@|$use_ncN|g " \
   | sed -e "s|@extras@|$extras|g" \
       > $2 \
 || show_error "Could not generate $2"
@@ -256,6 +284,9 @@ build_modules() {
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
+  echo "#define USE_Nc2 $use_nc2"
+  echo "#define USE_Nc3 $use_nc3"
+  echo "#define USE_NcN $use_ncN"
 }
 
 ######

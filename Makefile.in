@@ -86,12 +86,14 @@ ifneq ("$(AFF)", "")
   libsrc += aff_io.c
 endif
 
+ifeq ("@use_nc3@", "1")
 ifneq ("$(CLOVER)", "")
   libsrc += qclover.c
 endif
 
 ifneq ("$(MDWF)", "")
   libsrc += qmdwf.c
+endif
 endif
 
 ifneq ("$(GSL)", "")
@@ -100,10 +102,12 @@ endif
 
 extrascr =
 
+ifeq ("@use_nc3", "1")
 ifeq ("$(EXTRAS)", "true")
   extrasrc += extras.c \
               save_bb.c \
               gen_laplace.c
+endif
 endif
 
 ## ZZZ add other optional modules here

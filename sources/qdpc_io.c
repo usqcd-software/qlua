@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
@@ -59,6 +60,7 @@ static void check_writer(lua_State *L, mWriter *b);
 #define X_ID(x)       x ## C
 #include "qdpc_io-x.c"                                               /* DEPS */
 
+#if USE_Nc2 || USE_Nc3 || USE_NcN
 /* colored lattice types */
 #define QT(a)         a ## ColorVector
 #define QTx(a,b)      a ## ColorVector ## b
@@ -83,6 +85,7 @@ static void check_writer(lua_State *L, mWriter *b);
 #define QN(a,b)       a ## LatDirProp ## b
 #define QA(p)         p ## P
 #include "qdpc_io-y.c"                                               /* DEPS */
+#endif /* use any colors */
 
 /* QDPC reader */
 static int
@@ -341,6 +344,7 @@ static const struct luaL_Reg mtReader[] = {
     { "RandomState",      qdpc_r_S                 },
     { "Real",             qdpc_r_R                 },
     { "Complex",          qdpc_r_C                 },
+#if USE_Nc2 || USE_Nc3 || USE_NcN
     { "ColorVector",      qdpc_r_ColorVector       },
     { "ColorVectorN",     qdpc_r_ColorVectorN      },
     { "ColorMatrix",      qdpc_r_ColorMatrix       },
@@ -349,6 +353,7 @@ static const struct luaL_Reg mtReader[] = {
     { "DiracFermionN",    qdpc_r_DiracFermionN     },
     { "DiracPropagator",  qdpc_r_DiracPropagator   },
     { "DiracPropagatorN", qdpc_r_DiracPropagatorN  },
+#endif /* use any colors */
     { "int_vector",       qdpc_r_iv                },
     { "real_vector",      qdpc_r_rv                },
     { "complex_vector",   qdpc_r_cv                },
@@ -640,10 +645,12 @@ static const struct luaL_Reg mtWriter[] = {
     { "RandomState",      qdpc_w_S               },
     { "Real",             qdpc_w_R               },
     { "Complex",          qdpc_w_C               },
+#if USE_Nc2 || USE_Nc3 || USE_NcN
     { "ColorVector",      qdpc_w_ColorVector     },
     { "ColorMatrix",      qdpc_w_ColorMatrix     },
     { "DiracFermion",     qdpc_w_DiracFermion    },
     { "DiracPropagator",  qdpc_w_DiracPropagator },
+#endif /* use any colors */
     { "int_vector",       qdpc_w_iv              },
     { "real_vector",      qdpc_w_rv              },
     { "complex_vector",   qdpc_w_cv              },

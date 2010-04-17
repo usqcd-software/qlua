@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qgamma.h"                                                  /* DEPS */
@@ -666,34 +667,46 @@ q_gamma(lua_State *L)
     return qlua_badconstr(L, "gamma");
 }
 
+#if USE_Nc2
 #define QNc  '2'
 #define Qcolors "2"
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
 #include "qgamma-x.c"                                               /* DEPS */
+#endif
 
+#if USE_Nc3
 #define QNc  '3'
 #define Qcolors "3"
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
 #include "qgamma-x.c"                                               /* DEPS */
+#endif
 
+#if USE_NcN
 #define QNc  'N'
 #define Qcolors "N"
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
 #include "qgamma-x.c"                                               /* DEPS */
+#endif
 
 static int
 q_left_project(lua_State *L)
 {
     switch (qlua_qtype(L, 3)) {
+#if USE_Nc2
     case qLatDirProp2: return q_P_project2(L, q_P_left_proj2);
+#endif
+#if USE_Nc3
     case qLatDirProp3: return q_P_project3(L, q_P_left_proj3);
+#endif
+#if USE_NcN
     case qLatDirPropN: return q_P_projectN(L, q_P_left_projN);
+#endif
     default:
         return luaL_error(L, "unexpected type in g:left_project()");
     }
@@ -703,9 +716,15 @@ static int
 q_right_project(lua_State *L)
 {
     switch (qlua_qtype(L, 3)) {
+#if USE_Nc2
     case qLatDirProp2: return q_P_project2(L, q_P_right_proj2);
+#endif
+#if USE_Nc3
     case qLatDirProp3: return q_P_project3(L, q_P_right_proj3);
+#endif
+#if USE_NcN
     case qLatDirPropN: return q_P_projectN(L, q_P_right_projN);
+#endif
     default:
         return luaL_error(L, "unexpected type in g:right_project()");
     }
@@ -719,9 +738,17 @@ q_left_reconstruct(lua_State *L)
         return luaL_error(L, "bad arg size for g:left_reconstruct");
 
     switch (n) {
+#if USE_Nc2
     case 2: return q_P_reconstruct2(L, q_P_left_recon2, n);
+#endif
+#if USE_Nc3
     case 3: return q_P_reconstruct3(L, q_P_left_recon3, n);
+#endif
+#if USE_NcN
     default: return q_P_reconstructN(L, q_P_left_reconN, n);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -733,9 +760,17 @@ q_right_reconstruct(lua_State *L)
         return luaL_error(L, "bad arg size for g:right_reconstruct");
 
     switch (n) {
+#if USE_Nc2
     case 2: return q_P_reconstruct2(L, q_P_right_recon2, n);
+#endif
+#if USE_Nc3
     case 3: return q_P_reconstruct3(L, q_P_right_recon3, n);
+#endif
+#if USE_NcN
     default: return q_P_reconstructN(L, q_P_right_reconN, n);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -782,15 +817,21 @@ init_gamma(lua_State *L)
         { qlua_mul_table, qGamma,        qReal,         q_g_mul_r    },
         { qlua_mul_table, qComplex,      qGamma,        q_c_mul_g    },
         { qlua_mul_table, qGamma,        qComplex,      q_g_mul_c    },
+#if USE_Nc2
         { qlua_mul_table, qGamma,        qLatDirFerm2,  q_g_mul_D_2  },
-        { qlua_mul_table, qGamma,        qLatDirFerm3,  q_g_mul_D_3  },
-        { qlua_mul_table, qGamma,        qLatDirFermN,  q_g_mul_D_N  },
         { qlua_mul_table, qGamma,        qLatDirProp2,  q_g_mul_P_2  },
-        { qlua_mul_table, qGamma,        qLatDirProp3,  q_g_mul_P_3  },
-        { qlua_mul_table, qGamma,        qLatDirPropN,  q_g_mul_P_N  },
         { qlua_mul_table, qLatDirProp2,  qGamma,        q_P_mul_g_2  },
+#endif
+#if USE_Nc3
+        { qlua_mul_table, qGamma,        qLatDirFerm3,  q_g_mul_D_3  },
+        { qlua_mul_table, qGamma,        qLatDirProp3,  q_g_mul_P_3  },
         { qlua_mul_table, qLatDirProp3,  qGamma,        q_P_mul_g_3  },
+#endif
+#if USE_NcN
+        { qlua_mul_table, qGamma,        qLatDirFermN,  q_g_mul_D_N  },
+        { qlua_mul_table, qGamma,        qLatDirPropN,  q_g_mul_P_N  },
         { qlua_mul_table, qLatDirPropN,  qGamma,        q_P_mul_g_N  },
+#endif
         { qlua_div_table, qGamma,        qReal,         q_g_div_r    },
         { qlua_div_table, qGamma,        qComplex,      q_g_div_c    },
         { NULL,           qNoType,       qNoType,       NULL         }

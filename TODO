@@ -1,12 +1,25 @@
 * Multiple Lattices
 -- send and receive operations
 
-* MDWF
--- D4 and P4 solvers
+* MDWF 4d solvers: compute and return two extra values as described in
+  dwf_5d_4d.qlua
+
+* control Nc in configure (in any combination, left to right)
+   --with-nc=2
+   --with-nc=3
+   --with-nc=N
+   --without-nc=2
+   --without-nc=3
+   --without-nc=N
+   
 
 * Multi and part files for qdpcc and ddpairs
 
 * Scalar types mirroring lattice types.
+
+* Forced Nc=N case, e.g., add
+     Lattice:ColorMatrixNforced(2, ....) etc.
+  to help with checking & comparision.
 
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:

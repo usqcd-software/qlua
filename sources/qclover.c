@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qclover.h"                                                 /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
@@ -11,8 +12,9 @@
 #include "qop-clover.h"
 #include "qmp.h"
 
-
 #include <math.h>
+
+#if USE_Nc3
 
 static const char CloverName[]               = "lattice.Clover";
 static const char CloverDeflatorName[]       = "lattice.Clover.Deflator";
@@ -1102,6 +1104,13 @@ init_clover(lua_State *L)
     luaL_register(L, qcdlib, fClover);
     return 0;
 }
+#else /* USE_Nc3 */
+int
+init_clover(lua_State *L)
+{
+    return 0;
+}
+#endif /* USE_Nc3 */
 
 int
 fini_clover(lua_State *L)

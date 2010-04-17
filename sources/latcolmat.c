@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
@@ -13,49 +14,64 @@
 
 #define COLOR_EPS 1e-10
 
+#if USE_Nc2
 #define QNc  '2'
 #define Qcolors "2"
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
 #include "latcolmat-x.c"                                            /* DEPS */
+#endif
 
+#if USE_Nc3
 #define QNc  '3'
 #define Qcolors "3"
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
 #include "latcolmat-x.c"                                            /* DEPS */
+#endif
 
+#if USE_NcN
 #define QNc  'N'
 #define Qcolors "N"
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
 #include "latcolmat-x.c"                                            /* DEPS */
+#endif
 
 static int
 do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
 {
     switch (nc) {
+#if USE_Nc2
     case 2: {
         mLatColMat2 *r = qlua_newLatColMat2(L, lua_gettop(L), 2);
         CALL_QDP(L);
         QDP_D2_M_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#endif
+#if USE_Nc3
     case 3: {
         mLatColMat3 *r = qlua_newLatColMat3(L, lua_gettop(L), 3);
         CALL_QDP(L);
         QDP_D3_M_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#endif
+#if USE_NcN
     default: {
         mLatColMatN *r = qlua_newLatColMatN(L, lua_gettop(L), nc);
         CALL_QDP(L);
         QDP_DN_M_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
+#else
+    default:
+        return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -101,9 +117,17 @@ q_latcolmat(lua_State *L)
     mLattice *S = qlua_checkLattice(L, 1);
     
     switch (S->nc) {
+#if USE_Nc2
     case 2: return q_latcolmat_2(L, S, 2, 0);
+#endif
+#if USE_Nc3
     case 3: return q_latcolmat_3(L, S, 3, 0);
+#endif
+#if USE_NcN
     default: return q_latcolmat_N(L, S, S->nc, 0);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -118,13 +142,23 @@ q_latcolmat(lua_State *L)
 static int
 q_latcolmatN(lua_State *L)
 {
+#if USE_Nc2 || USE_Nc3 || USE_NcN
     mLattice *S = qlua_checkLattice(L, 1);
+#endif
     int nc = luaL_checkint(L, 2);
     
     switch (nc) {
+#if USE_Nc2
     case 2: return q_latcolmat_2(L, S, 2, 1);
+#endif
+#if USE_Nc3
     case 3: return q_latcolmat_3(L, S, 3, 1);
+#endif
+#if USE_NcN
     default: return q_latcolmat_N(L, S, nc, 1);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
 }
 
@@ -138,57 +172,69 @@ int
 init_latcolmat(lua_State *L)
 {
     static const QLUA_Op2 ops[] = {
+#if USE_Nc2
         { qlua_add_table, qLatColMat2,  qLatColMat2,  q_M_add_M_2 },
-        { qlua_add_table, qLatColMat3,  qLatColMat3,  q_M_add_M_3 },
-        { qlua_add_table, qLatColMatN,  qLatColMatN,  q_M_add_M_N },
         { qlua_sub_table, qLatColMat2,  qLatColMat2,  q_M_sub_M_2 },
-        { qlua_sub_table, qLatColMat3,  qLatColMat3,  q_M_sub_M_3 },
-        { qlua_sub_table, qLatColMatN,  qLatColMatN,  q_M_sub_M_N },
         { qlua_mul_table, qReal,        qLatColMat2,  q_r_mul_M_2 },
-        { qlua_mul_table, qReal,        qLatColMat3,  q_r_mul_M_3 },
-        { qlua_mul_table, qReal,        qLatColMatN,  q_r_mul_M_N },
         { qlua_mul_table, qLatColMat2,  qReal,        q_M_mul_r_2 },
-        { qlua_mul_table, qLatColMat3,  qReal,        q_M_mul_r_3 },
-        { qlua_mul_table, qLatColMatN,  qReal,        q_M_mul_r_N },
         { qlua_mul_table, qComplex,     qLatColMat2,  q_c_mul_M_2 },
-        { qlua_mul_table, qComplex,     qLatColMat3,  q_c_mul_M_3 },
-        { qlua_mul_table, qComplex,     qLatColMatN,  q_c_mul_M_N },
         { qlua_mul_table, qLatColMat2,  qComplex,     q_M_mul_c_2 },
-        { qlua_mul_table, qLatColMat3,  qComplex,     q_M_mul_c_3 },
-        { qlua_mul_table, qLatColMatN,  qComplex,     q_M_mul_c_N },
         { qlua_mul_table, qLatReal,     qLatColMat2,  q_R_mul_M_2 },
-        { qlua_mul_table, qLatReal,     qLatColMat3,  q_R_mul_M_3 },
-        { qlua_mul_table, qLatReal,     qLatColMatN,  q_R_mul_M_N },
         { qlua_mul_table, qLatColMat2,  qLatReal,     q_M_mul_R_2 },
-        { qlua_mul_table, qLatColMat3,  qLatReal,     q_M_mul_R_3 },
-        { qlua_mul_table, qLatColMatN,  qLatReal,     q_M_mul_R_N },
         { qlua_mul_table, qLatComplex,  qLatColMat2,  q_C_mul_M_2 },
-        { qlua_mul_table, qLatComplex,  qLatColMat3,  q_C_mul_M_3 },
-        { qlua_mul_table, qLatComplex,  qLatColMatN,  q_C_mul_M_N },
         { qlua_mul_table, qLatColMat2,  qLatComplex,  q_M_mul_C_2 },
-        { qlua_mul_table, qLatColMat3,  qLatComplex,  q_M_mul_C_3 },
-        { qlua_mul_table, qLatColMatN,  qLatComplex,  q_M_mul_C_N },
         { qlua_mul_table, qLatColMat2,  qLatColVec2,  q_M_mul_V_2 },
-        { qlua_mul_table, qLatColMat3,  qLatColVec3,  q_M_mul_V_3 },
-        { qlua_mul_table, qLatColMatN,  qLatColVecN,  q_M_mul_V_N },
         { qlua_mul_table, qLatColMat2,  qLatColMat2,  q_M_mul_M_2 },
-        { qlua_mul_table, qLatColMat3,  qLatColMat3,  q_M_mul_M_3 },
-        { qlua_mul_table, qLatColMatN,  qLatColMatN,  q_M_mul_M_N },
         { qlua_div_table, qLatColMat2,  qReal,        q_M_div_r_2 },
-        { qlua_div_table, qLatColMat3,  qReal,        q_M_div_r_3 },
-        { qlua_div_table, qLatColMatN,  qReal,        q_M_div_r_N },
         { qlua_div_table, qLatColMat2,  qComplex,     q_M_div_c_2 },
+#endif
+#if USE_Nc3
+        { qlua_add_table, qLatColMat3,  qLatColMat3,  q_M_add_M_3 },
+        { qlua_sub_table, qLatColMat3,  qLatColMat3,  q_M_sub_M_3 },
+        { qlua_mul_table, qReal,        qLatColMat3,  q_r_mul_M_3 },
+        { qlua_mul_table, qLatColMat3,  qReal,        q_M_mul_r_3 },
+        { qlua_mul_table, qComplex,     qLatColMat3,  q_c_mul_M_3 },
+        { qlua_mul_table, qLatColMat3,  qComplex,     q_M_mul_c_3 },
+        { qlua_mul_table, qLatReal,     qLatColMat3,  q_R_mul_M_3 },
+        { qlua_mul_table, qLatColMat3,  qLatReal,     q_M_mul_R_3 },
+        { qlua_mul_table, qLatComplex,  qLatColMat3,  q_C_mul_M_3 },
+        { qlua_mul_table, qLatColMat3,  qLatComplex,  q_M_mul_C_3 },
+        { qlua_mul_table, qLatColMat3,  qLatColVec3,  q_M_mul_V_3 },
+        { qlua_mul_table, qLatColMat3,  qLatColMat3,  q_M_mul_M_3 },
+        { qlua_div_table, qLatColMat3,  qReal,        q_M_div_r_3 },
         { qlua_div_table, qLatColMat3,  qComplex,     q_M_div_c_3 },
+#endif
+#if USE_NcN
+        { qlua_add_table, qLatColMatN,  qLatColMatN,  q_M_add_M_N },
+        { qlua_sub_table, qLatColMatN,  qLatColMatN,  q_M_sub_M_N },
+        { qlua_mul_table, qReal,        qLatColMatN,  q_r_mul_M_N },
+        { qlua_mul_table, qLatColMatN,  qReal,        q_M_mul_r_N },
+        { qlua_mul_table, qComplex,     qLatColMatN,  q_c_mul_M_N },
+        { qlua_mul_table, qLatColMatN,  qComplex,     q_M_mul_c_N },
+        { qlua_mul_table, qLatReal,     qLatColMatN,  q_R_mul_M_N },
+        { qlua_mul_table, qLatColMatN,  qLatReal,     q_M_mul_R_N },
+        { qlua_mul_table, qLatComplex,  qLatColMatN,  q_C_mul_M_N },
+        { qlua_mul_table, qLatColMatN,  qLatComplex,  q_M_mul_C_N },
+        { qlua_mul_table, qLatColMatN,  qLatColVecN,  q_M_mul_V_N },
+        { qlua_mul_table, qLatColMatN,  qLatColMatN,  q_M_mul_M_N },
+        { qlua_div_table, qLatColMatN,  qReal,        q_M_div_r_N },
         { qlua_div_table, qLatColMatN,  qComplex,     q_M_div_c_N },
+#endif
         { NULL,           qNoType,      qNoType,      NULL        }
     };
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatColMat);
     lua_pop(L, 1);
     qlua_reg_op2(ops);
+#if USE_Nc2
     qlua_reg_dot(qLatColMat2,  q_M_dot_2);
+#endif
+#if USE_Nc3
     qlua_reg_dot(qLatColMat3,  q_M_dot_3);
+#endif
+#if USE_NcN
     qlua_reg_dot(qLatColMatN,  q_M_dot_N);
+#endif
 
     return 0;
 }

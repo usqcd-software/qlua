@@ -14,4 +14,5 @@ CC="gcc -g -std=c99"                          \
    --with-clover=/Users/avp/Sandbox/USQCD/clover/install-new-1 \
    --with-mdwf=/Users/avp/Sandbox/USQCD/mdwf/install-new-1 \
    --with-extras \
-   --prefix=$TARGET 
+   --prefix=$TARGET \
+   $*
