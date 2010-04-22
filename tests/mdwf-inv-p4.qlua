@@ -31,7 +31,7 @@ for i = 0, #L - 1 do
 end
 
 -- random 4d - source
-src4 = S:gaussian_DiracFermion()
+src4 = S:gaussian_DiracPropagator()
 -- src4 = src4 / math.sqrt(src4:norm2())
 
 -- inverter
@@ -40,19 +40,8 @@ solver = DW:solver(1e-15, 50000)
 
 -- solve in 5d, get (solution, axial_current, m_res)
 function ref_solver(rhs4)
-   local rhs5 = convert_fermion_D4_to_D5(rhs4, Ls)
-   local sol5, eps, iters = solver(rhs5)
-   local sol4 = convert_fermion_D5_to_D4(sol5, Ls)
-   local ac = {}
-   for mu = 0, #L - 1 do
-      ac[mu+1] =  calc_corr_conserved_axial_current_pseudoscalar(sol5,
-                                                                 Ls, U, mu)
-   end
-   local mp = calc_corr_midpoint_pseudoscalar(sol5, Ls)
-
-   -- real part of (0,0) at slice Ls/2+1
-   -- local mp = sol5[Ls/2+1][{c=0,d=0}]:real()
-   
+   printf("Reference solver, rhs4=%s\n", tostring(rhs4))
+   local sol4, eps, iters, ac, mp = solver_P4_v2(L, rhs4, Ls, U, solver)
 
    printf("ref_solver: %s %s %s %s %s\n",
           tostring(sol4),
@@ -109,6 +98,7 @@ end
 
 r_sol, r_ac, r_mp = ref_solver(src4)
 x_sol, x_ac, x_mp = l3_solver(src4)
+-- x_sol, x_ac, x_mp = ref_solver(src4)
 
 check_4d("solution", r_sol, x_sol)
 for i = 1, #r_ac do

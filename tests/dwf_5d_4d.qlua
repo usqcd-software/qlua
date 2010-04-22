@@ -62,13 +62,6 @@ end
 
 
 
--- solvers
--- a prototype
-function solver_D5(src_d5)
-  -- TODO
-  return sol_d5, eps, niters
-end
-
 -- solver_D4: find DW op. solution for one rhs and compute correlators
 -- L            lattice object
 -- src_d4       D4 DiracFermion
@@ -100,41 +93,8 @@ end
 -- D5 propagator (12*L5*sizeof(DiracFermion)) would be required; look below 
 -- for the full version of solver_P4 does not use solver_D4; these two should 
 -- produce identical results
-function solver_P4(L, src_d4, L5, gauge)
-  -- init to zero for summation over j_color,j_spin
-  local cons_axial_ps = {}
-  for mu = 0, #L-1 do
-    cons_axial_ps[1+mu] = L:Complex()
-  end
-  local midpoint_ps = L:Complex()
-  -- result
-  local prop_d4 = L:DiracPropagator()
-  -- FIXME any better ideas what to use as total eps and niters?
-  local eps_total = -1      -- maximum
-  local niters_total = 0    -- iters overall
-  -- cycle over color, spin
-  for j_color = 0, qcd.Nc-1 do     -- FIXME does qcd.Nc exist?
-    for j_spin = 0, qcd.Ns-1 do     -- FIXME does qcd.Ns exist?
-      -- FIXME is indexing below correct? I want to pick a matrix _column_ 
-      -- at {j_color,j_spin}; 
-      -- code in sources/latdirprop.c: q_P_get, q_P_put appears right
-      local sol_d4, eps, niters, c_ax_ps, mp_ps =
-              solver_D4(src_d4[{d=j_spin,c=j_color}])
-      prop_d4:put({d=j_spin,c=j_color}, sol_d4)
-      -- update sums over j_color,j_spin
-      for mu = 0, #L-1 do
-        cons_axial_ps[1+mu] = cons_axial_ps[1+mu] + c_ax_ps
-      end
-      midpoint_ps = midpoint_ps + mp_ps
-      if eps_total < eps or eps_total < 0 then eps_total = eps end
-      niters_total = niters_total + niters
-    end
-  end
-  return prop_d5, eps_total, niters_total,
-         cons_axial_ps, midpoint_ps
-end
 
-function solver_P4_v2(L, src_d4, L5, gauge)
+function solver_P4_v2(L, src_d4, L5, gauge, solver)
   -- result
   local prop_d4 = L:DiracPropagator()
   local prop_d5 = {}    -- this one takes a lot of space
@@ -145,14 +105,14 @@ function solver_P4_v2(L, src_d4, L5, gauge)
   local eps_total = -1      -- maximal eps
   local niters_total = 0    -- iters overall
   -- cycle over color, spin
-  for j_color = 0, qcd.Nc-1 do     -- FIXME does qcd.Nc exist?
+  for j_color = 0, src_d4:colors()-1 do     -- FIXME does qcd.Nc exist?
     for j_spin = 0, qcd.Ns-1 do     -- FIXME does qcd.Ns exist?
       local src_d5 = convert_fermion_D4_to_D5(src_d4[{d=j_spin,c=j_color}], L5)
-      local sol_d5, eps, niters = solver_D5(src_d5)
+      local sol_d5, eps, niters = solver(src_d5)
       local sol_d4 = convert_fermion_D5_to_D4(sol_d5, L5)
-      prop_d4:put({d=j_spin,c=j_color}, sol_d4)
+      prop_d4[{d=j_spin,c=j_color}] = sol_d4
       for s = 0, L5-1 do
-        prop_d5[1+s]:put({d=j_spin,c=j_color}, sol_d5[1+s])
+         prop_d5[1+s][{d=j_spin,c=j_color}] = sol_d5[1+s]
       end
       -- update sums over j_color,j_spin
       if eps_total < eps or eps_total < 0 then eps_total = eps end
