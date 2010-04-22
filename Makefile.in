@@ -48,8 +48,6 @@ GSL_LIBS     = @gsl_libs@
 
 CBLAS_LIBS   = @cblas_libs@
 
-EXTRAS       = @extras@
-
 ## ZZZ add other modules here
 
 #############################################################################
@@ -102,8 +100,8 @@ endif
 
 extrascr =
 
-ifeq ("@use_nc3", "1")
-ifeq ("$(EXTRAS)", "true")
+ifeq ("@use_nc3@", "1")
+ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
               gen_laplace.c

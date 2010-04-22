@@ -27,13 +27,13 @@ function calc_corr_conserved_axial_current_pseudoscalar(prop_d5, L5, gauge, mu)
   local res = L:Complex()  
   for s = 0, L5-1 do
     local cur = 
-            qcd.dot(gauge[1+mu] * prop_d5[L5-s]:shift(mu, "from_forward"),
-                  gamma{n=15} * (1 + gamma{mu=mu}) * prop_d5[1+s]) -
-            qcd.dot(prop_d5[L5-s], 
-                    gamma{n=15} * (1 - gamma{mu=mu}) * 
-                    gauge[1+mu] * prop_d5[1+s]:shift(mu, "from_forward"))
+        qcd.dot(gauge[1+mu] * prop_d5[L5-s]:shift(mu, "from_forward"),
+                gamma{n=15} * (1 + gamma{mu=mu}) * prop_d5[1+s]) -
+     qcd.dot(prop_d5[L5-s], 
+             gamma{n=15} * (1 - gamma{mu=mu}) * 
+          (gauge[1+mu] * prop_d5[1+s]:shift(mu, "from_forward")))
     -- two halves are treated differently
-    if s <= L5/2 then res = res - cur
+    if s < L5/2 then res = res - cur
     else res = res + cur end
   end
   return 0.5 * res
@@ -46,14 +46,14 @@ function calc_midpoint_sol(prop_d5, L5)
                 (1 - gamma{n=15}) * prop_d5[1+Ls2])
 end
 function calc_corr_midpoint_pseudoscalar(prop_d5, L5)
-  local mp = calc_midpoint_sol(prop_d5, L5)
-  return mp:norm2()
+   local mp = calc_midpoint_sol(prop_d5, L5)
+   return qcd.dot(mp, mp):real()
 end
 
 -- additional quantities computed in Chroma DWF wrappers; these are 
 -- not necessary since they can be computed from a 4d propagator
 function calc_corr_pseudoscalar_pseudoscalar(prop_d4)
-  return prop_d4:norm2()
+   return qcd.dot(prop_d4,prop_d4):real()
 end
 function calc_corr_local_axial_current_pseudoscalar(prop_d4, mu)
   return (-qcd.dot(prop_d4, gamma{mu=mu} * prop_d4)):real()
