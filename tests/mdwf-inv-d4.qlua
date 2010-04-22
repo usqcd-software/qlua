@@ -85,7 +85,7 @@ function check_4d(name, a, b)
    printf("relative error in %s: %15.7e\n", name, math.sqrt(2 * z / (x + y)))
 end
 
-function dump_4d(name, a, b)
+function dump_4d_r(name, a, b)
    printf("==== start of %s\n", name)
    for x = 0, L[0] - 1 do
       for y = 0, L[1] - 1 do
@@ -99,7 +99,29 @@ function dump_4d(name, a, b)
 --                      aa:real(), bb:real())
                printf("%s [ %d %d %d %d ] = %15.7e %15.7e  %15.7e\n",
                       name, x, y, z, t,
-                      aa:real(), bb:real(), aa:real() - bb:real())
+                      aa, bb, aa - bb)
+            end
+         end
+      end
+   end
+   printf("---- end of %s\n\n", name)
+end
+
+function dump_4d_c(name, a, b)
+   printf("==== start of %s\n", name)
+   for x = 0, L[0] - 1 do
+      for y = 0, L[1] - 1 do
+         for z = 0, L[2] - 1 do
+            for t = 0, L[3] - 1 do
+               local p = {x, y, z, t}
+               local aa = a[p]
+               local bb = b[p]
+--               printf("%s [ %d %d %d %d ] = %15.7e  %15.7e\n",
+--                      name, x, y, z, t,
+--                      aa:real(), bb:real())
+               printf("%s [ %d %d %d %d ] = %15.7e %15.7e  %15.7e %15.7e\n",
+                      name, x, y, z, t,
+                      aa:real(), bb, aa:real() - bb, aa:imag())
             end
          end
       end
@@ -114,10 +136,10 @@ check_4d("solution", r_sol, x_sol)
 for i = 1, #r_ac do
    check_4d(string.format("axial[%d]", i-1), r_ac[i], x_ac[i])
 end
--- dump_4d(string.format("axial[%d]",4-1), r_ac[4], x_ac[4])
+dump_4d_c(string.format("axial[%d]",4-1), r_ac[4], x_ac[4])
 
 check_4d("midpoint", r_mp, x_mp)
---dump_4d("midpoint", r_mp, x_mp)
+dump_4d_r("midpoint", r_mp, x_mp)
 
 printf("DONE\n")
 

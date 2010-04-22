@@ -154,7 +154,10 @@ parse_PITarget(lua_State *L,
 {
     const char *pos = parse_Name(L, s, e, buf);
     
-    if (strcasecmp(buf, "xml") == 0)
+    if (((buf[0] == 'x') || (buf[0] == 'X')) &&
+        ((buf[1] == 'm') || (buf[1] == 'M')) &&
+        ((buf[2] == 'l') || (buf[2] == 'L')) &&
+        (buf[3] == 0))
         luaL_error(L, "xml.parse() expecting PITarget");
 
     return pos;
