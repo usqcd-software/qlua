@@ -136,10 +136,10 @@ check_4d("solution", r_sol, x_sol)
 for i = 1, #r_ac do
    check_4d(string.format("axial[%d]", i-1), r_ac[i], x_ac[i])
 end
-dump_4d_c(string.format("axial[%d]",4-1), r_ac[4], x_ac[4])
+--dump_4d_c(string.format("axial[%d]",4-1), r_ac[4], x_ac[4])
 
 check_4d("midpoint", r_mp, x_mp)
-dump_4d_r("midpoint", r_mp, x_mp)
+--dump_4d_r("midpoint", r_mp, x_mp)
 
 printf("DONE\n")
 

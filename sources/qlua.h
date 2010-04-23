@@ -22,6 +22,10 @@
 #include "qla_d3.h"
 #include "qla_dn.h"
 
+#ifndef M_PI
+#define M_PI 3.141592653589793238462643383279502884197
+#endif /* !defined(M_PI) */
+
 typedef enum {
     /* start with all type that have any of arithmetic operations defined */
     qReal,

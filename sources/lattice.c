@@ -11,10 +11,6 @@
 #include <string.h>
 #include <math.h>
 
-#ifndef M_PI
-#define M_PI 3.141592653589793238462643383279502884197
-#endif
-
 /* NB: This code is not tested for multiple lattices */
 const char opLattice[] = "lattice.ops";
 
