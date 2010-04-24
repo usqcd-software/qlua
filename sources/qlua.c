@@ -2,6 +2,11 @@
 #include "modules.h"
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
+#include "seqrandom.h"                                               /* DEPS */
+#include "seqcolvec.h"                                               /* DEPS */
+#include "seqcolmat.h"                                               /* DEPS */
+#include "seqdirferm.h"                                              /* DEPS */
+#include "seqdirprop.h"                                              /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
 #include "qxml.h"                                                    /* DEPS */
@@ -76,6 +81,17 @@ static struct {
 #ifdef HAS_CBLAS
     {"cblas",     CBLAS_VERSION },
 #endif
+    {"colors",   (
+#if USE_Nc2
+                   " 2"
+#endif
+#if USE_Nc3
+                   " 3"
+#endif
+#if USE_NcN
+                   " N"
+#endif
+                 ) + 1 },
     {NULL,     NULL}
 };
 
@@ -725,6 +741,11 @@ qlua_init(lua_State *L, int argc, char *argv[])
     static const lua_CFunction qcd_inits[] = {
         init_qlua_io,
         init_complex,
+        init_seqrandom,
+        init_seqcolvec,
+        init_seqcolmat,
+        init_seqdirferm,
+        init_seqdirprop,
         init_xml,
         init_vector,
 #ifdef HAS_GSL
@@ -833,6 +854,11 @@ qlua_fini(lua_State *L)
 #endif
         fini_vector,
         fini_xml,
+        fini_seqdirprop,
+        fini_seqdirferm,
+        fini_seqcolmat,
+        fini_seqcolvec,
+        fini_seqrandom,
         fini_complex,
         fini_qlua_io,
         NULL };

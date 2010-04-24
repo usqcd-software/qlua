@@ -259,72 +259,20 @@ static struct luaL_Reg fQCDDirProp[] = {
 int
 init_latdirprop(lua_State *L)
 {
-    static const QLUA_Op2 ops[] = {
-#if USE_Nc2
-        { qlua_add_table, qLatDirProp2,  qLatDirProp2,  q_P_add_P_2 },
-        { qlua_sub_table, qLatDirProp2,  qLatDirProp2,  q_P_sub_P_2 },
-        { qlua_mul_table, qReal,         qLatDirProp2,  q_r_mul_P_2 },
-        { qlua_mul_table, qLatDirProp2,  qReal,         q_P_mul_r_2 },
-        { qlua_mul_table, qComplex,      qLatDirProp2,  q_c_mul_P_2 },
-        { qlua_mul_table, qLatDirProp2,  qComplex,      q_P_mul_c_2 },
-        { qlua_mul_table, qLatReal,      qLatDirProp2,  q_R_mul_P_2 },
-        { qlua_mul_table, qLatDirProp2,  qLatReal,      q_P_mul_R_2 },
-        { qlua_mul_table, qLatComplex,   qLatDirProp2,  q_C_mul_P_2 },
-        { qlua_mul_table, qLatDirProp2,  qLatComplex,   q_P_mul_C_2 },
-        { qlua_mul_table, qLatDirProp2,  qLatDirProp2,  q_P_mul_P_2 },
-        { qlua_mul_table, qLatDirProp2,  qLatColMat2,   q_P_mul_M_2 },
-        { qlua_mul_table, qLatColMat2,   qLatDirProp2,  q_M_mul_P_2 },
-        { qlua_div_table, qLatDirProp2,  qReal,         q_P_div_r_2 },
-        { qlua_div_table, qLatDirProp2,  qComplex,      q_P_div_c_2 },
-#endif
-#if USE_Nc3
-        { qlua_add_table, qLatDirProp3,  qLatDirProp3,  q_P_add_P_3 },
-        { qlua_sub_table, qLatDirProp3,  qLatDirProp3,  q_P_sub_P_3 },
-        { qlua_mul_table, qReal,         qLatDirProp3,  q_r_mul_P_3 },
-        { qlua_mul_table, qLatDirProp3,  qReal,         q_P_mul_r_3 },
-        { qlua_mul_table, qComplex,      qLatDirProp3,  q_c_mul_P_3 },
-        { qlua_mul_table, qLatDirProp3,  qComplex,      q_P_mul_c_3 },
-        { qlua_mul_table, qLatReal,      qLatDirProp3,  q_R_mul_P_3 },
-        { qlua_mul_table, qLatDirProp3,  qLatReal,      q_P_mul_R_3 },
-        { qlua_mul_table, qLatComplex,   qLatDirProp3,  q_C_mul_P_3 },
-        { qlua_mul_table, qLatDirProp3,  qLatComplex,   q_P_mul_C_3 },
-        { qlua_mul_table, qLatDirProp3,  qLatDirProp3,  q_P_mul_P_3 },
-        { qlua_mul_table, qLatDirProp3,  qLatColMat3,   q_P_mul_M_3 },
-        { qlua_mul_table, qLatColMat3,   qLatDirProp3,  q_M_mul_P_3 },
-        { qlua_div_table, qLatDirProp3,  qReal,         q_P_div_r_3 },
-        { qlua_div_table, qLatDirProp3,  qComplex,      q_P_div_c_3 },
-#endif
-#if USE_NcN
-        { qlua_add_table, qLatDirPropN,  qLatDirPropN,  q_P_add_P_N },
-        { qlua_sub_table, qLatDirPropN,  qLatDirPropN,  q_P_sub_P_N },
-        { qlua_mul_table, qReal,         qLatDirPropN,  q_r_mul_P_N },
-        { qlua_mul_table, qLatDirPropN,  qReal,         q_P_mul_r_N },
-        { qlua_mul_table, qComplex,      qLatDirPropN,  q_c_mul_P_N },
-        { qlua_mul_table, qLatDirPropN,  qComplex,      q_P_mul_c_N },
-        { qlua_mul_table, qLatReal,      qLatDirPropN,  q_R_mul_P_N },
-        { qlua_mul_table, qLatDirPropN,  qLatReal,      q_P_mul_R_N },
-        { qlua_mul_table, qLatComplex,   qLatDirPropN,  q_C_mul_P_N },
-        { qlua_mul_table, qLatDirPropN,  qLatComplex,   q_P_mul_C_N },
-        { qlua_mul_table, qLatDirPropN,  qLatDirPropN,  q_P_mul_P_N },
-        { qlua_mul_table, qLatDirPropN,  qLatColMatN,   q_P_mul_M_N },
-        { qlua_mul_table, qLatColMatN,   qLatDirPropN,  q_M_mul_P_N },
-        { qlua_div_table, qLatDirPropN,  qReal,         q_P_div_r_N },
-        { qlua_div_table, qLatDirPropN,  qComplex,      q_P_div_c_N },
-#endif
-        { NULL,           qNoType,       qNoType,       NULL        }
-    };
     luaL_register(L, qcdlib, fQCDDirProp);
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatDirProp);
     lua_pop(L, 1);
-    qlua_reg_op2(ops);
 #if USE_Nc2
+    qlua_reg_op2(ops2);
     qlua_reg_dot(qLatDirProp2,  q_P_dot_2);
 #endif
 #if USE_Nc3
+    qlua_reg_op2(ops3);
     qlua_reg_dot(qLatDirProp3,  q_P_dot_3);
 #endif
 #if USE_NcN
+    qlua_reg_op2(opsN);
     qlua_reg_dot(qLatDirPropN,  q_P_dot_N);
 #endif
 

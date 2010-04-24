@@ -205,6 +205,19 @@ q_defaults(lua_State *L)
     return luaL_error(L, "bad parameters for L:defaults()");
 }
 
+static int
+q_latnet(lua_State *L)
+{
+    mLattice *S = qlua_checkLattice(L, 1);
+    
+    lua_createtable(L, S->rank, 0);
+    for (int i = 0; i < S->rank; i++) {
+        lua_pushnumber(L, S->net[i]);
+        lua_rawseti(L, -2, i + 1);
+    }
+
+    return 1;
+}
 
 static struct {
     int *s;
@@ -463,6 +476,7 @@ static struct luaL_Reg LatticeMethods[] = {
     { "pcoord",           q_pcoord        },
     { "planewave",        q_planewave     },
     { "defaults",         q_defaults      },
+    { "network",          q_latnet        },
     { "everywhere",       qlua_everywhere },
     { NULL,               NULL            }
 };

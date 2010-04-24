@@ -160,62 +160,19 @@ static struct luaL_Reg fLatColVec[] = {
 int
 init_latcolvec(lua_State *L)
 {
-    static const QLUA_Op2 ops[] = {
-#if USE_Nc2
-        { qlua_add_table, qLatColVec2,  qLatColVec2,  q_V_add_V_2 },
-        { qlua_sub_table, qLatColVec2,  qLatColVec2,  q_V_sub_V_2 },
-        { qlua_mul_table, qReal,        qLatColVec2,  q_r_mul_V_2 },
-        { qlua_mul_table, qLatColVec2,  qReal,        q_V_mul_r_2 },
-        { qlua_mul_table, qComplex,     qLatColVec2,  q_c_mul_V_2 },
-        { qlua_mul_table, qLatColVec2,  qComplex,     q_V_mul_c_2 },
-        { qlua_mul_table, qLatReal,     qLatColVec2,  q_R_mul_V_2 },
-        { qlua_mul_table, qLatColVec2,  qLatReal,     q_V_mul_R_2 },
-        { qlua_mul_table, qLatComplex,  qLatColVec2,  q_C_mul_V_2 },
-        { qlua_mul_table, qLatColVec2,  qLatComplex,  q_V_mul_C_2 },
-        { qlua_div_table, qLatColVec2,  qReal,        q_V_div_r_2 },
-        { qlua_div_table, qLatColVec2,  qComplex,     q_V_div_c_2 },
-#endif
-#if USE_Nc3
-        { qlua_add_table, qLatColVec3,  qLatColVec3,  q_V_add_V_3 },
-        { qlua_sub_table, qLatColVec3,  qLatColVec3,  q_V_sub_V_3 },
-        { qlua_mul_table, qReal,        qLatColVec3,  q_r_mul_V_3 },
-        { qlua_mul_table, qLatColVec3,  qReal,        q_V_mul_r_3 },
-        { qlua_mul_table, qComplex,     qLatColVec3,  q_c_mul_V_3 },
-        { qlua_mul_table, qLatColVec3,  qComplex,     q_V_mul_c_3 },
-        { qlua_mul_table, qLatReal,     qLatColVec3,  q_R_mul_V_3 },
-        { qlua_mul_table, qLatColVec3,  qLatReal,     q_V_mul_R_3 },
-        { qlua_mul_table, qLatComplex,  qLatColVec3,  q_C_mul_V_3 },
-        { qlua_mul_table, qLatColVec3,  qLatComplex,  q_V_mul_C_3 },
-        { qlua_div_table, qLatColVec3,  qReal,        q_V_div_r_3 },
-        { qlua_div_table, qLatColVec3,  qComplex,     q_V_div_c_3 },
-#endif
-#if USE_NcN
-        { qlua_add_table, qLatColVecN,  qLatColVecN,  q_V_add_V_N },
-        { qlua_sub_table, qLatColVecN,  qLatColVecN,  q_V_sub_V_N },
-        { qlua_mul_table, qReal,        qLatColVecN,  q_r_mul_V_N },
-        { qlua_mul_table, qLatColVecN,  qReal,        q_V_mul_r_N },
-        { qlua_mul_table, qComplex,     qLatColVecN,  q_c_mul_V_N },
-        { qlua_mul_table, qLatColVecN,  qComplex,     q_V_mul_c_N },
-        { qlua_mul_table, qLatReal,     qLatColVecN,  q_R_mul_V_N },
-        { qlua_mul_table, qLatColVecN,  qLatReal,     q_V_mul_R_N },
-        { qlua_mul_table, qLatComplex,  qLatColVecN,  q_C_mul_V_N },
-        { qlua_mul_table, qLatColVecN,  qLatComplex,  q_V_mul_C_N },
-        { qlua_div_table, qLatColVecN,  qReal,        q_V_div_r_N },
-        { qlua_div_table, qLatColVecN,  qComplex,     q_V_div_c_N },
-#endif
-        { NULL,           qNoType,      qNoType,      NULL        }
-    };
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatColVec);
     lua_pop(L, 1);
-    qlua_reg_op2(ops);
 #if USE_Nc2
+    qlua_reg_op2(ops2);
     qlua_reg_dot(qLatColVec2,  q_V_dot_2);
 #endif
 #if USE_Nc3
+    qlua_reg_op2(ops3);
     qlua_reg_dot(qLatColVec3,  q_V_dot_3);
 #endif
 #if USE_NcN
+    qlua_reg_op2(opsN);
     qlua_reg_dot(qLatColVecN,  q_V_dot_N);
 #endif
 

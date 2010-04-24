@@ -1,3 +1,5 @@
+require "stdlib"
+
 L = qcd.lattice{4,4,4,4}
 
 function format_tab(t)
@@ -10,10 +12,15 @@ function format_tab(t)
   return r .. "}"
 end
   
-io.stdout:write("lattice " .. tostring(L) .. "\n")
+printf("lattice %s\n", tostring(L))
 
-ms, nt = qcd.network()
+ms = qcd.network()
+ln = L:network()
 
-io.stdout:write("network[" .. tostring(ms) .. "]: ".. format_tab(nt) .. "\n")
+printf("network of %d nodes\n", ms)
 
-io.stdout:write("end\n")
+for i = 1, #ln do
+   printf("Lattice net %4d: %5d\n", i - 1, ln[i])
+end
+
+printf("end\n")

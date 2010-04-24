@@ -250,7 +250,7 @@ Qs(q_D_set)(lua_State *L)
         Qx(QDP_D,_D_eq_D)(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 2);
 
-    return 1;
+    return 0;
 }
 
 static int
@@ -683,6 +683,23 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
     }
     return qlua_badconstr(L, "DiracFermion" Qcolors);
 }
+
+static const QLUA_Op2 Qs(ops)[] = {
+    { qlua_add_table, Qs(qLatDirFerm),  Qs(qLatDirFerm),  Qs(q_D_add_D_) },
+    { qlua_sub_table, Qs(qLatDirFerm),  Qs(qLatDirFerm),  Qs(q_D_sub_D_) },
+    { qlua_mul_table, qReal,            Qs(qLatDirFerm),  Qs(q_r_mul_D_) },
+    { qlua_mul_table, Qs(qLatDirFerm),  qReal,            Qs(q_D_mul_r_) },
+    { qlua_mul_table, qComplex,         Qs(qLatDirFerm),  Qs(q_c_mul_D_) },
+    { qlua_mul_table, Qs(qLatDirFerm),  qComplex,         Qs(q_D_mul_c_) },
+    { qlua_mul_table, qLatReal,         Qs(qLatDirFerm),  Qs(q_R_mul_D_) },
+    { qlua_mul_table, Qs(qLatDirFerm),  qLatReal,         Qs(q_D_mul_R_) },
+    { qlua_mul_table, qLatComplex,      Qs(qLatDirFerm),  Qs(q_C_mul_D_) },
+    { qlua_mul_table, Qs(qLatDirFerm),  qLatComplex,      Qs(q_D_mul_C_) },
+    { qlua_mul_table, Qs(qLatColMat),   Qs(qLatDirFerm),  Qs(q_M_mul_D_) },
+    { qlua_div_table, Qs(qLatDirFerm),  qReal,            Qs(q_D_div_r_) },
+    { qlua_div_table, Qs(qLatDirFerm),  qComplex,         Qs(q_D_div_c_) },
+    { NULL,           qNoType,          qNoType,          NULL           }
+};
 
 #undef QNc
 #undef Qcolors

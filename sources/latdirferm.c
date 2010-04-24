@@ -161,65 +161,19 @@ static struct luaL_Reg fLatDirFerm[] = {
 int
 init_latdirferm(lua_State *L)
 {
-    static const QLUA_Op2 ops[] = {
-#if USE_Nc2
-        { qlua_add_table, qLatDirFerm2,  qLatDirFerm2,  q_D_add_D_2 },
-        { qlua_sub_table, qLatDirFerm2,  qLatDirFerm2,  q_D_sub_D_2 },
-        { qlua_mul_table, qReal,         qLatDirFerm2,  q_r_mul_D_2 },
-        { qlua_mul_table, qLatDirFerm2,  qReal,         q_D_mul_r_2 },
-        { qlua_mul_table, qComplex,      qLatDirFerm2,  q_c_mul_D_2 },
-        { qlua_mul_table, qLatDirFerm2,  qComplex,      q_D_mul_c_2 },
-        { qlua_mul_table, qLatReal,      qLatDirFerm2,  q_R_mul_D_2 },
-        { qlua_mul_table, qLatDirFerm2,  qLatReal,      q_D_mul_R_2 },
-        { qlua_mul_table, qLatComplex,   qLatDirFerm2,  q_C_mul_D_2 },
-        { qlua_mul_table, qLatDirFerm2,  qLatComplex,   q_D_mul_C_2 },
-        { qlua_mul_table, qLatColMat2,   qLatDirFerm2,  q_M_mul_D_2 },
-        { qlua_div_table, qLatDirFerm2,  qReal,         q_D_div_r_2 },
-        { qlua_div_table, qLatDirFerm2,  qComplex,      q_D_div_c_2 },
-#endif
-#if USE_Nc3
-        { qlua_add_table, qLatDirFerm3,  qLatDirFerm3,  q_D_add_D_3 },
-        { qlua_sub_table, qLatDirFerm3,  qLatDirFerm3,  q_D_sub_D_3 },
-        { qlua_mul_table, qReal,         qLatDirFerm3,  q_r_mul_D_3 },
-        { qlua_mul_table, qLatDirFerm3,  qReal,         q_D_mul_r_3 },
-        { qlua_mul_table, qComplex,      qLatDirFerm3,  q_c_mul_D_3 },
-        { qlua_mul_table, qLatDirFerm3,  qComplex,      q_D_mul_c_3 },
-        { qlua_mul_table, qLatReal,      qLatDirFerm3,  q_R_mul_D_3 },
-        { qlua_mul_table, qLatDirFerm3,  qLatReal,      q_D_mul_R_3 },
-        { qlua_mul_table, qLatComplex,   qLatDirFerm3,  q_C_mul_D_3 },
-        { qlua_mul_table, qLatDirFerm3,  qLatComplex,   q_D_mul_C_3 },
-        { qlua_mul_table, qLatColMat3,   qLatDirFerm3,  q_M_mul_D_3 },
-        { qlua_div_table, qLatDirFerm3,  qReal,         q_D_div_r_3 },
-        { qlua_div_table, qLatDirFerm3,  qComplex,      q_D_div_c_3 },
-#endif
-#if USE_NcN
-        { qlua_add_table, qLatDirFermN,  qLatDirFermN,  q_D_add_D_N },
-        { qlua_sub_table, qLatDirFermN,  qLatDirFermN,  q_D_sub_D_N },
-        { qlua_mul_table, qReal,         qLatDirFermN,  q_r_mul_D_N },
-        { qlua_mul_table, qLatDirFermN,  qReal,         q_D_mul_r_N },
-        { qlua_mul_table, qComplex,      qLatDirFermN,  q_c_mul_D_N },
-        { qlua_mul_table, qLatDirFermN,  qComplex,      q_D_mul_c_N },
-        { qlua_mul_table, qLatReal,      qLatDirFermN,  q_R_mul_D_N },
-        { qlua_mul_table, qLatDirFermN,  qLatReal,      q_D_mul_R_N },
-        { qlua_mul_table, qLatComplex,   qLatDirFermN,  q_C_mul_D_N },
-        { qlua_mul_table, qLatDirFermN,  qLatComplex,   q_D_mul_C_N },
-        { qlua_mul_table, qLatColMatN,   qLatDirFermN,  q_M_mul_D_N },
-        { qlua_div_table, qLatDirFermN,  qReal,         q_D_div_r_N },
-        { qlua_div_table, qLatDirFermN,  qComplex,      q_D_div_c_N },
-#endif
-        { NULL,           qNoType,       qNoType,       NULL        }
-    };
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatDirFerm);
     lua_pop(L, 1);
-    qlua_reg_op2(ops);
 #if USE_Nc2
+    qlua_reg_op2(ops2);
     qlua_reg_dot(qLatDirFerm2,  q_D_dot_2);
 #endif
 #if USE_Nc3
+    qlua_reg_op2(ops3);
     qlua_reg_dot(qLatDirFerm3,  q_D_dot_3);
 #endif
 #if USE_NcN
+    qlua_reg_op2(opsN);
     qlua_reg_dot(qLatDirFermN,  q_D_dot_N);
 #endif
 

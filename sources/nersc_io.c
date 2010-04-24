@@ -369,14 +369,6 @@ eoh:
         read_matrix = read_3x2;
         site_size = S->rank * 3 * (3 - 1) * 2;
         break;
-#if 0 /* XXX handling SU(4) */
-    case nt4D_4x4:
-        if (QDP_Nc != 4)
-            return nersc_master_error(L, "Unsupported Nc");
-        read_matrix = read_NxN;
-        site_size = S->rank * 4 * 4 * 2;
-        break;
-#endif /* XXX handling SU(4) */
     default:
         return nersc_master_error(L, "unsupported data format");
     }

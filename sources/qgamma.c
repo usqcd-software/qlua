@@ -5,6 +5,8 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
+#include "seqdirferm.h"                                              /* DEPS */
+#include "seqdirprop.h"                                              /* DEPS */
 
 #include <math.h>
 #include <string.h>
@@ -673,6 +675,7 @@ q_gamma(lua_State *L)
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
+#define QNC(x)
 #include "qgamma-x.c"                                               /* DEPS */
 #endif
 
@@ -682,6 +685,7 @@ q_gamma(lua_State *L)
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
+#define QNC(x)
 #include "qgamma-x.c"                                               /* DEPS */
 #endif
 
@@ -691,6 +695,7 @@ q_gamma(lua_State *L)
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
+#define QNC(x)   (x), 
 #include "qgamma-x.c"                                               /* DEPS */
 #endif
 
@@ -817,21 +822,6 @@ init_gamma(lua_State *L)
         { qlua_mul_table, qGamma,        qReal,         q_g_mul_r    },
         { qlua_mul_table, qComplex,      qGamma,        q_c_mul_g    },
         { qlua_mul_table, qGamma,        qComplex,      q_g_mul_c    },
-#if USE_Nc2
-        { qlua_mul_table, qGamma,        qLatDirFerm2,  q_g_mul_D_2  },
-        { qlua_mul_table, qGamma,        qLatDirProp2,  q_g_mul_P_2  },
-        { qlua_mul_table, qLatDirProp2,  qGamma,        q_P_mul_g_2  },
-#endif
-#if USE_Nc3
-        { qlua_mul_table, qGamma,        qLatDirFerm3,  q_g_mul_D_3  },
-        { qlua_mul_table, qGamma,        qLatDirProp3,  q_g_mul_P_3  },
-        { qlua_mul_table, qLatDirProp3,  qGamma,        q_P_mul_g_3  },
-#endif
-#if USE_NcN
-        { qlua_mul_table, qGamma,        qLatDirFermN,  q_g_mul_D_N  },
-        { qlua_mul_table, qGamma,        qLatDirPropN,  q_g_mul_P_N  },
-        { qlua_mul_table, qLatDirPropN,  qGamma,        q_P_mul_g_N  },
-#endif
         { qlua_div_table, qGamma,        qReal,         q_g_div_r    },
         { qlua_div_table, qGamma,        qComplex,      q_g_div_c    },
         { NULL,           qNoType,       qNoType,       NULL         }
@@ -841,6 +831,9 @@ init_gamma(lua_State *L)
     luaL_register(L, NULL, fGamma);
     qlua_metatable(L, mtnGamma, mtGamma, qGamma);
     qlua_reg_op2(ops);
+    qlua_reg_op2(ops2);
+    qlua_reg_op2(ops3);
+    qlua_reg_op2(opsN);
 
     return 0;
 }

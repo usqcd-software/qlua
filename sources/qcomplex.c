@@ -1,5 +1,6 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
+#include "seqrandom.h"                                               /* DEPS */
 #include <math.h>
 
 const char mtnComplex[] = "qlua.mtComplex";
@@ -253,6 +254,17 @@ q_c_div_c(lua_State *L)                             /* (-2,+1,-) */
     QLA_D_Complex *c = qlua_newComplex(L);
 
     QLA_c_eq_c_div_c(*c, *a, *b);
+
+    return 1;
+}
+
+int
+q_c_gaussian(lua_State *L)
+{
+    mSeqRandom *s = qlua_checkSeqRandom(L, 1);
+    QLA_D_Complex *z = qlua_newComplex(L);
+
+    QLA_D_C_eq_gaussian_S(z, &s->state);
 
     return 1;
 }

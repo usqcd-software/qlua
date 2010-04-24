@@ -1,5 +1,39 @@
 #define PIDX(a,b)  ((a) * QDP_Ns/2 + (b))
 static int
+Qs(q_g_mul_d_)(lua_State *L)
+{
+    mClifford *m = qlua_checkClifford(L, 1);
+    Qs(mSeqDirFerm) *f = Qs(qlua_checkSeqDirFerm)(L, 2, -1);
+    Qs(mSeqDirFerm) *mf = Qs(qlua_newSeqDirFerm)(L, QC(f));
+    Qs(mSeqDirFerm) *r = Qs(qlua_newSeqDirFerm)(L, QC(f));
+    int i;
+
+    Qx(QLA_D,_D_eq_zero)(QNC(QC(f)) r->ptr);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            Qx(QLA_D,_D_eq_gamma_times_D)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_D_peq_D)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_m:
+            Qx(QLA_D,_D_eq_gamma_times_D)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_D_meq_D)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_r:
+            Qx(QLA_D,_D_eq_gamma_times_D)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_D_peq_r_times_D)(QNC(QC(f)) r->ptr, &m->g[i].r, mf->ptr);
+            break;
+        case qG_c:
+            Qx(QLA_D,_D_eq_gamma_times_D)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_D_peq_c_times_D)(QNC(QC(f)) r->ptr, &m->g[i].c, mf->ptr);
+            break;
+        }
+    }
+    return 1;
+}
+
+static int
 Qs(q_g_mul_D_)(lua_State *L)
 {
     mClifford *m = qlua_checkClifford(L, 1);
@@ -37,6 +71,40 @@ Qs(q_g_mul_D_)(lua_State *L)
 }
 
 static int
+Qs(q_g_mul_p_)(lua_State *L)
+{
+    mClifford *m = qlua_checkClifford(L, 1);
+    Qs(mSeqDirProp) *f = Qs(qlua_checkSeqDirProp)(L, 2, -1);
+    Qs(mSeqDirProp) *mf = Qs(qlua_newSeqDirProp)(L, QC(f));
+    Qs(mSeqDirProp) *r = Qs(qlua_newSeqDirProp)(L, QC(f));
+    int i;
+    
+    Qx(QLA_D,_P_eq_zero)(QNC(QC(f)) r->ptr);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            Qx(QLA_D,_P_eq_gamma_times_P)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_P)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_m:
+            Qx(QLA_D,_P_eq_gamma_times_P)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_meq_P)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_r:
+            Qx(QLA_D,_P_eq_gamma_times_P)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_r_times_P)(QNC(QC(f)) r->ptr, &m->g[i].r, mf->ptr);
+            break;
+        case qG_c:
+            Qx(QLA_D,_P_eq_gamma_times_P)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_c_times_P)(QNC(QC(f)) r->ptr, &m->g[i].c, mf->ptr);
+            break;
+        }
+    }
+    return 1;
+}
+
+static int
 Qs(q_g_mul_P_)(lua_State *L)
 {
     mClifford *m = qlua_checkClifford(L, 1);
@@ -65,8 +133,42 @@ Qs(q_g_mul_P_)(lua_State *L)
             Qx(QDP_D,_P_peq_r_times_P)(r->ptr, &m->g[i].r, mf->ptr, *S->qss);
             break;
         case qG_c:
-               Qx(QDP_D,_P_eq_gamma_times_P)(mf->ptr, f->ptr, i, *S->qss);
-               Qx(QDP_D,_P_peq_c_times_P)(r->ptr, &m->g[i].c, mf->ptr, *S->qss);
+            Qx(QDP_D,_P_eq_gamma_times_P)(mf->ptr, f->ptr, i, *S->qss);
+            Qx(QDP_D,_P_peq_c_times_P)(r->ptr, &m->g[i].c, mf->ptr, *S->qss);
+            break;
+        }
+    }
+    return 1;
+}
+
+static int
+Qs(q_p_mul_g_)(lua_State *L)
+{
+    Qs(mSeqDirProp) *f = Qs(qlua_checkSeqDirProp)(L, 1, -1);
+    mClifford *m = qlua_checkClifford(L, 2);
+    Qs(mSeqDirProp) *mf = Qs(qlua_newSeqDirProp)(L, QC(f));
+    Qs(mSeqDirProp) *r = Qs(qlua_newSeqDirProp)(L, QC(f));
+    int i;
+
+    Qx(QLA_D,_P_eq_zero)(QNC(QC(f)) r->ptr);
+    for (i = 0; i < 16; i++) {
+        switch (m->g[i].t) {
+        case qG_z: continue;
+        case qG_p:
+            Qx(QLA_D,_P_eq_P_times_gamma)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_P)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_m:
+            Qx(QLA_D,_P_eq_P_times_gamma)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_meq_P)(QNC(QC(f)) r->ptr, mf->ptr);
+            break;
+        case qG_r:
+            Qx(QLA_D,_P_eq_P_times_gamma)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_r_times_P)(QNC(QC(f)) r->ptr, &m->g[i].r, mf->ptr);
+            break;
+        case qG_c:
+            Qx(QLA_D,_P_eq_P_times_gamma)(QNC(QC(f)) mf->ptr, f->ptr, i);
+            Qx(QLA_D,_P_peq_c_times_P)(QNC(QC(f)) r->ptr, &m->g[i].c, mf->ptr);
             break;
         }
     }
@@ -518,9 +620,20 @@ Qs(q_P_reconstruct)(lua_State *L, Qs(X_reconstruct) *op, int nc)
     return 1;
 }
 
+static const QLUA_Op2 Qs(ops)[] = {
+    { qlua_mul_table, qGamma,           Qs(qLatDirFerm),  Qs(q_g_mul_D_)  },
+    { qlua_mul_table, qGamma,           Qs(qSeqDirFerm),  Qs(q_g_mul_d_)  },
+    { qlua_mul_table, qGamma,           Qs(qLatDirProp),  Qs(q_g_mul_P_)  },
+    { qlua_mul_table, qGamma,           Qs(qSeqDirProp),  Qs(q_g_mul_p_)  },
+    { qlua_mul_table, Qs(qLatDirProp),  qGamma,           Qs(q_P_mul_g_)  },
+    { qlua_mul_table, Qs(qSeqDirProp),  qGamma,           Qs(q_p_mul_g_)  },
+    { NULL,           qNoType,          qNoType,          NULL            }
+};
+
 #undef PIDX
 #undef QNc
 #undef Qcolors
 #undef Qs
 #undef Qx
 #undef QC
+#undef QNC

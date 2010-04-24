@@ -253,9 +253,8 @@ Qs(q_P_set)(lua_State *L)
         Qx(QDP_D,_P_eq_P_mask_I)(r->ptr, a->ptr, S->lss.mask, *S->qss);
     else
         Qx(QDP_D,_P_eq_P)(r->ptr, a->ptr, *S->qss);
-    lua_pop(L, 1);
 
-    return 1;
+    return 0;
 }
 
 static int
@@ -742,6 +741,24 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
     }
     return qlua_badconstr(L, "DiracPropagator" Qcolors);
 }
+static const QLUA_Op2 Qs(ops)[] = {
+    { qlua_add_table, Qs(qLatDirProp),  Qs(qLatDirProp),  Qs(q_P_add_P_) },
+    { qlua_sub_table, Qs(qLatDirProp),  Qs(qLatDirProp),  Qs(q_P_sub_P_) },
+    { qlua_mul_table, qReal,            Qs(qLatDirProp),  Qs(q_r_mul_P_) },
+    { qlua_mul_table, Qs(qLatDirProp),  qReal,            Qs(q_P_mul_r_) },
+    { qlua_mul_table, qComplex,         Qs(qLatDirProp),  Qs(q_c_mul_P_) },
+    { qlua_mul_table, Qs(qLatDirProp),  qComplex,         Qs(q_P_mul_c_) },
+    { qlua_mul_table, qLatReal,         Qs(qLatDirProp),  Qs(q_R_mul_P_) },
+    { qlua_mul_table, Qs(qLatDirProp),  qLatReal,         Qs(q_P_mul_R_) },
+    { qlua_mul_table, qLatComplex,      Qs(qLatDirProp),  Qs(q_C_mul_P_) },
+    { qlua_mul_table, Qs(qLatDirProp),  qLatComplex,      Qs(q_P_mul_C_) },
+    { qlua_mul_table, Qs(qLatDirProp),  Qs(qLatDirProp),  Qs(q_P_mul_P_) },
+    { qlua_mul_table, Qs(qLatDirProp),  Qs(qLatColMat),   Qs(q_P_mul_M_) },
+    { qlua_mul_table, Qs(qLatColMat),   Qs(qLatDirProp),  Qs(q_M_mul_P_) },
+    { qlua_div_table, Qs(qLatDirProp),  qReal,            Qs(q_P_div_r_) },
+    { qlua_div_table, Qs(qLatDirProp),  qComplex,         Qs(q_P_div_c_) },
+    { NULL,           qNoType,          qNoType,          NULL           }
+};
 
 #undef QNc
 #undef Qcolors

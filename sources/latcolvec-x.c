@@ -415,7 +415,7 @@ Qs(q_V_set)(lua_State *L)
         Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 2);
 
-    return 1;
+    return 0;
 }
 
 static int
@@ -601,6 +601,22 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
     }
     return qlua_badconstr(L, "ColorVector" Qcolors);
 }
+
+static const QLUA_Op2 Qs(ops)[] = {
+    { qlua_add_table, Qs(qLatColVec),  Qs(qLatColVec),  Qs(q_V_add_V_) },
+    { qlua_sub_table, Qs(qLatColVec),  Qs(qLatColVec),  Qs(q_V_sub_V_) },
+    { qlua_mul_table, qReal,           Qs(qLatColVec),  Qs(q_r_mul_V_) },
+    { qlua_mul_table, Qs(qLatColVec),  qReal,           Qs(q_V_mul_r_) },
+    { qlua_mul_table, qComplex,        Qs(qLatColVec),  Qs(q_c_mul_V_) },
+    { qlua_mul_table, Qs(qLatColVec),  qComplex,        Qs(q_V_mul_c_) },
+    { qlua_mul_table, qLatReal,        Qs(qLatColVec),  Qs(q_R_mul_V_) },
+    { qlua_mul_table, Qs(qLatColVec),  qLatReal,        Qs(q_V_mul_R_) },
+    { qlua_mul_table, qLatComplex,     Qs(qLatColVec),  Qs(q_C_mul_V_) },
+    { qlua_mul_table, Qs(qLatColVec),  qLatComplex,     Qs(q_V_mul_C_) },
+    { qlua_div_table, Qs(qLatColVec),  qReal,           Qs(q_V_div_r_) },
+    { qlua_div_table, Qs(qLatColVec),  qComplex,        Qs(q_V_div_c_) },
+    { NULL,           qNoType,         qNoType,         NULL           }
+};
 
 #undef QNc
 #undef Qcolors

@@ -140,7 +140,7 @@ Qs(q_M_norm2_)(lua_State *L)
 {
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_Real n;
+    QLA_D_Real n;
 
     CALL_QDP(L);
     if (S->lss.mask) {
@@ -549,7 +549,7 @@ Qs(q_M_set)(lua_State *L)
         Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
     lua_pop(L, 2);
 
-    return 1;
+    return 0;
 }
 
 static int
@@ -1058,6 +1058,24 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
     }
     return qlua_badconstr(L, "ColorMatrix" Qcolors);
 }
+
+static const QLUA_Op2 Qs(ops)[] = {
+    { qlua_add_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_M_add_M_) },
+    { qlua_sub_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_M_sub_M_) },
+    { qlua_mul_table, qReal,           Qs(qLatColMat),  Qs(q_r_mul_M_) },
+    { qlua_mul_table, Qs(qLatColMat),  qReal,           Qs(q_M_mul_r_) },
+    { qlua_mul_table, qComplex,        Qs(qLatColMat),  Qs(q_c_mul_M_) },
+    { qlua_mul_table, Qs(qLatColMat),  qComplex,        Qs(q_M_mul_c_) },
+    { qlua_mul_table, qLatReal,        Qs(qLatColMat),  Qs(q_R_mul_M_) },
+    { qlua_mul_table, Qs(qLatColMat),  qLatReal,        Qs(q_M_mul_R_) },
+    { qlua_mul_table, qLatComplex,     Qs(qLatColMat),  Qs(q_C_mul_M_) },
+    { qlua_mul_table, Qs(qLatColMat),  qLatComplex,     Qs(q_M_mul_C_) },
+    { qlua_mul_table, Qs(qLatColMat),  Qs(qLatColVec),  Qs(q_M_mul_V_) },
+    { qlua_mul_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_M_mul_M_) },
+    { qlua_div_table, Qs(qLatColMat),  qReal,           Qs(q_M_div_r_) },
+    { qlua_div_table, Qs(qLatColMat),  qComplex,        Qs(q_M_div_c_) },
+    { NULL,           qNoType,         qNoType,         NULL           }
+};
 
 #undef QNc
 #undef Qcolors

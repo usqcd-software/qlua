@@ -58,6 +58,11 @@ driver = qlua.c
 headers = qlua.h
 libsrc = fix.c \
          qcomplex.c \
+         seqrandom.c \
+         seqcolvec.c \
+	 seqcolmat.c \
+         seqdirferm.c \
+         seqdirprop.c \
          qvector.c \
          qxml.c \
 	 qlayout.c \
