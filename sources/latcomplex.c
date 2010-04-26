@@ -64,18 +64,16 @@ q_C_get(lua_State *L)
         idx = qlua_checklatcoord(L, 2, S);
         CALL_QDP(L);
         locked = QDP_expose_C(V->ptr);
-        if (QDP_node_number_L(S->lat, idx) == QDP_this_node) {
+        int site_node = QDP_node_number_L(S->lat, idx);
+        if (site_node == QDP_this_node) {
             QLA_Complex *zz = &QLA_elem_C(locked[QDP_index_L(S->lat, idx)]);
 
             zri[0] = QLA_real(*zz);
             zri[1] = QLA_imag(*zz);
-        } else {
-            zri[0] = 0;
-            zri[1] = 0;
         }
         QDP_reset_C(V->ptr);
         qlua_free(L, idx);
-        QMP_sum_double_array(zri, 2);
+        XMP_dist_double_array(site_node, 2, zri);
         W = qlua_newComplex(L);
         QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
 
@@ -1024,6 +1022,7 @@ q_C_sum(lua_State *L)
             QDP_C_eq_zero(b->ptr, *S->qss);
             QDP_C_eq_C_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
             QDP_c_eq_sum_C(s, b->ptr, *S->qss);
+            lua_pop(L, 1);
         } else {
             QDP_c_eq_sum_C(s, a->ptr, *S->qss);
         }

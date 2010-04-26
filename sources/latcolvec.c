@@ -3,11 +3,14 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
+#include "seqcolvec.h"                                               /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "qmp.h"
+#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'
@@ -15,6 +18,7 @@
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
+#define QNC(x)
 #include "latcolvec-x.c"                                            /* DEPS */
 #endif
 
@@ -24,6 +28,7 @@
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
+#define QNC(x)
 #include "latcolvec-x.c"                                            /* DEPS */
 #endif
 
@@ -33,6 +38,7 @@
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
+#define QNC(x)   (x), 
 #include "latcolvec-x.c"                                            /* DEPS */
 #endif
 
@@ -99,13 +105,34 @@ q_V_gaussian_N(lua_State *L)
 }
 
 /* Lattice color vectors:
- *  L:ColorVector() -- zero vector in default colors
+ *  L:ColorVector()    -- zero vector in default colors
+ *  L:ColorVector(v)   -- constant vector fill
+ *  L:ColorVector(V)   -- lattice vector copy
  *  L:ColorVector(C,m) -- default colors, X[m] = C
  */
 static int
 q_latcolvec(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
+
+    if (lua_gettop(L) == 2) {
+        switch (qlua_qtype(L, 2)) {
+#if USE_Nc2
+        case qSeqColVec2: return q_latcolvec_seq_2(L, S, 2);
+#endif      
+#if USE_Nc3
+        case qSeqColVec3: return q_latcolvec_seq_3(L, S, 3);
+#endif      
+#if USE_NcN
+        case qSeqColVecN: {
+            mSeqColVecN *v = qlua_checkSeqColVecN(L, 2, -1);
+            return q_latcolvec_seq_N(L, S, v->nc);
+        }
+#endif   
+        default:
+            break;
+        }
+    }
 
     switch (S->nc) {
 #if USE_Nc2

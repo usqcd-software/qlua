@@ -3,20 +3,6 @@
 
 * Multi and part files for qdpcc and ddpairs
 
-* Scalar types mirroring lattice types.
-   mixed color vector
-   mixed color matrix
-   mixed dirac fermion
-   mixed dirac propagator
-
-   mixed minimum:
-     get
-     put
-     init
-     sum
-   mixed full: all arithmetics with promotions
-
-
 ? Extend QDP I/O interface to handle both double and single preicision
 ? Extend QDP/C I/O to handle sections:
 

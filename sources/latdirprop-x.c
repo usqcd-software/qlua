@@ -24,6 +24,48 @@ Qs(q_P_gc)(lua_State *L)
     return 0;
 }
 
+static void
+#if QNc == 'N'
+Qs(unpack_prop)(int nc, double *std, QLA_DN_DiracPropagator(nc, (*src)))
+#else
+Qs(unpack_prop)(int nc, double *std, Qx(QLA_D,_DiracPropagator) *src)
+#endif
+{
+    for (int ci = 0; ci < nc; ci++) {
+        for (int cj = 0; cj < nc; cj++) {
+            for (int si = 0; si < QDP_Ns; si++) {
+                for (int sj = 0; sj < QDP_Ns; sj++) {
+                    QLA_D_Complex *z = &Qx(QLA_D,_elem_P)(*src, ci, si, cj, sj);
+                    int la = 2 * (ci + nc * (cj + nc * (si + QDP_Ns * sj)));
+                    std[la] = QLA_real(*z);
+                    std[la + 1] = QLA_imag(*z);
+                }
+            }
+        }
+    }
+}
+
+static void
+#if QNc == 'N'
+Qs(pack_prop)(int nc, QLA_DN_DiracPropagator(nc, (*dst)), const double *std)
+#else
+Qs(pack_prop)(int nc, Qx(QLA_D,_DiracPropagator) *dst, const double *std)
+#endif
+{
+    QLA_D_Complex z;
+    for (int ci = 0; ci < nc; ci++) {
+        for (int cj = 0; cj < nc; cj++) {
+            for (int si = 0; si < QDP_Ns; si++) {
+                for (int sj = 0; sj < QDP_Ns; sj++) {
+                    int la = 2 * (ci + nc * (cj + nc * (si + QDP_Ns * sj)));
+                    QLA_c_eq_r_plus_ir(z, std[la], std[la + 1]);
+                    QLA_c_eq_c(Qx(QLA_D,_elem_P)(*dst, ci, si, cj, sj), z);
+                }
+            }
+        }
+    }
+}
+
 static int
 Qs(q_P_get)(lua_State *L)
 {
@@ -31,13 +73,44 @@ Qs(q_P_get)(lua_State *L)
     case qTable: {
         Qs(mLatDirProp) *V = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
         mLattice *S = qlua_ObjLattice(L, 1);
-        int d = qlua_checkdiracindex(L, 2);
-        int c = qlua_checkcolorindex(L, 2, QC(V));
-        Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(V));
-                
-        CALL_QDP(L);
-        Qx(QDP_D,_D_eq_diracvec_P)(r->ptr, V->ptr, c, d, *S->qss);
+        int Sidx = lua_gettop(L);
+        int d = qlua_diracindex(L, 2);
+        int c = qlua_colorindex(L, 2, QC(V));
+        int *idx = qlua_latcoord(L, 2, S);
+#if QNc == 'N'
+        typedef QLA_DN_DiracPropagator(QC(V), Vtype);
+#else
+        typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
 
+        if (idx == 0) {
+            /* P[{d=expr,c=expr}] => D */
+            if ((d == -1) || (c == -1))
+                return qlua_badindex(L, "DiracPropagator" Qcolors);
+            Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, Sidx, QC(V));
+                
+            CALL_QDP(L);
+            Qx(QDP_D,_D_eq_diracvec_P)(r->ptr, V->ptr, c, d, *S->qss);
+        } else {
+            /* P[{x,...}] => p */
+            qlua_verifylatcoord(L, idx, S);
+            if ((d != -1) || (c != -1))
+                return qlua_badindex(L, "DiracPropagator" Qcolors);
+            Qs(mSeqDirProp) *m = Qs(qlua_newSeqDirProp)(L, QC(V));
+            int len = 2 * QC(V) * QC(V) * QDP_Ns * QDP_Ns;
+            double m_std[len];
+            CALL_QDP(L);
+            Vtype *locked = Qx(QDP_D,_expose_P)(V->ptr);
+            int site_node = QDP_node_number_L(S->lat, idx);
+            if (site_node == QDP_this_node) {
+                int la = QDP_index_L(S->lat, idx);
+                Qs(unpack_prop)(QC(V), m_std, &locked[la]);
+            }
+            XMP_dist_double_array(site_node, len, m_std);
+            Qs(pack_prop)(QC(V), m->ptr, m_std);
+            Qx(QDP_D,_reset_P)(V->ptr);
+            qlua_free(L, idx);
+        }
         return 1;
     }
     case qString:
@@ -53,14 +126,131 @@ Qs(q_P_put)(lua_State *L)
 {
     Qs(mLatDirProp) *V = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    int d = qlua_checkdiracindex(L, 2);
-    int c = qlua_checkcolorindex(L, 2, QC(V));
-    Qs(mLatDirFerm) *r = Qs(qlua_checkLatDirFerm)(L, 3, S, QC(V));
-            
-    CALL_QDP(L);
-    Qx(QDP_D,_P_eq_diracvec_D)(V->ptr, r->ptr, c, d, *S->qss);
+    int d = qlua_diracindex(L, 2);
+    int c = qlua_colorindex(L, 2, QC(V));
+    int *idx = qlua_latcoord(L, 2, S);
 
+    if (idx == NULL) {
+        /* P[{c=expr,d=expr}] = D */
+        if ((d == -1) || (c == -1))
+            return qlua_badindex(L, "DiracPropagator" Qcolors);
+        Qs(mLatDirFerm) *r = Qs(qlua_checkLatDirFerm)(L, 3, S, QC(V));
+            
+        CALL_QDP(L);
+        Qx(QDP_D,_P_eq_diracvec_D)(V->ptr, r->ptr, c, d, *S->qss);
+    } else {
+        /* P[{x,y,z...}] = p */
+        qlua_verifylatcoord(L, idx, S);
+        if ((d != -1) || (c != -1))
+            return qlua_badindex(L, "DiracPropagator" Qcolors);
+#if QNc == 'N'
+        typedef QLA_DN_DiracPropagator(QC(V), Vtype);
+#else
+        typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
+        CALL_QDP(L);
+        Vtype *locked = Qx(QDP_D,_expose_P)(V->ptr);
+        int site_node = QDP_node_number_L(S->lat, idx);
+        Qs(mSeqDirProp) *v = Qs(qlua_checkSeqDirProp)(L, 3, QC(V));
+        if (site_node == QDP_this_node) {
+            int la = QDP_index_L(S->lat, idx);
+            Qx(QLA_D,_P_eq_P)(QNC(QC(V)) &locked[la], v->ptr);
+        }
+        Qx(QDP_D,_reset_P)(V->ptr);
+        qlua_free(L, idx);
+    }
     return 0;
+}
+
+static int
+Qs(q_P_sum)(lua_State *L)
+{
+    Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
+    int argc = lua_gettop(L);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
+    int nc = QC(a);
+    
+    switch (argc) {
+    case 1: {
+        Qs(mSeqDirProp) *s = Qs(qlua_newSeqDirProp)(L, nc);
+
+        CALL_QDP(L);
+        if (S->lss.mask) {
+            Qs(mLatDirProp) *b = Qs(qlua_newLatDirProp)(L, Sidx, nc);
+            Qx(QDP_D,_P_eq_zero)(b->ptr, *S->qss);
+            Qx(QDP_D,_P_eq_P_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
+            Qx(QDP_D,_p_eq_sum_P)(s->ptr, b->ptr, *S->qss);
+            lua_pop(L, 1);
+        } else {
+            Qx(QDP_D,_p_eq_sum_P)(s->ptr, a->ptr, *S->qss);
+        }
+        return 1;
+    }
+    case 2: {
+#if QNc == 'N'
+        typedef QLA_DN_DiracPropagator(nc, Vtype);
+#else
+        typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
+        mLatMulti *m = qlua_checkLatMulti(L, 2, S);
+        int size = m->size;
+        QLA_Int *ii = m->idx;
+        int sites = QDP_sites_on_node_L(S->lat);
+
+        Vtype *vv[size];
+        lua_createtable(L, size, 0);
+        for (int i = 0; i < size; i++) {
+            Qs(mSeqDirProp) *vi = Qs(qlua_newSeqDirProp)(L, QC(a));
+            Qx(QLA_D,_P_eq_zero)(QNC(nc) vi->ptr);
+            vv[i] = vi->ptr;
+            lua_rawseti(L, -2, i + 1); /* [sic] lua index */
+        }
+        CALL_QDP(L);
+        Vtype *xx = Qx(QDP_D,_expose_P)(a->ptr);
+        
+        for (int k = 0; k < sites; k++, xx++, ii++) {
+            int t = *ii;
+            if ((t < 0) || (t >= size))
+                continue;
+            Qx(QLA_D,_P_peq_P)(QNC(nc) vv[t], xx);
+        }
+        Qx(QDP_D,_reset_P)(a->ptr);
+        QLA_D_Real rr[2 * size * nc * nc * QDP_Ns * QDP_Ns];
+        for (int i = 0; i < size; i++) {
+            for (int ci = 0; ci < nc; ci++) {
+                for (int cj = 0; cj < nc; cj++) {
+                    for (int di = 0; di < QDP_Ns; di++) {
+                        for (int dj = 0; dj < QDP_Ns; dj++) {
+                            QLA_D_Complex *z;
+                            int ab = 2*(ci + nc*(cj + nc*(di + QDP_Ns*dj)));
+                            z = &Qx(QLA_D,_elem_P)(*vv[i], ci, di, cj, dj);
+                            rr[ab] = QLA_real(*z);
+                            rr[ab + 1] = QLA_imag(*z);
+                        }
+                    }
+                }
+            }
+        }
+        QMP_sum_double_array(rr, 2 * size * nc * nc * QDP_Ns * QDP_Ns);
+        for (int i = 0; i < size; i++) {
+            for (int ci = 0; ci < nc; ci++) {
+                for (int cj = 0; cj < nc; cj++) {
+                    for (int di = 0; di < QDP_Ns; di++) {
+                        for (int dj = 0; dj < QDP_Ns; dj++) {
+                            QLA_D_Complex z;
+                            int ab = 2*(ci + nc*(cj + nc*(di + QDP_Ns*dj)));
+                            QLA_c_eq_r_plus_ir(z, rr[ab], rr[ab + 1]);
+                            QLA_c_eq_c(Qx(QLA_D,_elem_P)(*vv[i],ci,di,cj,dj),z);
+                        }
+                    }
+                }
+            }
+        }
+        return 1;
+    }
+    }
+    return luaL_error(L, "bad arguments for DiracPropagator:sum()");
 }
 
 static int
@@ -615,6 +805,7 @@ static struct luaL_Reg Qs(mtLatDirProp)[] = {
     { "__sub",             qlua_sub               },
     { "__mul",             qlua_mul               },
     { "__div",             qlua_div               },
+    { "sum",               Qs(q_P_sum)            },
     { "norm2",             Qs(q_P_norm2_)         },
     { "shift",             Qs(q_P_shift)          },
     { "conj",              Qs(q_P_conj)           },
@@ -689,6 +880,52 @@ Qs(qlua_checkLatDirProp)(lua_State *L, int idx, mLattice *S, int nc)
 }
 
 static int
+Qs(q_latdirprop_seq_)(lua_State *L, mLattice *S, int nc)
+{
+    Qs(mSeqDirProp) *m = Qs(qlua_checkSeqDirProp)(L, 2, nc);
+    Qs(mLatDirProp) *M = Qs(qlua_newLatDirProp)(L, 1, nc);
+
+    CALL_QDP(L);
+    Qx(QDP_D, _P_eq_p)(M->ptr, m->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+Qs(q_latdirprop_lat_)(lua_State *L, mLattice *S, int nc)
+{
+    Qs(mLatDirProp) *m = Qs(qlua_checkLatDirProp)(L, 2, S, nc);
+    Qs(mLatDirProp) *M = Qs(qlua_newLatDirProp)(L, 1, nc);
+
+    CALL_QDP(L);
+    Qx(QDP_D, _P_eq_P)(M->ptr, m->ptr, *S->qss);
+
+    return 1;
+}
+
+static int
+Qs(q_latdirprop_mat_)(lua_State *L, mLattice *S, int nc)
+{
+    Qs(mLatColMat) *w = Qs(qlua_checkLatColMat)(L, 2, S, nc);
+    Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
+    mLatComplex *c = qlua_newLatComplex(L, 1);
+    int ic, jc, ks;
+
+    CALL_QDP(L);
+    Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
+    for (ic = 0; ic < nc; ic++) {
+        for (jc = 0; jc < nc; jc++) {
+            Qx(QDP_D,_C_eq_elem_M)(c->ptr, w->ptr, ic, jc, *S->qss);
+            for (ks = 0; ks < QDP_Ns; ks++)
+                Qx(QDP_D,_P_eq_elem_C)(v->ptr, c->ptr,
+                                       ic, ks, jc, ks, *S->qss);
+        }
+    }
+    lua_pop(L, 1);
+    return 1;
+}
+
+static int
 Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
 {
     switch (lua_gettop(L) - off) {
@@ -699,33 +936,6 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
         Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
         
         return 1;
-    }
-    case 2: {
-        Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
-        
-        switch (qlua_qtype(L, 2 + off)) {
-        case Qs(qLatColMat): {
-            Qs(mLatColMat) *w = Qs(qlua_checkLatColMat)(L, 2 + off, S, nc);
-            mLatComplex *c = qlua_newLatComplex(L, 1);
-            int ic, jc, ks;
-
-            CALL_QDP(L);
-            Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
-            for (ic = 0; ic < nc; ic++) {
-                for (jc = 0; jc < nc; jc++) {
-                    Qx(QDP_D,_C_eq_elem_M)(c->ptr, w->ptr, ic, jc, *S->qss);
-                    for (ks = 0; ks < QDP_Ns; ks++)
-                        Qx(QDP_D,_P_eq_elem_C)(v->ptr, c->ptr,
-                                               ic, ks, jc, ks, *S->qss);
-                }
-            }
-            lua_pop(L, 1);
-
-            return 1;
-        }
-        default:
-            break;
-        }
     }
     case 3: {
         Qs(mLatDirFerm) *z = Qs(qlua_checkLatDirFerm)(L, 2 + off, S, nc);
@@ -765,3 +975,4 @@ static const QLUA_Op2 Qs(ops)[] = {
 #undef Qs
 #undef Qx
 #undef QC
+#undef QNC

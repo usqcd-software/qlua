@@ -727,16 +727,16 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
 }
 
 static const QLUA_Op2 Qs(ops)[] = {
-    { qlua_add_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_m_add_m_) },
-    { qlua_sub_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_m_sub_m_) },
-    { qlua_mul_table, qReal,           Qs(qLatColMat),  Qs(q_r_mul_m_) },
-    { qlua_mul_table, Qs(qLatColMat),  qReal,           Qs(q_m_mul_r_) },
-    { qlua_mul_table, qComplex,        Qs(qLatColMat),  Qs(q_c_mul_m_) },
-    { qlua_mul_table, Qs(qLatColMat),  qComplex,        Qs(q_m_mul_c_) },
-    { qlua_mul_table, Qs(qLatColMat),  Qs(qLatColVec),  Qs(q_m_mul_v_) },
-    { qlua_mul_table, Qs(qLatColMat),  Qs(qLatColMat),  Qs(q_m_mul_m_) },
-    { qlua_div_table, Qs(qLatColMat),  qReal,           Qs(q_m_div_r_) },
-    { qlua_div_table, Qs(qLatColMat),  qComplex,        Qs(q_m_div_c_) },
+    { qlua_add_table, Qs(qSeqColMat),  Qs(qSeqColMat),  Qs(q_m_add_m_) },
+    { qlua_sub_table, Qs(qSeqColMat),  Qs(qSeqColMat),  Qs(q_m_sub_m_) },
+    { qlua_mul_table, qReal,           Qs(qSeqColMat),  Qs(q_r_mul_m_) },
+    { qlua_mul_table, Qs(qSeqColMat),  qReal,           Qs(q_m_mul_r_) },
+    { qlua_mul_table, qComplex,        Qs(qSeqColMat),  Qs(q_c_mul_m_) },
+    { qlua_mul_table, Qs(qSeqColMat),  qComplex,        Qs(q_m_mul_c_) },
+    { qlua_mul_table, Qs(qSeqColMat),  Qs(qSeqColVec),  Qs(q_m_mul_v_) },
+    { qlua_mul_table, Qs(qSeqColMat),  Qs(qSeqColMat),  Qs(q_m_mul_m_) },
+    { qlua_div_table, Qs(qSeqColMat),  qReal,           Qs(q_m_div_r_) },
+    { qlua_div_table, Qs(qSeqColMat),  qComplex,        Qs(q_m_div_c_) },
     { NULL,           qNoType,         qNoType,         NULL           }
 };
 #undef QNc

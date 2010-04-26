@@ -22,7 +22,7 @@ check_reader(lua_State *L, mAffReader *r)
 static void
 check_writer(lua_State *L, mAffWriter *r)
 {
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         if (r->ptr == 0)
             luaL_error(L, "closed aff writer");
     }
@@ -98,7 +98,7 @@ qlua_newAffWriter(lua_State *L, struct AffWriter_s *writer)
 {
     mAffWriter *h = lua_newuserdata(L, sizeof (mAffWriter));
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         h->master = 1;
         h->ptr = writer;
         h->dir = aff_writer_root(writer);
@@ -630,7 +630,7 @@ q_aff_writer(lua_State *L)
     int status;
 
     qlua_Aff_enter(L);
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         w = aff_writer(name);
         msg = aff_writer_errstr(w);
         if (msg == NULL) {

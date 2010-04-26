@@ -129,7 +129,7 @@ qf_write(lua_State *L)
 {
     int status;
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         mFile *v = qlua_checkFile(L, 1);
         const char *s= luaL_checkstring(L, 2);
         int n = strlen(s);
@@ -143,10 +143,8 @@ qf_write(lua_State *L)
             return luaL_error(L, "bad kind of file in write (%d)", v->kind);
         }
         status = fwrite(s, n, 1, f) == 1;
-    } else {
-        status = 0;
     }
-    QMP_sum_int(&status);
+    XMP_dist_int_array(qlua_master_node, 1, &status);
 
     if (status == 0)
         return luaL_error(L, "write failed");
@@ -230,7 +228,7 @@ q_file(lua_State *L)
     mFile *f = qlua_newFile(L);
     int v;
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         const char *n = luaL_checkstring(L, 1);
         const char *m = luaL_checkstring(L, 2);
         f->file = fopen(n, m);
@@ -240,9 +238,8 @@ q_file(lua_State *L)
     } else {
         f->file = (FILE *)1;
         f->kind = qf_dummy;
-        v = 0;
     }
-    QMP_sum_int(&v);
+    XMP_dist_int_array(qlua_master_node, 1, &v);
 
     if (v == 0)
         return luaL_error(L, "file open failed");
@@ -295,13 +292,11 @@ qlua_timeofday(lua_State *L)
     struct timeval t;
     double v;
     
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         gettimeofday(&t, NULL);
         v = t.tv_sec + 1e-6 * t.tv_usec;
-    } else {
-        v = 0;
     }
-    QMP_sum_double(&v);
+    XMP_dist_double_array(qlua_master_node, 1, &v);
     lua_pushnumber(L, v);
 
     return 1;

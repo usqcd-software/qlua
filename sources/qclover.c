@@ -203,7 +203,7 @@ q_dirac_solver(lua_State *L)
         QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
-        if (qlua_primary_node)
+        if (QDP_this_node == qlua_master_node)
             printf("CLOVER %s solver: status = %d,"
                    " eps = %.4e, iters = %d, time = %.3f sec,"
                    " perf = %.2f MFlops/sec\n",
@@ -276,7 +276,7 @@ q_dirac_solver(lua_State *L)
                 QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
-                if (qlua_primary_node)
+                if (QDP_this_node == qlua_master_node)
                     printf("CLOVER %s solver: status = %d, c = %d, d = %d,"
                            " eps = %.4e, iters = %d, time = %.3f sec,"
                            " perf = %.2f MFlops/sec\n",

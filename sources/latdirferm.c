@@ -9,7 +9,10 @@
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
+#include "seqdirferm.h"                                              /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "qmp.h"
+#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'
@@ -17,6 +20,7 @@
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
+#define QNC(x)
 #include "latdirferm-x.c"                                           /* DEPS */
 #endif
 
@@ -26,6 +30,7 @@
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
+#define QNC(x)
 #include "latdirferm-x.c"                                           /* DEPS */
 #endif
 
@@ -35,6 +40,7 @@
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
+#define QNC(x)   (x),
 #include "latdirferm-x.c"                                           /* DEPS */
 #endif
 
@@ -101,6 +107,8 @@ q_D_gaussian_N(lua_State *L)
 
 /* Lattice Dirac Fermions:
  *  L:DiracFermion()             -- zero fermion in default colors
+ *  L:DiracFermion(d)            -- constant fermion fill
+ *  L:DiracFermion(D)            -- lattice fermion copy
  *  L:DiracFermion(C,{c=i,d=j})  -- default colors, D[i,j] = C zero otherwise
  *  L:DiracFermion(V,{d=j})      -- default colors, D[.,j] = V zero otherwise
  */
@@ -108,6 +116,31 @@ static int
 q_latdirferm(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
+
+    if (lua_gettop(L) == 2) {
+        switch (qlua_qtype(L, 2)) {
+#if USE_Nc2
+        case qSeqDirFerm2: return q_latdirferm_seq_2(L, S, 2);
+        case qLatDirFerm2: return q_latdirferm_lat_2(L, S, 2);
+#endif
+#if USE_Nc3
+        case qSeqDirFerm3: return q_latdirferm_seq_3(L, S, 3);
+        case qLatDirFerm3: return q_latdirferm_lat_3(L, S, 3);
+#endif
+#if USE_NcN
+        case qSeqDirFermN: {
+            mSeqDirFermN *v = qlua_checkSeqDirFermN(L, 2, -1);
+            return q_latdirferm_seq_N(L, S, v->nc);
+        }
+        case qLatDirFermN: {
+            mLatDirFermN *v = qlua_checkLatDirFermN(L, 2, S, -1);
+            return q_latdirferm_lat_N(L, S, v->nc);
+        }
+#endif
+        default:
+            break;
+        }
+    }
 
     switch (S->nc) {
 #if USE_Nc2

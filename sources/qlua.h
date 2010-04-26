@@ -96,7 +96,7 @@ typedef enum { /* simple arithmetic types */
 
 extern const char *progname;
 extern const char *qcdlib;
-extern int qlua_primary_node;
+extern int qlua_master_node;
 
 void qlua_metatable(lua_State *L,
                     const char *name,
@@ -196,6 +196,10 @@ int qlua_badindex(lua_State *L, const char *type);
 
 /* generic error reporter for __newindex in metatables */
 int qlua_nowrite(lua_State *L);
+
+/* missing piece of QMP: distribute values from one node to others */
+void XMP_dist_int_array(int src_node, int count, int *value);
+void XMP_dist_double_array(int src_node, int count, double *value);
 
 /* strict memory management: collect garbage befor any QDP operation */
 #define CALL_QDP(L) do lua_gc(L, LUA_GCCOLLECT, 0); while (0)

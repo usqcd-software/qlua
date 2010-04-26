@@ -678,7 +678,7 @@ q_nersc_read(lua_State *L)
         lua_rawseti(L, -2, i + 1);
     }
     lua_newtable(L);
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         status = nersc_read_master(L, S, U, name);
     } else {
         status = nersc_read_slave(L, S, U, name);

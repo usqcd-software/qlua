@@ -8,8 +8,11 @@
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
+#include "seqdirprop.h"                                              /* DEPS */
 #include "latint.h"                                                  /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "qmp.h"
+#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'
@@ -17,6 +20,7 @@
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
+#define QNC(x)
 #include "latdirprop-x.c"                                           /* DEPS */
 #endif
 
@@ -26,6 +30,7 @@
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
+#define QNC(x)
 #include "latdirprop-x.c"                                           /* DEPS */
 #endif
 
@@ -35,6 +40,7 @@
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
+#define QNC(x)   (x),
 #include "latdirprop-x.c"                                           /* DEPS */
 #endif
 
@@ -102,6 +108,8 @@ q_P_gaussian_N(lua_State *L)
 
 /* Lattice Dirac Propagators:
  *  L:DiracPropagator()             -- zero propagator in default colors
+ *  L:DiracPropagator(p)            -- constant propagator fill
+ *  L:DiracPropagator(P)            -- lattice propagator copy
  *  L:DiracPropagator(M)            -- default colors, P[.,k,.,k] = M for all k
  *  L:DiracPropagator(D,{c=i,d=j})  -- default colors, P[i,j,.,.] = D
  */
@@ -110,6 +118,36 @@ q_latdirprop(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
 
+    if (lua_gettop(L) == 2) {
+        switch (qlua_qtype(L, 2)) {
+#if USE_Nc2
+        case qSeqDirProp2: return q_latdirprop_seq_2(L, S, 2);
+        case qLatDirProp2: return q_latdirprop_lat_2(L, S, 2);
+        case qLatColMat2:  return q_latdirprop_mat_2(L, S, 2);
+#endif
+#if USE_Nc3
+        case qSeqDirProp3: return q_latdirprop_seq_3(L, S, 3);
+        case qLatDirProp3: return q_latdirprop_lat_3(L, S, 3);
+        case qLatColMat3:  return q_latdirprop_mat_3(L, S, 3);
+#endif
+#if USE_NcN
+        case qSeqDirPropN: {
+            mSeqDirPropN *v = qlua_checkSeqDirPropN(L, 2, -1);
+            return q_latdirprop_seq_N(L, S, v->nc);
+        }
+        case qLatDirPropN: {
+            mLatDirPropN *v = qlua_checkLatDirPropN(L, 2, S, -1);
+            return q_latdirprop_lat_N(L, S, v->nc);
+        }
+        case qLatColMatN: {
+            mLatColMatN *v = qlua_checkLatColMatN(L, 2, S, -1);
+            return q_latdirprop_mat_N(L, S, v->nc);
+        }
+#endif
+        default:
+            break;
+        }
+    }
     switch (S->nc) {
 #if USE_Nc2
     case 2: return q_latdirprop_2(L, S, 2, 0);

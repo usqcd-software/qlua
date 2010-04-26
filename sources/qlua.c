@@ -26,6 +26,7 @@
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
+#include "qmp.h"
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
@@ -54,7 +55,7 @@ const static char *a_type_key = "a-type";
 const static char *lattice_key = "lattice";
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
-int qlua_primary_node = 1;
+int qlua_master_node = -1;
 
 static struct {
     char *name;
@@ -99,7 +100,7 @@ static struct {
 void
 message(const char *fmt, ...)
 {
-    if (qlua_primary_node) {
+    if ((qlua_master_node < 0) || (QDP_this_node == qlua_master_node)) {
         va_list va;
 
         va_start(va, fmt);
@@ -111,7 +112,7 @@ message(const char *fmt, ...)
 void
 report(lua_State *L, const char *fname, int status)
 {
-    if (qlua_primary_node) {
+    if ((qlua_master_node < 0) || (QDP_this_node == qlua_master_node)) {
         if (status && !lua_isnil(L, -1)) {
             const char *msg = lua_tostring(L, -1);
             if (msg == NULL) msg = "(error object is not a string)";
@@ -119,6 +120,25 @@ report(lua_State *L, const char *fname, int status)
             lua_pop(L, 1);
         }
     }
+}
+
+void
+XMP_dist_int_array(int src_node, int count, int *data)
+{
+    int i;
+
+    if (src_node != QDP_this_node)
+        memset(data, 0, count * sizeof (int));
+    for (i = 0; i < count; i++)
+        QMP_sum_int(&data[i]);
+}
+
+void
+XMP_dist_double_array(int src_node, int count, double *data)
+{
+    if (src_node != QDP_this_node)
+        memset(data, 0, count * sizeof (double));
+    QMP_sum_double_array(data, count);
 }
 
 /* memory allocation */
@@ -882,7 +902,10 @@ main(int argc, char *argv[])
         fprintf(stderr, "QDP initialization failed\n");
         return 1;
     }
-    qlua_primary_node = QMP_is_primary_node();
+    double node = QDP_this_node;
+    QMP_min_double(&node);
+    qlua_master_node = node;
+
     L = lua_open();
     if (L == NULL) {
         message("can not create Lua state");

@@ -6,9 +6,13 @@
 #include "latreal.h"                                                 /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
+#include "seqcolmat.h"                                               /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
+
 #include "qmp.h"
+#include "qla.h"
 
 #include <math.h>
 
@@ -20,6 +24,7 @@
 #define Qs(a)   a ## 2
 #define Qx(a,b)  a ## 2 ## b
 #define QC(x)    2
+#define QNC(x)
 #include "latcolmat-x.c"                                            /* DEPS */
 #endif
 
@@ -29,6 +34,7 @@
 #define Qs(a)   a ## 3
 #define Qx(a,b)  a ## 3 ## b
 #define QC(x)    3
+#define QNC(x)
 #include "latcolmat-x.c"                                            /* DEPS */
 #endif
 
@@ -38,6 +44,7 @@
 #define Qs(a)   a ## N
 #define Qx(a,b)  a ## N ## b
 #define QC(x)    (x)->nc
+#define QNC(x)   (x),
 #include "latcolmat-x.c"                                            /* DEPS */
 #endif
 
@@ -107,6 +114,8 @@ q_M_gaussian_N(lua_State *L)
  * L:ColorMatrix()            -- zero matrix in default colors
  * L:ColorMatrix(r)           -- r * unit matrix in default colors
  * L:ColorMatrix(c)           -- c * unit matrix in default colors
+ * L:ColorMatrix(m)           -- constant matrix fill
+ * L:ColorMatrix(M)           -- lattice matrix copy
  * L:ColorMatrix(C,{a=i,b=j}) -- default colors M[i,j] = C, zero otherwise
  * L:ColorMatrix(V,{b=j})     -- default colors M[*,j] = V, zero otherwise
  * L:ColorMatrix(V1,V2)       -- default colors M[i,j] = V1[i] * V2[j]:conj
@@ -115,6 +124,31 @@ static int
 q_latcolmat(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
+
+    if (lua_gettop(L) == 2) {
+        switch (qlua_qtype(L, 2)) {
+#if USE_Nc2
+        case qSeqColMat2: return q_latcolmat_seq_2(L, S, 2);
+        case qLatColMat2: return q_latcolmat_lat_2(L, S, 2);
+#endif
+#if USE_Nc3
+        case qSeqColMat3: return q_latcolmat_seq_3(L, S, 3);
+        case qLatColMat3: return q_latcolmat_lat_3(L, S, 3);
+#endif
+#if USE_NcN
+        case qSeqColMatN: {
+            mSeqColMatN *v = qlua_checkSeqColMatN(L, 2, -1);
+            return q_latcolmat_seq_N(L, S, v->nc);
+        }
+        case qLatColMatN: {
+            mLatColMatN *v = qlua_checkLatColMatN(L, 2, S, -1);
+            return q_latcolmat_lat_N(L, S, v->nc);
+        }
+#endif
+        default:
+            break;
+        }
+    }
     
     switch (S->nc) {
 #if USE_Nc2
