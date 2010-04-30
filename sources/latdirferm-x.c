@@ -498,47 +498,6 @@ Qs(q_c_mul_D_)(lua_State *L)
     return 1;
 }
 
-static struct {
-    int nc;
-    QLA_D_Real *a;
-    void *b; /* Qx(QLA_D,_DiracFermion) *b; */
-} Qs(RDmul_args); /* YYY global state */
-
-
-#if QNc == 'N'
-static void
-Qs(do_RDmul)(int nc, QLA_DN_DiracFermion(nc, (*r)), int idx)
-{
-    QLA_DN_DiracFermion(nc, (*b)) = Qs(RDmul_args).b;
-    Qx(QLA_D,_D_eq_r_times_D)(nc, r, &Qs(RDmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_RDmul)(Qx(QLA_D,_DiracFermion) *r, int idx)
-{
-    Qx(QLA_D,_DiracFermion) *b = Qs(RDmul_args).b;
-    Qx(QLA_D,_D_eq_r_times_D)(r, &Qs(RDmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_D_eq_R_times_D)(int nc,
-                     Qx(QDP_D,_DiracFermion) *r,
-                     QDP_D_Real *a,
-                     Qx(QDP_D,_DiracFermion) *b,
-                     QDP_Subset s)
-{
-    Qs(RDmul_args).nc = nc;
-    Qs(RDmul_args).a = QDP_D_expose_R(a);
-    Qs(RDmul_args).b = Qx(QDP_D,_expose_D)(b);
-    Qx(QDP_D,_D_eq_funci)(r, Qs(do_RDmul), s);
-    Qx(QDP_D,_reset_D)(b);
-    QDP_D_reset_R(a);
-    Qs(RDmul_args).a = 0;
-    Qs(RDmul_args).b = 0;
-    Qs(RDmul_args).nc = -1;
-}
-
 static int
 Qs(q_R_mul_D_)(lua_State *L)
 {
@@ -548,7 +507,7 @@ Qs(q_R_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_D_eq_R_times_D)(QC(b), c->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_D_eq_R_times_D)(c->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -562,49 +521,9 @@ Qs(q_D_mul_R_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_D_eq_R_times_D)(QC(a), c->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_D_eq_R_times_D)(c->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
-}
-
-static struct {
-    int nc;
-    QLA_D_Complex *a;
-    void *b; /* Qx(QLA_D,_DiracFermion) *b; */
-} Qs(CDmul_args); /* YYY global state */
-
-#if QNc == 'N'
-static void
-Qs(do_CDmul)(int nc, QLA_DN_DiracFermion(nc, (*r)), int idx)
-{
-    QLA_DN_DiracFermion(nc, (*b)) = Qs(CDmul_args).b;
-    Qx(QLA_D,_D_eq_c_times_D)(nc, r, &Qs(CDmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_CDmul)(Qx(QLA_D,_DiracFermion) *r, int idx)
-{
-    Qx(QLA_D,_DiracFermion) *b = Qs(CDmul_args).b;
-    Qx(QLA_D,_D_eq_c_times_D)(r, &Qs(CDmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_D_eq_C_times_D)(int nc,
-                     Qx(QDP_D,_DiracFermion) *r,
-                     QDP_D_Complex *a,
-                     Qx(QDP_D,_DiracFermion) *b,
-                     QDP_Subset s)
-{
-    Qs(CDmul_args).nc = nc;
-    Qs(CDmul_args).a = QDP_D_expose_C(a);
-    Qs(CDmul_args).b = Qx(QDP_D,_expose_D)(b);
-    Qx(QDP_D,_D_eq_funci)(r, Qs(do_CDmul), s);
-    Qx(QDP_D,_reset_D)(b);
-    QDP_D_reset_C(a);
-    Qs(CDmul_args).a = 0;
-    Qs(CDmul_args).b = 0;
-    Qs(CDmul_args).nc = -1;
 }
 
 static int
@@ -616,7 +535,7 @@ Qs(q_C_mul_D_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_D_eq_C_times_D)(QC(b), c->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_D_eq_C_times_D)(c->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -630,7 +549,7 @@ Qs(q_D_mul_C_)(lua_State *L)
     Qs(mLatDirFerm) *c = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_D_eq_C_times_D)(QC(a), c->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_D_eq_C_times_D)(c->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }

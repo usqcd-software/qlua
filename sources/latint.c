@@ -196,12 +196,6 @@ q_I_put(lua_State *L)
     return 0;
 }
 
-static struct {
-    QLA_Int *a;
-    QLA_Int *b;
-    int x;
-} Iargs; /* YYY global state */
-
 static int
 q_I_add_I(lua_State *L)
 {
@@ -216,26 +210,17 @@ q_I_add_I(lua_State *L)
     return 1;
 }
 
-static void
-do_add_iI(QLA_Int *r, int idx)
-{
-    *r = Iargs.x + Iargs.a[idx];
-}
-
 static int
 q_i_add_I(lua_State *L)
 {
-    int x = luaL_checkint(L, 1);
+    QLA_Int x = luaL_checkint(L, 1);
     mLatInt *a = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
     mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_add_iI, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(r->ptr, &x, *S->qss);
+    QDP_I_peq_I(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -245,15 +230,12 @@ q_I_add_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    int x = luaL_checkint(L, 2);
+    QLA_Int x = luaL_checkint(L, 2);
     mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_add_iI, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(r->ptr, &x, *S->qss);
+    QDP_I_peq_I(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -272,32 +254,17 @@ q_I_sub_I(lua_State *L)
     return 1;
 }
 
-static void
-do_sub_iI(QLA_Int *r, int idx)
-{
-    *r = Iargs.x - Iargs.a[idx];
-}
-
-static void
-do_sub_Ii(QLA_Int *r, int idx)
-{
-    *r = Iargs.a[idx] - Iargs.x;
-}
-
 static int
 q_i_sub_I(lua_State *L)
 {
-    int x = luaL_checkint(L, 1);
+    QLA_Int x = luaL_checkint(L, 1);
     mLatInt *a = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
     mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_sub_iI, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(r->ptr, &x, *S->qss);
+    QDP_I_meq_I(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -307,15 +274,12 @@ q_I_sub_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    int x = luaL_checkint(L, 2);
+    QLA_Int x = -luaL_checkint(L, 2);
     mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_sub_Ii, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(r->ptr, &x, *S->qss);
+    QDP_I_peq_I(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -376,32 +340,19 @@ q_I_div_I(lua_State *L)
     return 1;
 }
 
-static void
-do_div_iI(QLA_Int *r, int idx)
-{
-    *r = Iargs.x / Iargs.a[idx];
-}
-
-static void
-do_div_Ii(QLA_Int *r, int idx)
-{
-    *r = Iargs.a[idx] / Iargs.x;
-}
-
 static int
 q_i_div_I(lua_State *L)
 {
-    int x = luaL_checkint(L, 1);
+    QLA_Int x = luaL_checkint(L, 1);
     mLatInt *a = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *z = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_div_iI, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(z->ptr, &x, *S->qss);
+    QDP_I_eq_I_divide_I(r->ptr, z->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -411,35 +362,16 @@ q_I_div_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    int x = luaL_checkint(L, 2);
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    QLA_Int x = luaL_checkint(L, 2);
+    mLatInt *z = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_div_Ii, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(z->ptr, &x, *S->qss);
+    QDP_I_eq_I_divide_I(r->ptr, a->ptr, z->ptr, *S->qss);
 
     return 1;
-}
-
-static void
-do_mod_II(QLA_Int *r, int idx)
-{
-    *r = Iargs.a[idx] % Iargs.b[idx];
-}
-
-static void
-do_mod_iI(QLA_Int *r, int idx)
-{
-    *r = Iargs.x % Iargs.a[idx];
-}
-
-static void
-do_mod_Ii(QLA_Int *r, int idx)
-{
-    *r = Iargs.a[idx] % Iargs.x;
 }
 
 static int
@@ -451,13 +383,7 @@ q_I_mod_I(lua_State *L)
     mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
 
     CALL_QDP(L);
-    Iargs.a = QDP_expose_I(a->ptr);
-    Iargs.b = QDP_expose_I(b->ptr);
-    QDP_I_eq_funci(r->ptr, do_mod_II, *S->qss);
-    Iargs.b = 0;
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
-    QDP_reset_I(b->ptr);
+    QDP_I_eq_I_mod_I(r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -465,17 +391,16 @@ q_I_mod_I(lua_State *L)
 static int
 q_i_mod_I(lua_State *L)
 {
-    int x = luaL_checkint(L, 1);
+    QLA_Int x = luaL_checkint(L, 1);
     mLatInt *a = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *z = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_mod_iI, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(z->ptr, &x, *S->qss);
+    QDP_I_eq_I_mod_I(r->ptr, z->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -485,15 +410,14 @@ q_I_mod_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     int x = luaL_checkint(L, 2);
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *z = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
 
     CALL_QDP(L);
-    Iargs.x = x;
-    Iargs.a = QDP_expose_I(a->ptr);
-    QDP_I_eq_funci(r->ptr, do_mod_Ii, *S->qss);
-    Iargs.a = 0;
-    QDP_reset_I(a->ptr);
+    QDP_I_eq_i(z->ptr, &x, *S->qss);
+    QDP_I_eq_I_mod_I(r->ptr, a->ptr, z->ptr, *S->qss);
 
     return 1;
 }
@@ -518,8 +442,9 @@ q_i_min_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -533,9 +458,10 @@ q_I_min_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -564,8 +490,9 @@ q_i_max_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -579,9 +506,10 @@ q_I_max_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -610,8 +538,9 @@ q_i_eq_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -625,9 +554,10 @@ q_I_eq_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -656,8 +586,9 @@ q_i_ne_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -671,9 +602,10 @@ q_I_ne_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -702,8 +634,9 @@ q_i_lt_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -717,9 +650,10 @@ q_I_lt_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -748,8 +682,9 @@ q_i_le_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -763,9 +698,10 @@ q_I_le_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -794,8 +730,9 @@ q_i_gt_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -809,9 +746,10 @@ q_I_gt_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);
@@ -840,8 +778,9 @@ q_i_ge_I(lua_State *L)
     QLA_Int a = luaL_checkint(L, 1);
     mLatInt *b = qlua_checkLatInt(L, 2, NULL);
     mLattice *S = qlua_ObjLattice(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    int Sidx = lua_gettop(L);
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &a, *S->qss);
@@ -855,9 +794,10 @@ q_I_ge_i(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
     QLA_Int b = luaL_checkint(L, 2);
-    mLatInt *c = qlua_newLatInt(L, lua_gettop(L));
-    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+    mLatInt *c = qlua_newLatInt(L, Sidx);
+    mLatInt *r = qlua_newLatInt(L, Sidx);
     
     CALL_QDP(L);
     QDP_I_eq_i(c->ptr, &b, *S->qss);

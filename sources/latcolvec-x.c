@@ -272,46 +272,6 @@ Qs(q_c_mul_V_)(lua_State *L)
     return 1;
 }
 
-static struct {
-    QLA_Real *a;
-    int nc;
-    void *b ; /* Qx(QLA_D,_ColorVector) */
-} Qs(RVmul_args); /* YYY global state */
-
-#if QNc == 'N'
-static void
-Qs(do_RVmul)(int nc, QLA_DN_ColorVector(nc, (*r)), int idx)
-{
-    QLA_DN_ColorVector(nc, (*b)) = Qs(RVmul_args).b;
-    Qx(QLA_D,_V_eq_r_times_V)(nc, r, &Qs(RVmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_RVmul)(Qx(QLA_D,_ColorVector) *r, int idx)
-{
-    Qx(QLA_D,_ColorVector) *b = Qs(RVmul_args).b;
-    Qx(QLA_D,_V_eq_r_times_V)(r, &Qs(RVmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_V_eq_R_times_V)(int nc,
-                     Qx(QDP_D,_ColorVector) *r,
-                     QDP_Real *a,
-                     Qx(QDP_D,_ColorVector) *b,
-                     QDP_Subset s)
-{
-    Qs(RVmul_args).a = QDP_expose_R(a);
-    Qs(RVmul_args).nc = nc;
-    Qs(RVmul_args).b = Qx(QDP_D,_expose_V)(b);
-    Qx(QDP_D,_V_eq_funci)(r, Qs(do_RVmul), s);
-    Qx(QDP_D,_reset_V)(b);
-    QDP_reset_R(a);
-    Qs(RVmul_args).a = 0;
-    Qs(RVmul_args).b = 0;
-    Qs(RVmul_args).nc = -1;
-}
-
 static int
 Qs(q_R_mul_V_)(lua_State *L)
 {
@@ -321,7 +281,7 @@ Qs(q_R_mul_V_)(lua_State *L)
     Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_V_eq_R_times_V)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_V_eq_R_times_V)(r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -335,49 +295,9 @@ Qs(q_V_mul_R_)(lua_State *L)
     Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_V_eq_R_times_V)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_V_eq_R_times_V)(r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
-}
-
-static struct {
-    int nc;
-    QLA_Complex *a;
-    void *b; /* Qx(QLA_D,_ColorVector)  */
-} Qs(CVmul_args); /* YYY global state */
-
-#if QNc == 'N'
-static void
-Qs(do_CVmul)(int nc, QLA_DN_ColorVector(nc, (*r)), int idx)
-{
-    QLA_DN_ColorVector(nc, (*b)) = Qs(CVmul_args).b;
-    Qx(QLA_D,_V_eq_c_times_V)(nc, r, &Qs(CVmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_CVmul)(Qx(QLA_D,_ColorVector) *r, int idx)
-{
-    Qx(QLA_D,_ColorVector) *b = Qs(CVmul_args).b;
-    Qx(QLA_D,_V_eq_c_times_V)(r, &Qs(CVmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_V_eq_C_times_V)(int nc,
-                     Qx(QDP_D,_ColorVector) *r,
-                     QDP_Complex *a,
-                     Qx(QDP_D,_ColorVector) *b,
-                     QDP_Subset s)
-{
-    Qs(CVmul_args).nc = nc;
-    Qs(CVmul_args).a = QDP_expose_C(a);
-    Qs(CVmul_args).b = Qx(QDP_D,_expose_V)(b);
-    Qx(QDP_D,_V_eq_funci)(r, Qs(do_CVmul), s);
-    Qx(QDP_D,_reset_V)(b);
-    QDP_reset_C(a);
-    Qs(CVmul_args).a = 0;
-    Qs(CVmul_args).b = 0;
-    Qs(CVmul_args).nc = -1;
 }
 
 static int
@@ -389,7 +309,7 @@ Qs(q_C_mul_V_)(lua_State *L)
     Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_V_eq_C_times_V)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_V_eq_C_times_V)(r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -403,7 +323,7 @@ Qs(q_V_mul_C_)(lua_State *L)
     Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_V_eq_C_times_V)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_V_eq_C_times_V)(r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }

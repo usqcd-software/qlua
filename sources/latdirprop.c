@@ -192,17 +192,20 @@ q_latdirpropN(lua_State *L)
 }
 
 #if USE_Nc3
-static struct {
+typedef struct {
     QLA_D3_DiracPropagator *a;
     QLA_D3_DiracPropagator *b;
-} QQ_args;
+} QQ_arg;
 
 /* TODO force to unroll loops over color&spin indices? */
 #define do_QQ_contract_func(contract_idx,A,B,C,D)\
- static void do_QQc ## contract_idx(QLA_D3_DiracPropagator *q3, int idx) \
+    static void do_QQc ## contract_idx(QLA_D3_DiracPropagator *q3, \
+                                       int idx,                         \
+                                       void *env)                       \
  {                                                                      \
-     QLA_D3_DiracPropagator *q1 = &QQ_args.a[idx];                      \
-     QLA_D3_DiracPropagator *q2 = &QQ_args.b[idx];                      \
+     QQ_arg *arg = env;                                                 \
+     QLA_D3_DiracPropagator *q1 = &arg->a[idx];                         \
+     QLA_D3_DiracPropagator *q2 = &arg->b[idx];                         \
      static const int eps[3][3] = { { 0, 1, 2}, { 1, 2, 0}, { 2, 0, 1} }; \
      int p_a, p_b;                                                      \
      for (p_a = 0; p_a < 3; p_a++) { /* Nc */                           \
@@ -244,21 +247,20 @@ do_QQ_contract_func(34, a,b,c,c);
 
 static int
 q_su3contract_general(lua_State *L, 
-        void (*do_contract)(QLA_D3_DiracPropagator *, int))
+                      void (*do_contract)(QLA_D3_DiracPropagator *,int,void *))
 {
     mLatDirProp3 *a = qlua_checkLatDirProp3(L, 1, NULL, 3); /* the 1st arg */
     mLattice *S = qlua_ObjLattice(L, 1);
     mLatDirProp3 *b = qlua_checkLatDirProp3(L, 2, S, 3); /* the 2nd arg */
     mLatDirProp3 *r = qlua_newLatDirProp3(L, lua_gettop(L), 3); 
+    QQ_arg arg;
 
     CALL_QDP(L);
-    QQ_args.a = QDP_D3_expose_P(a->ptr);
-    QQ_args.b = QDP_D3_expose_P(b->ptr);
-    QDP_D3_P_eq_funci(r->ptr, do_contract, *S->qss);
+    arg.a = QDP_D3_expose_P(a->ptr);
+    arg.b = QDP_D3_expose_P(b->ptr);
+    QDP_D3_P_eq_funcia(r->ptr, do_contract, &arg, *S->qss);
     QDP_D3_reset_P(a->ptr);
     QDP_D3_reset_P(b->ptr);
-    QQ_args.a = 0;
-    QQ_args.b = 0;
 
     return 1;
 }

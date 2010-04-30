@@ -88,7 +88,7 @@ subset_copy(lua_State *L, mLattice *S, mLatSubset *dst, const mLatSubset *src)
     }
 }
 
-static struct {
+typedef struct {
     QLA_Int *a_mask;
     QLA_Int *b_mask;
     mLatSubset b;
@@ -97,25 +97,26 @@ static struct {
 } sjArg;
 
 static void
-build_mask(QLA_Int *r, int coord[])
+build_mask(QLA_Int *r, int coord[], void *env)
 {
-    int idx = QDP_index_L(sjArg.lat, coord);
+    sjArg *arg = env;
+    int idx = QDP_index_L(arg->lat, coord);
     int i;
     int p;
     int v = 0;
 
-    for (i = 0, p = 0; i < sjArg.rank; i++)
+    for (i = 0, p = 0; i < arg->rank; i++)
         p += coord[i];
 
-    switch (sjArg.b.cl) {
+    switch (arg->b.cl) {
     case qss_slice:
-        v = (coord[sjArg.b.axis] == sjArg.b.position);
+        v = (coord[arg->b.axis] == arg->b.position);
         break;
     case qss_upper:
-        v = (coord[sjArg.b.axis] >= sjArg.b.position);
+        v = (coord[arg->b.axis] >= arg->b.position);
         break;
     case qss_lower:
-        v = (coord[sjArg.b.axis] < sjArg.b.position);
+        v = (coord[arg->b.axis] < arg->b.position);
         break;
     case qss_even:
         v = ((p & 1) == 0);
@@ -130,10 +131,10 @@ build_mask(QLA_Int *r, int coord[])
         v = 0;
         break;
     }
-    if (sjArg.a_mask)
-        v = v & sjArg.a_mask[idx];
-    if (sjArg.b_mask)
-        v = v & sjArg.b_mask[idx];
+    if (arg->a_mask)
+        v = v & arg->a_mask[idx];
+    if (arg->b_mask)
+        v = v & arg->b_mask[idx];
 
     *r = v;
 }
@@ -146,6 +147,7 @@ subset_join(lua_State *L,
 {
     int refine = b->mask ? 1: 0;
     QLA_D_Real count = 0;
+    sjArg arg;
 
     if (b->cl == qss_none) {
         subset_copy(L, S, dst, b);
@@ -188,17 +190,16 @@ subset_join(lua_State *L,
     }
     if (!refine)
         return;
-    sjArg.lat = S->lat;
-    sjArg.rank = S->rank;
-    sjArg.a_mask = S->lss.mask ? QDP_expose_I(S->lss.mask): NULL;
-    sjArg.b_mask = b->mask ? QDP_expose_I(b->mask): NULL;
-    sjArg.b = *b;
+    arg.lat = S->lat;
+    arg.rank = S->rank;
+    arg.a_mask = S->lss.mask ? QDP_expose_I(S->lss.mask): NULL;
+    arg.b_mask = b->mask ? QDP_expose_I(b->mask): NULL;
+    arg.b = *b;
     if (dst->mask == 0)
         dst->mask = subset_mask(L, S, NULL);
-    QDP_I_eq_func(dst->mask, build_mask, *S->qss);
+    QDP_I_eq_funca(dst->mask, build_mask, &arg, *S->qss);
     if (S->lss.mask) QDP_reset_I(S->lss.mask);
     if (b->mask) QDP_reset_I(b->mask);
-    memset(&sjArg, 0, sizeof (sjArg));
     
     QDP_r_eq_sum_I(&count, dst->mask, *S->qss);
     if (count == 0) {

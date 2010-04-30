@@ -340,23 +340,24 @@ Qs(q_P_spintrace)(lua_State *L)
     return 1;
 }
 
-static struct {
+typedef struct {
     int nc;
     void *a; /* Qx(QLA_D,_DiracPropagator) *a; */
-} Qs(Pst_args); /* YYY global state */
+} Qs(Pst_args);
 
 static void
 #if QNc == 'N'
-Qs(do_Pst)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
+Qs(do_Pst)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx, void *env)
 #else
-Qs(do_Pst)(Qx(QLA_D,_DiracPropagator) *r, int idx)
+Qs(do_Pst)(Qx(QLA_D,_DiracPropagator) *r, int idx, void *env)
 #endif
 {
+    Qs(Pst_args) *arg = env;
 #if QNc == 'N'
-    QLA_DN_DiracPropagator(nc, (*ai)) = Qs(Pst_args).a;
+    QLA_DN_DiracPropagator(nc, (*ai)) = arg->a;
     QLA_DN_DiracPropagator(nc, (*a)) = &ai[idx];
 #else
-    Qx(QLA_D,_DiracPropagator) *ai = Qs(Pst_args).a;
+    Qx(QLA_D,_DiracPropagator) *ai = arg->a;
     Qx(QLA_D,_DiracPropagator) *a = &ai[idx];
     int nc = QC(a);
 #endif
@@ -380,27 +381,27 @@ Qs(q_P_spintranspose)(lua_State *L)
     Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
+    Qs(Pst_args) arg;
 
     CALL_QDP(L);
-    Qs(Pst_args).nc = QC(a);
-    Qs(Pst_args).a = Qx(QDP_D,_expose_P)(a->ptr);
-    Qx(QDP_D,_P_eq_funci)(r->ptr, Qs(do_Pst), *S->qss);
+    arg.nc = QC(a);
+    arg.a = Qx(QDP_D,_expose_P)(a->ptr);
+    Qx(QDP_D,_P_eq_funcia)(r->ptr, Qs(do_Pst), &arg, *S->qss);
     Qx(QDP_D,_reset_P)(a->ptr);
-    Qs(Pst_args).a = 0;
-    Qs(Pst_args).nc = -1;
 
     return 1;
 }
 
 static void
-Qs(do_Ptrace)(QLA_D_Complex *r, int idx)
+Qs(do_Ptrace)(QLA_D_Complex *r, int idx, void *env)
 {
-    int nc = Qs(Pst_args).nc;
+    Qs(Pst_args) *arg = env;
+    int nc = arg->nc;
 #if QNc == 'N'
-    QLA_DN_DiracPropagator(nc, (*ai)) = Qs(Pst_args).a;
+    QLA_DN_DiracPropagator(nc, (*ai)) = arg->a;
     QLA_DN_DiracPropagator(nc, (*a)) = &ai[idx];
 #else
-    Qx(QLA_D,_DiracPropagator) *ai = Qs(Pst_args).a;
+    Qx(QLA_D,_DiracPropagator) *ai = arg->a;
     Qx(QLA_D,_DiracPropagator) *a = &ai[idx];
 #endif
     int is, ic;
@@ -419,14 +420,13 @@ Qs(q_P_trace)(lua_State *L)
     Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
     mLatComplex *r = qlua_newLatComplex(L, lua_gettop(L));
+    Qs(Pst_args) arg;
 
     CALL_QDP(L);
-    Qs(Pst_args).nc = QC(a);
-    Qs(Pst_args).a = Qx(QDP_D,_expose_P)(a->ptr);
-    QDP_D_C_eq_funci(r->ptr, Qs(do_Ptrace), *S->qss);
+    arg.nc = QC(a);
+    arg.a = Qx(QDP_D,_expose_P)(a->ptr);
+    QDP_D_C_eq_funcia(r->ptr, Qs(do_Ptrace), &arg, *S->qss);
     Qx(QDP_D,_reset_P)(a->ptr);
-    Qs(Pst_args).a = 0;
-    Qs(Pst_args).nc = -1;
 
     return 1;
 }
@@ -531,46 +531,6 @@ Qs(q_c_mul_P_)(lua_State *L)
     return 1;
 }
 
-static struct {
-    int nc;
-    QLA_D_Real *a;
-    void *b; /* Qx(QLA_D,_DiracPropagator) */
-} Qs(RPmul_args); /* YYY global state */
-
-#if QNc == 'N'
-static void
-Qs(do_RPmul)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
-{
-    QLA_DN_DiracPropagator(nc, (*b)) = Qs(RPmul_args).b;
-    Qx(QLA_D,_P_eq_r_times_P)(nc, r, &Qs(RPmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_RPmul)(Qx(QLA_D,_DiracPropagator) *r, int idx)
-{
-    Qx(QLA_D,_DiracPropagator) *b = Qs(RPmul_args).b;
-    Qx(QLA_D,_P_eq_r_times_P)(r, &Qs(RPmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_P_eq_R_times_P)(int nc,
-                     Qx(QDP_D,_DiracPropagator) *r,
-                     QDP_D_Real *a,
-                     Qx(QDP_D,_DiracPropagator) *b,
-                     QDP_Subset s)
-{
-    Qs(RPmul_args).nc = nc;
-    Qs(RPmul_args).a = QDP_D_expose_R(a);
-    Qs(RPmul_args).b = Qx(QDP_D,_expose_P)(b);
-    Qx(QDP_D,_P_eq_funci)(r, Qs(do_RPmul), s);
-    Qx(QDP_D,_reset_P)(b);
-    QDP_D_reset_R(a);
-    Qs(RPmul_args).a = 0;
-    Qs(RPmul_args).b = 0;
-    Qs(RPmul_args).nc = -1;
-}
-
 static int
 Qs(q_R_mul_P_)(lua_State *L)
 {
@@ -580,7 +540,7 @@ Qs(q_R_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_P_eq_R_times_P)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_P_eq_R_times_P)(r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -594,49 +554,9 @@ Qs(q_P_mul_R_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qs(X_P_eq_R_times_P)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_P_eq_R_times_P)(r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
-}
-
-static struct {
-    int nc;
-    QLA_D_Complex *a;
-    void *b; /* Qx(QLA_D,_DiracPropagator) */
-} Qs(CPmul_args); /* YYY global state */
-
-#if QNc == 'N'
-static void
-Qs(do_CPmul)(int nc, QLA_DN_DiracPropagator(nc, (*r)), int idx)
-{
-    QLA_DN_DiracPropagator(nc, (*b)) = Qs(CPmul_args).b;
-    Qx(QLA_D,_P_eq_c_times_P)(nc, r, &Qs(CPmul_args).a[idx], &b[idx]);
-}
-#else
-static void
-Qs(do_CPmul)(Qx(QLA_D,_DiracPropagator) *r, int idx)
-{
-    Qx(QLA_D,_DiracPropagator) *b = Qs(CPmul_args).b;
-    Qx(QLA_D,_P_eq_c_times_P)(r, &Qs(CPmul_args).a[idx], &b[idx]);
-}
-#endif
-
-static void
-Qs(X_P_eq_C_times_P)(int nc,
-                     Qx(QDP_D,_DiracPropagator) *r,
-                     QDP_D_Complex *a,
-                     Qx(QDP_D,_DiracPropagator) *b,
-                     QDP_Subset s)
-{
-    Qs(CPmul_args).nc = nc;
-    Qs(CPmul_args).a = QDP_D_expose_C(a);
-    Qs(CPmul_args).b = Qx(QDP_D,_expose_P)(b);
-    Qx(QDP_D,_P_eq_funci)(r, Qs(do_CPmul), s);
-    Qx(QDP_D,_reset_P)(b);
-    QDP_D_reset_C(a);
-    Qs(CPmul_args).a = 0;
-    Qs(CPmul_args).b = 0;
-    Qs(CPmul_args).nc = -1;
 }
 
 static int
@@ -648,7 +568,7 @@ Qs(q_C_mul_P_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(b));
 
     CALL_QDP(L);
-    Qs(X_P_eq_C_times_P)(QC(b), r->ptr, a->ptr, b->ptr, *S->qss);
+    Qx(QDP_D,_P_eq_C_times_P)(r->ptr, a->ptr, b->ptr, *S->qss);
 
     return 1;
 }
@@ -662,8 +582,7 @@ Qs(q_P_mul_C_)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-
-    Qs(X_P_eq_C_times_P)(QC(a), r->ptr, b->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_P_eq_C_times_P)(r->ptr, b->ptr, a->ptr, *S->qss);
 
     return 1;
 }

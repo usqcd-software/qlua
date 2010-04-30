@@ -128,11 +128,11 @@ q_L_dim(lua_State *L)
     return 1;
 }
 
-static int pcoord_d = -1; /* YYY global state */
 static void
-pcoord_set(QLA_Int *dst, int coords[])
+pcoord_set(QLA_Int *dst, int coords[], void *env)
 {
-    *dst = coords[pcoord_d];
+    int *pcoord_d = env;
+    *dst = coords[*pcoord_d];
 }
 
 static int
@@ -146,11 +146,8 @@ q_pcoord(lua_State *L)
     if ((d < 0) || (d >= S->rank))
         return luaL_error(L, "coordinate out of range");
     
-    /* YYY global state */
     CALL_QDP(L);
-    pcoord_d = d;
-    QDP_I_eq_func(v->ptr, pcoord_set, *qCurrent);
-    pcoord_d = -1;
+    QDP_I_eq_funca(v->ptr, pcoord_set, &d, *qCurrent);
 
     return 1;
 }
@@ -219,7 +216,7 @@ q_latnet(lua_State *L)
     return 1;
 }
 
-static struct {
+typedef struct {
     int *s;
     int *p;
     int rank;
@@ -227,14 +224,15 @@ static struct {
 } PW_arg;
 
 static void
-pw_simple(QLA_Complex *dst, int coord[])
+pw_simple(QLA_Complex *dst, int coord[], void *env)
 {
     int i;
     double ph;
+    PW_arg *arg = env;
 
-    for (ph = 0, i = 0; i < PW_arg.rank; i++) {
-        double d = (coord[i]-PW_arg.s[i]) * ((double)PW_arg.p[i]);
-        ph += 2 * M_PI * d / PW_arg.dim[i];
+    for (ph = 0, i = 0; i < arg->rank; i++) {
+        double d = (coord[i] - arg->s[i]) * ((double)arg->p[i]);
+        ph += 2 * M_PI * d / arg->dim[i];
     }
     *dst = QLA_cexpi(ph);
 }
@@ -247,19 +245,15 @@ q_planewave(lua_State *L)
     int *s = qlua_checklatcoord(L, 2, S);
     int *p = qlua_checkintarray(L, 3, S->rank, NULL);
     mLatComplex *w = qlua_newLatComplex(L, 1);
+    PW_arg arg;
 
-    /* YYY global state */
-    PW_arg.s = s;
-    PW_arg.p = p;
-    PW_arg.rank = S->rank;
-    PW_arg.dim = S->dim;
+    arg.s = s;
+    arg.p = p;
+    arg.rank = S->rank;
+    arg.dim = S->dim;
     CALL_QDP(L);
-    QDP_D_C_eq_func(w->ptr, pw_simple, *qCurrent);
+    QDP_D_C_eq_funca(w->ptr, pw_simple, &arg, *qCurrent);
 
-    PW_arg.s = 0;
-    PW_arg.p = 0;
-    PW_arg.rank = -1;
-    PW_arg.dim = 0;
     qlua_free(L, s);
     qlua_free(L, p);
     return 1;
