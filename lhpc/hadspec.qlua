@@ -149,7 +149,7 @@ do
     end
     -- create MultiSet for projections
     -- TODO replace with shifted and sign-aware multiset?
-    mset_tcoord = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+    local mset_tcoord = L:MultiSet(L[t_axis], L:pcoord(t_axis))
 
     -- make standard keypath
     local function hadspec_kpath(hadron_name, psnk)
