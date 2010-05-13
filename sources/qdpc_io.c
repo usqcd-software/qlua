@@ -238,6 +238,7 @@ error:
     return luaL_error(L, "qdpc read error");
 }
 
+#ifdef HAS_GSL
 static int
 qdpc_r_rm(lua_State *L)
 {
@@ -333,6 +334,7 @@ error:
     QDP_string_destroy(info);
     return luaL_error(L, "qdpc read error");
 }
+#endif
 
 static const struct luaL_Reg mtReader[] = {
     { "__tostring",       qdpc_r_fmt               },
@@ -357,8 +359,10 @@ static const struct luaL_Reg mtReader[] = {
     { "int_vector",       qdpc_r_iv                },
     { "real_vector",      qdpc_r_rv                },
     { "complex_vector",   qdpc_r_cv                },
+#ifdef HAS_GSL
     { "real_matrix",      qdpc_r_rm                },
     { "complex_matrix",   qdpc_r_cm                },
+#endif
     /* "lattice" */
     /* "a-type" */
     { NULL,               NULL                     }
@@ -552,6 +556,7 @@ qdpc_w_cv(lua_State *L)
     }
 }
 
+#ifdef HAS_GSL
 static int
 qdpc_w_rm(lua_State *L)
 {
@@ -635,6 +640,7 @@ error:
     QDP_string_destroy(xml);
     return luaL_error(L, "qdpc write error");
 }
+#endif
 
 static const struct luaL_Reg mtWriter[] = {
     { "__tostring",       qdpc_w_fmt             },
@@ -654,8 +660,10 @@ static const struct luaL_Reg mtWriter[] = {
     { "int_vector",       qdpc_w_iv              },
     { "real_vector",      qdpc_w_rv              },
     { "complex_vector",   qdpc_w_cv              },
+#ifdef HAS_GSL
     { "real_matrix",      qdpc_w_rm              },
     { "complex_matrix",   qdpc_w_cm              },
+#endif
     /* "lattice" */
     /* "a-type" */
     { NULL,               NULL                   }

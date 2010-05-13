@@ -407,10 +407,11 @@ q_R_set(lua_State *L)
     mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         QDP_R_eq_R_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         QDP_R_eq_R(r->ptr, a->ptr, *S->qss);
+    }
 
     return 1;
 }

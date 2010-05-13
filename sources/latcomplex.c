@@ -962,10 +962,11 @@ q_C_set(lua_State *L)
     mLatComplex *a = qlua_checkLatComplex(L, 2, S);
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         QDP_D_C_eq_C_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         QDP_D_C_eq_C(r->ptr, a->ptr, *S->qss);
+    }
     lua_pop(L, 1);
 
     return 1;

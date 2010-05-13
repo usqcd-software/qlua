@@ -97,10 +97,11 @@ q_I_set(lua_State *L)
     mLatInt *a = qlua_checkLatInt(L, 2, S);
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         QDP_I_eq_I_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         QDP_I_eq_I(r->ptr, a->ptr, *S->qss);
+    }
     lua_pop(L, 1);
 
     return 1;

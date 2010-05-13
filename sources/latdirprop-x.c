@@ -439,10 +439,11 @@ Qs(q_P_set)(lua_State *L)
     Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         Qx(QDP_D,_P_eq_P_mask_I)(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         Qx(QDP_D,_P_eq_P)(r->ptr, a->ptr, *S->qss);
+    }
 
     return 0;
 }

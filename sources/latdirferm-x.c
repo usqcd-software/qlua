@@ -391,10 +391,11 @@ Qs(q_D_set)(lua_State *L)
     Qs(mLatDirFerm) *a = Qs(qlua_checkLatDirFerm)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         Qx(QDP_D,_D_eq_D_mask_I)(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         Qx(QDP_D,_D_eq_D)(r->ptr, a->ptr, *S->qss);
+    }
     lua_pop(L, 2);
 
     return 0;

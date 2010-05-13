@@ -620,10 +620,11 @@ Qs(q_M_set)(lua_State *L)
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 2, S, QC(r));
 
     CALL_QDP(L);
-    if (S->lss.mask)
+    if (S->lss.mask) {
         Qx(QDP_D,_M_eq_M_mask_I)(r->ptr, a->ptr, S->lss.mask, *S->qss);
-    else
+    } else {
         Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
+    }
     lua_pop(L, 2);
 
     return 0;
