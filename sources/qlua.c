@@ -47,6 +47,7 @@
 #include <stdarg.h>
 #include <qmp.h>
 #include <assert.h>
+#include <libgen.h>
 
 /* ZZZ include other package headers here */
 
@@ -805,6 +806,20 @@ qlua_init(lua_State *L, int argc, char *argv[])
 
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     qlua_openlibs(L);  /* open libraries */
+
+    // set exename, exepath and exerealpath
+    char ra[PATH_MAX];
+    realpath(argv[0], ra);
+    char *bn = basename(argv[0]);
+    char *dn = dirname(argv[0]);
+    char *rdn = dirname(ra);
+    lua_pushstring(L, bn);
+    lua_setglobal(L, "exename");
+    lua_pushstring(L, dn);
+    lua_setglobal(L, "exepath");
+    lua_pushstring(L, rdn);
+    lua_setglobal(L, "exerealpath");
+
     luaL_register(L, qcdlib, fQCD);
     for (i = 0; qcd_inits[i]; i++) {
         lua_pushcfunction(L, qcd_inits[i]);
@@ -901,6 +916,7 @@ main(int argc, char *argv[])
         fprintf(stderr, "QDP initialization failed\n");
         return 1;
     }
+    QDP_profcontrol(0);
     double node = QDP_this_node;
     QMP_min_double(&node);
     qlua_master_node = node;

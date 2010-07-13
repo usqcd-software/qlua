@@ -390,8 +390,20 @@ init_qlua_io(lua_State *L)
     lua_pop(L, 1);
 
     /* fix package.path */
+    lua_getglobal(L, "exerealpath");
+    size_t len;
+    const char *ed = lua_tolstring(L, -1, &len);
+    len += 14 + strlen(qlib_path);
+    char qp[len];
+    strcpy(qp, qlib_path);
+    strcat(qp, ";");
+    strcat(qp, ed);
+    strcat(qp, "/qlib/?.qlua");
+    lua_pop(L, 1);
+
     lua_getglobal(L, "package");
-    lua_pushstring(L, qlib_path);
+    //lua_pushstring(L, qlib_path);
+    lua_pushstring(L, qp);
     lua_setfield(L, -2, "path");
     lua_pop(L, 1);
 
