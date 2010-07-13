@@ -2,13 +2,13 @@ require "stdlib"
 require "gauge"
 
 -- open the reader and a writer
-reader, rinfo = qcd.qdpc.Reader("input-file")
+reader, rinfo = qcd.qdpc.Reader(L, "input-file")
 out_xml = {["$tag"] = "test_output",
            {["$tag"] = "input",
             rinfo},
            {["$tag"] = "gauge_transform",
             "random"}}
-writer = qcd.qdpc.Writer("output-file", xml.unparse(out_xml))
+writer = qcd.qdpc.Writer(L, "output-file", xml.unparse(out_xml))
 
 -- first record: fermion field
 F, f_info = reader:DiracFermion()
@@ -24,7 +24,7 @@ reader:close()
 reader = nil
 
 -- random gauge transform
-g = toSUn(L, 30*S:gaussian_ColorMatrix())
+g = toSUn(30*S:gaussian_ColorMatrix())
 
 -- gauge transform the fermion
 gF = g * F
