@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <math.h>
 
 #if USE_Nc3
 static const char nersc_io[] = "nersc";

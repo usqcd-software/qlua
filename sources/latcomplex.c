@@ -8,7 +8,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
-#include <math.h>
 #include "qmp.h"
 
 static const char LatComplexName[] = "lattice.Complex";

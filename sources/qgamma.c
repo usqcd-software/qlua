@@ -7,8 +7,6 @@
 #include "latdirprop.h"                                              /* DEPS */
 #include "seqdirferm.h"                                              /* DEPS */
 #include "seqdirprop.h"                                              /* DEPS */
-
-#include <math.h>
 #include <string.h>
 
 static const char mtnGamma[] = "qlua.mtGamma";

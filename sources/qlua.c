@@ -8,7 +8,6 @@
 #include "seqdirferm.h"                                              /* DEPS */
 #include "seqdirprop.h"                                              /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
-#include "qmatrix.h"                                                 /* DEPS */
 #include "qxml.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
@@ -918,14 +917,34 @@ main(int argc, char *argv[])
         for (i = 0; versions[i].name; i++)
             message(" %10s: %s\n", versions[i].name, versions[i].value);
     } else {
-        for (i = 1; i < argc; i++) {
-            status = luaL_dofile(L, argv[i]);
-            report(L, argv[i], status);
-            if (status) {
-                QDP_abort(1);
-                break;
-            }
-        }
+
+      for (i = 1; i < argc; i++) {
+	if(strcmp(argv[i],"-e")==0) { // process command
+	  const char *chunk = argv[i] + 2;
+	  if (*chunk == '\0') {
+	    if(++i>=argc) {
+	      message("missing argument to -e");
+	      goto end;
+	    }
+	    chunk = argv[i];
+	  }
+	  lua_assert(chunk != NULL);
+	  status = luaL_dostring(L, chunk);
+	  report(L, "=(command line)", status);
+	  if (status) {
+	    QDP_abort(1);
+	    break;
+	  }
+	} else { // process file
+	  status = luaL_dofile(L, argv[i]);
+	  report(L, argv[i], status);
+	  if (status) {
+	    QDP_abort(1);
+	    break;
+	  }
+	}
+      }
+
     }
     qlua_fini(L);
     lua_close(L);

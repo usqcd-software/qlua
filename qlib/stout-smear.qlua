@@ -1,0 +1,26 @@
+require "stdlib"
+require "gauge"
+
+function get_staple(U, mu, numax)
+  local st = 0 * U[1]
+  for nu in skip(mu, interval(1,numax)) do
+    st = st + U[nu] * U[mu]:shift(nu-1,"from_forward") * U[nu]:shift(mu-1,"from_forward"):adjoin()
+    st = st + (U[nu]:adjoin() * U[mu] * U[nu]:shift(mu-1,"from_forward")):shift(nu-1,"from_backward")
+  end
+  return st
+end
+
+function stout_smear(U, rho, n)
+  local S = {}
+  for i=1,4 do S[i] = U[i]; end
+  for i=1,n do
+    local st = {}
+    for mu=1,3 do
+      st[mu] = get_staple(S, mu, 3) * S[mu]:adjoin()
+    end
+    for mu=1,3 do
+      S[mu] = toSUn(rho*st[mu]) * S[mu]
+    end
+  end
+  return S
+end

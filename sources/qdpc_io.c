@@ -12,7 +12,9 @@
 #include "latrandom.h"                                               /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
+#ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
+#endif
 
 #include <string.h>
 

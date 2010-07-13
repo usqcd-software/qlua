@@ -9,7 +9,6 @@
 #include "qmp.h"
 #include "qla_types.h"
 #include <string.h>
-#include <math.h>
 
 /* NB: This code is not tested for multiple lattices */
 const char opLattice[] = "lattice.ops";
@@ -466,12 +465,22 @@ q_network(lua_State *L)
     return 2;
 }
 
+static int
+q_volume(lua_State *L)
+{
+  mLattice *S = qlua_checkLattice(L, 1);
+  int vol = QDP_volume_L(S->lat);
+  lua_pushnumber(L, vol);
+  return 1;
+}
+
 static struct luaL_Reg LatticeMethods[] = {
     { "pcoord",           q_pcoord        },
     { "planewave",        q_planewave     },
     { "defaults",         q_defaults      },
     { "network",          q_latnet        },
     { "everywhere",       qlua_everywhere },
+    { "volume",           q_volume        },
     { NULL,               NULL            }
 };
 

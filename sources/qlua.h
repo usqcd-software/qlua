@@ -6,6 +6,7 @@
 #define QDP_Ns 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
 #include <stdio.h>
+#include <math.h> // for M_PI (if there)
 
 #define lua_c
 #include "lua.h"

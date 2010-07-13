@@ -1,7 +1,6 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
-#include <math.h>
 
 const char mtnComplex[] = "qlua.mtComplex";
 

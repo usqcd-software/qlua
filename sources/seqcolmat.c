@@ -6,8 +6,6 @@
 #include "seqcolvec.h"                                               /* DEPS */
 #include "qla.h"
 
-#include <math.h>
-
 #define COLOR_EPS 1e-10
 
 #if USE_Nc2
