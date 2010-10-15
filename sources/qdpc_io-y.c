@@ -19,7 +19,11 @@
 #define Qx(a,b)  QN(a,2) ## b
 #define QC(x)    2
 #define Qtype    QT(QDP_D2_)
+#define Stype    QT(QDP_F2_)
 #define Qop(x)   QA(QDP_D2_ ## x ## _)
+#define Sop(x)   QA(QDP_F2_ ## x ## _)
+#define SopL(x)  QAx(QDP_F2_ ## x ## _, _L)
+#define DtoF     QAy(QDP_FD2_,_eq_)
 #define QNc     '2'
 #define Qcolors  "2"
 #include "qdpc_io-z.c"                                               /* DEPS */
@@ -30,7 +34,11 @@
 #define Qx(a,b)  QN(a,3) ## b
 #define QC(x)    3
 #define Qtype    QT(QDP_D3_)
+#define Stype    QT(QDP_F3_)
 #define Qop(x)   QA(QDP_D3_ ## x ## _)
+#define Sop(x)   QA(QDP_F3_ ## x ## _)
+#define SopL(x)  QAx(QDP_F3_ ## x ## _, _L)
+#define DtoF     QAy(QDP_FD3_,_eq_)
 #define QNc     '3'
 #define Qcolors  "3"
 #include "qdpc_io-z.c"                                               /* DEPS */
@@ -41,7 +49,11 @@
 #define Qx(a,b)  QN(a,N) ## b
 #define QC(x)    (x)->nc
 #define Qtype    QT(QDP_DN_)
+#define Stype    QT(QDP_FN_)
 #define Qop(x)   QA(QDP_DN_ ## x ## _)
+#define Sop(x)   QA(QDP_FN_ ## x ## _)
+#define SopL(x)  QAx(QDP_FN_ ## x ## _, _L)
+#define DtoF     QAy(QDP_FDN_,_eq_)
 #define QNc     'N'
 #define Qcolors  "N"
 #include "qdpc_io-z.c"                                               /* DEPS */
@@ -104,31 +116,67 @@ QT(qdpc_w_)(lua_State *L)
     mWriter *writer = q_checkWriter(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
     int Sidx = lua_gettop(L);
+    int format = 'D';
+    int Didx = 2;
 
-    switch (qlua_qtype(L, 2)) {
+    if (qlua_qtype(L, 2) == qString) {
+        format = qlua_qio_file_precision(L, 2);
+        Didx = 3;
+    }
+
+    switch (qlua_qtype(L, Didx)) {
 #if USE_Nc2
-    case QN(q,2): return QN(w_,2)(L, S, Sidx, writer);
+    case QN(q,2):
+        switch (format) {
+        case 'F': return QN(fw_,2)(L, S, Sidx, writer, Didx);
+        case 'D': return QN(dw_,2)(L, S, Sidx, writer, Didx);
+        }
+        break;
 #endif
 #if USE_Nc3
-    case QN(q,3): return QN(w_,3)(L, S, Sidx, writer);
+    case QN(q,3):
+        switch (format) {
+        case 'F': return QN(fw_,3)(L, S, Sidx, writer, Didx);
+        case 'D': return QN(dw_,3)(L, S, Sidx, writer, Didx);
+        }
+        break;
 #endif
 #if USE_NcN
-    case QN(q,N): return QN(w_,N)(L, S, Sidx, writer);
+    case QN(q,N): 
+        switch (format) {
+        case 'F': return QN(fw_,N)(L, S, Sidx, writer, Didx);
+        case 'D': return QN(dw_,N)(L, S, Sidx, writer, Didx);
+        }
+        break;
 #endif
     case qTable: {
         lua_pushnumber(L, 1);
         lua_gettable(L, 2);
         switch (qlua_qtype(L, -1)) {
 #if USE_Nc2
-        case QN(q,2): return QN(wt_,2)(L, S, Sidx, writer, 2);
+        case QN(q,2):
+            switch (format) {
+            case 'F': return QN(fwt_,2)(L, S, Sidx, writer, 2, Didx);
+            case 'D': return QN(dwt_,2)(L, S, Sidx, writer, 2, Didx);
+            }
+            break;
 #endif
 #if USE_Nc3
-        case QN(q,3): return QN(wt_,3)(L, S, Sidx, writer, 3);
+        case QN(q,3): 
+            switch (format) {
+            case 'F': return QN(fwt_,3)(L, S, Sidx, writer, 3, Didx);
+            case 'D': return QN(dwt_,3)(L, S, Sidx, writer, 3, Didx);
+            }
+            break;
 #endif
 #if USE_NcN
         case QN(q,N): {
             QN(m,N) *X = QN(qlua_check,N)(L, -1, S, -1);
-            return QN(wt_,N)(L, S, Sidx, writer, X->nc);
+            switch (format) {
+            case 'F': return QN(fwt_,N)(L, S, Sidx, writer, X->nc, Didx);
+            case 'D': return QN(dwt_,N)(L, S, Sidx, writer, X->nc, Didx);
+            }
+            break;
         }
 #endif
         default:
@@ -146,3 +194,6 @@ QT(qdpc_w_)(lua_State *L)
 #undef QTx
 #undef QN
 #undef QA
+#undef QAx
+#undef QAy
+

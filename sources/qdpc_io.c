@@ -16,6 +16,19 @@
 #include "qmatrix.h"                                                 /* DEPS */
 #endif
 
+#include "qdp_df.h"
+#if USE_Nc2
+#include "qdp_f2.h"
+#include "qdp_df2.h"
+#endif
+#if USE_Nc3
+#include "qdp_f3.h"
+#include "qdp_df3.h"
+#endif
+#if USE_NcN
+#include "qdp_fn.h"
+#include "qdp_dfn.h"
+#endif
 #include <string.h>
 
 typedef struct {
@@ -45,21 +58,31 @@ static void check_writer(lua_State *L, mWriter *b);
 #define T_QTYPE       QDP_Int
 #define QLUA_NAME(x)  x ## LatInt
 #define X_ID(x)       x ## I
+#undef X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
 #define T_QTYPE       QDP_RandomState
 #define QLUA_NAME(x)  x ## LatRandom
 #define X_ID(x)       x ## S
+#undef X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
 #define T_QTYPE       QDP_D_Real
 #define QLUA_NAME(x)  x ## LatReal
 #define X_ID(x)       x ## R
+#define X_ID2(a,b)    a ## R ## b
+#define X_ID3(a,b)    a ## R ## b ## R
+#define T_sTYPE       QDP_F_Real
+#define X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
 #define T_QTYPE       QDP_D_Complex
 #define QLUA_NAME(x)  x ## LatComplex
 #define X_ID(x)       x ## C
+#define X_ID2(a,b)    a ## C ## b
+#define X_ID3(a,b)    a ## C ## b ## C
+#define T_sTYPE       QDP_F_Complex
+#define X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
 #if USE_Nc2 || USE_Nc3 || USE_NcN
@@ -68,24 +91,32 @@ static void check_writer(lua_State *L, mWriter *b);
 #define QTx(a,b)      a ## ColorVector ## b
 #define QN(a,b)       a ## LatColVec ## b
 #define QA(p)         p ## V
+#define QAx(a,b)      a ## V ## b
+#define QAy(a,b)      a ## V ## b ## V
 #include "qdpc_io-y.c"                                               /* DEPS */
 
 #define QT(a)         a ## ColorMatrix
 #define QTx(a,b)      a ## ColorMatrix ## b
 #define QN(a,b)       a ## LatColMat ## b
 #define QA(p)         p ## M
+#define QAx(a,b)      a ## M ## b
+#define QAy(a,b)      a ## M ## b ## M
 #include "qdpc_io-y.c"                                               /* DEPS */
 
 #define QT(a)         a ## DiracFermion
 #define QTx(a,b)      a ## DiracFermion ## b
 #define QN(a,b)       a ## LatDirFerm ## b
 #define QA(p)         p ## D
+#define QAx(a,b)      a ## D ## b
+#define QAy(a,b)      a ## D ## b ## D
 #include "qdpc_io-y.c"                                               /* DEPS */
 
 #define QT(a)         a ## DiracPropagator
 #define QTx(a,b)      a ## DiracPropagator ## b
 #define QN(a,b)       a ## LatDirProp ## b
 #define QA(p)         p ## P
+#define QAx(a,b)      a ## P ## b
+#define QAy(a,b)      a ## P ## b ## P
 #include "qdpc_io-y.c"                                               /* DEPS */
 #endif /* use any colors */
 

@@ -807,6 +807,13 @@ static struct luaL_Reg mtMDWFDeflator[] = {
     { "stop",               q_DF_stop              },
     { "resume",             q_DF_resume            },
     { "eigenvalues",        q_DF_eigenvalues       },
+#if 0 /* XXX */
+    { "truncate",           q_DF_truncate          },
+    { "get_counter",        q_DF_get_counter       },
+    { "put_counter",        q_DF_put_counter       },
+    { "write_eigspace",     q_DF_write             },
+    { "read_eigspace",      q_DF_read              },
+#endif /* XXX */
     { NULL,                 NULL                   }
 };
 

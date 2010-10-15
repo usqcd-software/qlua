@@ -1131,7 +1131,7 @@ qlua_newLatReal(lua_State *L, int Sidx)
 
     if (v == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_create_R_L(S->lat);
+        v = QDP_D_create_R_L(S->lat);
         if (v == 0)
             luaL_error(L, "not enough memory (QDP_Real)");
     }

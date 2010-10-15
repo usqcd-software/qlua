@@ -3,13 +3,15 @@
  *  #define T_QTYPE  <name of the QDP type>
  *  #define QLUA_NAME(x)   x ## <QLUA type>
  *  #define X_ID(x)        x ## <QDP suffix>
+ *  #define X_DF   / or #undef X_DF
+ *  #define X_ID2(a,b)     a ## <QDP suffix> ## b ## <QDP suffix>
  *
  * Used for the following Lattice objects:
- *   T_QTYPE            QLUA_NAME         X_ID
- *   QDP_Int            x ## LatInt       x ## I
- *   QDP_RandomState    x ## LatRandom    x ## S
- *   QDP_D_Real         x ## LatReal      x ## R
- *   QDP_D_Complex      x ## LatComplex   x ## C
+ *   T_QTYPE            QLUA_NAME         X_ID     X_DF
+ *   QDP_Int            x ## LatInt       x ## I   undef
+ *   QDP_RandomState    x ## LatRandom    x ## S   undef
+ *   QDP_D_Real         x ## LatReal      x ## R   defined
+ *   QDP_D_Complex      x ## LatComplex   x ## C   defined
  */
 
 static int
@@ -85,10 +87,22 @@ X_ID(qdpc_w_)(lua_State *L)
 {
     mWriter *writer = q_checkWriter(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    const char *info = luaL_checkstring(L, 3);
-    QDP_String *xml;
+    int status;
+#ifdef X_DF
+    int format = 'D';
+#endif
+    int Didx = 2;
 
     check_writer(L, writer);
+
+#ifdef X_DF
+    if (qlua_qtype(L, 2) == qString) {
+        format = qlua_qio_file_precision(L, 2);
+        Didx = 3;
+    }
+#endif
+    const char *info = luaL_checkstring(L, Didx + 1);
+    QDP_String *xml;
 
     /* collect garbage */
     CALL_QDP(L);
@@ -98,11 +112,31 @@ X_ID(qdpc_w_)(lua_State *L)
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
     /* dispatch between single value and vector write */
-    switch (qlua_qtype(L, 2)) {
+    switch (qlua_qtype(L, Didx)) {
     case QLUA_NAME(q): {
-        QLUA_NAME(m) *U = QLUA_NAME(qlua_check)(L, 2, S);
+        QLUA_NAME(m) *X = QLUA_NAME(qlua_check)(L, Didx, S);
 
-        if (X_ID(QDP_write_)(writer->ptr, xml, U->ptr) == 0) {
+#ifdef X_DF
+        switch (format) {
+        case 'F': {
+            T_sTYPE *Y = X_ID2(QDP_F_create_,_L)(S->lat);
+            if (Y == 0)
+                return luaL_error(L, "not enough memory");
+            X_ID3(QDP_FD_,_eq_)(Y, X->ptr, S->all);
+            status = X_ID(QDP_F_write_)(writer->ptr, xml, Y);
+            X_ID(QDP_F_destroy_)(Y);
+            break;
+        }
+        case 'D':
+            status = X_ID(QDP_D_write_)(writer->ptr, xml, X->ptr);
+            break;
+        default:
+            return luaL_error(L, "unsupported QIO format");
+        }
+#else
+        status = X_ID(QDP_write_)(writer->ptr, xml, X->ptr);
+#endif
+        if (status == 0) {
             /* success -- return true */
             QDP_string_destroy(xml);
             lua_pushboolean(L, 1);
@@ -112,26 +146,47 @@ X_ID(qdpc_w_)(lua_State *L)
         break;
     }
     case qTable: {
-        QLUA_NAME(m) *ui;
+        QLUA_NAME(m) *xi;
         int n, i;
-        int status;
 
-        n = lua_objlen(L, 2);
+        n = lua_objlen(L, Didx);
         if (n <= 0) {
             QDP_string_destroy(xml);
             return luaL_error(L, "qdpc.write: bad table ");
         }
-        T_QTYPE *U[n];
+        T_QTYPE *X[n];
         for (i = 0; i < n; i++) {
             /* full table indexing here */
             lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
-            lua_gettable(L, 2);
-            ui = QLUA_NAME(qlua_check)(L, -1, S);
-            U[i] = ui->ptr;
+            lua_gettable(L, Didx);
+            xi = QLUA_NAME(qlua_check)(L, -1, S);
+            X[i] = xi->ptr;
         }
-        
-        /* do the write */
-        status = X_ID(QDP_vwrite_)(writer->ptr, xml, U, n);
+
+#ifdef X_DF
+        switch (format) {
+        case 'F': {
+            T_sTYPE *Y[n];
+            for (i = 0; i < n; i++) {
+                Y[i] = X_ID2(QDP_F_create_, _L)(S->lat);
+                if (Y[i] == 0)
+                    return luaL_error(L, "not enough memory");
+                X_ID3(QDP_FD_,_eq_)(Y[i], X[i], S->all);
+            }
+            status = X_ID(QDP_F_vwrite_)(writer->ptr, xml, Y, n);
+            for (i = 0; i < n; i++)
+                X_ID(QDP_F_destroy_)(Y[i]);
+            break;
+        }
+        case 'D':
+            status = X_ID(QDP_D_vwrite_)(writer->ptr, xml, X, n);
+            break;
+        default:
+            return luaL_error(L, "unsupported QIO format");
+        }
+#else
+        status = X_ID(QDP_vwrite_)(writer->ptr, xml, X, n);
+#endif        
         if (status == 0) {
             /* success -- clean up everything and return true */
             QDP_string_destroy(xml);
@@ -155,3 +210,7 @@ X_ID(qdpc_w_)(lua_State *L)
 #undef T_QTYPE
 #undef QLUA_NAME
 #undef X_ID
+#undef X_ID2
+#undef X_ID3
+#undef X_DF
+#undef T_sTYPE

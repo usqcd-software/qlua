@@ -1,23 +1,19 @@
 require "stdlib"
 
+ms, t, s = qcd.network()
+printf("%s network of %d nodes\n", t, ms)
+
+if s then
+   for i = 1, #s do
+      printf("Machine network %4d: %5d\n", i, s[i])
+   end
+end
+
 L = qcd.lattice{4,4,4,4}
 
-function format_tab(t)
-  local r = "{"
-  local s = ""
-  for i = 1, #t do
-      r = r .. s .. tostring(t[i])
-      s = " "
-  end
-  return r .. "}"
-end
-  
 printf("lattice %s\n", tostring(L))
 
-ms = qcd.network()
 ln = L:network()
-
-printf("network of %d nodes\n", ms)
 
 for i = 1, #ln do
    printf("Lattice net %4d: %5d\n", i - 1, ln[i])

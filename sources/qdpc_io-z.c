@@ -78,10 +78,10 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
 }
 
 static int
-Qs(w_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer)
+Qs(dw_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int Didx)
 {
-    Qs(m) *X = Qs(qlua_check)(L, 2, S, -1);
-    const char *info = luaL_checkstring(L, 3);
+    Qs(m) *X = Qs(qlua_check)(L, Didx, S, -1);
+    const char *info = luaL_checkstring(L, Didx + 1);
     QDP_String *xml;
     int status;
 
@@ -106,10 +106,48 @@ Qs(w_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer)
 }
 
 static int
-Qs(wt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc)
+Qs(fw_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int Didx)
 {
-    int n = lua_objlen(L, 2);
-    const char *info = luaL_checkstring(L, 3);
+    Qs(m) *X = Qs(qlua_check)(L, Didx, S, -1);
+    const char *info = luaL_checkstring(L, Didx + 1);
+    QDP_String *xml;
+    int status;
+
+    check_writer(L, writer);
+
+    /* collect garbage */
+    CALL_QDP(L);
+
+    /* prepare info string */
+    xml = QDP_string_create();
+    QDP_string_set(xml, (char *)info); /* [ sic ] */
+
+#if QNc == 'N'
+    Stype *Y = SopL(create)(X->nc, S->lat);
+#else
+    Stype *Y = SopL(create)(S->lat);
+#endif
+    if (Y == 0)
+        return luaL_error(L, "Not enough memory");
+    DtoF(Y, X->ptr, S->all);
+
+    status = Sop(write)(writer->ptr, xml, Y);
+    Sop(destroy)(Y);
+    QDP_string_destroy(xml);
+    if (status == 0) {
+        /* success -- return true */
+        lua_pushboolean(L, 1);
+
+        return 1;
+    }
+    return luaL_error(L, "qdpc write error");
+}
+
+static int
+Qs(dwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
+{
+    int n = lua_objlen(L, Didx);
+    const char *info = luaL_checkstring(L, Didx + 1);
     int i;
     int status;
     QDP_String *xml;
@@ -131,7 +169,7 @@ Qs(wt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc)
         Qs(m) *xi;
         /* full table indexing here */
         lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
-        lua_gettable(L, 2);
+        lua_gettable(L, Didx);
         xi = Qs(qlua_check)(L, -1, S, nc);
         X[i] = xi->ptr;
         }
@@ -148,10 +186,67 @@ Qs(wt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc)
     return luaL_error(L, "qdpc write error");
 }
 
+static int
+Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
+{
+    int n = lua_objlen(L, Didx);
+    const char *info = luaL_checkstring(L, Didx + 1);
+    int i;
+    int status;
+    QDP_String *xml;
+
+    check_writer(L, writer);
+
+    if (n <= 0)
+        return luaL_error(L, "qdpc.write: bad table ");
+
+    /* collect garbage */
+    CALL_QDP(L);
+
+    /* prepare info string */
+    xml = QDP_string_create();
+    QDP_string_set(xml, (char *)info); /* [ sic ] */
+
+    Qtype *X[n];
+    Stype *Y[n];
+    for (i = 0; i < n; i++) {
+        Qs(m) *xi;
+        /* full table indexing here */
+        lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
+        lua_gettable(L, Didx);
+        xi = Qs(qlua_check)(L, -1, S, nc);
+        X[i] = xi->ptr;
+#if QNc == 'N'
+        Y[i] = SopL(create)(nc, S->lat);
+#else
+        Y[i] = SopL(create)(S->lat);
+#endif
+        DtoF(Y[i], X[i], S->all);
+        }
+        
+    /* do the write */
+    status = Sop(vwrite)(writer->ptr, xml, Y, n);
+    QDP_string_destroy(xml);
+    for (i = 0; i < n; i++)
+        Sop(destroy)(Y[i]);
+
+    if (status == 0) {
+        /* success -- clean up everything and return true */
+        lua_pushboolean(L, 1);
+
+        return 1;
+    }
+    return luaL_error(L, "qdpc write error");
+}
+
 #undef Qs
 #undef Qx
 #undef QC
 #undef QNc
 #undef Qop
+#undef Sop
+#undef SopL
+#undef DtoF
 #undef Qtype
+#undef Stype
 #undef Qcolors

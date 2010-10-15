@@ -13,7 +13,7 @@ end
 function show_prop(name, X, z)
    printf("propagator %s at [%d %d %d %d]\n",
           name, z[1], z[2], z[3], z[4])
-   local nc = L:defaults().colors
+   local nc = L:get_defaults().colors
    for ic = 0, nc - 1 do
       for is = 0, qcd.Ns - 1 do
          local Z = X[{c = ic, d = is}]

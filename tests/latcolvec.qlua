@@ -25,9 +25,9 @@ function show_table(n, t)
 end
 
 dump_meta(LAT)
-show_table("std lattice", LAT:defaults())
-LAT:defaults{colors=2}
-show_table("Nc2 lattice", LAT:defaults())
+show_table("std lattice", LAT:get_defaults())
+LAT:set_defaults{colors=2}
+show_table("Nc2 lattice", LAT:get_defaults())
 
 rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
                          LAT:pcoord(1) * d +
