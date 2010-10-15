@@ -1,7 +1,9 @@
 #ifndef MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 #define MARK_2DCAC914_635D_4D58_AA60_DC75CD13961F
 
+#ifndef QDP_Nc
 #define QDP_Nc 'Z' /* Try to confuse QDP & QLA to warn about undefined Nc */
+#endif
 #define QDP_Precision 'D' /* DO NOT CHANGE THESE DEFAULTS */
 #define QDP_Ns 4 /* fermion dimension, seems undefined in QDP */
 #include <stdarg.h>
@@ -14,9 +16,17 @@
 #include "lualib.h"
 
 #include "qdp.h"
+#undef QDP_Nc
+#define QDP_Nc 'Z'
+#if USE_Nc2
 #include "qdp_d2.h"
+#endif
+#if USE_Nc3
 #include "qdp_d3.h"
+#endif
+#if USE_NcN
 #include "qdp_dn.h"
+#endif
 #include "qla_types.h"
 #include "qla.h"
 #include "qla_d2.h"

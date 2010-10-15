@@ -1,5 +1,5 @@
-#include "qlua.h"                                                    /* DEPS */
 #include "modules.h"
+#include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
@@ -61,7 +61,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.12.00-x XXX $Id$"},
+    {"qlua",  "QLUA version 0.20.00-rc2 XXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF

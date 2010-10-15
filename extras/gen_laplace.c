@@ -1,3 +1,4 @@
+#include "modules.h"
 #include "qlua.h"                                                   /* DEPS */
 #include "lattice.h"                                                /* DEPS */
 

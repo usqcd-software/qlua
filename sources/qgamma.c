@@ -829,9 +829,15 @@ init_gamma(lua_State *L)
     luaL_register(L, NULL, fGamma);
     qlua_metatable(L, mtnGamma, mtGamma, qGamma);
     qlua_reg_op2(ops);
+#if USE_Nc2
     qlua_reg_op2(ops2);
+#endif
+#if USE_Nc3
     qlua_reg_op2(ops3);
+#endif
+#if USE_NcN
     qlua_reg_op2(opsN);
+#endif
 
     return 0;
 }

@@ -5,6 +5,7 @@
 #include "qmp.h"
 #include "lhpc-aff.h"
 
+#include "modules.h"
 #include "qlua.h"                                                   /* DEPS */
 #include "lattice.h"                                                /* DEPS */
 #include "aff_io.h"                                                 /* DEPS */

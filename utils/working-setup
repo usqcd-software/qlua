@@ -12,6 +12,8 @@ LD="gcc -g" \
    --with-qdp=$PACKTOP/qdp-1.8.1.memleak \
    --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
    --with-clover=/Users/avp/Sandbox/USQCD/clover/install \
+   --without-nc=any \
+   --with-nc=3 \
    --with-extras
 
 #   --with-clover=$PACKTOP/clover-1.1.0 \

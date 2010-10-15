@@ -1,6 +1,6 @@
+#include "modules.h"
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
-#include "modules.h"
 #include "qmp.h"
 #include <string.h>
 #include <sys/time.h>
