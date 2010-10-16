@@ -16,22 +16,23 @@
 #include "lualib.h"
 
 #include "qdp.h"
+#include "qla_types.h"
+#include "qla.h"
 #undef QDP_Nc
+
 #define QDP_Nc 'Z'
 #if USE_Nc2
 #include "qdp_d2.h"
+#include "qla_d2.h"
 #endif
 #if USE_Nc3
 #include "qdp_d3.h"
+#include "qla_d3.h"
 #endif
 #if USE_NcN
 #include "qdp_dn.h"
-#endif
-#include "qla_types.h"
-#include "qla.h"
-#include "qla_d2.h"
-#include "qla_d3.h"
 #include "qla_dn.h"
+#endif
 
 #ifndef M_PI
 #define M_PI 3.141592653589793238462643383279502884197
