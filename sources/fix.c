@@ -391,6 +391,7 @@ init_qlua_io(lua_State *L)
 
     /* fix package.path */
     lua_getglobal(L, "package");
+	lua_pushstring(L, qlib_path);
     lua_setfield(L, -2, "path");
     lua_pop(L, 1);
 
