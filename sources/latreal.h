@@ -5,13 +5,11 @@ typedef struct {
     QDP_Real *ptr;
 } mLatReal;
 
-extern const char mtnLatReal[];
-
 int init_latreal(lua_State *L);
 int fini_latreal(lua_State *L);
 
-mLatReal *qlua_checkLatReal(lua_State *L, int idx);
-mLatReal *qlua_newLatReal(lua_State *L);
+mLatReal *qlua_checkLatReal(lua_State *L, int idx, mLattice *S);
+mLatReal *qlua_newLatReal(lua_State *L, int Sidx);
 
 int q_R_random(lua_State *L);
 int q_R_gaussian(lua_State *L);

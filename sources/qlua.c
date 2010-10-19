@@ -1,26 +1,31 @@
-#include "qlua.h"                                                    /* DEPS */
 #include "modules.h"
+#include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
-#include "qgamma.h"                                                  /* DEPS */
+#include "seqrandom.h"                                               /* DEPS */
+#include "seqcolvec.h"                                               /* DEPS */
+#include "seqcolmat.h"                                               /* DEPS */
+#include "seqdirferm.h"                                              /* DEPS */
+#include "seqdirprop.h"                                              /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
-#include "qmatrix.h"                                                 /* DEPS */
+#include "qxml.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "latsubset.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "latint.h"                                                  /* DEPS */
-#include "latrandom.h"                                               /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
+#include "latrandom.h"                                               /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
-#include "latsubset.h"                                               /* DEPS */
-#include "latmulti.h"                                                /* DEPS */
-#include "qdpc_io.h"                                                 /* DEPS */
-#include "qdpcc_io.h"                                                /* DEPS */
-#include "ddpairs_io.h"                                              /* DEPS */
+#include "qgamma.h"                                                  /* DEPS */
 #include "nersc_io.h"                                                /* DEPS */
-#include "qxml.h"                                                    /* DEPS */
+#include "qdpc_io.h"                                                 /* DEPS */
+#include "ddpairs_io.h"                                              /* DEPS */
+#include "qdpcc_io.h"                                                /* DEPS */
+#include "qmp.h"
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
@@ -28,11 +33,11 @@
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
-#ifdef HAS_EXTRAS
-#include "extras.h"                                                  /* DEPS */
-#endif
 #ifdef HAS_MDWF
 #include "qmdwf.h"                                                   /* DEPS */
+#endif
+#ifdef HAS_EXTRAS
+#include "extras.h"                                                  /* DEPS */
 #endif
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
@@ -41,28 +46,32 @@
 #include <string.h>
 #include <stdarg.h>
 #include <qmp.h>
+#include <assert.h>
+#include <libgen.h>
 
 /* ZZZ include other package headers here */
 
+const static char *a_type_key = "a-type";
+const static char *lattice_key = "lattice";
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
-int qlua_primary_node = 1;
+int qlua_master_node = -1;
 
 static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.12.00-x XXX $Id$"},
+    {"qlua",  "QLUA version 0.20.00-rc4 $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
-    {"aff",    AFF_VERSION },
+    {"aff",    LHPC_AFF_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
 #endif
 #ifdef HAS_MDWF
-    {"mdwf",   MDWF_VERSION },
+    {"mdwf", MDWF_VERSION },
 #endif
 #ifdef HAS_EXTRAS
     {"extras", "included" },
@@ -73,6 +82,17 @@ static struct {
 #ifdef HAS_CBLAS
     {"cblas",     CBLAS_VERSION },
 #endif
+    {"colors",   (
+#if USE_Nc2
+                   " 2"
+#endif
+#if USE_Nc3
+                   " 3"
+#endif
+#if USE_NcN
+                   " N"
+#endif
+                 ) + 1 },
     {NULL,     NULL}
 };
 
@@ -80,7 +100,7 @@ static struct {
 void
 message(const char *fmt, ...)
 {
-    if (qlua_primary_node) {
+    if ((qlua_master_node < 0) || (QDP_this_node == qlua_master_node)) {
         va_list va;
 
         va_start(va, fmt);
@@ -92,7 +112,7 @@ message(const char *fmt, ...)
 void
 report(lua_State *L, const char *fname, int status)
 {
-    if (qlua_primary_node) {
+    if ((qlua_master_node < 0) || (QDP_this_node == qlua_master_node)) {
         if (status && !lua_isnil(L, -1)) {
             const char *msg = lua_tostring(L, -1);
             if (msg == NULL) msg = "(error object is not a string)";
@@ -100,6 +120,25 @@ report(lua_State *L, const char *fname, int status)
             lua_pop(L, 1);
         }
     }
+}
+
+void
+XMP_dist_int_array(int src_node, int count, int *data)
+{
+    int i;
+
+    if (src_node != QDP_this_node)
+        memset(data, 0, count * sizeof (int));
+    for (i = 0; i < count; i++)
+        QMP_sum_int(&data[i]);
+}
+
+void
+XMP_dist_double_array(int src_node, int count, double *data)
+{
+    if (src_node != QDP_this_node)
+        memset(data, 0, count * sizeof (double));
+    QMP_sum_double_array(data, count);
 }
 
 /* memory allocation */
@@ -123,23 +162,69 @@ qlua_free(lua_State *L, void *ptr)
         free(ptr);
 }
 
-void
-qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table)
+static void
+qlua_fillmeta(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
 {
     int i;
-    int base = lua_gettop(L);
 
-    luaL_newmetatable(L, name);
-    luaL_getmetatable(L, name);
-    lua_pushstring(L, "__index");
-    luaL_getmetatable(L, name);
-    lua_settable(L, -3);
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__index");
+    
+    if (t_id != qNoType) {
+        lua_pushstring(L, a_type_key);
+        lua_pushnumber(L, t_id);
+        lua_settable(L, -3);
+    }
     for (i = 0; table[i].func; i++) {
         lua_pushstring(L, table[i].name);
         lua_pushcfunction(L, table[i].func);
         lua_settable(L, -3);
     }
-    lua_settop(L, base);
+}
+
+void
+qlua_metatable(lua_State *L, const char *name, const luaL_Reg *table,
+               QLUA_Type t_id)
+{
+    luaL_newmetatable(L, name);
+    luaL_getmetatable(L, name);
+    qlua_fillmeta(L, table, t_id);
+    lua_pop(L, 1);
+}
+
+void
+qlua_selftable(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
+{
+    lua_createtable(L, 0, 0);
+    qlua_fillmeta(L, table, t_id);
+}
+
+void
+qlua_latticetable(lua_State *L, const luaL_Reg *table, QLUA_Type t_id, int lidx)
+{
+    lua_createtable(L, 0, 0);
+    qlua_fillmeta(L, table, t_id);
+    lua_pushstring(L, lattice_key);
+    lua_pushvalue(L, lidx);
+    lua_settable(L, -3);
+}
+
+void
+qlua_createLatticeTable(lua_State *L,
+                        int Sidx,
+                        const struct luaL_Reg *ft,
+                        QLUA_Type t_id,
+                        const char *name)
+{
+    if (luaL_getmetafield(L, Sidx, name) != 0)
+        goto end;
+    lua_getmetatable(L, Sidx);
+    qlua_latticetable(L, ft, t_id, Sidx);
+    lua_setfield(L, -2, name);
+    lua_pop(L, 1);
+    luaL_getmetafield(L, Sidx, name);
+end:
+    return;
 }
 
 int
@@ -163,6 +248,23 @@ qlua_lookup(lua_State *L, int idx, const char *table)
     lua_getfield(L, -1, key);
     if (lua_isnil(L, -1))
         return luaL_error(L, "bad index `%s' for ::%s", key, table);
+    return 1;
+}
+
+int
+qlua_selflookup(lua_State *L, int idx, const char *key)
+{
+    if (luaL_getmetafield(L, idx, key) == 0)
+        return luaL_error(L, "bad index `%s'", key);
+
+    return 1;
+}
+
+int
+qlua_getlattice(lua_State *L, int idx)
+{
+    if (luaL_getmetafield(L, idx, lattice_key) == 0)
+        return luaL_error(L, "lattice object expected");
     return 1;
 }
 
@@ -267,39 +369,39 @@ qlua_checkdiracindex(lua_State *L, int n)
 }
 
 int
-qlua_colorindex(lua_State *L, int n)
+qlua_colorindex(lua_State *L, int n, int nc)
 {
-    return qlua_index(L, n, "c", QDP_Nc);
+    return qlua_index(L, n, "c", nc);
 }
 
 int
-qlua_checkcolorindex(lua_State *L, int n)
+qlua_checkcolorindex(lua_State *L, int n, int nc)
 {
-    return qlua_checkindex(L, n, "c", QDP_Nc);
+    return qlua_checkindex(L, n, "c", nc);
 }
 
 int
-qlua_leftindex(lua_State *L, int n)
+qlua_leftindex(lua_State *L, int n, int nc)
 {
-    return qlua_index(L, n, "a", QDP_Nc);
+    return qlua_index(L, n, "a", nc);
 }
 
 int
-qlua_checkleftindex(lua_State *L, int n)
+qlua_checkleftindex(lua_State *L, int n, int nc)
 {
-    return qlua_checkindex(L, n, "a", QDP_Nc);
+    return qlua_checkindex(L, n, "a", nc);
 }
 
 int
-qlua_rightindex(lua_State *L, int n)
+qlua_rightindex(lua_State *L, int n, int nc)
 {
-    return qlua_index(L, n, "b", QDP_Nc);
+    return qlua_index(L, n, "b", nc);
 }
 
 int
-qlua_checkrightindex(lua_State *L, int n)
+qlua_checkrightindex(lua_State *L, int n, int nc)
 {
-    return qlua_checkindex(L, n, "b", QDP_Nc);
+    return qlua_checkindex(L, n, "b", nc);
 }
 
 int
@@ -335,22 +437,32 @@ qlua_checkgammabinary(lua_State *L, int n)
     return qlua_checkindex(L, n, "n", 16);
 }
 
-static int
-qlua_type(lua_State *L, int idx, const char *mt)
+void *
+qlua_checkLatticeType(lua_State *L, int idx, QLUA_Type t_id,
+                      const char *name)
 {
-    int base = lua_gettop(L);
-    int v;
+    void *p = lua_touserdata(L, idx);
+    int p_id;
 
-    lua_getmetatable(L, idx);
-    luaL_getmetatable(L, mt);
-    v = lua_equal(L, -1, -2);
-    lua_settop(L, base);
+    if (p == NULL)
+        goto bad_value;
+    if (luaL_getmetafield(L, idx, a_type_key) == 0)
+        goto bad_value;
 
-    return v;
+    p_id = luaL_checkint(L, -1);
+    lua_pop(L, 1);
+
+    if (p_id != t_id)
+        goto bad_value;
+
+    return p;
+bad_value:
+    luaL_error(L, "expecting %s", name);
+    return NULL;
 }
 
-int
-qlua_gettype(lua_State *L, int idx)
+QLUA_Type
+qlua_qtype(lua_State *L, int idx)
 {
     luaL_checkany(L, idx);
     switch (lua_type(L, idx)) {
@@ -361,163 +473,265 @@ qlua_gettype(lua_State *L, int idx)
     case LUA_TTABLE:
         return qTable;
     case LUA_TUSERDATA: {
-        static const struct {
-            const char *name;
-            int ty;
-        } t[] = {
-            { mtnComplex,       qComplex },
-            { mtnGamma,         qGamma },
-            { mtnVecInt,        qVecInt },
-            { mtnVecReal,       qVecReal },
-            { mtnVecComplex,    qVecComplex },
-#ifdef HAS_GSL
-            { mtnMatReal,       qMatReal },
-            { mtnMatComplex,    qMatComplex },
-#endif
-            { mtnLatInt,        qLatInt },
-            { mtnLatReal,       qLatReal },
-            { mtnLatRandom,     qLatRandom },
-            { mtnLatComplex,    qLatComplex },
-            { mtnLatColVec,     qLatColVec },
-            { mtnLatColMat,     qLatColMat },
-            { mtnLatDirFerm,    qLatDirFerm },
-            { mtnLatDirProp,    qLatDirProp },
-            /* ZZZ other types */
-            { NULL,              qOther }
-        };
-        int i;
+        QLUA_Type tv = qOther;
 
-        for (i = 0; t[i].name; i++)
-            if (qlua_type(L, idx, t[i].name)) return t[i].ty;
-        return qOther;
+        lua_getmetatable(L, idx);
+        lua_pushstring(L, a_type_key);
+        lua_rawget(L, -2);
+        if (lua_isnumber(L, -1))
+            tv = luaL_checkint(L, -1);
+        lua_pop(L, 2);
+        return tv;
     }
     default:
         return qOther;
     }
 }
 
-/* generic operations dispatchers */
-#define Op1Idx(a)   (a)
-#define Op2Idx(a,b) ((a)*(qOther + 1) + (b))
+QLUA_Type
+qlua_atype(lua_State *L, int idx)
+{
+    QLUA_Type tv = qlua_qtype(L, idx);
 
-static q_op qt_add[(qOther + 1) * (qOther + 1)];
+    if (tv > qOther)
+        tv = qOther;
+
+    return tv;
+}
+
+QLUA_Ztype
+qlua_ztype(lua_State *L, int idx)
+{
+    switch (qlua_qtype(L, idx)) {
+    case qReal:     return zReal;
+    case qLatInt:   return zLatInt;
+    case qLatReal:  return zLatReal;
+    default:        return zNoType;
+    }
+}
+/* generic operations dispatchers */
+#define Op2Idx(a,b) ((a)*qArithTypeCount + (b))
+#define zOp2Idx(a,b) ((a)*zArithTypeCount + (b))
+
+q_op qlua_add_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_sub_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_mul_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_div_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_mod_table[qArithTypeCount * qArithTypeCount];
+q_op qlua_min_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_max_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_eq_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_ne_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_lt_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_le_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_gt_table[zArithTypeCount * zArithTypeCount];
+q_op qlua_ge_table[zArithTypeCount * zArithTypeCount];
 
 void
-qlua_reg_add(int ta, int tb, q_op op)
+qlua_reg_op2(const QLUA_Op2 *ops)
 {
-    qt_add[Op2Idx(ta, tb)] = op;
+    int i;
+
+    for (i = 0; ops[i].table; i++) {
+        assert(ops[i].ta < qOther);
+        assert(ops[i].tb < qOther);
+        ops[i].table[Op2Idx(ops[i].ta, ops[i].tb)] = ops[i].op;
+    }
+}
+
+void
+qlua_reg_zop2(const QLUA_ZOp2 *ops)
+{
+    int i;
+
+    for (i = 0; ops[i].table; i++) {
+        ops[i].table[zOp2Idx(ops[i].ta, ops[i].tb)] = ops[i].op;
+    }
 }
 
 int 
 qlua_add(lua_State *L)
 {
-    q_op op = qt_add[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+    int idx = Op2Idx(qlua_atype(L, 1), qlua_atype(L, 2));
 
-    if (op)
-        return op(L);
+    if (qlua_add_table[idx])
+        return qlua_add_table[idx](L);
     else
         return luaL_error(L, "bad argument for addition");
-}
-
-static q_op qt_sub[(qOther + 1) * (qOther + 1)];
-
-void
-qlua_reg_sub(int ta, int tb, q_op op)
-{
-    qt_sub[Op2Idx(ta, tb)] = op;
 }
 
 int 
 qlua_sub(lua_State *L)
 {
-    q_op op = qt_sub[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+    int idx = Op2Idx(qlua_atype(L, 1), qlua_atype(L, 2));
 
-    if (op)
-        return op(L);
+    if (qlua_sub_table[idx])
+        return qlua_sub_table[idx](L);
     else
         return luaL_error(L, "bad argument for subtraction");
-}
-
-static q_op qt_mul[(qOther + 1) * (qOther + 1)];
-
-void
-qlua_reg_mul(int ta, int tb, q_op op)
-{
-    qt_mul[Op2Idx(ta, tb)] = op;
 }
 
 int 
 qlua_mul(lua_State *L)
 {
-    q_op op = qt_mul[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
-
-    if (op)
-        return op(L);
+    int idx = Op2Idx(qlua_atype(L, 1), qlua_atype(L, 2));
+    
+    if (qlua_mul_table[idx])
+        return qlua_mul_table[idx](L);
     else
         return luaL_error(L, "bad argument for multiplication");
-}
-
-static q_op qt_div[(qOther + 1) * (qOther + 1)];
-
-void
-qlua_reg_div(int ta, int tb, q_op op)
-{
-    qt_div[Op2Idx(ta, tb)] = op;
 }
 
 int 
 qlua_div(lua_State *L)
 {
-    q_op op = qt_div[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+    int idx = Op2Idx(qlua_atype(L, 1), qlua_atype(L, 2));
 
-    if (op)
-        return op(L);
+    if (qlua_div_table[idx])
+        return qlua_div_table[idx](L);
     else
         return luaL_error(L, "bad argument for division");
-}
-
-static q_op qt_mod[(qOther + 1) * (qOther + 1)];
-
-void
-qlua_reg_mod(int ta, int tb, q_op op)
-{
-    qt_mod[Op2Idx(ta, tb)] = op;
 }
 
 int 
 qlua_mod(lua_State *L)
 {
-    q_op op = qt_mod[Op2Idx(qlua_gettype(L, 1), qlua_gettype(L, 2))];
+    int idx = Op2Idx(qlua_atype(L, 1), qlua_atype(L, 2));
 
-    if (op)
-        return op(L);
+    if (qlua_mod_table[idx])
+        return qlua_mod_table[idx](L);
     else
         return luaL_error(L, "bad argument for modulo");
 }
 
+#define Op1Idx(a)   (a)
 static q_op qt_dot[(qOther + 1)];
 
 void
-qlua_reg_dot(int ta, q_op op)
+qlua_reg_dot(QLUA_Type ta, q_op op)
 {
+    assert(ta < qOther);
+
     qt_dot[Op1Idx(ta)] = op;
 }
 
 static int 
 q_dot(lua_State *L)
 {
-    q_op op = qt_dot[Op1Idx(qlua_gettype(L, 1))];
-
-    if (op)
-        return op(L);
+    int idx = Op1Idx(qlua_atype(L, 1));
+    if (qt_dot[idx]) 
+        return qt_dot[idx](L);
     else
         return luaL_error(L, "bad argument for inner dot");
 }
 
+static int 
+q_min(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_min_table[idx])
+        return qlua_min_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <?");
+}
+
+static int 
+q_max(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_max_table[idx])
+        return qlua_max_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >?");
+}
+
+static int 
+q_eq(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_eq_table[idx])
+        return qlua_eq_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for ==");
+}
+
+static int 
+q_ne(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_ne_table[idx])
+        return qlua_ne_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for !=");
+}
+
+static int 
+q_lt(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_lt_table[idx])
+        return qlua_lt_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <");
+}
+
+static int 
+q_le(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_le_table[idx])
+        return qlua_le_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for <=");
+}
+
+static int 
+q_gt(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_gt_table[idx])
+        return qlua_gt_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >");
+}
+
+static int 
+q_ge(lua_State *L)
+{
+    int idx = zOp2Idx(qlua_ztype(L, 1), qlua_ztype(L, 2));
+    
+    if (qlua_ge_table[idx])
+        return qlua_ge_table[idx](L);
+    else
+        return luaL_error(L, "bad argument for >=");
+}
+
 static struct luaL_Reg fQCD[] = {
-    { "dot",    q_dot}, /* local inner dot */
+    { "dot",    q_dot }, /* local inner dot */
+    { "min",    q_min }, /* local min */
+    { "max",    q_max }, /* local min */
+    { "ne",     q_ne  }, /* local  != */
+    { "eq",     q_eq  }, /* local  == */
+    { "lt",     q_lt  }, /* local  <  */
+    { "le",     q_le  }, /* local  <= */
+    { "gt",     q_gt  }, /* local  >  */
+    { "ge",     q_ge  }, /* local  >= */
     { NULL,     NULL}
 };
+
+/* gemeric error report on illegal write operations */
+int
+qlua_nowrite(lua_State *L)
+{
+    return luaL_error(L, "assignment is not permitted");
+}
 
 /* environment setup */
 static void
@@ -526,7 +740,6 @@ qlua_openlibs (lua_State *L) {
         {"", luaopen_base},
         {LUA_LOADLIBNAME, luaopen_package},
         {LUA_TABLIBNAME, luaopen_table},
-        /* {LUA_IOLIBNAME, luaopen_io}, */
         {LUA_OSLIBNAME, luaopen_os},
         {LUA_STRLIBNAME, luaopen_string},
         {LUA_MATHLIBNAME, luaopen_math},
@@ -548,30 +761,35 @@ qlua_init(lua_State *L, int argc, char *argv[])
     static const lua_CFunction qcd_inits[] = {
         init_qlua_io,
         init_complex,
-        init_gamma,
+        init_seqrandom,
+        init_seqcolvec,
+        init_seqcolmat,
+        init_seqdirferm,
+        init_seqdirprop,
+        init_xml,
         init_vector,
 #ifdef HAS_GSL
         init_matrix,
 #endif
         init_lattice,
         init_latint,
-        init_latrandom,
         init_latreal,
+        init_latrandom,
         init_latcomplex,
+        init_latsubset,
+        init_latmulti,
         init_latcolvec,
         init_latcolmat,
         init_latdirferm,
         init_latdirprop,
-        init_latsubset,
-        init_latmulti,
-        init_qdpc_io,
-        init_qdpcc_io,
-        init_ddpairs_io,
-        init_nersc_io,
-        init_xml,
+        init_gamma,
 #ifdef HAS_AFF
         init_aff_io,
 #endif
+        init_nersc_io,
+        init_qdpc_io,
+        init_ddpairs_io,
+        init_qdpcc_io,
 #ifdef HAS_CLOVER
         init_clover,
 #endif
@@ -588,14 +806,13 @@ qlua_init(lua_State *L, int argc, char *argv[])
 
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     qlua_openlibs(L);  /* open libraries */
+
     luaL_register(L, qcdlib, fQCD);
     for (i = 0; qcd_inits[i]; i++) {
         lua_pushcfunction(L, qcd_inits[i]);
         lua_call(L, 0, 0);
     }
     lua_getglobal(L, qcdlib);
-    lua_pushnumber(L, QDP_Nc);
-    lua_setfield(L, -2, "Nc");
     lua_pushnumber(L, QDP_Ns);
     lua_setfield(L, -2, "Ns");
     lua_newtable(L);
@@ -634,30 +851,35 @@ qlua_fini(lua_State *L)
 #ifdef HAS_CLOVER
         fini_clover,
 #endif
+        fini_qdpcc_io,
+        fini_ddpairs_io,
+        fini_qdpc_io,
+        fini_nersc_io,
 #ifdef HAS_AFF
         fini_aff_io,
 #endif
-        fini_xml,
-        fini_nersc_io,
-        fini_ddpairs_io,
-        fini_qdpcc_io,
-        fini_qdpc_io,
-        fini_latmulti,
-        fini_latsubset,
+        fini_gamma,
         fini_latdirprop,
         fini_latdirferm,
         fini_latcolmat,
         fini_latcolvec,
+        fini_latmulti,
+        fini_latsubset,
         fini_latcomplex,
-        fini_latreal,
         fini_latrandom,
+        fini_latreal,
         fini_latint,
         fini_lattice,
 #ifdef HAS_GSL
         fini_matrix,
 #endif
         fini_vector,
-        fini_gamma,
+        fini_xml,
+        fini_seqdirprop,
+        fini_seqdirferm,
+        fini_seqcolmat,
+        fini_seqcolvec,
+        fini_seqrandom,
         fini_complex,
         fini_qlua_io,
         NULL };
@@ -681,7 +903,11 @@ main(int argc, char *argv[])
         fprintf(stderr, "QDP initialization failed\n");
         return 1;
     }
-    qlua_primary_node = QMP_is_primary_node();
+    QDP_profcontrol(0);
+    double node = QDP_this_node;
+    QMP_min_double(&node);
+    qlua_master_node = node;
+
     L = lua_open();
     if (L == NULL) {
         message("can not create Lua state");
@@ -694,14 +920,34 @@ main(int argc, char *argv[])
         for (i = 0; versions[i].name; i++)
             message(" %10s: %s\n", versions[i].name, versions[i].value);
     } else {
-        for (i = 1; i < argc; i++) {
-            status = luaL_dofile(L, argv[i]);
-            report(L, argv[i], status);
-            if (status) {
-                QDP_abort(1);
-                break;
-            }
-        }
+
+      for (i = 1; i < argc; i++) {
+	if(strcmp(argv[i],"-e")==0) { // process command
+	  const char *chunk = argv[i] + 2;
+	  if (*chunk == '\0') {
+	    if(++i>=argc) {
+	      message("missing argument to -e");
+	      goto end;
+	    }
+	    chunk = argv[i];
+	  }
+	  lua_assert(chunk != NULL);
+	  status = luaL_dostring(L, chunk);
+	  report(L, "=(command line)", status);
+	  if (status) {
+	    QDP_abort(1);
+	    break;
+	  }
+	} else { // process file
+	  status = luaL_dofile(L, argv[i]);
+	  report(L, argv[i], status);
+	  if (status) {
+	    QDP_abort(1);
+	    break;
+	  }
+	}
+      }
+
     }
     qlua_fini(L);
     lua_close(L);

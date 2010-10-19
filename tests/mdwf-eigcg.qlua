@@ -1,0 +1,148 @@
+-- test of MDWF eigCG
+-- small field.
+require "stdlib"
+require "gauge"
+require "hex-smear"
+
+Lx = 8
+Lt = 16
+Ls = 8
+L           = qcd.lattice{Lx, Lx, Lx, Lt}
+seed        = 1984
+a5          = 1.0       -- Shamir parameter value
+M_5         = 1.8      -- chroma sign conventions differ from MDWF
+m_f         = -0.2     -- quark mass
+run_count   = 100
+eps1        = 1e-12
+eps         = 1e-18
+max_cg      = 50000
+vmax        = 200
+nev         =  5
+df_eps      = 1e-20
+umax        = 70
+
+Uscale      = 1.0       -- strength of the gauge field
+
+--   Uscale     0.000    0.010   0.100   1.000
+--                       hex2    hex2    hex2
+--   m_f        iters
+--    1.0         47        57      65      59
+--    0.5         60        77      89      76
+--    0.1         64        86     109     165
+--    0.0         65        94     112     239
+--   -0.1         65        95     112     402
+--   -0.11                                 429
+--   -0.15                                       (576)
+--   -0.2         65?       93     109     916
+--   -0.25                                1738
+--   -0.3                                 4447
+--   -0.5         65    
+--   -1.0         64    
+--   -2.0         82    
+--   -5.0        172    
+--    crit                              -0.3786
+
+-- get a unique number of each lattice site
+function rnd_init(x)
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  return L:RandomState(x, l_id)
+end
+
+S = rnd_init(seed)
+
+U = {}
+for i = 1, #L do
+   U[i] = toSUn(S:gaussian_ColorMatrix() * Uscale)
+end
+U = bmw_hex(U, 2)
+
+DW = qcd.MDWF.Shamir(U, {1, 1, 1, -1}, Ls, M_5, m_f, a5)
+
+-- 5d norm
+function mdwf_norm2(F)
+   local norm2 = 0;
+   local i;
+   for i = 1, #F do
+      norm2 = norm2 + F[i]:norm2()
+   end
+   return norm2
+end
+
+-- 5d diff
+function mdwf_sub(A, B)
+   local F = {};
+   local i;
+   for i = 1, #A do
+      F[i] = A[i] - B[i]
+   end
+   return F
+end
+
+-- random field
+function rnd_v(S)
+   local i;
+   local F = {}
+   for i = 1, Ls do
+      F[i] = S:gaussian_DiracFermion()
+   end
+   local z = 1 / math.sqrt(mdwf_norm2(F))
+   for i = 1, Ls do
+      F[i] = F[i] * z
+   end
+   return F
+end
+
+function zero_v()
+   local i;
+   local F = {}
+   for i = 1, Ls do
+      F[i] = L:DiracFermion()
+   end
+   return F
+end
+
+function std_CG(max_k, eps, chi, ident)
+   local solver = DW:solver(eps, max_k)
+   local psi, eps_out, iter_out = solver(chi, false, true)
+   printf("cg %s %5d %15.7e (end)\n", ident, iter_out, eps_out)
+   printf("cg true norm: %15.7e\n", mdwf_norm2(mdwf_sub(chi, DW:D(psi))))
+end
+
+function mixed_CG(max_k, eps, chi, ident)
+   local solver = DW:mixed_solver(eps1, max_k, eps, max_k)
+   local psi, eps_out, iter_out = solver(chi, false, true)
+   printf("mixed %s %5d %15.7e (end)\n", ident, iter_out, eps_out)
+   printf("mixed true norm: %15.7e\n", mdwf_norm2(mdwf_sub(chi, DW:D(psi))))
+end
+
+-- deflator is global
+Defl = DW:eig_deflator(vmax, nev, df_eps, umax)
+solver = Defl:mixed_solver(eps1, max_cg, eps, max_cg)
+
+function eig_CG(max_k, eps1, eps, chi, ident)
+   local psi, eps_out, iter_out = solver(chi, false, true)
+   printf("eigcg %s %5d %15.7e (end)\n", ident, iter_out, eps_out)
+   printf("eigcg %s true norm: %15.7e\n", ident, 
+          mdwf_norm2(mdwf_sub(chi, DW:D(psi))))
+end
+
+---- eig_CG test
+printf("MDWF Eig CG test, m_q = %.6f\n\n", m_f)
+--local rhs = rnd_v(S)
+--std_CG(max_cg, eps, rhs, "cg ref")
+--io.stdout:flush()
+--mixed_CG(max_cg, eps, rhs, "mix ref")
+--io.stdout:flush()
+
+for i = 0, run_count - 1 do
+   local rhs = rnd_v(S)
+   eig_CG(max_cg, eps1, eps, rhs, string.format("eig %d", i))
+   io.stdout:flush()
+end
+
+printf("DONE\n")

@@ -15,7 +15,7 @@ function calc_bb(
     csrc,               -- source coord: x,y,z,t
     tsnk, psnk,         -- sink timeslice, sink momentum
     t_axis,             -- axis; currently works for t_axis ==3
-    qlist,              -- list of insertion momenta {q}; each q be with #q = qcd.Nd
+    qlist,              -- list of insertion momenta {q}; each q be with #q = #L
     time_rev,           -- whether to reverse time (true for proton_negpar_3)
     bc_quark_t,         -- BC for quarks, only in t dir? FIXME need general?
     bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
@@ -104,7 +104,7 @@ function calc_bb(
     local s = string.format('l%d_', #lpath)
     local ltab = {'x', 'y', 'z', 't', 'X', 'Y', 'Z', 'T'}
     if time_rev then
-      ltab[1 + t_axis], ltab[1 + t_axis + qcd.Nd] = ltab[1 + t_axis + qcd.Nd], ltab[1 + t_axis]
+      ltab[1 + t_axis], ltab[1 + t_axis + #L] = ltab[1 + t_axis + #L], ltab[1 + t_axis]
     end
 --    printf('#lpath = %d\n', #lpath)
     for i = 0, #lpath - 1 do
@@ -180,14 +180,14 @@ function calc_bb(
     if lpath_max <= #lpath then return end
 
     local lpath_new = copy_table(lpath)
-    for dir = 0, qcd.Nd - 1 do
-      if (0 == #lpath) or not (dir + qcd.Nd == lpath[#lpath]) then
+    for dir = 0, #L - 1 do
+      if (0 == #lpath) or not (dir + #L == lpath[#lpath]) then
         lpath_new[#lpath + 1] = dir       -- forward direction
         local fw_p_new = (gauge_u[1+dir]:adjoin() * fw_p):shift(dir, "from_backward")
         search_linkpath_depthfirst(fw_p_new, lpath_new)
       end
       if (0 == #lpath) or not (dir == lpath[#lpath]) then
-        lpath_new[#lpath + 1] = dir + qcd.Nd  -- backward direction
+        lpath_new[#lpath + 1] = dir + #L  -- backward direction
         local fw_p_new = gauge_u[1+dir] * fw_p:shift(dir, "from_forward")
         search_linkpath_depthfirst(fw_p_new, lpath_new)
       end

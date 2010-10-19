@@ -1,499 +1,187 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "latcolvec.h"                                               /* DEPS */
+#include "seqcolvec.h"                                               /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
+#include "latmulti.h"                                                /* DEPS */
 #include "qmp.h"
+#include "qla.h"
 
-const char mtnLatColVec[] = "lattice.ColorVector";
-static const char opLatColVec[] = "lattice.ColorVector.ops";
+#if USE_Nc2
+#define QNc  '2'
+#define Qcolors "2"
+#define Qs(a)   a ## 2
+#define Qx(a,b)  a ## 2 ## b
+#define QC(x)    2
+#define QNC(x)
+#include "latcolvec-x.c"                                            /* DEPS */
+#endif
 
-mLatColVec *
-qlua_newLatColVec(lua_State *L)
-{
-    QDP_ColorVector *v = QDP_create_V();
-    mLatColVec *hdr;
+#if USE_Nc3
+#define QNc  '3'
+#define Qcolors "3"
+#define Qs(a)   a ## 3
+#define Qx(a,b)  a ## 3 ## b
+#define QC(x)    3
+#define QNC(x)
+#include "latcolvec-x.c"                                            /* DEPS */
+#endif
 
-    if (v == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        v = QDP_create_V();
-        if (v == 0)
-            luaL_error(L, "not enough memory (QDP_ColorVector)");
-    }
-    hdr = lua_newuserdata(L, sizeof (mLatColVec));
-    hdr->ptr = v;
-    luaL_getmetatable(L, mtnLatColVec);
-    lua_setmetatable(L, -2);
-
-    return hdr;
-}
-
-mLatColVec *
-qlua_checkLatColVec(lua_State *L, int idx)
-{
-    void *v = luaL_checkudata(L, idx, mtnLatColVec);
-    
-    luaL_argcheck(L, v != 0, idx, "lattice.ColorVector expected");
-    
-    return v;
-}
+#if USE_NcN
+#define QNc  'N'
+#define Qcolors "N"
+#define Qs(a)   a ## N
+#define Qx(a,b)  a ## N ## b
+#define QC(x)    (x)->nc
+#define QNC(x)   (x), 
+#include "latcolvec-x.c"                                            /* DEPS */
+#endif
 
 static int
-q_V_fmt(lua_State *L)
+do_gaussian(lua_State *L, mLatRandom *a, mLattice *S, int nc)
 {
-    char fmt[72];
-    mLatColVec *b = qlua_checkLatColVec(L, 1);
-
-    sprintf(fmt, "QDP:ColorVector(%p)", b->ptr);
-    lua_pushstring(L, fmt);
-
-    return 1;
-}
-
-static int
-q_V_gc(lua_State *L)
-{
-    mLatColVec *b = qlua_checkLatColVec(L, 1);
-
-    QDP_destroy_V(b->ptr);
-    b->ptr = 0;
-
-    return 0;
-}
-
-static int
-q_V_get(lua_State *L)
-{
-    switch (qlua_gettype(L, 2)) {
-    case qTable: {
-        mLatColVec *V = qlua_checkLatColVec(L, 1);
-        int c = qlua_checkcolorindex(L, 2);
-        int *idx = qlua_latcoord(L, 2);
-
-        if (idx == NULL) {
-            mLatComplex *r = qlua_newLatComplex(L);
-
-            CALL_QDP(L);
-            QDP_C_eq_elem_V(r->ptr, V->ptr, c, *qCurrent);
-        } else {
-            QLA_Complex *W = qlua_newComplex(L);
-            QLA_ColorVector *locked;
-            double zri[2];
-
-            qlua_verifylatcoord(L, idx);
-            CALL_QDP(L);
-            locked = QDP_expose_V(V->ptr);
-            if (QDP_node_number(idx) == QDP_this_node) {
-                QLA_Complex *zz = &QLA_elem_V(locked[QDP_index(idx)], c);
-                zri[0] = QLA_real(*zz);
-                zri[1] = QLA_imag(*zz);
-            } else {
-                zri[0] = 0;
-                zri[1] = 0;
-            }
-            QDP_reset_V(V->ptr);
-            QMP_sum_double_array(zri, 2);
-            QLA_c_eq_r_plus_ir(*W, zri[0], zri[1]);
-        }
-        qlua_free(L, idx);
+    switch (nc) {
+#if USE_Nc2
+    case 2: {
+        mLatColVec2 *r = qlua_newLatColVec2(L, lua_gettop(L), 2);
+        CALL_QDP(L);
+        QDP_D2_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
         return 1;
     }
-    case qString:
-        return qlua_lookup(L, 2, opLatColVec);
-    }
-    return qlua_badindex(L, "ColorVector");
-}
-
-static int
-q_V_put(lua_State *L)
-{
-    mLatColVec *V = qlua_checkLatColVec(L, 1);
-    int c = qlua_checkcolorindex(L, 2);
-    int *idx = qlua_latcoord(L, 2);
-
-    if (idx == NULL) {
-        mLatComplex *z = qlua_checkLatComplex(L, 3);
-        
+#endif
+#if USE_Nc3
+    case 3: {
+        mLatColVec3 *r = qlua_newLatColVec3(L, lua_gettop(L), 3);
         CALL_QDP(L);
-        QDP_V_eq_elem_C(V->ptr, z->ptr, c, *qCurrent);
-    } else {
-        QLA_Complex *z = qlua_checkComplex(L, 3);
-        qlua_verifylatcoord(L, idx);
-        if (QDP_node_number(idx) == QDP_this_node) {
-            QLA_ColorVector *locked;
-            QLA_Complex *zz;
-            CALL_QDP(L);
-            locked = QDP_expose_V(V->ptr);
-            zz = &QLA_elem_V(locked[QDP_index(idx)], c);
-            QLA_c_eq_c(*zz, *z);
-            QDP_reset_V(V->ptr);
-        }
+        QDP_D3_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
+        return 1;
     }
-    qlua_free(L, idx);
-    return 0;
+#endif
+#if USE_NcN
+    default: {
+        mLatColVecN *r = qlua_newLatColVecN(L, lua_gettop(L), nc);
+        CALL_QDP(L);
+        QDP_DN_V_eq_gaussian_S(r->ptr, a->ptr, *S->qss);
+        return 1;
+    }
+#else
+    default:
+        return luaL_error(L, "Bad number of colors in gaussian");
+#endif
+    }
 }
 
-static int
-q_V_dot(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatComplex *s = qlua_newLatComplex(L);
-
-    CALL_QDP(L);
-    QDP_C_eq_V_dot_V(s->ptr, a->ptr, b->ptr, *qCurrent);
-
-    return 1;
-}
-
+/* Random vectors of default colors
+ * S:gaussian_ColorVector()
+ */
 int
 q_V_gaussian(lua_State *L)
 {
-    mLatRandom *a = qlua_checkLatRandom(L, 1);
-    mLatColVec *r = qlua_newLatColVec(L);
+    mLatRandom *a = qlua_checkLatRandom(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
 
-    CALL_QDP(L);
-    QDP_V_eq_gaussian_S(r->ptr, a->ptr, *qCurrent);
-
-    return 1;
+    return do_gaussian(L, a, S, S->nc);
 }
 
-
-static int
-q_V_add_V(lua_State *L)
+/* Random vectors of NC colors
+ * S:gaussian_ColorVectorN(nc)
+ */
+int
+q_V_gaussian_N(lua_State *L)
 {
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
+    mLatRandom *a = qlua_checkLatRandom(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    int nc = luaL_checkint(L, 2);
 
-    CALL_QDP(L);
-    QDP_V_eq_V_plus_V(c->ptr, a->ptr, b->ptr, *qCurrent);
+    if (nc < 2)
+        return luaL_error(L, "bad number of colors");
 
-    return 1;
+    return do_gaussian(L, a, S, nc);
 }
 
-static int
-q_V_sub_V(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_V_minus_V(c->ptr, a->ptr, b->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_mul_r(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QLA_Real b = luaL_checknumber(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_r_times_V(c->ptr, &b, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_r_mul_V(lua_State *L)
-{
-    QLA_Real a = luaL_checknumber(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_r_times_V(c->ptr, &a, b->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_mul_c(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_c_times_V(c->ptr, b, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_c_mul_V(lua_State *L)
-{
-    QLA_Complex *a = qlua_checkComplex(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_c_times_V(c->ptr, a, b->ptr, *qCurrent);
-
-    return 1;
-}
-
-static struct {
-    QLA_Real *a;
-    QLA_ColorVector *b;
-} RVmul_args; /* YYY global state */
-
-static void
-do_RVmul(QLA_ColorVector *r, int idx)
-{
-    QLA_V_eq_r_times_V(r, &RVmul_args.a[idx], &RVmul_args.b[idx]);
-}
-
-static void
-X_V_eq_R_times_V(QDP_ColorVector *r, QDP_Real *a, QDP_ColorVector *b,
-                 QDP_Subset s)
-{
-    RVmul_args.a = QDP_expose_R(a);
-    RVmul_args.b = QDP_expose_V(b);
-    QDP_V_eq_funci(r, do_RVmul, s);
-    QDP_reset_R(a);
-    QDP_reset_V(b);
-    RVmul_args.a = 0;
-    RVmul_args.b = 0;
-}
-
-static int
-q_R_mul_V(lua_State *L)
-{
-    mLatReal *a = qlua_checkLatReal(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    X_V_eq_R_times_V(r->ptr, a->ptr, b->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_mul_R(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatReal *b = qlua_checkLatReal(L, 2);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    X_V_eq_R_times_V(r->ptr, b->ptr, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static struct {
-    QLA_Complex *a;
-    QLA_ColorVector *b;
-} CVmul_args; /* YYY global state */
-
-static void
-do_CVmul(QLA_ColorVector *r, int idx)
-{
-    QLA_V_eq_c_times_V(r, &CVmul_args.a[idx], &CVmul_args.b[idx]);
-}
-
-static void
-X_V_eq_C_times_V(QDP_ColorVector *r, QDP_Complex *a, QDP_ColorVector *b,
-                 QDP_Subset s)
-{
-    CVmul_args.a = QDP_expose_C(a);
-    CVmul_args.b = QDP_expose_V(b);
-    QDP_V_eq_funci(r, do_CVmul, s);
-    QDP_reset_C(a);
-    QDP_reset_V(b);
-    CVmul_args.a = 0;
-    CVmul_args.b = 0;
-}
-
-static int
-q_C_mul_V(lua_State *L)
-{
-    mLatComplex *a = qlua_checkLatComplex(L, 1);
-    mLatColVec *b = qlua_checkLatColVec(L, 2);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    X_V_eq_C_times_V(r->ptr, a->ptr, b->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_mul_C(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatComplex *b = qlua_checkLatComplex(L, 2);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    X_V_eq_C_times_V(r->ptr, b->ptr, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_norm2(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QLA_Real n;
-
-    CALL_QDP(L);
-    QDP_r_eq_norm2_V(&n, a->ptr, *qCurrent);
-    lua_pushnumber(L, n);
-    
-    return 1;
-}
-
-static int
-q_V_shift(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QDP_Shift shift = qlua_checkShift(L, 2);
-    QDP_ShiftDir dir = qlua_checkShiftDir(L, 3);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_sV(r->ptr, a->ptr, shift, dir, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_conj(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatColVec *r = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_conj_V(r->ptr, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_set(lua_State *L)
-{
-    mLatColVec *r = qlua_checkLatColVec(L, 1);
-    mLatColVec *a = qlua_checkLatColVec(L, 2);
-
-    CALL_QDP(L);
-    QDP_V_eq_V(r->ptr, a->ptr, *qCurrent);
-    lua_pop(L, 1);
-
-    return 1;
-}
-
-static int
-q_V_neg(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    mLatColVec *r = qlua_newLatColVec(L);
-    QLA_Real m1 = -1;
-
-    CALL_QDP(L);
-    QDP_V_eq_r_times_V(r->ptr, &m1, a->ptr, *qCurrent);
-
-    return 1;
-}
-static int
-q_V_div_r(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QLA_Real b = 1 / luaL_checknumber(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-
-    CALL_QDP(L);
-    QDP_V_eq_r_times_V(c->ptr, &b, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-static int
-q_V_div_c(lua_State *L)
-{
-    mLatColVec *a = qlua_checkLatColVec(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
-    mLatColVec *c = qlua_newLatColVec(L);
-    double n = 1 / (QLA_real(*b) * QLA_real(*b) + QLA_imag(*b) * QLA_imag(*b));
-    QLA_Complex s;
-
-    CALL_QDP(L);
-    QLA_real(s) = n * QLA_real(*b);
-    QLA_imag(s) = -n * QLA_imag(*b);
-    QDP_V_eq_c_times_V(c->ptr, &s, a->ptr, *qCurrent);
-
-    return 1;
-}
-
-
+/* Lattice color vectors:
+ *  L:ColorVector()    -- zero vector in default colors
+ *  L:ColorVector(v)   -- constant vector fill
+ *  L:ColorVector(V)   -- lattice vector copy
+ *  L:ColorVector(C,m) -- default colors, X[m] = C
+ */
 static int
 q_latcolvec(lua_State *L)
 {
-    switch (lua_gettop(L)) {
-    case 1: {
-        mLatColVec *v = qlua_newLatColVec(L);
+    mLattice *S = qlua_checkLattice(L, 1);
 
-        CALL_QDP(L);
-        QDP_V_eq_zero(v->ptr, *qCurrent);
+    if (lua_gettop(L) == 2) {
+        switch (qlua_qtype(L, 2)) {
+#if USE_Nc2
+        case qSeqColVec2: return q_latcolvec_seq_2(L, S, 2);
+#endif      
+#if USE_Nc3
+        case qSeqColVec3: return q_latcolvec_seq_3(L, S, 3);
+#endif      
+#if USE_NcN
+        case qSeqColVecN: {
+            mSeqColVecN *v = qlua_checkSeqColVecN(L, 2, -1);
+            return q_latcolvec_seq_N(L, S, v->nc);
+        }
+#endif   
+        default:
+            break;
+        }
+    }
 
-        return 1;
+    switch (S->nc) {
+#if USE_Nc2
+    case 2: return q_latcolvec_2(L, S, 2, 0);
+#endif
+#if USE_Nc3
+    case 3: return q_latcolvec_3(L, S, 3, 0);
+#endif
+#if USE_NcN
+    default: return q_latcolvec_N(L, S, S->nc, 0);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
     }
-    case 2: {
-        mLatColVec *a = qlua_checkLatColVec(L, 2);
-        mLatColVec *r = qlua_newLatColVec(L);
-        
-        CALL_QDP(L);
-        QDP_V_eq_V(r->ptr, a->ptr, *qCurrent);
-        
-        return 1;
-    }
-    case 3: {
-        mLatComplex *c = qlua_checkLatComplex(L, 2);
-        int a = qlua_checkcolorindex(L, 3);
-        mLatColVec *r = qlua_newLatColVec(L);
-
-        CALL_QDP(L);
-        QDP_V_eq_elem_C(r->ptr, c->ptr, a, *qCurrent);
-
-        return 1;
-    }
-    }
-    return qlua_badconstr(L, "ColorVector");
 }
 
-static struct luaL_Reg LatColVecMethods[] = {
-    { "norm2",      q_V_norm2 },
-    { "shift",      q_V_shift },
-    { "conj",       q_V_conj },
-    { "set",        q_V_set },
-    { NULL,         NULL }
-};
+/* Lattice color vectors:
+ *  L:ColorVectorN(n) -- zero vector in n colors
+ *  L:ColorVectorN(n,C,m) -- n colors, X[m] = C
+ */
+static int
+q_latcolvecN(lua_State *L)
+{
+#if USE_Nc2 || USE_Nc3 || USE_NcN
+    mLattice *S = qlua_checkLattice(L, 1);
+#else
+    qlua_checkLattice(L, 1);
+#endif
+    int nc = luaL_checkint(L, 2);
 
-static struct luaL_Reg mtLatColVec[] = {
-    { "__tostring",        q_V_fmt },
-    { "__gc",              q_V_gc },
-    { "__index",           q_V_get },
-    { "__newindex",        q_V_put },
-    { "__unm",             q_V_neg },
-    { "__add",             qlua_add },
-    { "__sub",             qlua_sub },
-    { "__mul",             qlua_mul },
-    { "__div",             qlua_div },
-    { NULL,                NULL }
-};
+    switch (nc) {
+#if USE_Nc2
+    case 2: return q_latcolvec_2(L, S, 2, 1);
+#endif
+#if USE_Nc3
+    case 3: return q_latcolvec_3(L, S, 3, 1);
+#endif
+#if USE_NcN
+    default: return q_latcolvec_N(L, S, nc, 1);
+#else
+    default: return luaL_error(L, "bad number of colors");
+#endif
+    }
+}
 
 static struct luaL_Reg fLatColVec[] = {
-    { "ColorVector",       q_latcolvec },
-    { NULL,                NULL }
+    { "ColorVector",       q_latcolvec   },
+    { "ColorVectorN",      q_latcolvecN  },
+    { NULL,                NULL          }
 };
 
 int
@@ -502,21 +190,18 @@ init_latcolvec(lua_State *L)
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatColVec);
     lua_pop(L, 1);
-    qlua_metatable(L, mtnLatColVec, mtLatColVec);
-    qlua_metatable(L, opLatColVec, LatColVecMethods);
-    qlua_reg_add(qLatColVec,  qLatColVec,  q_V_add_V);
-    qlua_reg_sub(qLatColVec,  qLatColVec,  q_V_sub_V);
-    qlua_reg_mul(qReal,       qLatColVec,  q_r_mul_V);
-    qlua_reg_mul(qLatColVec,  qReal,       q_V_mul_r);
-    qlua_reg_mul(qComplex,    qLatColVec,  q_c_mul_V);
-    qlua_reg_mul(qLatColVec,  qComplex,    q_V_mul_c);
-    qlua_reg_mul(qLatReal,    qLatColVec,  q_R_mul_V);
-    qlua_reg_mul(qLatColVec,  qLatReal,    q_V_mul_R);
-    qlua_reg_mul(qLatComplex, qLatColVec,  q_C_mul_V);
-    qlua_reg_mul(qLatColVec,  qLatComplex, q_V_mul_C);
-    qlua_reg_div(qLatColVec,  qReal,       q_V_div_r);
-    qlua_reg_div(qLatColVec,  qComplex,    q_V_div_c);
-    qlua_reg_dot(qLatColVec,  q_V_dot);
+#if USE_Nc2
+    qlua_reg_op2(ops2);
+    qlua_reg_dot(qLatColVec2,  q_V_dot_2);
+#endif
+#if USE_Nc3
+    qlua_reg_op2(ops3);
+    qlua_reg_dot(qLatColVec3,  q_V_dot_3);
+#endif
+#if USE_NcN
+    qlua_reg_op2(opsN);
+    qlua_reg_dot(qLatColVecN,  q_V_dot_N);
+#endif
 
     return 0;
 }

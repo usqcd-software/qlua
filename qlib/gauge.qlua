@@ -3,7 +3,7 @@ require("stdlib")
 -- naive topological charge density
 
 function naive_q(U)
-  assert(qcd.Nd == 4, "only 4-d lattice is supported")
+  assert(#U == 4, "only 4-d lattice is supported")
   local function clovF(i,j)
     local Ujp = U[j]:shift(i - 1, "from_forward")
     local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
@@ -18,23 +18,23 @@ function naive_q(U)
               (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward")
     return (F - F:adjoin()) / complex(0,8)
   end
-  return 8 / qcd.Nc * (clovF(1,2) * clovF(3,4) +
-                       clovF(1,3) * clovF(4,2) +
-                       clovF(1,4) * clovF(2,3)):trace():real()
+  return 8 / U[1]:colors() * (clovF(1,2) * clovF(3,4) +
+                              clovF(1,3) * clovF(4,2) +
+                              clovF(1,4) * clovF(2,3)):trace():real()
 end
 
 -- project a matrix to SU(n)
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
+function toSUn(X)
+   local ScaledOne = X.lattice:ColorMatrix(complex(1.0/X:colors(), 0))
+   local ahX = (X - X:adjoin()) / 2
+   local algX = ahX - ScaledOne * ahX:trace()
+   return algX:exp()
 end
 
 -- gauge transformations
 function gauge_transform_U(g, U)
    local V = {}
-   for i = 1, qcd.Nd do
+   for i = 1, #U do
       V[i] = g * U[i] * g:shift(i - 1, "from_forward"):adjoin()
    end
    return V

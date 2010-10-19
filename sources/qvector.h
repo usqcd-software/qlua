@@ -3,7 +3,7 @@
 
 typedef struct {
     int size;
-    QLA_Int val[1];
+    int val[1];
 } mVecInt;
 
 typedef struct {

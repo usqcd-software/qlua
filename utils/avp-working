@@ -2,22 +2,19 @@
 PACKTOP=/Users/avp/Local/packages
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-0.13.0-a
+TARGET=$PACKTOP/qlua-1-xxx
 
-LD="gcc -g" \
-./configure \
-   --prefix=$TARGET \
+CC="gcc -g -std=c99 -m32 -DQD_Nc=3"           \
+./configure                                   \
+   --with-qdp=$PACKTOP/qdp-1.9.0-a6           \
+   --with-lua=$PACKTOP/lua-5.1.4              \
+   --with-gsl=$PACKTOP/gsl-1.13-qr-complex    \
+   --with-atlas=$PACKTOP/atlas-3.9.23         \
+   --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0    \
+   --with-clover=/Users/avp/Sandbox/USQCD/clover/install-new-1 \
+   --with-mdwf=/Users/avp/Sandbox/USQCD/mdwf/install-new-1 \
+   --without-nc=any \
+   --with-nc=3 \
    --with-extras \
-   --with-lua=$PACKTOP/lua-5.1.4 \
-   --with-qdp=$PACKTOP/qdp-1.8.1.memleak \
-   --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
-   --with-clover=/Users/avp/Sandbox/USQCD/clover/install-x \
-   --with-gsl=$PACKTOP/gsl-1.13-qr-complex \
-   --with-atlas=$PACKTOP/atlas-3.9.23 \
-   --with-extras
-
-
-#   --with-clover=/Users/avp/Sandbox/USQCD/clover/install \
-#   --with-clover=$PACKTOP/clover-1.1.0 \
-# \
-#   --with-mdwf=$PACKTOP/mdwf-1.2.0-rc2
+   --prefix=$TARGET \
+   $*

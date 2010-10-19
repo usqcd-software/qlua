@@ -1,14 +1,20 @@
-Ticket #14: aff:building_blocks(Cf, p*, prefix, multiset)
-              p[i] = {L:complex phase, p[0], p[1], ..., p[#L-1]}
+* Multiple Lattices
+-- send and receive operations
 
--- QDP/C QIO: writing sections of the fields -- extend the interface.
+* Multi and part files for qdpcc and ddpairs
 
-MDWF
-  operator
-  conjugate operator
-  solvers
+? Extend QDP I/O interface to handle both double and single preicision
+? Extend QDP/C I/O to handle sections:
 
-Documentation
-+  Examples in the distribution tree  -- started
-+  User guide - started in wiki
-  Programming guide
+    W:ColorVector(V, "foo", {0,1,2,3}, {5,6,4,L[3]-1})
+
+  while keeping
+
+    W:ColorVector(V, "foo")
+
+  equivalent to
+
+    W:ColorVector(V, "foo", {0,...}, {L[0] - 1, ...})
+
+   This will allow implemnting DD pairs writer in the QLUA space.
+   (with a lot copying though.)

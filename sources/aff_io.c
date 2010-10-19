@@ -22,7 +22,7 @@ check_reader(lua_State *L, mAffReader *r)
 static void
 check_writer(lua_State *L, mAffWriter *r)
 {
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         if (r->ptr == 0)
             luaL_error(L, "closed aff writer");
     }
@@ -98,7 +98,7 @@ qlua_newAffWriter(lua_State *L, struct AffWriter_s *writer)
 {
     mAffWriter *h = lua_newuserdata(L, sizeof (mAffWriter));
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         h->master = 1;
         h->ptr = writer;
         h->dir = aff_writer_root(writer);
@@ -357,22 +357,19 @@ qaff_r_read(lua_State *L)
         qlua_Aff_leave();
         return 1;
     case affNodeChar: {
-        char *d = qlua_malloc(L, size + 1);
+        char d[size + 1];
 
         if (aff_node_get_char(b->ptr, n, d, size) == 0) {
             d[size] = 0;
             lua_pushstring(L, d);
-            qlua_free(L, d);
             qlua_Aff_leave();
 
             return 1;
-        } else {
-            qlua_free(L, d);
         }
         break;
     }
     case affNodeInt: {
-        uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
+        uint32_t d[size];
 
         if (aff_node_get_int(b->ptr, n, d, size) == 0) {
             mVecInt *v = qlua_newVecInt(L, size);
@@ -380,18 +377,14 @@ qaff_r_read(lua_State *L)
 
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
-
-            qlua_free(L, d);
             qlua_Aff_leave();
 
             return 1;
-        } else {
-            qlua_free(L, d);
         }
         break;
     }
     case affNodeDouble: {
-        double *d = qlua_malloc(L, size * sizeof (double));
+        double d[size];
 
         if (aff_node_get_double(b->ptr, n, d, size) == 0) {
             mVecReal *v = qlua_newVecReal(L, size);
@@ -399,18 +392,14 @@ qaff_r_read(lua_State *L)
 
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
-
-            qlua_free(L, d);
             qlua_Aff_leave();
 
             return 1;
-        } else {
-            qlua_free(L, d);
         }
         break;
     }
     case affNodeComplex: {
-        double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
+        double _Complex d[size];
 
         if (aff_node_get_complex(b->ptr, n, d, size) == 0) {
             mVecComplex *v = qlua_newVecComplex(L, size);
@@ -420,13 +409,9 @@ qaff_r_read(lua_State *L)
                 QLA_real(v->val[i]) = creal(d[i]);
                 QLA_imag(v->val[i]) = cimag(d[i]);
             }
-
-            qlua_free(L, d);
             qlua_Aff_leave();
 
             return 1;
-        } else {
-            qlua_free(L, d);
         }
         break;
     }
@@ -463,7 +448,7 @@ qaff_w_write(lua_State *L)
         }
 
         msg = "Write error";
-        switch (qlua_gettype(L, 3)) {
+        switch (qlua_qtype(L, 3)) {
         case qString: {
             const char *str = luaL_checkstring(L, 3);
             
@@ -475,16 +460,13 @@ qaff_w_write(lua_State *L)
         case qVecInt: {
             mVecInt *v = qlua_checkVecInt(L, 3);
             int size = v->size;
-            uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
+            uint32_t d[size];
             int i;
 
             for (i = 0; i < size; i++)
                 d[i] = v->val[i];
-
             if (aff_node_put_int(b->ptr, n, d, size) == 0)
                 status = 1;
-            
-            qlua_free(L, d);
 
             break;
 
@@ -492,33 +474,27 @@ qaff_w_write(lua_State *L)
         case qVecReal: {
             mVecReal *v = qlua_checkVecReal(L, 3);
             int size = v->size;
-            double *d = qlua_malloc(L, size * sizeof (double));
+            double d[size];
             int i;
 
             for (i = 0; i < size; i++)
                 d[i] = v->val[i];
-
             if (aff_node_put_double(b->ptr, n, d, size) == 0)
                 status = 1;
-
-            qlua_free(L, d);
 
             break;
         }
         case qVecComplex: {
             mVecComplex *v = qlua_checkVecComplex(L, 3);
             int size = v->size;
-            double _Complex *d = qlua_malloc(L, size*sizeof (double _Complex));
+            double _Complex d[size];
             int i;
 
             for (i = 0; i < size; i++) {
                 d[i] = QLA_real(v->val[i]) + I * QLA_imag(v->val[i]);
             }
-
             if (aff_node_put_complex(b->ptr, n, d, size) == 0)
                 status = 1;
-
-            qlua_free(L, d);
 
             break;
         }
@@ -654,7 +630,7 @@ q_aff_writer(lua_State *L)
     int status;
 
     qlua_Aff_enter(L);
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         w = aff_writer(name);
         msg = aff_writer_errstr(w);
         if (msg == NULL) {
@@ -702,10 +678,7 @@ static const struct luaL_Reg mtWriter[] = {
 };
 
 /* names and routines for qcd.qdpc table */
-static const struct {
-    char *name;
-    int (*func)(lua_State *L);
-} fAFFio[] = {
+static const struct luaL_Reg fAFFio[] = {
     { "Reader",   q_aff_reader},
     { "Writer",   q_aff_writer},
     { NULL,       NULL }
@@ -714,17 +687,13 @@ static const struct {
 int
 init_aff_io(lua_State *L)
 {
-    int i;
-
     lua_getglobal(L, qcdlib);
     lua_newtable(L);
-    for (i = 0; fAFFio[i].name; i++) {
-        lua_pushcfunction(L, fAFFio[i].func);
-        lua_setfield(L, -2, fAFFio[i].name);
-    }
+    luaL_register(L, NULL, fAFFio);
     lua_setfield(L, -2, aff_io);
-    qlua_metatable(L, mtnReader, mtReader);
-    qlua_metatable(L, mtnWriter, mtWriter);
+    lua_pop(L, 1);
+    qlua_metatable(L, mtnReader, mtReader, qAffReader);
+    qlua_metatable(L, mtnWriter, mtWriter, qAffWriter);
     
     return 0;
 }

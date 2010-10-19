@@ -7,8 +7,8 @@ c = x:cos()
 s = x:sin()
 
 z = LAT:Complex(0)
-LAT.even:where(function () z:set(LAT:Complex(-1) * x) end)
-LAT.odd:where(function () z:set(LAT:Complex(1)) end)
+LAT:Subset("even"):where(function () z:set(LAT:Complex(-1) * x) end)
+LAT:Subset("odd"):where(function () z:set(LAT:Complex(1)) end)
 
 q = LAT:Complex(c) * s
 

@@ -1,6 +1,6 @@
+#include "modules.h"
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
-#include "modules.h"
 #include "qmp.h"
 #include <string.h>
 #include <sys/time.h>
@@ -129,7 +129,7 @@ qf_write(lua_State *L)
 {
     int status;
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         mFile *v = qlua_checkFile(L, 1);
         const char *s= luaL_checkstring(L, 2);
         int n = strlen(s);
@@ -143,10 +143,8 @@ qf_write(lua_State *L)
             return luaL_error(L, "bad kind of file in write (%d)", v->kind);
         }
         status = fwrite(s, n, 1, f) == 1;
-    } else {
-        status = 0;
     }
-    QMP_sum_int(&status);
+    XMP_dist_int_array(qlua_master_node, 1, &status);
 
     if (status == 0)
         return luaL_error(L, "write failed");
@@ -230,7 +228,7 @@ q_file(lua_State *L)
     mFile *f = qlua_newFile(L);
     int v;
 
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         const char *n = luaL_checkstring(L, 1);
         const char *m = luaL_checkstring(L, 2);
         f->file = fopen(n, m);
@@ -240,9 +238,8 @@ q_file(lua_State *L)
     } else {
         f->file = (FILE *)1;
         f->kind = qf_dummy;
-        v = 0;
     }
-    QMP_sum_int(&v);
+    XMP_dist_int_array(qlua_master_node, 1, &v);
 
     if (v == 0)
         return luaL_error(L, "file open failed");
@@ -295,13 +292,11 @@ qlua_timeofday(lua_State *L)
     struct timeval t;
     double v;
     
-    if (qlua_primary_node) {
+    if (QDP_this_node == qlua_master_node) {
         gettimeofday(&t, NULL);
         v = t.tv_sec + 1e-6 * t.tv_usec;
-    } else {
-        v = 0;
     }
-    QMP_sum_double(&v);
+    XMP_dist_double_array(qlua_master_node, 1, &v);
     lua_pushnumber(L, v);
 
     return 1;
@@ -322,12 +317,34 @@ qlua_random(lua_State *L)
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
+    { "__newindex", qlua_nowrite },
     { "close",      qf_close },
     { "write",      qf_write },
     { "lines",      qf_lines },
     { "flush",      qf_flush },
     { NULL,         NULL}
 };
+
+static int
+qlua_getmetatable(lua_State *L)
+{
+    if (lua_type(L, 1) != LUA_TUSERDATA)
+        return lua_getmetatable(L, 1);
+#if 0 /* ??? should work, but does not ... */
+    lua_createtable(L, 0, 0); /* proxy */
+    lua_createtable(L, 0, 3); /* proxy metatable */
+    lua_pushcfunction(L, qlua_nowrite);
+    lua_setfield(L, -2, "__newindex");
+    lua_pushvalue(L, -3);
+    lua_setfield(L, -2, "__index");
+    lua_pushvalue(L, -1);
+    lua_setfield(L, -2, "__metatable");
+    lua_pushvalue(L, -1);
+    lua_setmetatable(L, -2);
+    lua_setmetatable(L, -2);
+#endif
+    return 1;
+}
 
 int
 init_qlua_io(lua_State *L)
@@ -346,7 +363,7 @@ init_qlua_io(lua_State *L)
     lua_pushcfunction(L, qlua_print);
     lua_setglobal(L, "print");
 
-    qlua_metatable(L, mtnFile, mtFile);
+    qlua_metatable(L, mtnFile, mtFile, qNoType);
     lua_createtable(L, 0, 3);
     qlua_newFile(L)->kind = qf_stdout;
     lua_setfield(L, -2, "stdout");
@@ -374,9 +391,13 @@ init_qlua_io(lua_State *L)
 
     /* fix package.path */
     lua_getglobal(L, "package");
-    lua_pushstring(L, qlib_path);
+	lua_pushstring(L, qlib_path);
     lua_setfield(L, -2, "path");
     lua_pop(L, 1);
+
+    /* fix getmetatable */
+    lua_pushcfunction(L, qlua_getmetatable);
+    lua_setglobal(L, "getmetatable");
 
     return 0;
 }

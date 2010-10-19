@@ -1,3 +1,5 @@
+/* Only Nc=3 reader is supported */
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
@@ -5,8 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <math.h>
 
+#if USE_Nc3
 static const char nersc_io[] = "nersc";
 
 enum {
@@ -27,7 +29,7 @@ typedef struct {
 static int
 nersc_error(lua_State *L, const char *errmsg)
 {
-    return luaL_error(L, "qcd.nersc.read_gauge() error: %s", errmsg);
+    return luaL_error(L, "L:read_NERSC_gauge() error: %s", errmsg);
 }
 
 static int
@@ -160,25 +162,27 @@ read_double(char *data, int idx)
 }
 
 typedef void (*GaugeReader)(lua_State *L,
-                            QLA_ColorMatrix *U, int nd, int nc,
+                            mLattice *S,
+                            QLA_D3_ColorMatrix *U, int nd,
                             char *buf, int buf_size,
                             RealReader read_real);
 
 static void
-read_NxN(lua_State *L,
-         QLA_ColorMatrix *U, int nd, int nc,
+read_3x3(lua_State *L,
+         mLattice *S,
+         QLA_D3_ColorMatrix *U, int nd,
          char *buf, int buf_size,
          RealReader read_real)
 {
     int i, d, a, b;
 
-    if ((nc != QDP_Nc) || (nd != qRank))
-        nersc_master_error(L, "internal error (read_NxN)");
+    if (nd != S->rank)
+        nersc_master_error(L, "internal error (read_3x3)");
 
     for (i = 0, d = 0; d < nd; d++) {
-        for (a = 0; a < QDP_Nc; a++) {
-            for (b = 0; b < QDP_Nc; b++, i += 2) {
-                QLA_c_eq_r_plus_ir(QLA_elem_M(U[d], a, b),
+        for (a = 0; a < 3; a++) {
+            for (b = 0; b < 3; b++, i += 2) {
+                QLA_c_eq_r_plus_ir(QLA_D3_elem_M(U[d], a, b),
                                    read_real(buf, i),
                                    read_real(buf, i + 1));
             }
@@ -188,31 +192,38 @@ read_NxN(lua_State *L,
 
 static void
 read_3x2(lua_State *L,
-         QLA_ColorMatrix *U, int nd, int nc,
+         mLattice *S,
+         QLA_D3_ColorMatrix *U, int nd,
          char *buf, int buf_size,
          RealReader read_real)
 {
     int i, d, a, b;
 
-    if ((nc != QDP_Nc) || (QDP_Nc != 3) || (nd != qRank))
+    if (nd != S->rank)
         nersc_master_error(L, "internal error (read_3x2)");
 
     for (i = 0, d = 0; d < nd; d++, U++) {
-        for (a = 0; a < QDP_Nc - 1; a++) {
-            for (b = 0; b < QDP_Nc; b++, i += 2) {
-                QLA_c_eq_r_plus_ir(QLA_elem_M(*U, a, b),
+        for (a = 0; a < 3 - 1; a++) {
+            for (b = 0; b < 3; b++, i += 2) {
+                QLA_c_eq_r_plus_ir(QLA_D3_elem_M(*U, a, b),
                                    read_real(buf, i),
                                    read_real(buf, i + 1));
             }
         }
-        QLA_c_eq_ca_times_ca( QLA_elem_M(*U,2,2), QLA_elem_M(*U,0,0), QLA_elem_M(*U,1,1));
-        QLA_c_meq_ca_times_ca(QLA_elem_M(*U,2,2), QLA_elem_M(*U,0,1), QLA_elem_M(*U,1,0));
+        QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,2), QLA_D3_elem_M(*U,0,0),
+                                                     QLA_D3_elem_M(*U,1,1));
+        QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,2), QLA_D3_elem_M(*U,0,1),
+                                                     QLA_D3_elem_M(*U,1,0));
 
-        QLA_c_eq_ca_times_ca( QLA_elem_M(*U,2,1), QLA_elem_M(*U,0,2), QLA_elem_M(*U,1,0));
-        QLA_c_meq_ca_times_ca(QLA_elem_M(*U,2,1), QLA_elem_M(*U,0,0), QLA_elem_M(*U,1,2));
+        QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,1), QLA_D3_elem_M(*U,0,2),
+                                                     QLA_D3_elem_M(*U,1,0));
+        QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,1), QLA_D3_elem_M(*U,0,0),
+                                                     QLA_D3_elem_M(*U,1,2));
 
-        QLA_c_eq_ca_times_ca( QLA_elem_M(*U,2,0), QLA_elem_M(*U,0,1), QLA_elem_M(*U,1,2));
-        QLA_c_meq_ca_times_ca(QLA_elem_M(*U,2,0), QLA_elem_M(*U,0,2), QLA_elem_M(*U,1,1));
+        QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,0), QLA_D3_elem_M(*U,0,1),
+                                                     QLA_D3_elem_M(*U,1,2));
+        QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,0), QLA_D3_elem_M(*U,0,2),
+                                                     QLA_D3_elem_M(*U,1,1));
     }
 }
 
@@ -230,18 +241,21 @@ site2coord(int *coord, long long site, int nd, const int *dim)
 static const char *ukey = "unitarity";
 
 static int
-nersc_read_master(lua_State *L, QLA_ColorMatrix **U, const char *name)
+nersc_read_master(lua_State *L,
+                  mLattice *S,
+                  QLA_D3_ColorMatrix **U,
+                  const char *name)
 {
     enum {
         ntNONE,
         nt4D_3x3,
-        nt4D_3x2,
-        nt4D_4x4
+        nt4D_3x2
+        /* nt4D_4x4 */
     };
     static const NERSC_Value nFMTs[] = {
         {"4D_SU3_GAUGE_3x3", nt4D_3x3 },
         {"4D_SU3_GAUGE",     nt4D_3x2 },
-        {"4D_SU4_GAUGE",     nt4D_4x4 },
+        /* {"4D_SU4_GAUGE",     nt4D_4x4 }, */
         {NULL, ntNONE}
     };
     static const NERSC_Value nFPs[] = {
@@ -254,11 +268,11 @@ nersc_read_master(lua_State *L, QLA_ColorMatrix **U, const char *name)
     FILE *f = fopen(name, "rb");
     char buffer[NERSC_BUFSIZE];
     char *key, *value;
-    int *coord = qlua_malloc(L, qRank * sizeof (int));
+    int  coord[S->rank];
     long long volume;
     long long site;
     int s_node;
-    char *dim_ok = qlua_malloc(L, qRank * sizeof (char));
+    char dim_ok[S->rank];
     int i;
     int f_format = ntNONE;
     int f_fp = 0;
@@ -267,23 +281,20 @@ nersc_read_master(lua_State *L, QLA_ColorMatrix **U, const char *name)
     uint32_t d_checksum = 0;
     GaugeReader read_matrix;
     RealReader read_real;
-    char *site_buf;
     int site_size;
     int big_endian;
-    QLA_ColorMatrix *CM;
-    int CM_size;
     double uni_eps;
-    QLA_ColorMatrix mone;
-    QLA_Complex cone;
+    QLA_D3_ColorMatrix mone;
+    QLA_D_Complex cone;
     double max_eps = 0.0;
 
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
-    QLA_M_eq_c(&mone, &cone);
+    QLA_D3_M_eq_c(&mone, &cone);
 
     if (f == 0)
         return nersc_master_error(L, "file open error");
 
-    for (i = 0; i < qRank; i++)
+    for (i = 0; i < S->rank; i++)
         dim_ok[i] = 0;
 
     /* parse the header and distribute it across the system */
@@ -321,16 +332,16 @@ nersc_read_master(lua_State *L, QLA_ColorMatrix **U, const char *name)
                 lua_setfield(L, -2, key);
             } else if (sscanf(key, "DIMENSION_%d", &i) == 1) {
                 int di;
-                if ((i < 1) || (i > qRank))
+                if ((i < 1) || (i > S->rank))
                     return nersc_master_error(L, "DIMENSION out of range");
                 if ((sscanf(value, "%d", &di) != 1) ||
-                    (qDim[i - 1] != di))
+                    (S->dim[i - 1] != di))
                     return nersc_master_error(L, "DIMENSION mismatch");
                 dim_ok[i - 1] = 1;
                 lua_pushnumber(L, di);
                 lua_setfield(L, -2, key);
             } else if (sscanf(key, "BOUNDARY_%d", &i) == 1) {
-                if ((i < 1) || (i > qRank))
+                if ((i < 1) || (i > S->rank))
                     return nersc_master_error(L, "BOUNDARY out of range");
                 if (strcmp(value, "PERIODIC") != 0)
                     return nersc_master_error(L, "bad BOUNDARY value");
@@ -350,22 +361,12 @@ nersc_read_master(lua_State *L, QLA_ColorMatrix **U, const char *name)
 eoh:
     switch (f_format) {
     case nt4D_3x3:
-        if (QDP_Nc != 3)
-            return nersc_master_error(L, "Unsupported Nc");
-        read_matrix = read_NxN;
-        site_size = qRank * QDP_Nc * QDP_Nc * 2;
+        read_matrix = read_3x3;
+        site_size = S->rank * 3 * 3 * 2;
         break;
     case nt4D_3x2:
-        if (QDP_Nc != 3)
-            return nersc_master_error(L, "Unsupported Nc");
         read_matrix = read_3x2;
-        site_size = qRank * QDP_Nc * (QDP_Nc - 1) * 2;
-        break;
-    case nt4D_4x4:
-        if (QDP_Nc != 4)
-            return nersc_master_error(L, "Unsupported Nc");
-        read_matrix = read_NxN;
-        site_size = qRank * QDP_Nc * QDP_Nc * 2;
+        site_size = S->rank * 3 * (3 - 1) * 2;
         break;
     default:
         return nersc_master_error(L, "unsupported data format");
@@ -384,20 +385,18 @@ eoh:
     default:
         return nersc_master_error(L, "bad floating point size");
     }
-    for (i = 0; i < qRank; i++) {
+    for (i = 0; i < S->rank; i++) {
         if (!dim_ok[i])
             return nersc_master_error(L, "missing DIMENSION spec");
     }
-    qlua_free(L, dim_ok);
     if (f_cs_p == 0)
         return nersc_master_error(L, "missing CHECKSUM");
 
     /* Read the data and send it to the target host */
-    for (volume = 1, i = 0; i < qRank; i++)
-        volume *= qDim[i];
-    site_buf = qlua_malloc(L, site_size);
-    CM_size = qRank * sizeof (QLA_ColorMatrix);
-    CM = qlua_malloc(L, CM_size);
+    for (volume = 1, i = 0; i < S->rank; i++)
+        volume *= S->dim[i];
+    char site_buf[site_size];
+    QLA_D3_ColorMatrix CM[S->rank];
 
     /* find out our endianess */
     {
@@ -452,24 +451,23 @@ eoh:
         for (i = 0; i < site_size; i += sizeof (uint32_t))
             d_checksum += *(uint32_t *)(site_buf + i);
         /* convert to the ColorMatrix */
-        read_matrix(L, CM, qRank, QDP_Nc, site_buf, site_size,
-                    read_real);
+        read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real);
         /* check unitarity */
         {
             int d, a, b;
-            QLA_ColorMatrix UxU;
+            QLA_D3_ColorMatrix UxU;
 
-            for (d = 0; d < qRank; d++) {
+            for (d = 0; d < S->rank; d++) {
                 double er, ei;
 
                 /* multiplcation order helps to detect reconstruction bugs */
-                QLA_M_eq_M_times_Ma(&UxU, &CM[d], &CM[d]);
-                QLA_M_meq_M(&UxU, &mone);
-                for (a = 0; a < QDP_Nc; a++) {
-                    for (b = 0; b < QDP_Nc; b++) {
+                QLA_D3_M_eq_M_times_Ma(&UxU, &CM[d], &CM[d]);
+                QLA_D3_M_meq_M(&UxU, &mone);
+                for (a = 0; a < 3; a++) {
+                    for (b = 0; b < 3; b++) {
                         QLA_Complex z;
 
-                        QLA_C_eq_elem_M(&z, &UxU, a, b);
+                        QLA_D3_C_eq_elem_M(&z, &UxU, a, b);
                         er = fabs(QLA_real(z));
                         ei = fabs(QLA_imag(z));
                         if ((er > uni_eps) || (ei > uni_eps))
@@ -485,16 +483,16 @@ eoh:
         /* send CM to everyone
          *  -- this makes all slaves receive previous errors as well.
          */
-        nersc_master_bcast(L, nerscDATA, CM_size, CM);
+        nersc_master_bcast(L, nerscDATA, sizeof (CM), CM);
         /* place ColorMatrix in U if it belongs to this site */
-        site2coord(coord, site, qRank, qDim);
-        s_node = QDP_node_number(coord);
+        site2coord(coord, site, S->rank, S->dim);
+        s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-            int idx = QDP_index(coord);
+            int idx = QDP_index_L(S->lat, coord);
             int d;
             
-            for (d = 0; d < qRank; d++)
-                QLA_M_eq_M(&U[d][idx], &CM[d]);
+            for (d = 0; d < S->rank; d++)
+                QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
 
@@ -506,13 +504,8 @@ eoh:
 
     lua_pushnumber(L, max_eps);
     lua_setfield(L, -2, ukey);
-
     nersc_master_bcast(L, nerscVALUE, sizeof (double), &max_eps);
-
     nersc_master_cmd(L, nerscOK, 0);
-    qlua_free(L, CM);
-    qlua_free(L, site_buf);
-    qlua_free(L, coord);
 
     return 2;
 }
@@ -560,7 +553,10 @@ nersc_slave_bcast(lua_State *L, int len, void *buffer)
 }
 
 static int
-nersc_read_slave(lua_State *L, QLA_ColorMatrix **U, const char *name)
+nersc_read_slave(lua_State *L,
+                 mLattice *S,
+                 QLA_D3_ColorMatrix **U,
+                 const char *name)
 {
     int code = 0;
     int arg = 0;
@@ -568,11 +564,10 @@ nersc_read_slave(lua_State *L, QLA_ColorMatrix **U, const char *name)
     char value[NERSC_BUFSIZE];
     long long volume;
     long long site;
-    int *coord = qlua_malloc(L, qRank * sizeof (int));
+    int coord[S->rank];
     int s_node;
     int i;
-    QLA_ColorMatrix *CM;
-    int CM_size = qRank * sizeof (QLA_ColorMatrix);
+    QLA_D3_ColorMatrix CM[S->rank];
     double max_eps;
 
     /* get header elements */
@@ -617,10 +612,9 @@ eoh:
         return luaL_error(L, "internal error (START %d)", code);
     }
     /* get gauge element for this node */
-    for (volume = 1, i = 0; i < qRank; i++)
-        volume *= qDim[i];
+    for (volume = 1, i = 0; i < S->rank; i++)
+        volume *= S->dim[i];
 
-    CM = qlua_malloc(L, CM_size);
     for (site = 0; site < volume; site++) {
         switch (nersc_slave_cmd(L, &code, &arg)) {
         case nerscDATA:
@@ -628,19 +622,17 @@ eoh:
         default:
             return luaL_error(L, "internal error (DATA %d)", code);
         }
-        nersc_slave_bcast(L, CM_size, CM);
-        site2coord(coord, site, qRank, qDim);
-        s_node = QDP_node_number(coord);
+        nersc_slave_bcast(L, sizeof (CM), CM);
+        site2coord(coord, site, S->rank, S->dim);
+        s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-            int idx = QDP_index(coord);
+            int idx = QDP_index_L(S->lat, coord);
             int d;
             
-            for (d = 0; d < qRank; d++)
-                QLA_M_eq_M(&U[d][idx], &CM[d]);
+            for (d = 0; d < S->rank; d++)
+                QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
-    qlua_free(L, CM);
-    qlua_free(L, coord);
 
     /* get the maximal unitary violation */
     switch (nersc_slave_cmd(L, &code, &arg)) {
@@ -670,61 +662,57 @@ eoh:
 static int
 q_nersc_read(lua_State *L)
 {
-    const char *name = luaL_checkstring(L, 1);
-    QDP_ColorMatrix **M;
-    QLA_ColorMatrix **U;
+    mLattice *S = qlua_checkLattice(L, 1);
+    const char *name = luaL_checkstring(L, 2);
+    QDP_D3_ColorMatrix *M[S->rank];
+    QLA_D3_ColorMatrix *U[S->rank];
     int status;
     int i;
     
-    if (qRank == 0)
-        return luaL_error(L, "qcd.nersc.read_gauge(): lattice not set");
-
-    lua_createtable(L, qRank, 0);
-    M = qlua_malloc(L, qRank * sizeof (QDP_ColorMatrix *));
-    U = qlua_malloc(L, qRank * sizeof (QLA_ColorMatrix *));
+    lua_createtable(L, S->rank, 0);
     CALL_QDP(L);
-    for (i = 0; i < qRank; i++) {
-        M[i] = qlua_newLatColMat(L)->ptr;
-        U[i] = QDP_expose_M(M[i]);
+    for (i = 0; i < S->rank; i++) {
+        M[i] = qlua_newLatColMat3(L, 1, 3)->ptr;
+        U[i] = QDP_D3_expose_M(M[i]);
         lua_rawseti(L, -2, i + 1);
     }
     lua_newtable(L);
-    if (qlua_primary_node) {
-        status = nersc_read_master(L, U, name);
+    if (QDP_this_node == qlua_master_node) {
+        status = nersc_read_master(L, S, U, name);
     } else {
-        status = nersc_read_slave(L, U, name);
+        status = nersc_read_slave(L, S, U, name);
     }
     CALL_QDP(L);
-    for (i = 0; i < qRank; i++) {
-        QDP_reset_M(M[i]);
+    for (i = 0; i < S->rank; i++) {
+        QDP_D3_reset_M(M[i]);
     }
-    qlua_free(L, M);
-    qlua_free(L, U);
     
     return status;
 }
 
 static const struct luaL_Reg fNERSC[] = {
-    { "read_gauge",     q_nersc_read},
-    { NULL,             NULL}
+    { "read_gauge",      q_nersc_read },
+    { NULL,              NULL         }
 };
 
 int
 init_nersc_io(lua_State *L)
 {
-    int i;
-
     lua_getglobal(L, qcdlib);
     lua_newtable(L);
-    for (i = 0; fNERSC[i].name; i++) {
-        lua_pushcfunction(L, fNERSC[i].func);
-        lua_setfield(L, -2, fNERSC[i].name);
-    }
+    luaL_register(L, NULL, fNERSC);
     lua_setfield(L, -2, nersc_io);
     lua_pop(L, 1);
 
     return 0;
 }
+#else /* USE_Nc3 */
+int
+init_nersc_io(lua_State *L)
+{
+    return 0;
+}
+#endif /* USE_Nc3 == 0 */
 
 int
 fini_nersc_io(lua_State *L)

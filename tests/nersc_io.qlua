@@ -1,4 +1,6 @@
-L = qcd.lattice{4,4,4,8}
+require "stdlib"
+
+L = qcd.lattice{8,8,8,16}
 
 
 -- provide your own NERSC file for testing!
@@ -7,34 +9,37 @@ if not file_name then
   file_name = "./random-gauge.nersc"
 end
 
-U, msg = qcd.nersc.read_gauge(file_name)
+-- U, msg = L:nersc_gauge(file_name)
+U, msg = qcd.nersc.read_gauge(L, file_name)
 
-print("NERSC read:", U, msg)
+printf("NERSC read: U=%s, msg=%s\n", tostring(U), tostring(msg))
 
 volume = 1
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   volume = volume * L[i]
 end
 
 if not U then
-  print("Error reading NERSC gauge")
+  printf("Error reading NERSC gauge\n")
   os.exit(1)
 end
 
 
-print("")
-print("HEADER of", file_name)
+printf("\n\n")
+printf("HEADER of %s\n", file_name)
 for i, v in pairs(msg) do
-   print("", i, type(v), v)
+   printf("   %-20s   [%s]  %s\n",
+          tostring(i), type(v), tostring(v))
 end
-print("")
+printf("\n")
 
 ltr = 0;
-for i = 1, qcd.Nd do
+for i = 1, #L do
   ltr = ltr + U[i]:trace():sum():real()
 end
-ltr = ltr / (qcd.Nc * qcd.Nd * volume)
-print("link trace:" , volume, ltr, (ltr - msg.LINK_TRACE) / ltr)
+ltr = ltr / (U[1]:colors() * #L * volume)
+printf("link trace: %d %15.11f %15.7e\n" ,
+       volume, ltr, (ltr - msg.LINK_TRACE) / ltr)
 
 function plaquette(i, j, U)
    return U[i+1] *
@@ -43,13 +48,14 @@ function plaquette(i, j, U)
           U[j+1]:adjoin()
 end
 pl = 0
-for i = 0, qcd.Nd - 1 do
-  for j = i + 1, qcd.Nd - 1 do
+for i = 0, #L - 1 do
+  for j = i + 1, #L - 1 do
     pl = pl + plaquette(i, j, U):trace():sum():real()
   end
 end
-pl = pl * 2.0 / (qcd.Nc * qcd.Nd * (qcd.Nd - 1) * volume)
-print("plaquette", volume, pl, (pl - msg.PLAQUETTE) / pl)
+pl = pl * 2.0 / (U[1]:colors() * #L * (#L - 1) * volume)
+printf("plaquette:  %d %15.11f %15.7e\n" ,
+       volume, pl, (pl - msg.PLAQUETTE) / pl)
 
-print("------- end ----------")
+printf("DONE\n")
 

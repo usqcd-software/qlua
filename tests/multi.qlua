@@ -1,14 +1,14 @@
 require "stdlib"
 
 Lx = 4
-LAT = qcd.lattice{Lx,Lx + 1,Lx + 2}
+L = qcd.lattice{Lx,Lx + 1,Lx + 2}
 
 VOLUME = 1
-for i = 0, qcd.Nd - 1 do
-   VOLUME = VOLUME * LAT[i]
+for i = 0, #L - 1 do
+   VOLUME = VOLUME * L[i]
 end
 
-printf("LAT: %d %s\n", #LAT, tostring(LAT))
+printf("L: %d %s\n", #L, tostring(L))
 printf("VOLUME: %d\n", VOLUME)
 
 function show_x(n, d, x)
@@ -22,23 +22,25 @@ function show_x(n, d, x)
 end
 
 
-printf("sample multi: %s\n", tostring(LAT:MultiSet(8, LAT:pcoord(0))))
+printf("sample multi: %s\n", tostring(L:MultiSet(8, L:pcoord(0))))
 
-for mu = 0, qcd.Nd - 1 do
-  for x = 0, qcd.Nd - 1 do
+for mu = 0, #L - 1 do
+  for x = 0, #L - 1 do
      show_x("axis" .. mu .. " on " .. x, x,
-              LAT:pcoord(mu):sum(LAT:MultiSet(LAT[x], LAT:pcoord(x))))
+              L:pcoord(mu):sum(
+                 L:MultiSet(L[x],
+                            L:pcoord(x))))
   end
 end
 
-S = LAT:RandomState(os.time(), LAT:pcoord(0) +
-                               LAT[0] * LAT:pcoord(1) + 
-                               LAT[0] * LAT[1] * LAT:pcoord(2))
+S = L:RandomState(os.time(), L:pcoord(0) +
+                             L[0] * L:pcoord(1) + 
+                             L[0] * L[1] * L:pcoord(2))
 
 function check_X(m, x)
    printf("checkX: %s %s\n", tostring(m), tostring(x))
-   for d = 0, qcd.Nd - 1 do
-     show_x("partial", d, x:sum(LAT:MultiSet(LAT[d], LAT:pcoord(d))))
+   for d = 0, #L - 1 do
+     show_x("partial", d, x:sum(L:MultiSet(L[d], L:pcoord(d))))
    end
    printf("full: %s\n", tostring(x:sum()))
 end

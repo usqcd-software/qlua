@@ -12,15 +12,20 @@ show_help() {
      --bindir=DIR             use DIR instead of PREFIX/bin for executables
      --libdir=DIR             use DIR instead of PREFIX/lib/qlua for libraries
      --incdir=DIR             use DIR instead of PREFIX/include for headers
-     --docdir=DIR             use DIR instead of PREFIX/share/doc/mdwf for docs
+     --docdir=DIR             use DIR instead of PREFIX/share/doc/qlua for docs
      --with-extras            include extra LHPC extensions
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
      --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
      --with-<package>=DIR     use DIR/bin/<package>-config to query package
+     --with[out]-nc=2         include [exclude] Nc=2 special case
+     --with[out]-nc=3         include [exclude] Nc=3 special case
+     --with[out]-nc=N         include [exclude] Nc=N special case
+     --with-nc=all            include all special Nc cases
+     --without-nc=any         exclude all special Nc cases
 
    Supported packages:
      clover                   SciDAC L3 clover inverter
-     mdwf                     SciDAC L3 Moebius domain wall fermions
+     mdwf                     SciDAC L3 Moebius Domain Wall inverter
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
@@ -64,6 +69,9 @@ default_ld="gcc -g"
 default_ldflags=""
 default_ar=ar
 default_ranlib="echo RANLIB"
+use_nc2=1
+use_nc3=1
+use_ncN=1
 
 # process_args arg ...
 process_args() {
@@ -78,16 +86,30 @@ process_args() {
       --with-lua=*)     lua=`echo "$1" | sed -e 's/--with-lua=//'`    ;;
       --with-qdp=*)     qdp=`echo "$1" | sed -e 's/--with-qdp=//'`    ;;
       --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
-      --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'`     ;;
+      --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'` ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
+      --with-nc=2)        use_nc2=1 ;;
+      --with-nc=3)        use_nc3=1 ;;
+      --with-nc=N)        use_ncN=1 ;;
+      --with-nc=all)      use_nc2=1 ; use_nc3=1 ; use_ncN=1 ;;
+      --without-nc=2)     use_nc2=0 ;;
+      --without-nc=3)     use_nc3=0 ;;
+      --without-nc=N)     use_ncN=0 ;;
+      --without-nc=any)   use_nc2=0 ; use_nc3=0 ; use_ncN=0 ;;
       --with-extras)      extras=true ;;
       ## add other packages here
       *) show_error "Unknown argument $1" ;;
     esac
     shift
   done
+
+  if [ "$use_nc3" -eq "0" ] ; then
+      clover=
+      mdwf=
+      extras=
+  fi
 }
 
 # normalize
@@ -133,6 +155,7 @@ normalize() {
      mdwf_cflags=`$mdwf/bin/mdwf-config --cflags`
      mdwf_ldflags=`$mdwf/bin/mdwf-config --ldflags`
      mdwf_libs=`$mdwf/bin/mdwf-config --libs`
+     [ -z "$gsl" ] && show_error "MDWF requires GSL"
   fi
   if [ ! -z "$aff" ] ; then
      [ -x "$aff/bin/lhpc-aff-config" ] \
@@ -180,6 +203,9 @@ show_config() {
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
+   [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
+   [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
+   [ "$use_ncN" == 0 ] || echo "Nc=N included"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
@@ -222,6 +248,9 @@ build() {
         -e "s|@gsl_cflags@|$gsl_cflags|g" \
         -e "s|@gsl_libs@|$gsl_libs|g" \
         -e "s|@cblas_libs@|$cblas_libs|g" \
+  | sed -e "s|@use_nc2@|$use_nc2|g " \
+        -e "s|@use_nc3@|$use_nc3|g " \
+        -e "s|@use_ncN@|$use_ncN|g " \
   | sed -e "s|@extras@|$extras|g" \
       > $2 \
 || show_error "Could not generate $2"
@@ -231,14 +260,17 @@ build() {
 ## Add other packages below
 build_modules() {
   echo "#define QDP_VERSION \"$qdp\""
-  [ -z "$aff" ] || echo "#define HAS_AFF"
-  if [ ! -z "$mdwf" ] ; then
-    echo "#define HAS_MDWF"
-    echo "#define MDWF_VERSION \"$mdwf\""
+  if [ ! -z "$aff" ] ; then
+    echo "#define HAS_AFF"
+    echo "#define LHPC_AFF_VERSION \"$aff\""
   fi
   if [ ! -z "$clover" ] ; then
     echo "#define HAS_CLOVER"
     echo "#define CLOVER_VERSION \"$clover\""
+  fi
+  if [ ! -z "$mdwf" ] ; then
+    echo "#define HAS_MDWF"
+    echo "#define MDWF_VERSION \"$mdwf\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
   if [ ! -z "$cblas_libs" ] ; then
@@ -252,6 +284,9 @@ build_modules() {
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
+  echo "#define USE_Nc2 $use_nc2"
+  echo "#define USE_Nc3 $use_nc3"
+  echo "#define USE_NcN $use_ncN"
 }
 
 ######

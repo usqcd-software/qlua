@@ -8,7 +8,7 @@ require("gauge")
 L = qcd.lattice{4,4,4,8}
 
 volume = 1
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   volume = volume * L[i]
 end
 
@@ -37,18 +37,18 @@ end
 if true then
   printf("\n\n\n>>>> Using gaussian random field\n\n")
   local idx = L:Int(0)
-  for d = 0, qcd.Nd - 1 do
+  for d = 0, #L - 1 do
     idx = idx * L[d] + L:pcoord(d)
   end
   local S = L:RandomState(1984, idx)
 
-  U = { toSUn(L, S:gaussian_ColorMatrix()),
-        toSUn(L, S:gaussian_ColorMatrix()),
-        toSUn(L, S:gaussian_ColorMatrix()),
-        toSUn(L, S:gaussian_ColorMatrix()) }
+  U = { toSUn(S:gaussian_ColorMatrix()),
+        toSUn(S:gaussian_ColorMatrix()),
+        toSUn(S:gaussian_ColorMatrix()),
+        toSUn(S:gaussian_ColorMatrix()) }
 
   check_Q("gaussian", U)
-  g = toSUn(L, 5 * S:gaussian_ColorMatrix())
+  g = toSUn(5 * S:gaussian_ColorMatrix())
   check_Q("gauge transformed", gauge_transform_U(g, U))
 end
 

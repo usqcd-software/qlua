@@ -6,7 +6,7 @@ require("ape-smear")
 L = qcd.lattice{4,4,4,8}
 do
   local idx = L:Int(0)
-  for i = 0, qcd.Nd - 1 do
+  for i = 0, #L - 1 do
     idx = idx * L[i] + L:pcoord(i)
   end
   S = L:RandomState(43, idx)
@@ -14,8 +14,8 @@ end
 
 do 
   U = {}
-  for i = 0, qcd.Nd - 1 do
-    U[i+1] = toSUn(L, S:gaussian_ColorMatrix())
+  for i = 0, #L - 1 do
+    U[i+1] = toSUn(S:gaussian_ColorMatrix())
   end
 end
 

@@ -1,6 +1,7 @@
 -- reference implementation of eigCG
 --  same Gauge field as in eigcg-medium.qlua XXXX not yet
 require "stdlib"
+require "gauge"
 require "hex-smear"
 
 Lx = 6
@@ -35,28 +36,21 @@ df_psize    =  20 -- deflation subspace extension size (10 is good)
 function rnd_init(x)
   local l_s = 1
   l_id = L:Int(0)
-  for d = 0, qcd.Nd - 1 do
+  for d = 0, #L - 1 do
     l_id = l_id + l_s * L:pcoord(d)
     l_s = l_s * L[d]
   end
   return L:RandomState(x, l_id)
 end
 
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
-end
-
 S = rnd_init(seed)
 
 U = {}
 for i = 1, #L do
-   U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
+   U[i] = toSUn(S:gaussian_ColorMatrix() * 10.4)
 end
 
-U = bmw_hex(L, bmw_hex(L, U))
+U = bmw_hex(U, 2)
 
 CL = qcd.Clover(U, 1/(8 + 2 * m_q), c_sw, {1, 1, 1, -1})
 -- random eigenvalues from min_lambda to 1 with L[0] small values

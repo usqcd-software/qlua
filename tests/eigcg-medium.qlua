@@ -1,4 +1,5 @@
 require "stdlib"
+require "gauge"
 
 -- completely meaningless values of parameters just to make life interesting
 
@@ -11,18 +12,11 @@ L = qcd.lattice {Lx, Lx, Lx, Lt}
 function rnd_init(x)
   local l_s = 1
   l_id = L:Int(0)
-  for d = 0, qcd.Nd - 1 do
+  for d = 0, #L - 1 do
     l_id = l_id + l_s * L:pcoord(d)
     l_s = l_s * L[d]
   end
   return L:RandomState(x, l_id)
-end
-
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
 end
 
 -- small deviation of identity in SU(3)
@@ -36,7 +30,7 @@ S = rnd_init(1984)
 
 U = {}
 for i = 1, #L do
-   U[i] = toSUn(L, S:gaussian_ColorMatrix() * 10.4)
+   U[i] = toSUn(S:gaussian_ColorMatrix() * 10.4)
 end
 
 CL = qcd.Clover(U, 1 / 5.0345, 1.0, {1, 1, 1, -1})

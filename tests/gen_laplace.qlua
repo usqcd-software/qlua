@@ -11,7 +11,7 @@ qlist = { { 0, 0, 0, 0},
 
 if not qcd.save_bb then
    printf("No extras compiled\n")
-   exit(1)
+   os.exit(1)
 end
 
 do

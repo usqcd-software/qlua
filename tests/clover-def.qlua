@@ -1,3 +1,6 @@
+require "stdlib"
+require "gauge"
+
 L = qcd.lattice{4,4,4,8}
 kappa = 1.4235
 c_sw = 2.3344
@@ -7,13 +10,6 @@ c_sw = 2.3344
 -------------------------------------------------------------------------------
 function printf(fmt, ...)
   io.stdout:write(string.format(fmt, ...))
-end
-
-function toSUn(L, X)
-  local ScaledOne = L:ColorMatrix(complex(1/qcd.Nc, 0))
-  local ahX = (X - X:adjoin()) / 2
-  local algX = ahX - ScaledOne * ahX:trace()
-  return algX:exp()
 end
 
 local function clovF(i,j)
@@ -34,21 +30,21 @@ end
 function clover_std(U, k, c, F)
   local X = F;
 
-  for i = 0, qcd.Nd - 2 do
+  for i = 0, #L - 2 do
     X = X - kappa * 
          ((1-gamma{mu=i}) * (U[i+1] * (F:shift(i, "from_forward"))) +
           (1+gamma{mu=i}) * ((U[i+1]:adjoin() * F):shift(i, "from_backward")))
   end
 
   -- antiperiodic bc in d=3 !!!
-  local U4 = L:ColorMatrix(U[4])
+  local U4 = U[4]:copy()
   L:Subset{axis=3, position=L[3]-1}:where(function () U4:set(-U[4]) end)
   X = X - kappa * 
        ((1-gamma{mu=3}) * (U4 * (F:shift(3, "from_forward"))) +
         (1+gamma{mu=3}) * ((U4:adjoin() * F):shift(3, "from_backward")))
 
-  for i = 1, qcd.Nd do
-    for j = i + 1, qcd.Nd do
+  for i = 1, #L do
+    for j = i + 1, #L do
        X = X - kappa * c_sw * clovF(i,j) * 
                ((gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
     end
@@ -59,20 +55,20 @@ end
 
 -------------------------------------------------------------------------------
 volume = 1
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   volume = volume * L[i]
 end
 
 ix = L:Int(0)
-for i = 0, qcd.Nd - 1 do
+for i = 0, #L - 1 do
   ix = ix * L[i] + L:pcoord(i)
 end
 
 S = L:RandomState(12345, ix)
 
 U = {}
-for i = 1, qcd.Nd do
- U[i] = toSUn(L, S:gaussian_ColorMatrix())
+for i = 1, #L do
+ U[i] = toSUn(S:gaussian_ColorMatrix())
 end
 
 
@@ -84,15 +80,16 @@ G3 = CL:D(F)
 Gs = clover_std(U, kappa, c_sw, F)
 
 function check_F(n,F,x)
-  for c = 0, qcd.Nc - 1 do
-    x.c = c
-    for d = 0, qcd.Ns - 1 do
-       x.d = d
-       local z = F[x]
-       printf("%s[%d, %d]: %20.10f %20.10f\n", n, c, d, z:real(), z:imag())
-    end
-  end
-  printf("\n")
+   local nc = F:colors()
+   for c = 0, nc - 1 do
+      x.c = c
+      for d = 0, qcd.Ns - 1 do
+         x.d = d
+         local z = F[x]
+         printf("%s[%d, %d]: %20.10f %20.10f\n", n, c, d, z:real(), z:imag())
+      end
+   end
+   printf("\n")
 end
 
 printf("|F|^2 = %.10e\n", F:norm2())
@@ -102,7 +99,7 @@ P = S:gaussian_DiracPropagator()
 T = CL:D(P)
 X = L:DiracPropagator()
 
-for c = 0, qcd.Nc - 1 do
+for c = 0, P:colors() - 1 do
   for d = 0, qcd.Ns - 1 do
     X[{c=c,d=d}] = CL:D(P[{c=c,d=d}])
   end

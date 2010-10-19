@@ -1,0 +1,53 @@
+require "stdlib"
+
+L = qcd.lattice{5,9}
+
+function show_2d(name, v)
+   printf("field %s: %s\n", name, tostring(v))
+   local l = v.lattice
+   for i = 0, l[0] - 1 do
+      printf(" %3d:", i)
+      for j = 0, l[1] - 1 do
+         printf(" %+1d", v[{i,j}])
+      end
+      printf("\n")
+   end
+   printf("\n")
+end
+
+I = L:Int(1)
+Iz = L:Int(0)
+
+s1 = L:Subset{axis = 0, position = 3, semispace = "lower"};
+s2 = L:Subset{axis = 1, position = 6, semispace = "upper"};
+
+show_2d("original", I)
+s1:where(function() I:set(L:Int(2)) end)
+show_2d("s1 set", I)
+s2:where(function() I:set(L:Int(3)) end)
+show_2d("s2 set", I)
+s2:where(function() s1:where(function () I:set(L:Int(4)) end) end)
+show_2d("s2&s1 set", I)
+L:Subset{axis = 0,
+         position = 1,
+         semispace = "upper"}:where(
+   function()
+      L:Subset{axis = 0,
+               position = 4,
+               semispace = "lower"}:where(
+         function()
+            L:Subset{axis=1,
+                     position=4}:where(
+               function()
+                  Iz:set(L:Int(1))
+                  printf("sum(I)   = %d\n", I:sum())
+                  printf("norm2(I) = %d\n", I:norm2())
+               end
+            )
+         end)
+   end)
+show_2d("Iz", Iz)
+               
+
+
+printf("DONE\n")

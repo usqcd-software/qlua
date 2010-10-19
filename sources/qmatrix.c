@@ -305,7 +305,7 @@ md_dims(lua_State *L)                                          /* (-1,+2,e) */
 static int
 md_get(lua_State *L)                                           /* (-2,+1,e) */
 {
-    switch (qlua_gettype(L, 2)) {
+    switch (qlua_qtype(L, 2)) {
     case qTable: {
         mMatReal *v = qlua_checkMatReal(L, 1);
         int sl, sr;
@@ -321,6 +321,8 @@ md_get(lua_State *L)                                           /* (-2,+1,e) */
     }
     case qString:
         return qlua_lookup(L, 2, opMatReal);
+    default:
+        break;
     }
     return qlua_badindex(L, "matrix.real[]");
 }
@@ -564,7 +566,7 @@ mc_trace(lua_State *L)                                         /* (-1,+2,e) */
     int i;
     double tr;
     double ti;
-    QLA_Complex *t = qlua_newComplex(L);
+    QLA_D_Complex *t = qlua_newComplex(L);
     
     if (m->l_size != m->r_size)
         return luaL_error(L, "matrix:trace() expects square matrix");
@@ -583,7 +585,7 @@ mc_trace(lua_State *L)                                         /* (-1,+2,e) */
 static int
 mc_get(lua_State *L)                                           /* (-2,+1,e) */
 {
-    switch (qlua_gettype(L, 2)) {
+    switch (qlua_qtype(L, 2)) {
     case qTable: {
         mMatComplex *v = qlua_checkMatComplex(L, 1);
         int sl, sr;
@@ -592,7 +594,7 @@ mc_get(lua_State *L)                                           /* (-2,+1,e) */
 
         if ((sl >= 0) && (sl < v->l_size) &&
             (sr >= 0) && (sr < v->r_size)) {
-            QLA_Complex *z = qlua_newComplex(L);
+            QLA_D_Complex *z = qlua_newComplex(L);
             gsl_complex zz = gsl_matrix_complex_get(v->m, sl, sr);
 
             QLA_real(*z) = GSL_REAL(zz);
@@ -603,6 +605,8 @@ mc_get(lua_State *L)                                           /* (-2,+1,e) */
     }
     case qString:
         return qlua_lookup(L, 2, opMatComplex);
+    default:
+        break;
     }
     return qlua_badindex(L, "matrix.complex[]");
 }
@@ -618,7 +622,7 @@ mc_put(lua_State *L)                                           /* (-3,+0,e) */
 
     if ((sl >= 0) && (sl < v->l_size) &&
         (sr >= 0) && (sr < v->r_size)) {
-        switch (qlua_gettype(L, 3)) {
+        switch (qlua_qtype(L, 3)) {
         case qReal: {
             gsl_complex z;
             double x = luaL_checknumber(L, 3);
@@ -628,11 +632,13 @@ mc_put(lua_State *L)                                           /* (-3,+0,e) */
         }
         case qComplex: {
             gsl_complex zz;
-            QLA_Complex *z = qlua_checkComplex(L, 3);
+            QLA_D_Complex *z = qlua_checkComplex(L, 3);
             GSL_SET_COMPLEX(&zz, QLA_real(*z), QLA_imag(*z));
             gsl_matrix_complex_set(v->m, sl, sr, zz);
             return 0;
         }
+        default:
+            break;
         }
     }
     return qlua_badindex(L, "matrix.complex[]");
@@ -701,7 +707,7 @@ mc_det(lua_State *L)
     gsl_permutation *p;
     int signum;
     gsl_complex d;
-    QLA_Complex *z;
+    QLA_D_Complex *z;
 
     if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
@@ -911,7 +917,7 @@ static int
 cm_mul_c(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
+    QLA_D_Complex *b = qlua_checkComplex(L, 2);
 
     return do_ccmul(L, a, QLA_real(*b), QLA_imag(*b));
 }
@@ -919,7 +925,7 @@ cm_mul_c(lua_State *L)
 static int
 c_mul_cm(lua_State *L)
 {
-    QLA_Complex *b = qlua_checkComplex(L, 1);
+    QLA_D_Complex *b = qlua_checkComplex(L, 1);
     mMatComplex *a = qlua_checkMatComplex(L, 2);
 
     return do_ccmul(L, a, QLA_real(*b), QLA_imag(*b));
@@ -929,7 +935,7 @@ static int
 cm_div_c(lua_State *L)
 {
     mMatComplex *a = qlua_checkMatComplex(L, 1);
-    QLA_Complex *b = qlua_checkComplex(L, 2);
+    QLA_D_Complex *b = qlua_checkComplex(L, 2);
     double br = QLA_real(*b);
     double bi = QLA_imag(*b);
     double h = hypot(br, bi);
@@ -1006,28 +1012,32 @@ static const luaL_Reg fMatrix[] = {
 int
 init_matrix(lua_State *L)
 {
+    static const QLUA_Op2 ops[] = {
+        {qlua_add_table, qMatReal,    qMatReal,    rm_add_rm },
+        {qlua_add_table, qMatComplex, qMatComplex, cm_add_cm },
+        {qlua_sub_table, qMatReal,    qMatReal,    rm_sub_rm },
+        {qlua_sub_table, qMatComplex, qMatComplex, cm_sub_cm },
+        {qlua_mul_table, qMatReal,    qMatReal,    rm_mul_rm },
+        {qlua_mul_table, qReal,       qMatReal,    r_mul_rm  },
+        {qlua_mul_table, qMatReal,    qReal,       rm_mul_r  },
+        {qlua_mul_table, qMatComplex, qMatComplex, cm_mul_cm },
+        {qlua_mul_table, qReal,       qMatComplex, r_mul_cm  },
+        {qlua_mul_table, qComplex,    qMatComplex, c_mul_cm  },
+        {qlua_mul_table, qMatComplex, qComplex,    cm_mul_c  },
+        {qlua_mul_table, qMatComplex, qReal,       cm_mul_r  },
+        {qlua_div_table, qMatReal,    qReal,       rm_div_r  },
+        {qlua_div_table, qMatComplex, qComplex,    cm_div_c  },
+        {qlua_div_table, qMatComplex, qReal,       cm_div_r  },
+        {NULL,           qOther,      qOther,      NULL      }
+    };
+
     gsl_set_error_handler_off();
     luaL_register(L, matrix_ns,      fMatrix);
-    qlua_metatable(L, mtnMatReal,    mtMatReal);
-    qlua_metatable(L, opMatReal,     MatRealMethods);
-    qlua_metatable(L, mtnMatComplex, mtMatComplex);
-    qlua_metatable(L, opMatComplex,  MatComplexMethods);
-
-    qlua_reg_add(qMatReal,    qMatReal,    rm_add_rm);
-    qlua_reg_sub(qMatReal,    qMatReal,    rm_sub_rm);
-    qlua_reg_mul(qMatReal,    qMatReal,    rm_mul_rm);
-    qlua_reg_mul(qReal,       qMatReal,    r_mul_rm);
-    qlua_reg_mul(qMatReal,    qReal,       rm_mul_r);
-    qlua_reg_div(qMatReal,    qReal,       rm_div_r);
-    qlua_reg_add(qMatComplex, qMatComplex, cm_add_cm);
-    qlua_reg_sub(qMatComplex, qMatComplex, cm_sub_cm);
-    qlua_reg_mul(qMatComplex, qMatComplex, cm_mul_cm);
-    qlua_reg_mul(qReal,       qMatComplex, r_mul_cm);
-    qlua_reg_mul(qComplex,    qMatComplex, c_mul_cm);
-    qlua_reg_mul(qMatComplex, qComplex,    cm_mul_c);
-    qlua_reg_mul(qMatComplex, qReal,       cm_mul_r);
-    qlua_reg_div(qMatComplex, qComplex,    cm_div_c);
-    qlua_reg_div(qMatComplex, qReal,       cm_div_r);
+    qlua_metatable(L, mtnMatReal,    mtMatReal,          qMatReal);
+    qlua_metatable(L, opMatReal,     MatRealMethods,     qNoType);
+    qlua_metatable(L, mtnMatComplex, mtMatComplex,       qMatComplex);
+    qlua_metatable(L, opMatComplex,  MatComplexMethods,  qNoType);
+    qlua_reg_op2(ops);
 
     return 0;
 }

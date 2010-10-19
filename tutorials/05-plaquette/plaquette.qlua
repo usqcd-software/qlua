@@ -2,10 +2,12 @@ require("stdlib")
 
 -- compute lattice volume
 L = qcd.lattice{4,4,4,8}
+--[[
 volume = 1
 for i = 0, #L - 1 do
   volume = volume * L[i]
 end
+--]] -- no longer needed
 
 -- make random state S
 do
@@ -19,7 +21,7 @@ end
 -- project ColorMatrix to SU(n)
 function toSUn(L, X)
   local Y = (X - X:adjoin()) / 2
-  return (Y - Y:trace() / qcd.Nc * L:ColorMatrix(complex(1,0))):exp()
+  return (Y - Y:trace() / Y:colors() * L:ColorMatrix(complex(1,0))):exp()
 end
 
 -- make weak field
@@ -42,7 +44,7 @@ function plaquette(U, i, j)
   local Uj = U[i+1]:shift(j, "from_forward")
   local Pij = (U[i+1] * Ui * Uj:adjoin() * U[j+1]:adjoin()):trace():real()
  
-  return Pij:sum() / (volume * qcd.Nc)
+  return Pij:sum() / (L:volume() * Ui:colors())
 end
 
 -- test: compute all plaquettes and their average, print values

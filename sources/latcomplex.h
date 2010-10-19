@@ -5,13 +5,11 @@ typedef struct {
     QDP_Complex *ptr;
 } mLatComplex;
 
-extern const char mtnLatComplex[];
-
 int init_latcomplex(lua_State *L);
 int fini_latcomplex(lua_State *L);
 
-mLatComplex *qlua_checkLatComplex(lua_State *L, int idx);
-mLatComplex *qlua_newLatComplex(lua_State *L);
+mLatComplex *qlua_checkLatComplex(lua_State *L, int idx, mLattice *S);
+mLatComplex *qlua_newLatComplex(lua_State *L, int S_idx);
 
 int q_C_gaussian(lua_State *L);
 

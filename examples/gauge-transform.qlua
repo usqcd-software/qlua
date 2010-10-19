@@ -2,7 +2,7 @@
 
 function gauge_transform_U(g, U)
    local V = {}
-   for i = 1, qcd.Nd do
+   for i = 1, #U do
       V[i] = g * U[i] * g:shift(i - 1, "from_forward"):adjoin()
    end
    return V
