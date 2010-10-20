@@ -1,0 +1,36 @@
+require "stdlib"
+
+rnd = qcd.RandomState(34634,141341);
+status = 0
+
+function check_gamma(g, pa)
+   printf("// gamma: %s\n", tostring(g));
+   gg = g:matrix()
+   for a = 0, 3 do
+	  local f1 = qcd.DiracFermionN(2)
+	  f1[{c=0,d=a}] = complex(1,0)
+	  for b = 0, 3 do
+		 local f2 = qcd.DiracFermionN(2)
+		 f2[{c=0,d=b}] = complex(1,0)
+		 local v_ab = qcd.dot(f2, g * f1);
+		 local w_ab = gg[{a,b}]
+		 local x_ab = v_ab - w_ab
+		 if x_ab:abs() > 1e-20 then
+			printf("%s %d %d: %s %s %s\n", pa, a, b,
+				   tostring(x_ab), tostring(v_ab), tostring(w_ab))
+			status = 1
+		 end
+	  end
+   end
+end
+
+for i = 0, 15 do
+   check_gamma(gamma{n=i}, "+1");
+   check_gamma(-gamma{n=i}, "-1");
+   check_gamma(rnd:random_Real() * gamma{n=i}, "real");
+   check_gamma(rnd:gaussian_Complex() * gamma{n=i}, "complex" );
+end
+
+if status == 0 then
+   printf("TEST OK\n");
+end

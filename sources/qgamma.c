@@ -8,28 +8,13 @@
 #include "seqdirferm.h"                                              /* DEPS */
 #include "seqdirprop.h"                                              /* DEPS */
 #include <string.h>
+#ifdef HAS_GSL
+#include "qmatrix.h"                                                 /* DEPS */
+#endif
 
 static const char mtnGamma[] = "qlua.mtGamma";
 
-enum {
-    qG_z,  /* zero */
-    qG_p,  /* +1 */
-    qG_m,  /* -1 */
-    qG_r,  /* real */
-    qG_c,  /* complex */
-    qG_t
-};
 #define Gi(a,b)  ((a)*qG_t+(b))
-
-typedef struct mGamma_s {
-    int t;
-    QLA_D_Real r;
-    QLA_D_Complex c;
-} mGamma;
-
-typedef struct mClifford_s {
-    mGamma g[16];
-} mClifford;
 
 static char gconj[] = {0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0};
 
@@ -57,6 +42,30 @@ static const char gm[16][16] = {
   {13, 12, 15, 14, 25, 24, 27, 26,  5,  4,  7,  6, 17, 16, 19, 18},
   {14, 31, 12, 29, 26, 11, 24,  9,  6, 23,  4, 21, 18,  3, 16,  1},
   {15, 30, 13, 28, 27, 10, 25,  8,  7, 22,  5, 20, 19,  2, 17,  0}};
+
+#ifdef HAS_GSL
+/* 0,1: l, r
+ * 2: im, im, re, re
+ * 3: i, s
+ */
+static const signed char gmv[4][4][4][2] = {
+	{{{ 3, -1}, {12,  1}, { 0,  1}, {15,  1}},
+	 {{ 6, -1}, { 9,  1}, { 5,  1}, {10,  1}},
+	 {{ 4, -1}, {11, -1}, { 7, -1}, { 8,  1}},
+	 {{ 1, -1}, {14, -1}, { 2, -1}, {13,  1}}},
+	{{{ 6, -1}, { 9,  1}, { 5, -1}, {10, -1}},
+	 {{ 3,  1}, {12, -1}, { 0,  1}, {15,  1}},
+	 {{ 1, -1}, {14, -1}, { 2,  1}, {13, -1}},
+	 {{ 4,  1}, {11,  1}, { 7, -1}, { 8,  1}}},
+	{{{ 4,  1}, {11, -1}, { 7,  1}, { 8,  1}},
+	 {{ 1,  1}, {14, -1}, { 2,  1}, {13,  1}},
+	 {{ 3, -1}, {12, -1}, { 0,  1}, {15, -1}},
+	 {{ 6, -1}, { 9, -1}, { 5,  1}, {10, -1}}},
+	{{{ 1,  1}, {14, -1}, { 2, -1}, {13, -1}},
+	 {{ 4, -1}, {11,  1}, { 7,  1}, { 8,  1}},
+	 {{ 6, -1}, { 9, -1}, { 5, -1}, {10,  1}},
+	 {{ 3,  1}, {12,  1}, { 0,  1}, {15, -1}}}};
+#endif
 
 #define add_r(x,y,z) \
    QLA_real(x->c) = QLA_real(y->c) + z; QLA_imag(x->c) = QLA_imag(y->c)
@@ -637,6 +646,61 @@ q_g_conj(lua_State *L)
     return 1;
 }
 
+#ifdef HAS_GSL
+static gsl_complex
+get_gmv(int i, int j, const mClifford *g, int k)
+{
+	int g_i = gmv[i][j][k][0];
+	int g_s = gmv[i][j][k][1];
+	gsl_complex r;
+	GSL_REAL(r) = 0;
+	GSL_IMAG(r) = 0;
+	switch (g->g[g_i].t) {
+	case qG_z:
+		break;
+	case qG_p:
+		GSL_REAL(r) = g_s;
+		GSL_IMAG(r) = 0;
+		break;
+	case qG_m:
+		GSL_REAL(r) = -g_s;
+		GSL_IMAG(r) = 0;
+		break;
+	case qG_r:
+		GSL_REAL(r) = g_s * g->g[g_i].r;
+		GSL_IMAG(r) = 0;
+		break;
+	case qG_c:
+		GSL_REAL(r) = QLA_real(g->g[g_i].c) * g_s;
+		GSL_IMAG(r) = QLA_imag(g->g[g_i].c) * g_s;
+		break;
+	}
+	return r;
+}
+
+static int
+q_g_matrix(lua_State *L)
+{
+	mClifford *g = qlua_checkClifford(L, 1);
+	mMatComplex *m = qlua_newMatComplex(L, 4, 4);
+	int i, j;
+
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			gsl_complex xi0 = get_gmv(i, j, g, 0);
+			gsl_complex xi1 = get_gmv(i, j, g, 1);
+			gsl_complex xr0 = get_gmv(i, j, g, 2);
+			gsl_complex xr1 = get_gmv(i, j, g, 3);
+			gsl_complex v;
+			GSL_REAL(v) = GSL_REAL(xr0) + GSL_REAL(xr1) - GSL_IMAG(xi0) - GSL_IMAG(xi1);
+			GSL_IMAG(v) = GSL_IMAG(xr0) + GSL_IMAG(xr1) + GSL_REAL(xi0) + GSL_REAL(xi1);
+			gsl_matrix_complex_set(m->m, i, j, v);
+		}
+	}
+	return 1;
+}
+#endif
+
 static int
 q_gamma(lua_State *L)
 {
@@ -785,6 +849,9 @@ static struct luaL_Reg mtGamma[] = {
     { "__mul",             qlua_mul },
     { "__div",             qlua_div },
     { "conj",              q_g_conj },
+#ifdef HAS_GSL
+	{ "matrix",            q_g_matrix },
+#endif
     { NULL,                NULL }
 };
 
