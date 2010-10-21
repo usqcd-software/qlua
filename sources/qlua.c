@@ -46,7 +46,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include <qmp.h>
-#include <assert.h>
 #include <libgen.h>
 
 /* ZZZ include other package headers here */
@@ -61,7 +60,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.20.00+ XXX $Id$"},
+    {"qlua",  "QLUA version 0.20.00-rc5 XXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
@@ -533,8 +532,8 @@ qlua_reg_op2(const QLUA_Op2 *ops)
     int i;
 
     for (i = 0; ops[i].table; i++) {
-        assert(ops[i].ta < qOther);
-        assert(ops[i].tb < qOther);
+        QLUA_ASSERT(ops[i].ta < qOther);
+        QLUA_ASSERT(ops[i].tb < qOther);
         ops[i].table[Op2Idx(ops[i].ta, ops[i].tb)] = ops[i].op;
     }
 }
@@ -610,7 +609,7 @@ static q_op qt_dot[(qOther + 1)];
 void
 qlua_reg_dot(QLUA_Type ta, q_op op)
 {
-    assert(ta < qOther);
+    QLUA_ASSERT(ta < qOther);
 
     qt_dot[Op1Idx(ta)] = op;
 }
@@ -836,6 +835,18 @@ qlua_init(lua_State *L, int argc, char *argv[])
     lua_gc(L, LUA_GCRESTART, 0);
 }
 
+void
+qlua_assert(int status, const char *msg)
+{
+	if (status != 0)
+		return;
+	fprintf(stderr, "QLUA ASSERT failed: %s\n", msg);
+	fflush(stdout);
+	fflush(stderr);
+	QDP_abort(1);
+	exit(1);
+}
+
 /* cleanup (mostly housekeeping to make various tools happy */
 void
 qlua_fini(lua_State *L)
@@ -921,33 +932,32 @@ main(int argc, char *argv[])
             message(" %10s: %s\n", versions[i].name, versions[i].value);
     } else {
 
-      for (i = 1; i < argc; i++) {
-	if(strcmp(argv[i],"-e")==0) { // process command
-	  const char *chunk = argv[i] + 2;
-	  if (*chunk == '\0') {
-	    if(++i>=argc) {
-	      message("missing argument to -e");
-	      goto end;
-	    }
-	    chunk = argv[i];
-	  }
-	  lua_assert(chunk != NULL);
-	  status = luaL_dostring(L, chunk);
-	  report(L, "=(command line)", status);
-	  if (status) {
-	    QDP_abort(1);
-	    break;
-	  }
-	} else { // process file
-	  status = luaL_dofile(L, argv[i]);
-	  report(L, argv[i], status);
-	  if (status) {
-	    QDP_abort(1);
-	    break;
-	  }
-	}
-      }
-
+		for (i = 1; i < argc; i++) {
+			char *source;
+			if(strcmp(argv[i],"-e")==0) { // process command
+				const char *chunk = argv[i] + 2;
+				if (*chunk == '\0') {
+					if (++i >= argc) {
+						message("missing argument to -e");
+						goto end;
+					}
+					chunk = argv[i];
+				}
+				QLUA_ASSERT(chunk != NULL);
+				status = luaL_dostring(L, chunk);
+				source = "=(command line)";
+			} else {
+				status = luaL_dofile(L, argv[i]);
+				source = argv[i];
+			}
+			report(L, source, status);
+			if (status) {
+				fflush(stdout);
+				fflush(stderr);
+				QDP_abort(1);
+				break;
+			}
+		}
     }
     qlua_fini(L);
     lua_close(L);

@@ -11,49 +11,10 @@
 #if USE_Nc3
 static const char nersc_io[] = "nersc";
 
-enum {
-    nerscERROR,  /* B: +size ++errstr[size] -- any error from the master */
-    nerscOK,     /* B: +any -- file read successfully */
-    nerscKEY,    /* B: +size ++(key[size]) -- header elem key */
-    nerscVALUE,  /* B: +size ++(value[size]) -- header elem value */
-    nerscEOH,    /* B: +any -- end of the header */
-    nerscSTART,  /* B: +any -- start of data */
-    nerscDATA    /* B: + 1 site gauge field -- gauge fields for one site */
-};
-
-typedef struct {
-    int code;
-    int arg;
-} NERSC_Command;
-
 static int
 nersc_error(lua_State *L, const char *errmsg)
 {
     return luaL_error(L, "L:read_NERSC_gauge() error: %s", errmsg);
-}
-
-static int
-nersc_mpi_error(lua_State *L, QMP_status_t status)
-{
-    return nersc_error(L, QMP_error_string(status));
-}
-
-static int
-nersc_master_error(lua_State *L, const char *msg)
-{
-    NERSC_Command cmd;
-    QMP_status_t status;
-
-    cmd.code = nerscERROR;
-    cmd.arg = strlen(msg) + 1;
-    status = QMP_broadcast(&cmd, sizeof (cmd));
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-    status = QMP_broadcast((char *)msg, cmd.arg);
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-
-    return nersc_error(L, msg);
 }
 
 static char *
@@ -100,33 +61,6 @@ nersc_gethdr(FILE *f, char *buffer, char **key, char **value)
     }
 }
 
-static int
-nersc_master_cmd(lua_State *L, int code, int arg)
-{
-    NERSC_Command cmd;
-    QMP_status_t status;
-
-    cmd.code = code;
-    cmd.arg = arg;
-    status = QMP_broadcast(&cmd, sizeof (cmd));
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-    return 0;
-}
-
-static int
-nersc_master_bcast(lua_State *L, int code, int len, void *payload)
-{
-    QMP_status_t status;
-
-    nersc_master_cmd(L, code, len);
-    status = QMP_broadcast(payload, len);
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-
-    return 0;
-}
-
 typedef struct {
     const char *name;
     int value;
@@ -134,18 +68,24 @@ typedef struct {
 
 static int
 decode_hdr(lua_State *L, const char *value, int old, int expected,
-           const NERSC_Value *t, const char *msg)
+           const NERSC_Value *t, char *msg, char **status)
 {
     int i;
 
-    if (old != expected)
-        return nersc_master_error(L, msg);
+	if (*status != NULL)
+		return old;
+
+    if (old != expected) {
+		*status = msg;
+		return old;
+	}
 
     for (i = 0; t[i].name; i++) {
         if (strcmp(t[i].name, value) == 0)
             return t[i].value;
     }
-    return nersc_master_error(L, msg);
+	*status = msg;
+	return old;
 }
 
 typedef double (*RealReader)(char *data, int idx);
@@ -176,9 +116,6 @@ read_3x3(lua_State *L,
 {
     int i, d, a, b;
 
-    if (nd != S->rank)
-        nersc_master_error(L, "internal error (read_3x3)");
-
     for (i = 0, d = 0; d < nd; d++) {
         for (a = 0; a < 3; a++) {
             for (b = 0; b < 3; b++, i += 2) {
@@ -198,9 +135,6 @@ read_3x2(lua_State *L,
          RealReader read_real)
 {
     int i, d, a, b;
-
-    if (nd != S->rank)
-        nersc_master_error(L, "internal error (read_3x2)");
 
     for (i = 0, d = 0; d < nd; d++, U++) {
         for (a = 0; a < 3 - 1; a++) {
@@ -238,7 +172,83 @@ site2coord(int *coord, long long site, int nd, const int *dim)
     }
 }
 
+static void
+send_string(lua_State *L, int idx)
+{
+	const char *str = lua_tostring(L, idx);
+	int len = strlen(str) + 1;
+
+	QMP_broadcast(&len, sizeof (len));
+	QMP_broadcast((void *)str, len);
+}
+
+static int
+receive_string(lua_State *L, char **str)
+{
+	int len;
+	QMP_broadcast(&len, sizeof (len));
+	if (len == 0)
+		return 0;
+	char val[len];
+	QMP_broadcast(val, len);
+	*str = qlua_malloc(L, len); /* NB: may fail somewhere */
+	if (*str != NULL) {
+		memcpy(*str, val, len);
+	}
+	return 1;
+}
+
+static void
+normalize_int(lua_State *L, int idx, const char *key, char *fmt)
+{
+	lua_getfield(L, idx, key);
+	const char *value = lua_tostring(L, -1);
+	int v;
+	if (value == NULL)
+		return;
+
+	if (sscanf(value, fmt, &v) == 1) {
+		lua_pop(L, 1);
+		lua_pushnumber(L, v);
+		lua_setfield(L, idx - 1, key);
+		return;
+	}
+	lua_pop(L, 1);
+}
+
+static void
+normalize_float(lua_State *L, int idx, const char *key)
+{
+	lua_getfield(L, idx, key);
+	const char *value = lua_tostring(L, -1);
+	double v;
+	if (value == NULL)
+		return;
+	if (sscanf(value, "%lg", &v) == 1) {
+		lua_pop(L, 1);
+		lua_pushnumber(L, v);
+		lua_setfield(L, idx - 1, key);
+		return;
+	}
+	lua_pop(L, 1);
+}
+
 static const char *ukey = "unitarity";
+
+static void
+normalize_kv(lua_State *L, mLattice *S, int idx)
+{
+	int i;
+	for (i = 1; i <= S->rank; i++) {
+		char buf[128]; /* large enough for DIMENSION_%d */
+		snprintf(buf, sizeof (buf) - 1, "DIMENSION_%d", i);
+		normalize_int(L, idx, buf, "%d");
+	}
+	normalize_int(L, idx, "CHECKSUM", "%x");
+	normalize_float(L, idx, "PLAQUETTE");
+	normalize_float(L, idx, "LINK_TRACE");
+	normalize_float(L, idx, ukey);
+}
 
 static int
 nersc_read_master(lua_State *L,
@@ -250,12 +260,10 @@ nersc_read_master(lua_State *L,
         ntNONE,
         nt4D_3x3,
         nt4D_3x2
-        /* nt4D_4x4 */
     };
     static const NERSC_Value nFMTs[] = {
         {"4D_SU3_GAUGE_3x3", nt4D_3x3 },
         {"4D_SU3_GAUGE",     nt4D_3x2 },
-        /* {"4D_SU4_GAUGE",     nt4D_4x4 }, */
         {NULL, ntNONE}
     };
     static const NERSC_Value nFPs[] = {
@@ -279,83 +287,78 @@ nersc_read_master(lua_State *L,
     int f_cs_p = 0;
     uint32_t f_checksum = 0;
     uint32_t d_checksum = 0;
-    GaugeReader read_matrix;
-    RealReader read_real;
-    int site_size;
+    GaugeReader read_matrix = NULL;
+    RealReader read_real = NULL;
+    int site_size = 0;
     int big_endian;
-    double uni_eps;
+    double uni_eps = 0;
     QLA_D3_ColorMatrix mone;
     QLA_D_Complex cone;
     double max_eps = 0.0;
+	char *status = NULL;
 
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
     QLA_D3_M_eq_c(&mone, &cone);
 
     if (f == 0)
-        return nersc_master_error(L, "file open error");
+        status = "file open error";
 
     for (i = 0; i < S->rank; i++)
         dim_ok[i] = 0;
 
-    /* parse the header and distribute it across the system */
-    if ((nersc_gethdr(f, buffer, &key, &value) != 1) ||
-        (strcmp(key, "BEGIN_HEADER") != 0))
-        return nersc_master_error(L, "missing header");
+    /* parse the header */
+    if ((status == NULL) && 
+		((nersc_gethdr(f, buffer, &key, &value) != 1) ||
+		 (strcmp(key, "BEGIN_HEADER") != 0)))
+        status = "missing header";
 
-    for (;;) {
-        switch (nersc_gethdr(f, buffer, &key, &value)) {
-        case 1:
-            if (strcmp(key, "END_HEADER") != 0)
-                return nersc_master_error(L, "missing end of header");
-            nersc_master_cmd(L, nerscEOH, 0);
-            goto eoh;
-        case 2:
-            lua_pushstring(L, value);
-            lua_setfield(L, -2, key);
-
-            nersc_master_bcast(L, nerscVALUE, strlen(value) + 1, value);
-            nersc_master_bcast(L, nerscKEY, strlen(key) + 1, key);
+	while (status == NULL) {
+		switch (nersc_gethdr(f, buffer, &key, &value)) {
+		case 1:
+			if (strcmp(key, "END_HEADER") != 0)
+                status = "missing end of header";
+			goto eoh;
+		case 2:
+			lua_pushstring(L, value);
+			lua_setfield(L, -2, key);
             
-            if (strcmp(key, "DATATYPE") == 0) {
-                f_format = decode_hdr(L, value, f_format, ntNONE, nFMTs,
-                                      "bad or conflicting DATATYPE");
-            } else if (strcmp(key, "FLOATING_POINT") == 0) {
-                f_fp = decode_hdr(L, value, f_fp, 0, nFPs,
-                                  "bad or conflicting FLOATING_POINT");
-            } else if (strcmp(key, "CHECKSUM") == 0) {
+			if (strcmp(key, "DATATYPE") == 0) {
+				f_format = decode_hdr(L, value, f_format, ntNONE, nFMTs,
+									  "bad or conflicting DATATYPE", &status);
+			} else if (strcmp(key, "FLOATING_POINT") == 0) {
+				f_fp = decode_hdr(L, value, f_fp, 0, nFPs,
+								  "bad or conflicting FLOATING_POINT", &status);
+			} else if (strcmp(key, "CHECKSUM") == 0) {
                 if (f_cs_p)
-                    return nersc_master_error(L, "multiple CHECKSUMs");
-                if (sscanf(value, "%x", &f_checksum) != 1)
-                    return nersc_master_error(L, "illformed CHECKSUM");
+                    status = "multiple CHECKSUMs";
+                if ((status == NULL) && 
+					(sscanf(value, "%x", &f_checksum) != 1))
+                    status = "illformed CHECKSUM";
                 f_cs_p = 1;
-                lua_pushnumber(L, f_checksum);
-                lua_setfield(L, -2, key);
             } else if (sscanf(key, "DIMENSION_%d", &i) == 1) {
                 int di;
                 if ((i < 1) || (i > S->rank))
-                    return nersc_master_error(L, "DIMENSION out of range");
-                if ((sscanf(value, "%d", &di) != 1) ||
-                    (S->dim[i - 1] != di))
-                    return nersc_master_error(L, "DIMENSION mismatch");
+                    status = "DIMENSION out of range";
+                if ((status == NULL) &&
+					((sscanf(value, "%d", &di) != 1) ||
+					 (S->dim[i - 1] != di)))
+                    status = "DIMENSION mismatch";
                 dim_ok[i - 1] = 1;
-                lua_pushnumber(L, di);
-                lua_setfield(L, -2, key);
             } else if (sscanf(key, "BOUNDARY_%d", &i) == 1) {
                 if ((i < 1) || (i > S->rank))
-                    return nersc_master_error(L, "BOUNDARY out of range");
-                if (strcmp(value, "PERIODIC") != 0)
-                    return nersc_master_error(L, "bad BOUNDARY value");
+                    status = "BOUNDARY out of range";
+                if ((status == NULL) &&
+					(strcmp(value, "PERIODIC") != 0))
+                    status = "bad BOUNDARY value";
             } else if ((strcmp(key, "PLAQUETTE") == 0) ||
                        (strcmp(key, "LINK_TRACE") == 0)) {
                 double v;
                 if (sscanf(value, "%lg", &v) != 1)
-                    return nersc_master_error(L, "unexpected value");
-                lua_pushnumber(L, v);
-                lua_setfield(L, -2, key);
+                    status = "unexpected value";
             }
             break;
         default:
-            return nersc_master_error(L, "illformed header");
+            status = "illformed header";
         }
     }
 eoh:
@@ -369,7 +372,8 @@ eoh:
         site_size = S->rank * 3 * (3 - 1) * 2;
         break;
     default:
-        return nersc_master_error(L, "unsupported data format");
+		if (status == NULL)
+			status = "unsupported data format";
     }
     switch (f_fp) {
     case 4:
@@ -383,21 +387,20 @@ eoh:
         uni_eps = 1e-12;
         break;
     default:
-        return nersc_master_error(L, "bad floating point size");
+		if (status == NULL)
+			status = "bad floating point size";
     }
     for (i = 0; i < S->rank; i++) {
-        if (!dim_ok[i])
-            return nersc_master_error(L, "missing DIMENSION spec");
-    }
-    if (f_cs_p == 0)
-        return nersc_master_error(L, "missing CHECKSUM");
+        if ((!dim_ok[i]) && (status == NULL)) {
+            status = "missing DIMENSION spec";
+		}
+	}
+	if ((f_cs_p == 0) && (status == NULL))
+        status = "missing CHECKSUM";
 
     /* Read the data and send it to the target host */
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
-    char site_buf[site_size];
-    QLA_D3_ColorMatrix CM[S->rank];
-
     /* find out our endianess */
     {
         union {
@@ -405,6 +408,7 @@ eoh:
             unsigned char c[sizeof (uint64_t)];
         } b;
         uint64_t v;
+		big_endian = 1;
         for (v = 1, i = 0; i < sizeof (uint64_t); i++)
             v = (v << CHAR_BIT) + i + 1;
         b.ll = v;
@@ -412,17 +416,23 @@ eoh:
             big_endian = 1;
         else if (b.c[0] == i)
             big_endian = 0;
-        else
-            return nersc_master_error(L, "Unexpected host endianness");
+        else if (status != NULL)
+            status = "Unexpected host endianness";
     }
+	/* read every site in order on the master
+	 * compute the checksum and send it to the target node
+	 */
+    char site_buf[site_size];
+    QLA_D3_ColorMatrix CM[S->rank];
+	QMP_msgmem_t mm;
 
-    /* start of data message */
-    nersc_master_cmd(L, nerscSTART, 0);
+	mm = QMP_declare_msgmem(CM, sizeof (CM));
 
     /* Go through all sites */
     for (site = 0; site < volume; site++) {
-        if (fread(site_buf, site_size, 1, f) != 1)
-            return nersc_master_error(L, "file read error");
+        if ((status == NULL) && (fread(site_buf, site_size, 1, f) != 1))
+            status = "file read error";
+
         /* swap bytes if necessary */
         if (big_endian == 0) {
             char *p;
@@ -444,7 +454,7 @@ eoh:
                 }
                 break;
             default:
-                return nersc_master_error(L, "internal error");
+                status = "internal error: unsupported f_fp in endiannes conversion";
             }
         }
         /* collect the checksum */
@@ -470,8 +480,8 @@ eoh:
                         QLA_D3_C_eq_elem_M(&z, &UxU, a, b);
                         er = fabs(QLA_real(z));
                         ei = fabs(QLA_imag(z));
-                        if ((er > uni_eps) || (ei > uni_eps))
-                            return nersc_master_error(L, "unitarty violation");
+                        if (((er > uni_eps) || (ei > uni_eps)) && (status == NULL))
+                            status = "unitarty violation";
                         if (er > max_eps)
                             max_eps = er;
                         if (ei > max_eps)
@@ -480,11 +490,7 @@ eoh:
                 }
             }
         }
-        /* send CM to everyone
-         *  -- this makes all slaves receive previous errors as well.
-         */
-        nersc_master_bcast(L, nerscDATA, sizeof (CM), CM);
-        /* place ColorMatrix in U if it belongs to this site */
+        /* place ColorMatrix in U where it belongs */
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
@@ -493,63 +499,48 @@ eoh:
             
             for (d = 0; d < S->rank; d++)
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
-        }
+        } else {
+			QMP_msghandle_t mh = QMP_declare_send_to(mm, s_node, 0);
+			QMP_start(mh);
+			QMP_wait(mh);
+			QMP_free_msghandle(mh);
+		}
     }
-
+	QMP_free_msgmem(mm);
+	
     fclose(f);
 
-    /* check the checksum, broadcast nerscOK or nerscERROR */
-    if (f_checksum != d_checksum)
-        return nersc_master_error(L, "checksum mismatch");
+    /* check the checksum */
+    if ((status == NULL) && (f_checksum != d_checksum))
+        status = "checksum mismatch";
 
-    lua_pushnumber(L, max_eps);
-    lua_setfield(L, -2, ukey);
-    nersc_master_bcast(L, nerscVALUE, sizeof (double), &max_eps);
-    nersc_master_cmd(L, nerscOK, 0);
+	/* broadcast the size of status to everyone */
+	int status_len = (status != NULL)? (strlen(status) + 1): 0;
+	QMP_sum_int(&status_len);
+	/* if status is not NULL, broadcast to to everyone and call lua error */
+	if (status_len != 0) {
+		QMP_broadcast(status, status_len);
+		return nersc_error(L, status);
+	}
 
-    return 2;
-}
-
-static int
-nersc_slave_error(lua_State *L, int len)
-{
-    char *msg = qlua_malloc(L, len);
-    QMP_status_t status;
-
-    status = QMP_broadcast(msg, len);
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-
-    return nersc_error(L, msg);
-}
-
-static int
-nersc_slave_cmd(lua_State *L, int *code, int *arg)
-{
-    NERSC_Command cmd;
-    QMP_status_t status = QMP_broadcast(&cmd, sizeof (cmd));
-
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-
-    if (code == nerscERROR)
-        return nersc_slave_error(L, *arg);
-
-    *code = cmd.code;
-    *arg = cmd.arg;
-
-    return cmd.code;
-}
-
-static int
-nersc_slave_bcast(lua_State *L, int len, void *buffer)
-{
-    QMP_status_t status = QMP_broadcast(buffer, len);
-    
-    if (status != QMP_SUCCESS)
-        return nersc_mpi_error(L, status);
-
-    return 0;
+	/* convert max_eps to a string and store it (L, -2, ukey) */
+	snprintf(buffer, sizeof (buffer) - 1, "%.10e", max_eps);
+	lua_pushstring(L, buffer);
+	lua_setfield(L, -2, ukey);
+	/* ditribute the table across the machine */
+	{
+		lua_pushnil(L);
+		while (lua_next(L, -2) != 0) {
+			send_string(L, -2); /* key */
+			send_string(L, -1); /* value */
+			lua_pop(L, 1);
+		}
+		int zero = 0;
+		QMP_broadcast(&zero, sizeof (zero));
+	}
+	/* normalize key/value pairs */
+	normalize_kv(L, S, -1);
+	return 2;
 }
 
 static int
@@ -558,74 +549,26 @@ nersc_read_slave(lua_State *L,
                  QLA_D3_ColorMatrix **U,
                  const char *name)
 {
-    int code = 0;
-    int arg = 0;
-    char key[NERSC_BUFSIZE];
-    char value[NERSC_BUFSIZE];
     long long volume;
     long long site;
-    int coord[S->rank];
-    int s_node;
-    int i;
+	int i;
     QLA_D3_ColorMatrix CM[S->rank];
-    double max_eps;
+	QMP_msgmem_t mm = QMP_declare_msgmem(CM, sizeof (CM));
+	QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
 
-    /* get header elements */
-    for (;;) {
-        switch (nersc_slave_cmd(L, &code, &arg)) {
-        case nerscEOH:
-            goto eoh;
-        case nerscVALUE:
-            nersc_slave_bcast(L, arg, value);
-            lua_pushstring(L, value);
-            if (nersc_slave_cmd(L, &code, &arg) != nerscKEY)
-                return luaL_error(L, "internal error (key %d)", code);
-            nersc_slave_bcast(L, arg, key);
-            lua_setfield(L, -2, key);
-            if ((strcmp(key, "PLAQUETTE") == 0) ||
-                (strcmp(key, "LINK_TRACE") == 0)) {
-                double v = 0;
-                sscanf(value, "%lg", &v); /* errors handled by the master */
-                lua_pushnumber(L, v);
-                lua_setfield(L, -2, key);
-            } else if (strcmp(key, "CHECKSUM") == 0) {
-                uint32_t s;
-                sscanf(value, "%x", &s); /* errors handled by the master */
-                lua_pushnumber(L, s);
-                lua_setfield(L, -2, key);
-            } else if (sscanf(key, "DIMENSION_%d", &i) == 1) {
-                int d;
-                sscanf(value, "%d", &d); /* errors handled by the master */
-                lua_pushnumber(L, d);
-                lua_setfield(L, -2, key);
-            }
-            break;
-        default:
-            return luaL_error(L, "internal error (header %d)", code);
-        }
-    }
-eoh:
-    switch (nersc_slave_cmd(L, &code, &arg)) {
-    case nerscSTART:
-        break;
-    default:
-        return luaL_error(L, "internal error (START %d)", code);
-    }
     /* get gauge element for this node */
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
 
+	/* get all data from node qlua_master_node */
     for (site = 0; site < volume; site++) {
-        switch (nersc_slave_cmd(L, &code, &arg)) {
-        case nerscDATA:
-            break;
-        default:
-            return luaL_error(L, "internal error (DATA %d)", code);
-        }
-        nersc_slave_bcast(L, sizeof (CM), CM);
+		int coord[S->rank];
+		int s_node;
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
+			QMP_start(mh);
+			QMP_wait(mh);
             int idx = QDP_index_L(S->lat, coord);
             int d;
             
@@ -633,31 +576,37 @@ eoh:
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
+	QMP_free_msghandle(mh);
+	QMP_free_msgmem(mm);
 
-    /* get the maximal unitary violation */
-    switch (nersc_slave_cmd(L, &code, &arg)) {
-    case nerscVALUE:
-        if (arg != sizeof (double))
-            luaL_error(L, "internal error (unitarity size)");
-        break;
-    default:
-        return luaL_error(L, "internal error (UNITARITY %d)", code);
-    }
-    nersc_slave_bcast(L, sizeof (double), &max_eps);
-    
-    lua_pushnumber(L, max_eps);
-    lua_setfield(L, -2, ukey);
+	/* get status size (broadcast) */
+	int status_len = 0;
+	QMP_sum_int(&status_len);
+	/* if not zero, get the message, call lua_error */
+	if (status_len != 0) {
+		char msg[status_len];
+		QMP_broadcast(msg, status_len);
+		return nersc_error(L, msg);
+	}
 
-    /* wait for the final nerscOK */
-    switch (nersc_slave_cmd(L, &code, &arg)) {
-    case nerscOK:
-        break;
-    default:
-        return luaL_error(L, "internal error (END %d)", code);
-    }
-
-    return 2;
+	/* get keys and values */
+	/* NB: This may cause a slave node to run out of memory out of sync with the master */
+	for (;;) {
+		char *key, *value;
+		if (receive_string(L, &key) == 0)
+			break;
+		receive_string(L, &value);
+		lua_pushstring(L, value);
+		lua_setfield(L, -2, key);
+		qlua_free(L, key);
+		qlua_free(L, value);
+	}
+	
+	/* normalize key/value table */
+	normalize_kv(L, S, -1);
+	return 2;
 }
+
 
 static int
 q_nersc_read(lua_State *L)

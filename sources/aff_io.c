@@ -4,7 +4,6 @@
 #include "aff_io.h"                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
-#include <assert.h>
 #include "qmp.h"
 
 const char aff_io[] = "aff";
@@ -33,7 +32,7 @@ static lua_State *qL = NULL; /* to pass the LUA state to aff_realloc */
 void *
 aff_realloc(void *ptr, size_t size)
 {
-    assert(qL != NULL);
+    QLUA_ASSERT(qL != NULL);
 
     if (ptr == 0) {
         return qlua_malloc(qL, (int)size);
@@ -50,7 +49,7 @@ aff_realloc(void *ptr, size_t size)
 void
 qlua_Aff_enter(lua_State *L)
 {
-    assert(qL == NULL);
+    QLUA_ASSERT(qL == NULL);
 
     qL = L;
 }
@@ -58,7 +57,7 @@ qlua_Aff_enter(lua_State *L)
 void
 qlua_Aff_leave(void)
 {
-    assert(qL != NULL);
+    QLUA_ASSERT(qL != NULL);
 
     qL = 0;
 }

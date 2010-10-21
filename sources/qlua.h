@@ -213,6 +213,9 @@ int qlua_nowrite(lua_State *L);
 void XMP_dist_int_array(int src_node, int count, int *value);
 void XMP_dist_double_array(int src_node, int count, double *value);
 
+#define QLUA_ASSERT(x) do qlua_assert(x, #x); while (0)
+void qlua_assert(int, const char *);
+
 /* strict memory management: collect garbage befor any QDP operation */
 #define CALL_QDP(L) do lua_gc(L, LUA_GCCOLLECT, 0); while (0)
 
