@@ -426,7 +426,7 @@ eoh:
     QLA_D3_ColorMatrix CM[S->rank];
 	QMP_msgmem_t mm;
 
-	mm = QMP_declare_msgmem(CM, sizeof (CM));
+	mm = QMP_declare_msgmem(CM, S->rank * sizeof (QLA_D3_ColorMatrix));
 
     /* Go through all sites */
     for (site = 0; site < volume; site++) {
@@ -493,7 +493,7 @@ eoh:
         /* place ColorMatrix in U where it belongs */
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
-        if (s_node == QDP_this_node) {
+		if (s_node == QDP_this_node) {
             int idx = QDP_index_L(S->lat, coord);
             int d;
             
@@ -553,7 +553,7 @@ nersc_read_slave(lua_State *L,
     long long site;
 	int i;
     QLA_D3_ColorMatrix CM[S->rank];
-	QMP_msgmem_t mm = QMP_declare_msgmem(CM, sizeof (CM));
+	QMP_msgmem_t mm = QMP_declare_msgmem(CM, S->rank * sizeof (QLA_D3_ColorMatrix));
 	QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
 
     /* get gauge element for this node */
