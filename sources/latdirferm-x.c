@@ -98,7 +98,7 @@ Qs(q_D_get)(lua_State *L)
             if ((c == -1) && (d == -1)) {
                 /* D[{x,y,...}] => d */
                 Qs(mSeqDirFerm) *m = Qs(qlua_newSeqDirFerm)(L, QC(V));
-                double m_std[2 * QC(V) * QDP_Ns];
+                double *m_std = qlua_malloc(L, 2 * QC(V) * QDP_Ns * sizeof (double));
 
                 if (site_node == QDP_this_node) {
                     int la = QDP_index_L(S->lat, idx);
@@ -106,6 +106,7 @@ Qs(q_D_get)(lua_State *L)
                 }
                 XMP_dist_double_array(site_node, 2 * QC(V) * QDP_Ns, m_std);
                 Qs(pack_ferm)(QC(V), m->ptr, m_std);
+				qlua_free(L, m_std);
             } else if ((c == -1) || (d == -1)) {
                 qlua_free(L, idx);
                 return qlua_badindex(L, "DiracFermion" Qcolors);
@@ -240,7 +241,7 @@ Qs(q_D_sum)(lua_State *L)
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
 
-        Vtype *vv[size];
+        Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
             Qs(mSeqDirFerm) *vi = Qs(qlua_newSeqDirFerm)(L, QC(a));
@@ -258,7 +259,7 @@ Qs(q_D_sum)(lua_State *L)
             Qx(QLA_D,_D_peq_D)(QNC(nc) vv[t], xx);
         }
         Qx(QDP_D,_reset_D)(a->ptr);
-        QLA_D_Real rr[2 * size * nc * QDP_Ns];
+        QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * QDP_Ns * sizeof (QLA_D_Real));
         for (int i = 0; i < size; i++) {
             for (int c = 0; c < nc; c++) {
                 for (int d = 0; d < QDP_Ns; d++) {
@@ -280,6 +281,8 @@ Qs(q_D_sum)(lua_State *L)
                 }
             }
         }
+		qlua_free(L, rr);
+		qlua_free(L, vv);
         return 1;
     }
     }

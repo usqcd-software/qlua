@@ -286,6 +286,8 @@ q_lattice(lua_State *L)
     r = lua_objlen(L, 1);
     if (r <= 0)
         return luaL_error(L, "Bad lattice rank");
+	if (r > QLUA_MAX_LATTICE_RANK)
+		return luaL_error(L, "latice rank is too large");
     S->rank = r;
     S->node = 0;
     S->neighbor_up = qlua_malloc(L, r * sizeof (int));
@@ -300,9 +302,8 @@ q_lattice(lua_State *L)
     }
     CALL_QDP(L);
     S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
-    if (S->lat == 0) {
+    if (S->lat == 0)
         return luaL_error(L, "can not create lattice");
-    }
     S->all = QDP_all_L(S->lat);
     S->even = QDP_even_L(S->lat);
     S->odd = QDP_odd_L(S->lat);

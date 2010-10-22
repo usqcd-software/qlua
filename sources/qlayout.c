@@ -63,8 +63,8 @@ eo_setup(QDP_Lattice *lat, void *args)
             S->net[i] = (i < nd2) ? nsquares2[i] : 1;
         }
     } else { /* not QMP_GRID */
-        int squaresize[S->rank];
-        int extrafactors[S->rank];
+        int squaresize[QLUA_MAX_LATTICE_RANK];
+        int extrafactors[QLUA_MAX_LATTICE_RANK];
         for (int i=0; i < S->rank; i++) {
             squaresize[i] = S->dim[i];
             extrafactors[i] = 1;
@@ -126,7 +126,7 @@ eo_setup(QDP_Lattice *lat, void *args)
     } /* not QMP_GRID */
 
     int numsites = 1;
-    int mc[S->rank];
+    int mc[QLUA_MAX_LATTICE_RANK];
     node2coord(mc, QDP_this_node, S);
     for (int i=0; i < S->rank; i++) {
         int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
@@ -168,7 +168,7 @@ eo_numsites(QDP_Lattice *lat, int node)
     } else {
         int numsites = 1;
         int nd = S->rank;
-        int mc[nd];
+        int mc[QLUA_MAX_LATTICE_RANK];
         node2coord(mc, node, S);
         for (int i = 0; i<nd; ++i) {
             int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
@@ -184,7 +184,7 @@ eo_node_number(QDP_Lattice *lat, const int x[])
 {
     params *p = QDP_get_lattice_params(lat);
     mLattice *S = p->S;
-    int m[S->rank];
+    int m[QLUA_MAX_LATTICE_RANK];
     
     for (int i = 0; i < S->rank; i++) {
         m[i] = (x[i] * S->net[i]) / S->dim[i];
@@ -221,7 +221,9 @@ eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
     params *p = (params *) QDP_get_lattice_params(lat);
     mLattice *S = p->S;
     int nd = S->rank;
-    int m[nd], dx[nd], sx[nd];
+    int m[QLUA_MAX_LATTICE_RANK];
+	int dx[QLUA_MAX_LATTICE_RANK];
+	int sx[QLUA_MAX_LATTICE_RANK];
 
     node2coord(m, node, S);
 
@@ -263,7 +265,7 @@ void
 qlua_sublattice(int lo[], int hi[], int node, void *env)
 {
     mLattice *S = env;
-    int nD[S->rank];
+    int nD[QLUA_MAX_LATTICE_RANK];
 
     node2coord(nD, node, S);
     for (int i = 0; i < S->rank; i++) {

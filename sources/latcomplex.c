@@ -748,7 +748,7 @@ q_C_project(lua_State *L)
     int size = m->size;
     mVecComplex *r = qlua_newVecComplex(L, size);
     int sites = QDP_sites_on_node_L(S->lat);
-    QLA_D_Real rr[2 * size];
+    QLA_D_Real *rr = qlua_malloc(L, 2 * size * sizeof (QLA_D_Real));
     QLA_Int *ii = m->idx;
     QLA_D_Complex *aa;
     QLA_D_Complex *bb;
@@ -778,6 +778,7 @@ q_C_project(lua_State *L)
         QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
     }
 
+	qlua_free(L, rr);
     return 1;
 }
 

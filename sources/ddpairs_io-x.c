@@ -245,8 +245,8 @@ Qs(dd_write)(lua_State *L, int nc)
     QIO_String       *f_xml       = NULL;
     QIO_String       *s_xml       = NULL;
     QIO_String       *p_xml       = NULL;
-    int               lo[S->rank];
-    int               hi[S->rank];
+    int               *lo = qlua_malloc(L, S->rank * sizeof (int));
+    int               *hi = qlua_malloc(L, S->rank * sizeof (int));
     Qs(USQCDArgs)     dataP;
     Qs(USQCDArgs)     dataS;
     int               i, jc, js;
@@ -274,6 +274,8 @@ Qs(dd_write)(lua_State *L, int nc)
         datum_size = sizeof (Dtype);
         break;
     default:
+		qlua_free(L, lo);
+		qlua_free(L, hi);
         return luaL_error(L, "unsupported output precision");
     }
     datacount = 1;
@@ -286,8 +288,11 @@ Qs(dd_write)(lua_State *L, int nc)
     p_xml = QIO_string_create();
     QIO_string_set(p_xml, prop_xml);
     writer = qlua_qio_std_writer(S, fname, f_xml, volfmt);
-    if (writer == 0)
+    if (writer == 0) {
+		qlua_free(L, lo);
+		qlua_free(L, hi);
         return luaL_error(L, "qcd.ddpairs.write(): open error");
+	}
     dataP.nc = nc;
     dataP.P = Qx(QDP_D,_expose_P)(prop->ptr);
     dataP.L = L;
@@ -315,8 +320,11 @@ Qs(dd_write)(lua_State *L, int nc)
                                               datatype, file_prec, nc, QDP_Ns,
                                               typesize, datacount);
             if (QIO_write(writer, rec_info, s_xml, getter,
-                          datum_size, word_size, &dataS))
+                          datum_size, word_size, &dataS)) {
+				qlua_free(L, lo);
+				qlua_free(L, hi);
                 return luaL_error(L, "qcd.ddpairs.write(): source write error");
+			}
             QIO_destroy_record_info(rec_info);
             
             dataP.js = js;
@@ -325,12 +333,16 @@ Qs(dd_write)(lua_State *L, int nc)
                                               datatype, file_prec, nc, QDP_Ns,
                                               typesize, datacount);
             if (QIO_write(writer, rec_info, p_xml, getter,
-                          datum_size, word_size, &dataP))
+                          datum_size, word_size, &dataP)) {
+				qlua_free(L, lo);
+				qlua_free(L, hi);
                 return luaL_error(L, "qcd.ddpairs.write(): prop write error");
+			}
             QIO_destroy_record_info(rec_info);
         }
     }
-
+	qlua_free(L, lo);
+	qlua_free(L, hi);
     Qx(QDP_D,_reset_P)(source->ptr);
     Qx(QDP_D,_reset_P)(prop->ptr);
     if (QIO_close_write(writer))

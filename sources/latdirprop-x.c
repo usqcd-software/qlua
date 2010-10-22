@@ -98,7 +98,7 @@ Qs(q_P_get)(lua_State *L)
                 return qlua_badindex(L, "DiracPropagator" Qcolors);
             Qs(mSeqDirProp) *m = Qs(qlua_newSeqDirProp)(L, QC(V));
             int len = 2 * QC(V) * QC(V) * QDP_Ns * QDP_Ns;
-            double m_std[len];
+            double *m_std = qlua_malloc(L, len * sizeof (double));
             CALL_QDP(L);
             Vtype *locked = Qx(QDP_D,_expose_P)(V->ptr);
             int site_node = QDP_node_number_L(S->lat, idx);
@@ -110,6 +110,7 @@ Qs(q_P_get)(lua_State *L)
             Qs(pack_prop)(QC(V), m->ptr, m_std);
             Qx(QDP_D,_reset_P)(V->ptr);
             qlua_free(L, idx);
+			qlua_free(L, m_std);
         }
         return 1;
     }
@@ -198,7 +199,7 @@ Qs(q_P_sum)(lua_State *L)
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
 
-        Vtype *vv[size];
+        Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
             Qs(mSeqDirProp) *vi = Qs(qlua_newSeqDirProp)(L, QC(a));
@@ -216,7 +217,7 @@ Qs(q_P_sum)(lua_State *L)
             Qx(QLA_D,_P_peq_P)(QNC(nc) vv[t], xx);
         }
         Qx(QDP_D,_reset_P)(a->ptr);
-        QLA_D_Real rr[2 * size * nc * nc * QDP_Ns * QDP_Ns];
+        QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * nc * QDP_Ns * QDP_Ns * sizeof (QLA_D_Real));
         for (int i = 0; i < size; i++) {
             for (int ci = 0; ci < nc; ci++) {
                 for (int cj = 0; cj < nc; cj++) {
@@ -247,6 +248,8 @@ Qs(q_P_sum)(lua_State *L)
                 }
             }
         }
+		qlua_free(L, rr);
+		qlua_free(L, vv);
         return 1;
     }
     }

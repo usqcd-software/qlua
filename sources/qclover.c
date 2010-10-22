@@ -464,7 +464,7 @@ q_DF_eigenvalues(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
     mVecReal *v = qlua_newVecReal(L, d->nev);
-    double t[d->nev];
+    double *t = qlua_malloc(L, d->nev * sizeof (double));
     int status = QOP_CLOVER_deflator_eigen(t, d->deflator);
 
     if (status == 0) {
@@ -472,6 +472,7 @@ q_DF_eigenvalues(lua_State *L)
         for (i = 0; i < d->nev; i++)
             v->val[i] = t[i];
     }
+	qlua_free(L, t);
     if (status == 0)
         return 1;
     else

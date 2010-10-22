@@ -97,7 +97,7 @@ Qs(q_M_get)(lua_State *L)
 
             if ((a == -1) && (b == -1)) {
                 Qs(mSeqColMat) *m = Qs(qlua_newSeqColMat)(L, QC(V));
-                double m_std[2 * QC(V) * QC(V)];
+                double *m_std = qlua_malloc(L, 2 * QC(V) * QC(V) * sizeof (double));
 
                 if (site_node == QDP_this_node) {
                     int la = QDP_index_L(S->lat, idx);
@@ -105,6 +105,7 @@ Qs(q_M_get)(lua_State *L)
                 }
                 XMP_dist_double_array(site_node, 2 * QC(V) * QC(V), m_std);
                 Qs(pack_mat)(QC(V), m->ptr, m_std);
+				qlua_free(L, m_std);
             } else if ((a == -1) || (b == -1)) {
                 qlua_free(L, idx);
                 return qlua_badindex(L, "ColorMatrix" Qcolors);
@@ -231,7 +232,7 @@ Qs(q_M_sum)(lua_State *L)
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
 
-        Vtype *vv[size];
+        Vtype **vv = qlua_malloc(L, size * sizeof(Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
             Qs(mSeqColMat) *vi = Qs(qlua_newSeqColMat)(L, QC(a));
@@ -249,7 +250,7 @@ Qs(q_M_sum)(lua_State *L)
             Qx(QLA_D,_M_peq_M)(QNC(nc) vv[t], xx);
         }
         Qx(QDP_D,_reset_M)(a->ptr);
-        QLA_D_Real rr[2 * size * nc * nc];
+        QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * nc * sizeof (QLA_D_Real));
         for (int i = 0; i < size; i++) {
             for (int ca = 0; ca < nc; ca++) {
                 for (int cb = 0; cb < nc; cb++) {
@@ -271,6 +272,8 @@ Qs(q_M_sum)(lua_State *L)
                 }
             }
         }
+		qlua_free(L, rr);
+		qlua_free(L, vv);
         return 1;
     }
     }

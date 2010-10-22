@@ -15,9 +15,9 @@ CC="gcc -g -std=c99 -m32 -DQD_Nc=3"           \
    --with-mdwf=/Users/avp/Sandbox/USQCD/mdwf/install-new-1 \
    --with-extras \
    --prefix=$TARGET \
+   --without-nc=any \
+   --with-nc=3 \
    $*
 
 #
-#   --without-nc=any \
-#   --with-nc=3 \
 #

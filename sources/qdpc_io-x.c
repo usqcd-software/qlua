@@ -55,7 +55,7 @@ X_ID(qdpc_r_)(lua_State *L)
         if (n <= 0)
             return luaL_error(L, "field count out of range");
 
-        T_QTYPE *U[n];
+        T_QTYPE **U = qlua_malloc(L, n * sizeof (T_QTYPE *));
         lua_createtable(L, n, 0);
         for (i = 0; i < n; i++) {
             QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L, Sidx);
@@ -69,13 +69,14 @@ X_ID(qdpc_r_)(lua_State *L)
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
+			qlua_free(L, U);
             return 2;
         }
         /* read failed */
         QDP_string_destroy(info);
         for (i = 0; i < n; i++)
             X_ID(QDP_destroy_)(U[i]);
-        
+        qlua_free(L, U);
         break;
     }
     }
@@ -154,7 +155,7 @@ X_ID(qdpc_w_)(lua_State *L)
             QDP_string_destroy(xml);
             return luaL_error(L, "qdpc.write: bad table ");
         }
-        T_QTYPE *X[n];
+        T_QTYPE **X = qlua_malloc(L, n * sizeof (T_QTYPE *));
         for (i = 0; i < n; i++) {
             /* full table indexing here */
             lua_pushnumber(L, i + 1); /* [ sic ] lua indexing */
@@ -166,22 +167,27 @@ X_ID(qdpc_w_)(lua_State *L)
 #ifdef X_DF
         switch (format) {
         case 'F': {
-            T_sTYPE *Y[n];
+            T_sTYPE **Y = qlua_malloc(L, n * sizeof (T_sTYPE *));
             for (i = 0; i < n; i++) {
                 Y[i] = X_ID2(QDP_F_create_, _L)(S->lat);
-                if (Y[i] == 0)
+                if (Y[i] == 0) {
+					qlua_free(L, X);
+					qlua_free(L, Y);
                     return luaL_error(L, "not enough memory");
+				}
                 X_ID3(QDP_FD_,_eq_)(Y[i], X[i], S->all);
             }
             status = X_ID(QDP_F_vwrite_)(writer->ptr, xml, Y, n);
             for (i = 0; i < n; i++)
                 X_ID(QDP_F_destroy_)(Y[i]);
+			qlua_free(L, Y);
             break;
         }
         case 'D':
             status = X_ID(QDP_D_vwrite_)(writer->ptr, xml, X, n);
             break;
         default:
+			qlua_free(L, X);
             return luaL_error(L, "unsupported QIO format");
         }
 #else
@@ -191,10 +197,12 @@ X_ID(qdpc_w_)(lua_State *L)
             /* success -- clean up everything and return true */
             QDP_string_destroy(xml);
             lua_pushboolean(L, 1);
+			qlua_free(L, X);
 
             return 1;
         }
         /* failure to write */
+		qlua_free(L, X);
         break;
     }
     default:

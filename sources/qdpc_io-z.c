@@ -50,7 +50,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         if (n <= 0)
             return luaL_error(L, "field count out of range");
 
-        Qtype *X[n];
+        Qtype **X = qlua_malloc(L, n * sizeof (Qtype *));
         lua_createtable(L, n, 0);
         for (i = 0; i < n; i++) {
             Qs(m) *xi = Qs(qlua_new)(L, Sidx, nc);
@@ -64,6 +64,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
+			qlua_free(L, X);
             return 2;
         }
         /* read failed */
@@ -71,6 +72,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         for (i = 0; i < n; i++)
             Qop(destroy)(X[i]);
 
+		qlua_free(L, X);
         break;
     }
     }
@@ -207,8 +209,8 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
     xml = QDP_string_create();
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
-    Qtype *X[n];
-    Stype *Y[n];
+    Qtype **X = qlua_malloc(L, n * sizeof (Qtype *));
+    Stype **Y = qlua_malloc(L, n * sizeof (Stype *));
     for (i = 0; i < n; i++) {
         Qs(m) *xi;
         /* full table indexing here */
@@ -230,6 +232,8 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
     for (i = 0; i < n; i++)
         Sop(destroy)(Y[i]);
 
+	qlua_free(L, X);
+	qlua_free(L, Y);
     if (status == 0) {
         /* success -- clean up everything and return true */
         lua_pushboolean(L, 1);

@@ -186,15 +186,16 @@ static int
 receive_string(lua_State *L, char **str)
 {
 	int len;
+	*str = 0;
 	QMP_broadcast(&len, sizeof (len));
+	/* XXX */ printf("slave %d: receive_string: len %d\n", QDP_this_node, len);
+	/* XXX */ fflush(stdout);
 	if (len == 0)
 		return 0;
-	char val[len];
-	QMP_broadcast(val, len);
-	*str = qlua_malloc(L, len); /* NB: may fail somewhere */
-	if (*str != NULL) {
-		memcpy(*str, val, len);
-	}
+	*str = qlua_malloc(L, len);
+	QMP_broadcast(*str, len);
+	/* XXX */ printf("slave %d: receive_string: str %p %s\n", QDP_this_node, *str, *str);
+	/* XXX */ fflush(stdout);
 	return 1;
 }
 
@@ -276,11 +277,11 @@ nersc_read_master(lua_State *L,
     FILE *f = fopen(name, "rb");
     char buffer[NERSC_BUFSIZE];
     char *key, *value;
-    int  coord[S->rank];
+    int  *coord = qlua_malloc(L, S->rank * sizeof (int));
+    char *dim_ok = qlua_malloc(L, S->rank * sizeof (int));
     long long volume;
     long long site;
     int s_node;
-    char dim_ok[S->rank];
     int i;
     int f_format = ntNONE;
     int f_fp = 0;
@@ -299,6 +300,8 @@ nersc_read_master(lua_State *L,
 
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
     QLA_D3_M_eq_c(&mone, &cone);
+
+	/* XXX */ printf("master: rank %d, dim [%d %d %d %d]\n", S->rank, S->dim[0], S->dim[1], S->dim[2], S->dim[3]);
 
     if (f == 0)
         status = "file open error";
@@ -422,11 +425,11 @@ eoh:
 	/* read every site in order on the master
 	 * compute the checksum and send it to the target node
 	 */
-    char site_buf[site_size];
-    QLA_D3_ColorMatrix CM[S->rank];
+    char *site_buf = qlua_malloc(L, site_size);
+    QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
 	QMP_msgmem_t mm;
 
-	mm = QMP_declare_msgmem(CM, S->rank * sizeof (QLA_D3_ColorMatrix));
+	mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
 
     /* Go through all sites */
     for (site = 0; site < volume; site++) {
@@ -500,13 +503,27 @@ eoh:
             for (d = 0; d < S->rank; d++)
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         } else {
+			/* XXX */ printf("master: [%d %d %d %d] %d to slave %d\n", coord[0], coord[1], coord[2], coord[3], (int)site, s_node);
+			/* XXX */ fflush(stdout);
+#if 1 /* XXX */
 			QMP_msghandle_t mh = QMP_declare_send_to(mm, s_node, 0);
-			QMP_start(mh);
-			QMP_wait(mh);
+			QMP_status_t qs = QMP_start(mh);
+			/* XXX */ printf("master: start status = %d\n", (int)qs);
+			/* XXX */ fflush(stdout);
+			qs = QMP_wait(mh);
+			/* XXX */ printf("master: wait status = %d\n", (int)qs);
+			/* XXX */ fflush(stdout);
 			QMP_free_msghandle(mh);
+#endif
 		}
     }
+	/* XXX */ printf("master: lattice loop done\n");
+	/* XXX */ fflush(stdout);
 	QMP_free_msgmem(mm);
+	qlua_free(L, coord);
+	qlua_free(L, dim_ok);
+	qlua_free(L, site_buf);
+	qlua_free(L, CM);
 	
     fclose(f);
 
@@ -523,6 +540,8 @@ eoh:
 		return nersc_error(L, status);
 	}
 
+	/* XXX */ printf("master: status broadcast\n");
+	/* XXX */ fflush(stdout);
 	/* convert max_eps to a string and store it (L, -2, ukey) */
 	snprintf(buffer, sizeof (buffer) - 1, "%.10e", max_eps);
 	lua_pushstring(L, buffer);
@@ -538,8 +557,12 @@ eoh:
 		int zero = 0;
 		QMP_broadcast(&zero, sizeof (zero));
 	}
+	/* XXX */ printf("master table sent\n");
+	/* XXX */ fflush(stdout);
 	/* normalize key/value pairs */
 	normalize_kv(L, S, -1);
+	/* XXX */ printf("master done\n");
+	/* XXX */ fflush(stdout);
 	return 2;
 }
 
@@ -552,9 +575,12 @@ nersc_read_slave(lua_State *L,
     long long volume;
     long long site;
 	int i;
-    QLA_D3_ColorMatrix CM[S->rank];
-	QMP_msgmem_t mm = QMP_declare_msgmem(CM, S->rank * sizeof (QLA_D3_ColorMatrix));
+    QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
+	int *coord = qlua_malloc(L, S->rank * sizeof (int));
+	QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
 	QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
+
+	/* XXX */ printf("slave %d: rank %d [%d %d %d %d], master %d\n", QDP_this_node, S->rank, S->dim[0], S->dim[1], S->dim[2], S->dim[3], qlua_master_node);
 
     /* get gauge element for this node */
     for (volume = 1, i = 0; i < S->rank; i++)
@@ -562,13 +588,20 @@ nersc_read_slave(lua_State *L,
 
 	/* get all data from node qlua_master_node */
     for (site = 0; site < volume; site++) {
-		int coord[S->rank];
 		int s_node;
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-			QMP_start(mh);
-			QMP_wait(mh);
+			/* XXX */ printf("slave %d: getting %d [%d %d %d %d]\n", QDP_this_node, (int)site, coord[0], coord[1], coord[2], coord[3]);
+			/* XXX */ fflush(stdout);
+#if 1 /* XXX */
+			QMP_status_t qs = QMP_start(mh);
+			/* XXX */ printf("slave %d: start status = %d\n", QDP_this_node, (int)qs);
+			/* XXX */ fflush(stdout);
+			qs = QMP_wait(mh);
+			/* XXX */ printf("slave %d: wait status = %d\n", QDP_this_node, (int)qs);
+			/* XXX */ fflush(stdout);
+#endif
             int idx = QDP_index_L(S->lat, coord);
             int d;
             
@@ -576,19 +609,25 @@ nersc_read_slave(lua_State *L,
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
+	/* XXX */ printf("slave %d: lattice done\n", QDP_this_node);
+	/* XXX */ fflush(stdout);
 	QMP_free_msghandle(mh);
 	QMP_free_msgmem(mm);
+	qlua_free(L, coord);
+	qlua_free(L, CM);
 
 	/* get status size (broadcast) */
 	int status_len = 0;
 	QMP_sum_int(&status_len);
 	/* if not zero, get the message, call lua_error */
 	if (status_len != 0) {
-		char msg[status_len];
+		char *msg = qlua_malloc(L, status_len);
 		QMP_broadcast(msg, status_len);
-		return nersc_error(L, msg);
+		return nersc_error(L, msg); /* leaks msg, but it's in the abort path only */
 	}
-
+	/* XXX */ printf("slave %d: status done\n", QDP_this_node);
+	/* XXX */ fflush(stdout);
+	
 	/* get keys and values */
 	/* NB: This may cause a slave node to run out of memory out of sync with the master */
 	for (;;) {
@@ -601,9 +640,13 @@ nersc_read_slave(lua_State *L,
 		qlua_free(L, key);
 		qlua_free(L, value);
 	}
+	/* XXX */ printf("slave %d: table done\n", QDP_this_node);
+	/* XXX */ fflush(stdout);
 	
 	/* normalize key/value table */
 	normalize_kv(L, S, -1);
+	/* XXX */ printf("slave %d: done\n", QDP_this_node);
+	/* XXX */ fflush(stdout);
 	return 2;
 }
 
@@ -613,8 +656,8 @@ q_nersc_read(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
-    QDP_D3_ColorMatrix *M[S->rank];
-    QLA_D3_ColorMatrix *U[S->rank];
+    QDP_D3_ColorMatrix **M = qlua_malloc(L, S->rank * sizeof (QDP_D3_ColorMatrix *));
+    QLA_D3_ColorMatrix **U = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix *));
     int status;
     int i;
     
@@ -635,6 +678,8 @@ q_nersc_read(lua_State *L)
     for (i = 0; i < S->rank; i++) {
         QDP_D3_reset_M(M[i]);
     }
+	qlua_free(L, U);
+	qlua_free(L, M);
     
     return status;
 }

@@ -364,7 +364,7 @@ Qs(q_V_sum)(lua_State *L)
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
 
-        Vtype *vv[size];
+        Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
             Qs(mSeqColVec) *vi = Qs(qlua_newSeqColVec)(L, QC(a));
@@ -382,7 +382,7 @@ Qs(q_V_sum)(lua_State *L)
             Qx(QLA_D,_V_peq_V)(QNC(nc) vv[t], xx);
         }
         Qx(QDP_D,_reset_V)(a->ptr);
-        QLA_D_Real rr[2 * size * nc];
+        QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * sizeof (QLA_D_Real));
         for (int i = 0; i < size; i++) {
             for (int c = 0; c < nc; c++) {
                 QLA_D_Complex *z = &Qx(QLA_D,_elem_V)(*vv[i], c);
@@ -398,6 +398,8 @@ Qs(q_V_sum)(lua_State *L)
                 QLA_c_eq_c(Qx(QLA_D,_elem_V)(*vv[i], c), z);
             }
         }
+		qlua_free(L, rr);
+		qlua_free(L, vv);
         return 1;
     }
     }

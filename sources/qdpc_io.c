@@ -647,7 +647,7 @@ qdpc_w_cm(lua_State *L)
 
     f_size[0] = l_size;
     f_size[1] = r_size;
-    QLA_D_Complex d[l_size * r_size];
+    QLA_D_Complex *d = qlua_malloc(L, l_size * r_size * sizeof (QLA_D_Complex));
     /* must only agree with the reader above */
     for (j = 0; j < r_size; j++) {
         for (i = 0; i < l_size; i++) {
@@ -668,8 +668,10 @@ qdpc_w_cm(lua_State *L)
         goto error;
     QDP_string_destroy(xml);
     lua_pushboolean(L, 1);
+	qlua_free(L, d);
     return 1;
 error:
+	qlua_free(L, d);
     QDP_string_destroy(xml);
     return luaL_error(L, "qdpc write error");
 }
