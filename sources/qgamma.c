@@ -18,6 +18,8 @@ static const char mtnGamma[] = "qlua.mtGamma";
 
 static char gconj[] = {0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0};
 
+static char gtrans[] = {0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0};
+
 static const char *gn[] = {
     NULL, "g0",  "g1",  "g01",  "g2",  "g02", "g12",   "g012",
     "g3", "g03", "g13", "g013", "g23", "g023", "g123", "g5"};
@@ -646,6 +648,23 @@ q_g_conj(lua_State *L)
     return 1;
 }
 
+static int
+q_g_transpose(lua_State *L)
+{
+    mClifford *x = qlua_checkClifford(L, 1);
+    mClifford *r = qlua_newClifford(L);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        if (gtrans[i])
+            g_neg(&r->g[i], &x->g[i]);
+        else
+            r->g[i] = x->g[i];
+    }
+
+    return 1;
+}
+
 #ifdef HAS_GSL
 static gsl_complex
 get_gmv(int i, int j, const mClifford *g, int k)
@@ -849,6 +868,7 @@ static struct luaL_Reg mtGamma[] = {
     { "__mul",             qlua_mul },
     { "__div",             qlua_div },
     { "conj",              q_g_conj },
+    { "transpose",         q_g_transpose },
 #ifdef HAS_GSL
 	{ "matrix",            q_g_matrix },
 #endif

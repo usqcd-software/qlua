@@ -1,0 +1,24 @@
+-- test of gamma:transpose()
+require "stdlib"
+
+status = true
+
+function check_gamma(n, g)
+   local h = g:transpose()
+   local d = g:matrix() - h:matrix():transpose()
+   local z = (d:conj() * d):trace():abs()
+   if z > 0.0001 then
+	  printf("transpose failed on n=%d, g=%s, h=%s\n", n, tostring(g), tostring(h))
+	  status = false
+   end
+end
+
+for i = 0, 15 do
+   check_gamma(i, gamma{n=i})
+end
+if status then
+   printf("DONE\n")
+else
+   printf("gamma:transpose() test FAILED\n")
+   os.exit(1)
+end

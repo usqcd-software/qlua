@@ -116,10 +116,53 @@ report(lua_State *L, const char *fname, int status)
             const char *msg = lua_tostring(L, -1);
             if (msg == NULL) msg = "(error object is not a string)";
             message("%s ERROR:: %s\n", progname, msg);
-            lua_pop(L, 1);
+			lua_pop(L, 1);
         }
     }
 }
+
+/* traced execution */
+static int
+traceback(lua_State *L)
+{
+	if (!lua_isstring(L, 1))  /* 'message' not a string? */
+		return 1;  /* keep it intact */
+	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+	lua_getfield(L, -1, "traceback");
+	lua_pushvalue(L, 1);  /* pass error message */
+	lua_pushinteger(L, 2);  /* skip this function and traceback */
+	lua_call(L, 2, 1);  /* call debug.traceback */
+	return 1;
+}
+
+static int
+docall(lua_State *L)
+{
+	int status;
+	int base = lua_gettop(L);  /* function index */
+	lua_pushcfunction(L, traceback);  /* push traceback function */
+	lua_insert(L, base);  /* put it under chunk and args */
+	status = lua_pcall(L, 0, 0, base);
+	lua_remove(L, base);  /* remove traceback function */
+	/* force a complete garbage collection in case of errors */
+	if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
+	return status;
+}
+
+static int
+dofile (lua_State *L, const char *name)
+{
+	return luaL_loadfile(L, name) || docall(L);
+}
+
+
+static int
+dostring(lua_State *L, const char *s)
+{
+	return luaL_loadstring(L, s) || docall(L);
+}
+
+
 
 void
 XMP_dist_int_array(int src_node, int count, int *data)
@@ -944,10 +987,10 @@ main(int argc, char *argv[])
 					chunk = argv[i];
 				}
 				QLUA_ASSERT(chunk != NULL);
-				status = luaL_dostring(L, chunk);
+				status = dostring(L, chunk);
 				source = "=(command line)";
 			} else {
-				status = luaL_dofile(L, argv[i]);
+				status = dofile(L, argv[i]);
 				source = argv[i];
 			}
 			report(L, source, status);
