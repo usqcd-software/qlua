@@ -45,7 +45,6 @@ q_S_set(lua_State *L)
 
     CALL_QDP(L);
     if (S->lss.mask)
-/*         luaL_error(L, "XXXX missing  QDP_S_eq_S_mask_I()"); */
         QDP_S_eq_S_mask_I(r->ptr, a->ptr, S->lss.mask, *S->qss);
     else
         QDP_S_eq_S(r->ptr, a->ptr, *S->qss);
