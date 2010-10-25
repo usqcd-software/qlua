@@ -1,4 +1,4 @@
-#include "modules.h"
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
@@ -9,6 +9,9 @@
 #include "seqdirprop.h"                                              /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "qxml.h"                                                    /* DEPS */
+#ifdef HAS_GSL
+#include "qmatrix.h"                                                 /* DEPS */
+#endif
 #include "lattice.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
@@ -38,9 +41,6 @@
 #endif
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
-#endif
-#ifdef HAS_GSL
-#include "qmatrix.h"                                                 /* DEPS */
 #endif
 
 #include <string.h>

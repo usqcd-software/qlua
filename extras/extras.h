@@ -1,6 +1,25 @@
 #ifndef MARK_E390D5B2_478D_48BF_B753_64072003402B
 #define MARK_E390D5B2_478D_48BF_B753_64072003402B
 
+#ifdef HAS_GSL
+#define GSL_RANGE_CHECK_OFF
+#define HAVE_INLINE
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_matrix_double.h>
+
+void
+baryon_duu(mLattice *S,
+		   QDP_D_Complex *B,
+		   QDP_D3_DiracPropagator *Pd,
+		   QDP_D3_DiracPropagator *Pu11,
+		   QDP_D3_DiracPropagator *Pu12,
+		   QDP_D3_DiracPropagator *Pu21,
+		   QDP_D3_DiracPropagator *Pu22,
+		   gsl_matrix_complex *Sf,
+		   gsl_matrix_complex *Si_bar,
+		   gsl_matrix_complex *RTR);
+#endif /* defined HAS_GSL */
+
 const char *
 save_bb(lua_State *L,
         mLattice *S,

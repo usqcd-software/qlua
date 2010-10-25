@@ -1,12 +1,51 @@
 #include "modules.h"                                                /* DEPS */
 #include "qlua.h"                                                   /* DEPS */
+#ifdef HAS_GSL
+#include "qmatrix.h"                                                /* DEPS */
+#endif /* defined(HAS_GSL) */
+#include "qgamma.h"                                                 /* DEPS */
 #include "lattice.h"                                                /* DEPS */
 #include "aff_io.h"                                                 /* DEPS */
 #include "latdirferm.h"                                             /* DEPS */
 #include "latdirprop.h"                                             /* DEPS */
 #include "latcolmat.h"                                              /* DEPS */
 #include "latcolvec.h"                                              /* DEPS */
+#include "latcomplex.h"                                             /* DEPS */
 #include "extras.h"                                                 /* DEPS */
+
+#ifdef HAS_GSL
+static int
+q_baryon_duu(lua_State *L)
+{
+    mLatDirProp3 *Pd = qlua_checkLatDirProp3(L, 1, NULL, 3);
+    mLattice *S = qlua_ObjLattice(L, 1);
+	int Sidx = lua_gettop(L);
+    mLatDirProp3 *Pu11 = qlua_checkLatDirProp3(L, 2, S, 3);
+    mLatDirProp3 *Pu12 = qlua_checkLatDirProp3(L, 3, S, 3);
+    mLatDirProp3 *Pu21 = qlua_checkLatDirProp3(L, 4, S, 3);
+    mLatDirProp3 *Pu22 = qlua_checkLatDirProp3(L, 5, S, 3);
+	mMatComplex *Sf = gamma2matrix(L, 6);
+	mMatComplex *Si_bar = gamma2matrix(L, 7);
+	mMatComplex *RTR = gamma2matrix(L, 8);
+	mLatComplex *B = qlua_newLatComplex(L, Sidx);
+
+	if ((Sf->l_size != QDP_Ns) || (Sf->r_size != QDP_Ns))
+		return luaL_error(L, "bad size of Sf (%d, %d)", Sf->l_size, Sf->r_size);
+
+	if ((Si_bar->l_size != QDP_Ns) || (Si_bar->r_size != QDP_Ns))
+		return luaL_error(L, "bad size of Si_bar (%d, %d)", Si_bar->l_size, Si_bar->r_size);
+
+	if ((RTR->l_size != QDP_Ns) || (RTR->r_size != QDP_Ns))
+		return luaL_error(L, "bad size of RTR (%d, %d)", RTR->l_size, RTR->r_size);
+
+	CALL_QDP(L);
+	baryon_duu(S, B->ptr,
+			   Pd->ptr, Pu11->ptr, Pu12->ptr, Pu21->ptr, Pu22->ptr,
+			   Sf->m, Si_bar->m, RTR->m);
+
+	return 1;
+}
+#endif /* defined(HAS_GSL) */
 
 static int
 q_save_bb(lua_State *L)
@@ -143,6 +182,9 @@ q_laplacian(lua_State *L)
 static struct luaL_Reg fExtra[] = {
     { "save_bb",    q_save_bb },
     { "laplacian",  q_laplacian },
+#ifdef HAS_GSL
+	{ "baryon_duu", q_baryon_duu },
+#endif /* defined(HAS_GSL) */
     { NULL,         NULL }
 };
 

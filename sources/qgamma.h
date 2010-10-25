@@ -21,6 +21,9 @@ typedef struct mClifford_s {
 } mClifford;
 
 mClifford *qlua_checkClifford(lua_State *L, int idx);
+#ifdef HAS_GSL
+mMatComplex *gamma2matrix(lua_State *L, int idx);
+#endif
 
 int init_gamma(lua_State *L);
 int fini_gamma(lua_State *L);

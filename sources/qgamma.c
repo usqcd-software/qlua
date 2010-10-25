@@ -1,6 +1,9 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
+#ifdef HAS_GSL
+#include "qmatrix.h"                                                 /* DEPS */
+#endif
 #include "qgamma.h"                                                  /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
@@ -8,23 +11,20 @@
 #include "seqdirferm.h"                                              /* DEPS */
 #include "seqdirprop.h"                                              /* DEPS */
 #include <string.h>
-#ifdef HAS_GSL
-#include "qmatrix.h"                                                 /* DEPS */
-#endif
 
 static const char mtnGamma[] = "qlua.mtGamma";
 
 #define Gi(a,b)  ((a)*qG_t+(b))
 
-static char gconj[] = {0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0};
-
+/* generated from QDP gamma operations */
+static char gconj[] =  {0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0};
 static char gtrans[] = {0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0};
+static char gadj[] =   {0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0};
 
 static const char *gn[] = {
     NULL, "g0",  "g1",  "g01",  "g2",  "g02", "g12",   "g012",
     "g3", "g03", "g13", "g013", "g23", "g023", "g123", "g5"};
 
-/* generated from QDP gamma operations */
 #define gm_k(i,j)  (15 & gm[(i)][(j)])
 #define gm_s(i,j)  (gm[(i)][(j)] > 15)
 static const char gm[16][16] = {
@@ -630,6 +630,25 @@ q_g_neg(lua_State *L)
 }
 
 static int
+q_g_adjoin(lua_State *L)
+{
+    mClifford *x = qlua_checkClifford(L, 1);
+    mClifford *r = qlua_newClifford(L);
+    int i;
+
+    for (i = 0; i < 16; i++) {
+        if (gadj[i])
+            g_neg(&r->g[i], &x->g[i]);
+        else
+            r->g[i] = x->g[i];
+        if (r->g[i].t == qG_c)
+            QLA_c_eq_ca(r->g[i].c, r->g[i].c);
+    }
+
+    return 1;
+}
+
+static int
 q_g_conj(lua_State *L)
 {
     mClifford *x = qlua_checkClifford(L, 1);
@@ -697,10 +716,10 @@ get_gmv(int i, int j, const mClifford *g, int k)
 	return r;
 }
 
-static int
-q_g_matrix(lua_State *L)
+mMatComplex *
+gamma2matrix(lua_State *L, int idx)
 {
-	mClifford *g = qlua_checkClifford(L, 1);
+	mClifford *g = qlua_checkClifford(L, idx);
 	mMatComplex *m = qlua_newMatComplex(L, 4, 4);
 	int i, j;
 
@@ -713,9 +732,16 @@ q_g_matrix(lua_State *L)
 			gsl_complex v;
 			GSL_REAL(v) = GSL_REAL(xr0) + GSL_REAL(xr1) - GSL_IMAG(xi0) - GSL_IMAG(xi1);
 			GSL_IMAG(v) = GSL_IMAG(xr0) + GSL_IMAG(xr1) + GSL_REAL(xi0) + GSL_REAL(xi1);
-			gsl_matrix_complex_set(m->m, i, j, v);
+			gsl_matrix_complex_set(m->m, j, i, v);
 		}
 	}
+	return m;
+}
+
+static int
+q_g_matrix(lua_State *L)
+{
+	gamma2matrix(L, 1);
 	return 1;
 }
 #endif
@@ -867,6 +893,7 @@ static struct luaL_Reg mtGamma[] = {
     { "__sub",             qlua_sub },
     { "__mul",             qlua_mul },
     { "__div",             qlua_div },
+    { "adjoin",            q_g_adjoin },
     { "conj",              q_g_conj },
     { "transpose",         q_g_transpose },
 #ifdef HAS_GSL

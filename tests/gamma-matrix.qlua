@@ -7,12 +7,12 @@ function check_gamma(g, pa)
    gg = g:matrix()
    for a = 0, 3 do
 	  local f1 = qcd.DiracFermionN(3)
-	  f1[{c=0,d=a}] = complex(1,0)
+	  f1[{c=0,d=a}] = complex(0,1)
 	  for b = 0, 3 do
 		 local f2 = qcd.DiracFermionN(3)
 		 f2[{c=0,d=b}] = complex(1,0)
 		 local v_ab = qcd.dot(f2, g * f1);
-		 local w_ab = gg[{a,b}]
+		 local w_ab = gg[{b,a}] * complex(0,1)
 		 local x_ab = v_ab - w_ab
 		 if x_ab:abs() > 1e-20 then
 			printf("// gamma: %s\n", tostring(g));
@@ -31,6 +31,21 @@ for i = 0, 15 do
    check_gamma(rnd:gaussian_Complex() * gamma{n=i}, "complex" );
 end
 
+for i = 0, 15 do
+   local v = gamma{n=i}
+   local g = v:matrix()
+   printf("\n%s\n", tostring(v))
+   for a = 0, 3 do
+	  printf("  [")
+	  for b = 0, 3 do
+		 printf("  %16s", tostring(g[{a,b}]))
+	  end
+	  printf("]\n")
+   end
+end
+
 if status == 0 then
    printf("TEST OK\n");
+else
+   printf("TEST FAILED\n");
 end

@@ -15,7 +15,20 @@ end
 
 for i = 0, 15 do
    check_gamma(i, gamma{n=i})
+   check_gamma(i, gamma{n=i} * 0.36314)
+   check_gamma(i, gamma{n=i} * complex(465.1341, 123.5))
 end
+for i = 0, 3 do
+   local v = gamma{mu=i}
+   printf("basis   %s -> %s\n", tostring(v), tostring(v:transpose()))
+end
+
+for i = 0, 15 do
+   local v = gamma{n=i}
+   printf(" %2d  %s -> %s\n", i, tostring(v), tostring(v:transpose()))
+end
+
+
 if status then
    printf("DONE\n")
 else

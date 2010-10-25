@@ -1,4 +1,4 @@
-#include "modules.h"
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qmp.h"
@@ -389,11 +389,19 @@ init_qlua_io(lua_State *L)
     
     lua_pop(L, 1);
 
-    /* fix package.path */
-    lua_getglobal(L, "package");
-	lua_pushstring(L, qlib_path);
-    lua_setfield(L, -2, "path");
-    lua_pop(L, 1);
+    /* fix package.path -- try to get QLUALIB from the environment first */
+	{
+		char *envlib = getenv("QLUALIB");
+
+		lua_getglobal(L, "package");
+		if (envlib != NULL) {
+			lua_pushstring(L, envlib);
+		} else {
+			lua_pushstring(L, qlib_path);
+		}
+		lua_setfield(L, -2, "path");
+		lua_pop(L, 1);
+	}
 
     /* fix getmetatable */
     lua_pushcfunction(L, qlua_getmetatable);

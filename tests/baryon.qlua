@@ -1,0 +1,110 @@
+require "stdlib"
+
+L = qcd.lattice{4,4,4,8}
+-- random states
+ss = qcd.RandomState(35, 467)
+do
+   local ix = L:Int(0)
+   for i = 0, #L - 1 do
+      ix = ix * L[i] + L:pcoord(i)
+   end
+   SL = L:RandomState(674732, ix)
+end
+
+-- timer
+function timer(name)
+   local t0 = os.time()
+   return function(x)
+			 local t1 = os.time()
+			 printf("TIME(%s,%s)= %.6f\n", name, x, t1 - t0)
+		  end
+end
+
+-- standard baryon
+function proton_2pt_term_std(d, u11, u12, u21, u22, Sf, Si, Rf, Ri, T)
+   local a1 = ((gamma{mu=3}*Si:conj())*(Sf * d * gamma{mu=3}):transpose()):transpose()
+   local function RTR(u)
+	  return gamma{mu=3} * (((T*Rf)*u):transpose() * gamma{mu=3} * Ri:conj()):transpose()
+   end
+   return ((qcd.quarkContract13(a1, u11):spintrace() * (RTR(u22)):spintrace()):trace()
+  	       + (qcd.quarkContract13(a1, u12) * (RTR(u21))):trace());
+end
+
+-- new baryon
+function bar(M)
+   return gamma{mu=3} * M:adjoin() * gamma{mu=3}:transpose()
+end
+
+function proton_2pt_term_new(d, u11, u12, u21, u22, Sf, Si, Rf, Ri, T)
+   return qcd.baryon_duu(d, u11, u12, u21, u22, Sf, bar(Si), (bar(Ri) * T * Rf));
+end
+
+-- random gamma
+function random_gamma()
+   local x = ss:gaussian_Complex() * gamma{n=0}
+   for i = 1, 15 do
+	  x = x + ss:gaussian_Complex() * gamma{n=i}
+   end
+   return x;
+end
+
+-- random propagator
+function random_P()
+   return SL:gaussian_DiracPropagator()
+end
+
+function x_P(ic,is,jc,js)
+   local X = L:DiracPropagator()
+   local C = L:DiracFermion()
+   C[{c=ic,d=is}] = SL:gaussian_Complex()
+   X[{c=jc,d=js}] = C
+   return X
+end
+
+-- check protons
+status = true
+function check_baryon(name, d, u11, u12, u21, u22, zzz)
+   local Sf = random_gamma()
+   local Si = random_gamma()
+   local Rf = random_gamma()
+   local Ri = random_gamma()
+   local T  = random_gamma()
+   local t0 = timer("std B")
+   local Ns = proton_2pt_term_std(d, u11, u12, u21, u22, Sf, Si, Rf, Ri, T)
+   t0("done")
+   local t1 = timer("new B")
+   local Nn = proton_2pt_term_new(d, u11, u12, u21, u22, Sf, Si, Rf, Ri, T)
+   t1("done")
+   local xs = Ns:norm2()
+   local xn = Nn:norm2()
+   local dN = (Ns - Nn):norm2() / math.sqrt(xs * xn)
+
+   if dN > 1e-10 then
+	  status = false
+	  printf("%s: %e %e %e FAILED\n", name, dN, xs, xn);
+   else
+	  printf("%s: %e %e %e\n", name, dN, xs, xn);
+   end
+end
+
+printf("Lattice: %s\n", tostring(L));
+--
+do
+   -- check the order of arguments
+   check_baryon("diff props",
+				random_P(),    -- d
+				random_P(),  -- u11
+				random_P(),  -- u12
+				random_P(),  -- u21
+				random_P()   -- u22
+			 )
+   -- check that multiple expose/reset work properly
+   local x = random_P()
+   check_baryon("same props", x, x, x, x, x)
+end
+if status then
+   printf("DONE\n");
+else
+   printf("qcd.baryon_duu() FAILED\n");
+end
+
