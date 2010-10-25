@@ -165,32 +165,6 @@ c_get(int i, int j, QLA_D_Complex V[QDP_Ns][QDP_Ns], gsl_matrix_complex *m)
 	QLA_imag(V[i][j]) = GSL_IMAG(z);
 }
 
-/* XXX QDP_expose() fix */
-struct xxx_expose {
-	QDP_D3_DiracPropagator *dp;
-	QLA_D3_DiracPropagator *la;
-};
-
-static int
-xxx_expose(QLA_D3_DiracPropagator **V,
-		   struct xxx_expose *xxx,
-		   QDP_D3_DiracPropagator *X,
-		   int xxx_k)
-{
-	int i;
-
-	for (i = 0; i < xxx_k; i++) {
-		if (xxx[i].dp == X) {
-			*V = xxx[i].la;
-			return xxx_k;
-		}
-	}
-	xxx[xxx_k].dp = X;
-	xxx[xxx_k].la = QDP_D3_expose_P(X);
-	*V = xxx[xxx_k].la;
-	return xxx_k + 1;
-}
-
 void
 baryon_duu(mLattice *S,
 		   QDP_D_Complex *B,
@@ -204,24 +178,13 @@ baryon_duu(mLattice *S,
 		   gsl_matrix_complex *RTR)
 {
 	struct b_arg arg;
-	int i, j, xxx_k;
-	struct xxx_expose xxx[5];
+	int i, j;
 
-	/* XXX QDP_expose() is still broken, use the workaround */
-
-	xxx_k = xxx_expose(&arg.Pd, xxx, Pd, 0);
-	xxx_k = xxx_expose(&arg.Pu11, xxx, Pu11, xxx_k);
-	xxx_k = xxx_expose(&arg.Pu12, xxx, Pu12, xxx_k);
-	xxx_k = xxx_expose(&arg.Pu21, xxx, Pu21, xxx_k);
-	xxx_k = xxx_expose(&arg.Pu22, xxx, Pu22, xxx_k);
-
-/* 
 	arg.Pd = QDP_D3_expose_P(Pd);
 	arg.Pu11 = QDP_D3_expose_P(Pu11);
 	arg.Pu12 = QDP_D3_expose_P(Pu12);
 	arg.Pu21 = QDP_D3_expose_P(Pu21);
 	arg.Pu22 = QDP_D3_expose_P(Pu22);
-*/
 
 	for (i = 0; i < QDP_Ns; i++) {
 		for (j = 0; j < QDP_Ns; j++) {
@@ -231,13 +194,10 @@ baryon_duu(mLattice *S,
 		}
 	}
 	QDP_D_C_eq_funcia(B, duu, &arg, *S->qss);
-	for (i = 0; i < xxx_k; i++)
-		QDP_D3_reset_P(xxx[i].dp);
-/*
+
 	QDP_D3_reset_P(Pd);
 	QDP_D3_reset_P(Pu11);
 	QDP_D3_reset_P(Pu12);
 	QDP_D3_reset_P(Pu21);
 	QDP_D3_reset_P(Pu22);
-*/
 }

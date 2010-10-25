@@ -1208,11 +1208,9 @@ q_mdwf(lua_State *L)
 
     /* extract U from the arguments */
     for (i = 0; i < QOP_MDWF_DIM; i++) {
-        UF[i] = QDP_D3_create_M_L(S->lat);
         lua_pushnumber(L, i + 1); /* [sic] lua indexing */
         lua_gettable(L, 1);
-        /* avoid aliased Us in arg[1] */
-        QDP_D3_M_eq_M(UF[i], qlua_checkLatColMat3(L, -1, S, 3)->ptr, S->all);
+		UF[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
         args.uf[i] = QDP_D3_expose_M(UF[i]);
         lua_pop(L, 1);
     }
@@ -1238,7 +1236,6 @@ q_mdwf(lua_State *L)
 
     for (i = 0; i < QOP_MDWF_DIM; i++) {
         QDP_D3_reset_M(UF[i]);
-        QDP_D3_destroy_M(UF[i]);
     }
     return c;
 }

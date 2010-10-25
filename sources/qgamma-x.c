@@ -600,7 +600,6 @@ Qs(q_P_reconstruct)(lua_State *L, Qs(X_reconstruct) *op, int nc)
     if (mu == 5) mu = 4; /* [sic] -- funny numbering in QLA's spproj/sprecon */
 
     CALL_QDP(L);
-    /* ZZZ will break if any of a[][] is aliased */
     for (ic = 0; ic < nc; ic++) {
         for (is = 0; is < QDP_Ns/2; is++) {
             int idx_cs = PIDX(ic, is);

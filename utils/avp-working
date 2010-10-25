@@ -6,7 +6,7 @@ TARGET=$PACKTOP/qlua-1-xxx
 
 CC="gcc -g -std=c99 -m32 -DQD_Nc=3"           \
 ./configure                                   \
-   --with-qdp=$PACKTOP/qdp-1.9.0-a6           \
+   --with-qdp=$PACKTOP/qdp-1.9.0-a7           \
    --with-lua=$PACKTOP/lua-5.1.4              \
    --with-gsl=$PACKTOP/gsl-1.13-qr-complex    \
    --with-atlas=$PACKTOP/atlas-3.9.23         \

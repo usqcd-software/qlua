@@ -979,16 +979,15 @@ q_clover(lua_State *L)
     luaL_checktype(L, 1, LUA_TTABLE);
     CALL_QDP(L);
 
-    /* create a temporary U, F, and temp M */
-    for (i = 0; i < Nz; i++)
+    /* create a temporary F, and temp M */
+    for (i = QOP_CLOVER_DIM; i < Nz; i++)
         UF[i] = QDP_D3_create_M_L(S->lat);
 
     /* extract U from the arguments */
     for (i = 0; i < QOP_CLOVER_DIM; i++) {
         lua_pushnumber(L, i + 1); /* [sic] lua indexing */
         lua_gettable(L, 1);
-        /* avoid aliased Us in arg[1] */
-        QDP_D3_M_eq_M(UF[i], qlua_checkLatColMat3(L, -1, S, 3)->ptr, S->all);
+		UF[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
         lua_pop(L, 1);
     }
 
@@ -1039,7 +1038,6 @@ q_clover(lua_State *L)
     
     /* import the gauge field */
     for (i = 0; i < Nt; i++) {
-        /* NB: QDP requires all UF to be distinct */ 
         args.uf[i] = QDP_D3_expose_M(UF[i]);
     }
 
@@ -1052,7 +1050,7 @@ q_clover(lua_State *L)
         QDP_D3_reset_M(UF[i]);
 
     /* clean up temporaries */
-    for (i = 0; i < Nz; i++)
+    for (i = QOP_CLOVER_DIM; i < Nz; i++)
         QDP_D3_destroy_M(UF[i]);
 
     return 1;
