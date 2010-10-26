@@ -1,0 +1,27 @@
+require "stdlib"
+require "lhpc/lhpc-std"
+
+function fib(n)
+  if n < 2 then
+     return 1
+  else
+     return fib(n-1) + fib(n-2)
+  end
+end
+
+function run_test(s, e, n)
+  -- our old timer interface
+  local x = timer(s)
+  printf("fib(%d) = %d\n", n, fib(n));
+  x(e)
+end
+
+run_test("simple", "e", 10)
+run_test("longer", "end", 20)
+run_test("longest", "x-end", 30)
+run_test("simple", "z", 3)
+for i = 0, 35 do
+  run_test("loop", "done", i)
+end
+
+show_timers("check2")

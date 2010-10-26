@@ -1,15 +1,52 @@
 require "stdlib"
 require "wuppertal-smear"
 
-function timer(start)
-  local t0 = os.time()
-  return function(stop)
-    local t1 = os.time()
-    printf("TIME(%q,%q) = %.3f secs\n", start, stop, t1 - t0)
-    return t1 - t0
+do
+  local tt = {}
+  local tstart = os.time()
+  timer = function(str)
+    local t0=os.time()
+    if tt[str] == nil then
+      tt[str] = {}
+    end
+    return function(es)
+      local dt = os.time() - t0
+	  printf("TIME(%q,%q) = %.3f secs\n", str, es, dt)
+      if tt[str][es] == nil then
+        tt[str][es] = {n = 0, t = 0}
+      end
+      tt[str][es].n = tt[str][es].n + 1
+	  tt[str][es].t = tt[str][es].t + dt
+    end
+  end
+  local function update_len(n, x)
+    local z = tostring(x)
+    if n < #z then
+      return #z
+    end
+    return n
+  end
+  show_timers = function(n)
+    local dt = os.time() - tstart
+    printf("ALL TIMERS %q -----------------------\n", n);
+	local ws, we, wn, wt = 0,0,0,0;
+    for s,x in pairs(tt) do
+       ws = update_len(ws, s);
+	   for e,r in pairs(x) do
+          we = update_len(we, e)
+          wn = update_len(wn, r.n)
+		  wt = update_len(wt, string.format("%.3f", r.t));
+       end
+    end
+	local fmt = string.format("  %%-%ds : %%-%ds     %%%dd  %%%d.3f  ( %%6.2f %%%% )\n", ws, we, wn, wt)
+	for s, x in pairs(tt) do
+	  for e, r in pairs(x) do
+	    printf(fmt, s, e, r.n, r.t, r.t * 100 / dt);
+      end
+	end
+	printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
   end
 end
-
 
 function make_source(Z, csrc, wup_a, wup_n, t_axis)
   local cm = L:ColorMatrix()
