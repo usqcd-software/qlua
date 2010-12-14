@@ -126,13 +126,24 @@ do
               baryon_tab[baryon][3]
               )
   end
-  function save_hadspec(
+  local function print_table(pref, tab)
+    printf('%s\t', pref)
+    for i,v in pairs(tab) do
+      printf('[%s]=%s  ', tostring(i), tostring(v));
+    end
+    printf('\n');
+  end
+  -- below is modified copy-paste of save_hadspec to compute only a subset of 
+  -- hadrons
+  function save_hadspec_list(
       L,
       aff_w, 
       aff_kpath_prefix,
       d, u,
       csrc, psnk_list, t_axis,
-      bc_quark_t
+      bc_quark_t,
+      baryon_list,
+      meson_list
       )
     -- insert '/' between kpath prefix and the rest of kpath
     if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
@@ -150,7 +161,7 @@ do
     -- create MultiSet for projections
     -- TODO replace with shifted and sign-aware multiset?
     mset_tcoord = L:MultiSet(L[t_axis], L:pcoord(t_axis))
-
+    
     -- make standard keypath
     local function hadspec_kpath(hadron_name, psnk)
       -- FIXME limited to a particular case
@@ -173,17 +184,11 @@ do
       end
       return c2pt_std
     end
-    local function print_table(pref, tab)
-      printf('%s\t', pref)
-      for i,v in pairs(tab) do
-        printf('[%s]=%s  ', tostring(i), tostring(v));
-      end
-      printf('\n');
-    end
 
     -- calc baryon 2pts
     local bc_bar_t = bc_quark_t * bc_quark_t * bc_quark_t
-    for bar,val in pairs(baryon_tab) do
+    for i, bar in pairs(baryon_list) do
+      local val = baryon_tab[bar]
       local c2pt = val[1](d, u, val[2], val[3])
       for i,psnk in ipairs(psnk_list) do
         aff_w:write(hadspec_kpath(bar, psnk),
@@ -193,14 +198,68 @@ do
     end
     -- calc meson 2pts
     local bc_mes_t = bc_quark_t * bc_quark_t
-    for mes,gn in pairs(meson_tab) do
-      local c2pt = meson_2pt(d, u, gamma{n=gn})
+    for i, mes in pairs(meson_list) do
+      local c2pt = meson_2pt(d, u, gamma{n=meson_tab[mes]})
       for i,psnk in ipairs(psnk_list) do
         aff_w:write(hadspec_kpath(mes, psnk),
-                    make_hadspec_standard(c2pt:project(psnk_pw[i],mset_tcoord),
+                    make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
                                           bc_mes_t))
       end
     end
   end
+  
+  
+  function save_hadspec(
+      L,
+      aff_w, 
+      aff_kpath_prefix,
+      d, u,
+      csrc, psnk_list, t_axis,
+      bc_quark_t
+      )
+    save_hadspec_list(
+        L,
+        aff_w, 
+        aff_kpath_prefix,
+        d, u,
+        csrc, psnk_list, t_axis,
+        bc_quark_t,
+        { "proton_1",
+          "lambda_1",
+          "delta_1",
+          "proton_2",
+          "lambda_2",
+          "delta_2",
+          "proton_3",
+          "lambda_3",
+          "delta_3",
+          "proton_4",
+          "proton_5",
+          "proton_6",
+          "lambda_4",
+          "xi_1",
+          "lambda_5",
+          "xi_2",
+          "proton_negpar_3" },
+        { "a0_1",
+          "rho_x_1",
+          "rho_y_1",
+          "b1_z_1",
+          "rho_z_1",
+          "b1_y_1",
+          "b1_x_1",
+          "pion_2",
+          "a0_2",
+          "rho_x_2",
+          "rho_y_2",
+          "a1_z_1",
+          "rho_z_2",
+          "a1_y_1",
+          "a1_x_1",
+          "pion_1" })
+  
+  end
+
+
 
 end
