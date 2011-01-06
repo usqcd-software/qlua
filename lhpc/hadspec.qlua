@@ -133,8 +133,27 @@ do
     end
     printf('\n');
   end
-  -- below is modified copy-paste of save_hadspec to compute only a subset of 
-  -- hadrons
+  -- make standard keypath
+  local function hadspec_kpath(hadron_name, csrc, psnk)
+    -- FIXME limited to a particular case
+    if not (#L == 4) or not (t_axis == 3) then return nil end
+    return string.format('%s/x%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d',
+                         hadron_name,
+                         csrc[1], csrc[2], csrc[3], csrc[4],
+                         psnk[1], psnk[2], psnk[3])
+  end
+  -- convert to standard array[t]
+  local function make_hadspec_standard(c2pt, tsrc, lt, bc_t)
+    local c2pt_std = vector.complex(lt)
+    for i = 0, tsrc-1 do
+      c2pt_std[lt + i - tsrc] = bc_t * c2pt[i]
+    end
+    for i = tsrc, lt-1 do
+      c2pt_std[i - tsrc] = c2pt[i]
+    end
+    return c2pt_std
+  end
+
   function save_hadspec_list(
       L,
       aff_w, 
@@ -158,52 +177,33 @@ do
       psnk_list_neg[1+t_axis] = 0
       psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
     end
+    
+    tsrc = csrc[1+t_axis]
+    tsize = L[t_axis]
     -- create MultiSet for projections
     -- TODO replace with shifted and sign-aware multiset?
-    mset_tcoord = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+    mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
     
-    -- make standard keypath
-    local function hadspec_kpath(hadron_name, psnk)
-      -- FIXME limited to a particular case
-      if not (#L == 4) or not (t_axis == 3) then return nil end
-      return string.format('%s%s/x%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d',
-                           aff_kpath_prefix, hadron_name,
-                           csrc[1], csrc[2], csrc[3], csrc[4],
-                           psnk[1], psnk[2], psnk[3])
-    end
-    -- convert to standard array[t]
-    local function make_hadspec_standard(c2pt, bc_2pt_t)
-      local lt = L[t_axis]
-      local tsrc = csrc[1+t_axis]
-      local c2pt_std = vector.complex(lt)
-      for i = 0, tsrc-1 do
-        c2pt_std[lt + i - tsrc] = bc_2pt_t * c2pt[i]
-      end
-      for i = tsrc, lt-1 do
-        c2pt_std[i - tsrc] = c2pt[i]
-      end
-      return c2pt_std
-    end
-
     -- calc baryon 2pts
     local bc_bar_t = bc_quark_t * bc_quark_t * bc_quark_t
     for i, bar in pairs(baryon_list) do
       local val = baryon_tab[bar]
       local c2pt = val[1](d, u, val[2], val[3])
       for i,psnk in ipairs(psnk_list) do
-        aff_w:write(hadspec_kpath(bar, psnk),
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(bar, csrc, psnk),
                     make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
-                                          bc_bar_t))
+                                          tsrc, tsize, bc_bar_t))
       end
     end
+    
     -- calc meson 2pts
     local bc_mes_t = bc_quark_t * bc_quark_t
     for i, mes in pairs(meson_list) do
       local c2pt = meson_2pt(d, u, gamma{n=meson_tab[mes]})
       for i,psnk in ipairs(psnk_list) do
-        aff_w:write(hadspec_kpath(mes, psnk),
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(mes, csrc, psnk),
                     make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
-                                          bc_mes_t))
+                                          tsrc, tsize, bc_mes_t))
       end
     end
   end
@@ -260,6 +260,54 @@ do
   
   end
 
+  function save_2pt_list(L, aff_w, aff_kpath_prefix, 
+      corr_list,-- table { 'name': Complex }
+      csrc,     -- coord
+      psnk_list,-- list of momenta
+      t_axis,   -- time axis = 0 .. D-1
+      bc_t)     -- time boundary condition for the correlators
+    -- insert '/' between kpath prefix and the rest of kpath
+    if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+    -- create a list of 4d momenta appropriate for momentum projection
+    -- note that <N(t,p)\bar{N}(0)> = \sum_x exp(-ipx) <N(t,x)\bar{N}(0)>
+    local psnk_pw = {}
+    for i,p in ipairs(psnk_list) do 
+      local psnk_list_neg = {}
+      for j,pj in ipairs(p) do
+        psnk_list_neg[j] = -pj
+      end
+      psnk_list_neg[1+t_axis] = 0
+      psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
+    end
+    
+    tsrc = csrc[1+t_axis]
+    tsize = L[t_axis]
+    -- create MultiSet for projections
+    mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
+    
+    for a, c2pt in pairs(corr_list) do
+      for i,psnk in ipairs(psnk_list) do
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(a, csrc, psnk),
+                    make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
+                                          tsrc, tsize, bc_t))
+      end
+    end
+  end
 
+
+  -- function saving dwf-specific correlators, analogously to the Chroma in
+  -- PROPAGATOR/DWF measurement
+  function save_dwf_correlators(L, aff_w, aff_kpath_prefix,
+      prop, ps_axialcons, ps_midpoint,
+      mom_list, csrc, t_axis)
+    save_2pt_list(L, aff_w, aff_kpath_prefix,
+        { ['ps_ps']           = (prop * prop:adjoin()):trace(),   -- <P_x P_0>
+          ['ps_midpoint']     = L:Complex(ps_midpoint),           -- <P5_x P_0>
+          ['ps_axial_local']  = (prop * prop:adjoin() 
+                      * (-gamma{mu=t_axis})):trace(),             -- <Alocal^t_x P_0>
+          ['ps_axial_cons']= L:Complex(ps_axialcons[1+t_axis])    -- <Acons^t_x P_0>
+        },                                        
+        csrc, mom_list, t_axis, 1)
+  end
 
 end
