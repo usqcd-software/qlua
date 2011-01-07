@@ -203,9 +203,9 @@ show_config() {
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
-   [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
-   [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
-   [ "$use_ncN" == 0 ] || echo "Nc=N included"
+   [ "$use_nc2" = 0 ] || echo "Nc=2 special case"
+   [ "$use_nc3" = 0 ] || echo "Nc=3 special case"
+   [ "$use_ncN" = 0 ] || echo "Nc=N included"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
