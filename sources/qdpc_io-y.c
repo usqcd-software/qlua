@@ -24,6 +24,7 @@
 #define Sop(x)   QA(QDP_F2_ ## x ## _)
 #define SopL(x)  QAx(QDP_F2_ ## x ## _, _L)
 #define DtoF     QAy(QDP_FD2_,_eq_)
+#define FtoD     QAy(QDP_DF2_,_eq_)
 #define QNc     '2'
 #define Qcolors  "2"
 #include "qdpc_io-z.c"                                               /* DEPS */
@@ -39,6 +40,7 @@
 #define Sop(x)   QA(QDP_F3_ ## x ## _)
 #define SopL(x)  QAx(QDP_F3_ ## x ## _, _L)
 #define DtoF     QAy(QDP_FD3_,_eq_)
+#define FtoD     QAy(QDP_DF3_,_eq_)
 #define QNc     '3'
 #define Qcolors  "3"
 #include "qdpc_io-z.c"                                               /* DEPS */
@@ -54,6 +56,7 @@
 #define Sop(x)   QA(QDP_FN_ ## x ## _)
 #define SopL(x)  QAx(QDP_FN_ ## x ## _, _L)
 #define DtoF     QAy(QDP_FDN_,_eq_)
+#define FtoD     QAy(QDP_DFN_,_eq_)
 #define QNc     'N'
 #define Qcolors  "N"
 #include "qdpc_io-z.c"                                               /* DEPS */

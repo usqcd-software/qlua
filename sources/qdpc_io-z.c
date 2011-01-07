@@ -60,7 +60,21 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         info = QDP_string_create();
 
         /* do the reading */
-        status = Qop(vread)(reader->ptr, info, X, n);
+        if(get_prec(reader->ptr)=='F') {
+          Stype *tt[n];
+#if QNc == 'N'
+	  for(i=0; i<n; i++) tt[i] = SopL(create)(nc, S->lat);
+#else
+	  for(i=0; i<n; i++) tt[i] = SopL(create)(S->lat);
+#endif
+          status = Sop(vread)(reader->ptr, info, tt, n);
+          for(i=0; i<n; i++) {
+	    FtoD(X[i], tt[i], S->all);
+	    Sop(destroy)(tt[i]);
+          }
+        } else {
+          status = Qop(vread)(reader->ptr, info, X, n);
+        }
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
@@ -251,6 +265,7 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
 #undef Sop
 #undef SopL
 #undef DtoF
+#undef FtoD
 #undef Qtype
 #undef Stype
 #undef Qcolors
