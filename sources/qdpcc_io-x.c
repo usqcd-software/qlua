@@ -154,7 +154,7 @@ Qs(float_P_get)(char *buf, size_t index, int count, void *v_arg)
         for (js = 0; js < QDP_Ns; js++) {
             for (ic = 0; ic < arg->nc; ic++) {
                 for (jc = 0; jc < arg->nc; jc++, dst++) {
-                    QLA_Complex *z = &QLA_elem_P(*src, ic, is, jc, is);
+                    QLA_Complex *z = &QLA_elem_P(*src, ic, is, jc, js);
                     QLA_c_eq_r_plus_ir(*dst, QLA_real(*z), QLA_imag(*z));
                 }
             }
@@ -183,7 +183,7 @@ Qs(double_P_get)(char *buf, size_t index, int count, void *v_arg)
         for (js = 0; js < QDP_Ns; js++) {
             for (ic = 0; ic < arg->nc; ic++) {
                 for (jc = 0; jc < arg->nc; jc++, dst++) {
-                    QLA_Complex *z = &QLA_elem_P(*src, ic, is, jc, is);
+                    QLA_Complex *z = &QLA_elem_P(*src, ic, is, jc, js);
                     QLA_c_eq_r_plus_ir(*dst, QLA_real(*z), QLA_imag(*z));
                 }
             }
