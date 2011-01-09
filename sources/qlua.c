@@ -1,6 +1,7 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
+#include "qcd.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
 #include "seqcolvec.h"                                               /* DEPS */
@@ -38,6 +39,9 @@
 #endif
 #ifdef HAS_MDWF
 #include "qmdwf.h"                                                   /* DEPS */
+#endif
+#ifdef HAS_QOPQDP
+#include "qqopqdp.h"                                                 /* DEPS */
 #endif
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
@@ -802,6 +806,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
 {
     static const lua_CFunction qcd_inits[] = {
         init_qlua_io,
+        init_qcd,
         init_complex,
         init_seqrandom,
         init_seqcolvec,
@@ -837,6 +842,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #endif
 #ifdef HAS_MDWF
         init_mdwf,
+#endif
+#ifdef HAS_QOPQDP
+        init_qopqdp,
 #endif
 #ifdef HAS_EXTRAS
         init_extras,
@@ -899,6 +907,9 @@ qlua_fini(lua_State *L)
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
+#ifdef HAS_QOPQDP
+        fini_qopqdp,
+#endif
 #ifdef HAS_MDWF
         fini_mdwf,
 #endif
@@ -935,6 +946,7 @@ qlua_fini(lua_State *L)
         fini_seqcolvec,
         fini_seqrandom,
         fini_complex,
+        fini_qcd,
         fini_qlua_io,
         NULL };
     int i;

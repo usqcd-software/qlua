@@ -94,6 +94,9 @@ typedef enum {
     qMDWF,
     qMDWFDeflator,
     qMDWFDeflatorState,
+    qQopqdpAsqtad,
+    qQopqdpClover,
+    qQopqdpHisq,
     /* ZZZ add types for other packages here */
     qNoType
 } QLUA_Type;

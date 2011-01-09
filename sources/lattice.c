@@ -191,7 +191,7 @@ q_defaults(lua_State *L)
                 S->nc = nc;
             else
                 return luaL_error(L, "bad default number of colors %d", nc);
-            return 1;
+            return 0;
         }
         break;
     }
@@ -349,7 +349,7 @@ qlua_intarray(lua_State *L, int n, int *dim)
 int *
 qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
 {
-    int d_dim;
+    int d_dim=0;
     int *idx = qlua_intarray(L, n, &d_dim);
 
     if (idx == 0)
