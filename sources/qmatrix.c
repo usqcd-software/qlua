@@ -876,11 +876,13 @@ mc_qr(lua_State *L)                                            /* (-1,+2,e) */
         if (tau == 0)
             luaL_error(L, "not enough memory");
     }
+#if 0 // missing functions
     if (gsl_linalg_complex_QR_decomp(qr->m, tau))
         luaL_error(L, "matrix:qr() failed");
     
     if (gsl_linalg_complex_QR_unpack(qr->m, tau, q->m, r->m))
         luaL_error(L, "matrix:qr() failed");
+#endif
     gsl_vector_complex_free(tau);
     
     return 2;
