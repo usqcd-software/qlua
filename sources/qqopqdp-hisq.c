@@ -210,6 +210,104 @@ q_hisq_solve(lua_State *L)
   return luaL_error(L, "bad arguments in QOPQDP Hisq Dslash");
 }
 
+#ifndef HAS_GSL
+
+static int
+q_hisq_svd(lua_State *L)
+{
+  return luaL_error(L, "need GSL for SVD");
+}
+
+#else
+
+typedef struct {
+  QOP_D3_FermionLinksHisq *flh;
+  QDP_Lattice *lat;
+  QDP_Subset even, odd;
+} svdlinop_args;
+
+static void
+svdlinop(zvec *out, zvec *in, int adj, void *args)
+{
+  svdlinop_args *a = (svdlinop_args *) args;
+  QDP_D3_ColorVector *qin = QDP_D3_create_V_L(a->lat);
+  QDP_D3_ColorVector *qout = QDP_D3_create_V_L(a->lat);
+  if(adj) {
+    QDP_D3_insert_packed_V(qin, (QLA_D3_ColorVector *)(in->data), a->odd);
+    QOP_D3_hisq_dslash_qdp(NULL, a->flh, 0, qout, qin, QOP_EVEN, QOP_ODD);
+    QDP_D3_extract_packed_V((QLA_D3_ColorVector *)(out->data), qout, a->even);
+    gsl_blas_zdscal(-1, out);
+  } else {
+    QDP_D3_insert_packed_V(qin, (QLA_D3_ColorVector *)(in->data), a->even);
+    QOP_D3_hisq_dslash_qdp(NULL, a->flh, 0, qout, qin, QOP_ODD, QOP_EVEN);
+    QDP_D3_extract_packed_V((QLA_D3_ColorVector *)(out->data), qout, a->odd);
+  }
+  QDP_D3_destroy_V(qin);
+  QDP_D3_destroy_V(qout);
+}
+
+// svd(hisq, in, nvecs, nits)
+static int
+q_hisq_svd(lua_State *L)
+{
+  mHisq *hisq = qlua_checkHisq(L, 1, NULL, 1);
+  mLattice *S = qlua_ObjLattice(L, 1);
+  int Sidx = lua_gettop(L);
+
+  mLatColVec3 *in = qlua_checkLatColVec3(L, 2, S, 3);
+  int nvecs = luaL_checkint(L, 3);
+  int nits = luaL_checkint(L, 4);
+
+  CALL_QDP(L);
+
+  int retval = 2;
+  int nv = nvecs;
+  if(nv<=0) { nv = 1; retval = 1; }
+  mVecReal *sv = qlua_newVecReal(L, nits);
+  zvec *gin, *qv[nv], *qva[nv];
+  int n = QDP_subset_len(S->even)*sizeof(QLA_D3_ColorVector)/sizeof(QLA_D_Complex);
+  int na = QDP_subset_len(S->odd)*sizeof(QLA_D3_ColorVector)/sizeof(QLA_D_Complex);
+  double rsq = 0;
+  svdlinop_args args;
+
+  args.flh = hisq->fla;
+  args.lat = S->lat;
+  args.even = S->even;
+  args.odd = S->odd;
+  gin = gsl_vector_complex_alloc(n);
+  for(int i=0; i<nvecs; i++) {
+    qv[i] = gsl_vector_complex_alloc(n);
+    qva[i] = gsl_vector_complex_alloc(na);
+  }
+
+  QDP_D3_extract_packed_V((QLA_D3_ColorVector*)(gin->data), in->ptr, S->even);
+
+  svd_lanczos(svdlinop, &args, gin, sv, nvecs, qv, nvecs, qva, na, rsq, nits);
+
+  gsl_vector_complex_free(gin);
+  if(nvecs>0) {
+    lua_createtable(L, nvecs, 0);
+    for(int i=0; i<nvecs; i++) {
+      mLatColVec3 *cv = qlua_newLatColVec3(L, Sidx, 3);
+      lua_rawseti(L, -2, i+1);
+      //printf0("even length = %i\n", QDP_subset_len(S->even));
+      QDP_D3_V_eq_zero(cv->ptr, S->even);
+      //{ double nrm; QDP_D3_r_eq_norm2_V(&nrm, cv->ptr, S->even); printf0("|cv| = %g\n", nrm); }
+      QDP_D3_insert_packed_V(cv->ptr, (QLA_D3_ColorVector*)(qv[i]->data), S->even);
+      QDP_D3_insert_packed_V(cv->ptr, (QLA_D3_ColorVector*)qva[i]->data, S->odd);
+      //{ double nrm = norm2_zv(qv[i]); printf0("|qv[%i]| = %g\n", i, nrm); }
+      //{ double nrm = norm2_zv(qva[i]); printf0("|qva[%i]| = %g\n", i, nrm); }
+      //{ double nrm; QDP_D3_r_eq_norm2_V(&nrm, cv->ptr, S->even); printf0("|cv| = %g\n", nrm); }
+      gsl_vector_complex_free(qv[i]);
+      gsl_vector_complex_free(qva[i]);
+    }
+  }
+
+  return retval;
+}
+
+#endif // HAS_GSL
+
 static int
 q_hisq_defaults(lua_State *L)
 {
@@ -510,6 +608,7 @@ static struct luaL_Reg mtHisq[] = {
   { "D",            q_hisq_D },
   { "Dx",           q_hisq_Dx },
   { "solve",        q_hisq_solve },
+  { "svd",          q_hisq_svd },
   { "defaults",     q_hisq_defaults },
   { "stats",        q_hisq_stats },
   //{ "mixed_solver", q_CL_make_mixed_solver },

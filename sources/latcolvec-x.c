@@ -622,6 +622,31 @@ Qs(qlua_checkLatColVec)(lua_State *L, int idx, mLattice *S, int nc)
     return z;
 }
 
+Qs(mLatColVec) **
+Qs(qlua_checkTableLatColVec)(lua_State *L, int idx, mLattice *S, int nc, int *nv)
+{
+  luaL_checktype(L, idx, LUA_TTABLE);
+  int n = lua_objlen(L, idx);
+  if(*nv>0 && *nv != n) {
+    luaL_error(L, "wrong number of vectors (got %i wanted %i)", n, *nv);
+  } else {
+    *nv = n;
+  }
+
+  Qs(mLatColVec) **v = NULL;
+  if(n>0) {
+    v = (Qs(mLatColVec) **) qlua_malloc(L, n*sizeof(Qs(mLatColVec) *));
+    for(int i=0; i<n; i++) {
+      lua_pushnumber(L, i+1);
+      lua_gettable(L, idx);
+      v[i] = Qs(qlua_checkLatColVec)(L, -1, S, nc);
+      lua_pop(L, 1);
+    }
+  }
+
+  return v;
+}
+
 static int
 Qs(q_latcolvec_seq_)(lua_State *L, mLattice *S, int nc)
 {
