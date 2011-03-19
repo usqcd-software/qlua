@@ -117,10 +117,17 @@ qlua_qio_volume_format(lua_State *L, int idx, int tmp_idx)
     } fmts[] = {
         { "single", QDP_SINGLEFILE },
         { "multi",  QDP_MULTIFILE  },
+
+        /* FIXME these two formats may break compatibility with QDP I/O
+           which does not inherit PARTFILE from QIO; they, however, are
+           expected to work fine with QIO-based functions like DD_PAIRS */
+        { "part",   QIO_PARTFILE   }, 
+        { "part_dir",   QIO_PARTFILE_DIR },
+
         { NULL,     -1  }
     };
 
-    if (idx < tmp_idx) {
+    if (idx <= tmp_idx) {
         switch (lua_type(L, idx)) {
         case LUA_TNONE:
         case LUA_TNIL:

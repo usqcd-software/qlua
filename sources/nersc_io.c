@@ -421,9 +421,7 @@ eoh:
 	 */
     char *site_buf = qlua_malloc(L, site_size);
     QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
-	QMP_msgmem_t mm;
-
-	mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
+	QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
 
     /* Go through all sites */
     for (site = 0; site < volume; site++) {
@@ -451,14 +449,16 @@ eoh:
                 }
                 break;
             default:
-                status = "internal error: unsupported f_fp in endiannes conversion";
+				if (status == NULL) 
+					status = "internal error: unsupported f_fp in endiannes conversion";
             }
         }
         /* collect the checksum */
         for (i = 0; i < site_size; i += sizeof (uint32_t))
             d_checksum += *(uint32_t *)(site_buf + i);
         /* convert to the ColorMatrix */
-        read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real);
+		if (read_matrix != NULL) 
+			read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real); 
         /* check unitarity */
         {
             int d, a, b;
