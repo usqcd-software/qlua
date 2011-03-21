@@ -8,6 +8,7 @@ typedef struct {
 
 mLatDirFerm2 *qlua_checkLatDirFerm2(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirFerm2 *qlua_newLatDirFerm2(lua_State *L, int Sidx, int nc);
+mLatDirFerm2 *qlua_newZeroLatDirFerm2(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_Nc3
@@ -17,6 +18,7 @@ typedef struct {
 
 mLatDirFerm3 *qlua_checkLatDirFerm3(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirFerm3 *qlua_newLatDirFerm3(lua_State *L, int Sidx, int nc);
+mLatDirFerm3 *qlua_newZeroLatDirFerm3(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_NcN
@@ -27,6 +29,7 @@ typedef struct {
 
 mLatDirFermN *qlua_checkLatDirFermN(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirFermN *qlua_newLatDirFermN(lua_State *L, int Sidx, int nc);
+mLatDirFermN *qlua_newZeroLatDirFermN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latdirferm(lua_State *L);

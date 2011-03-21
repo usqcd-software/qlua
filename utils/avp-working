@@ -1,22 +1,23 @@
 #!/bin/sh
-PACKTOP=/Users/avp/Local/packages
+PACKTOP=/Users/avp/Local/packages/working-build
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$PACKTOP/qlua-1-xxx
+## for all colors. 
+QDP_TOP=$HOME/Local/packages/qdp-1.9.0-a7.mdir
 
-CC="gcc -g -std=c99 -m32 -DQD_Nc=3"           \
+CC="gcc -g -std=c99 -DQDP_Nc=3"               \
 ./configure                                   \
-   --with-qdp=$PACKTOP/qdp-1.9.0-a7           \
-   --with-lua=$PACKTOP/lua-5.1.4              \
-   --with-gsl=$PACKTOP/gsl-1.13-qr-complex    \
-   --with-atlas=$PACKTOP/atlas-3.9.23         \
-   --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0    \
-   --with-clover=/Users/avp/Sandbox/USQCD/clover/install-new-1 \
-   --with-mdwf=/Users/avp/Sandbox/USQCD/mdwf/install-new-1 \
-   --with-extras \
-   --prefix=$TARGET \
-   --without-nc=any \
-   --with-nc=3 \
+   --with-qdp=$PACKTOP/qdp                    \
+   --with-lua=$PACKTOP/lua                    \
+   --with-gsl=$PACKTOP/gsl                    \
+   --with-lhpc-aff=$PACKTOP/aff               \
+   --with-clover=$PACKTOP/clover              \
+   --with-mdwf=$PACKTOP/mdwf                  \
+   --with-extras                              \
+   --prefix=$TARGET                           \
+   --without-nc=any                           \
+   --with-nc=3                                \
    $*
 
 #

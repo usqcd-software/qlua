@@ -627,6 +627,13 @@ Qs(qlua_newSeqColMat)(lua_State *L, int nc)
 }
 
 Qs(mSeqColMat) *
+Qs(qlua_newZeroSeqColMat)(lua_State *L, int nc)
+{
+	Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
+	Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
+	return v;
+}
+Qs(mSeqColMat) *
 Qs(qlua_checkSeqColMat)(lua_State *L, int idx, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qSeqColMat), Qs(SeqColMatName));
@@ -647,10 +654,7 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
     case 0: {
-        Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
-
-        Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
-        
+        Qs(qlua_newZeroSeqColMat)(L, nc);
         return 1;
     }
     case 1: {
@@ -685,9 +689,8 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
             QLA_D_Complex *z = qlua_checkComplex(L, 1);
             int a = qlua_checkleftindex(L, 2, nc);
             int b = qlua_checkrightindex(L, 2, nc);
-            Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
+            Qs(mSeqColMat) *v = Qs(qlua_newZeroSeqColMat)(L, nc);
 
-            Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
             Qx(QLA_D,_M_eq_elem_C)(QNC(nc) v->ptr, z, a, b);
 
             return 1;
@@ -697,9 +700,8 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
             switch (qlua_qtype(L, 2)) {
             case qTable: {
                 int b = qlua_checkrightindex(L, 2, nc);
-                Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
+                Qs(mSeqColMat) *v = Qs(qlua_newZeroSeqColMat)(L, nc);
                 
-                Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
                 Qx(QLA_D,_M_eq_colorvec_V)(QNC(nc) v->ptr, f->ptr, b);
 
                 return 1;

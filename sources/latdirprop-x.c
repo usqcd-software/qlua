@@ -178,8 +178,7 @@ Qs(q_P_sum)(lua_State *L)
 
         CALL_QDP(L);
         if (S->lss.mask) {
-            Qs(mLatDirProp) *b = Qs(qlua_newLatDirProp)(L, Sidx, nc);
-            Qx(QDP_D,_P_eq_zero)(b->ptr, *S->qss);
+            Qs(mLatDirProp) *b = Qs(qlua_newZeroLatDirProp)(L, Sidx, nc);
             Qx(QDP_D,_P_eq_P_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
             Qx(QDP_D,_p_eq_sum_P)(s->ptr, b->ptr, *S->qss);
             lua_pop(L, 1);
@@ -202,8 +201,7 @@ Qs(q_P_sum)(lua_State *L)
         Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
-            Qs(mSeqDirProp) *vi = Qs(qlua_newSeqDirProp)(L, QC(a));
-            Qx(QLA_D,_P_eq_zero)(QNC(nc) vi->ptr);
+            Qs(mSeqDirProp) *vi = Qs(qlua_newZeroSeqDirProp)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
         }
@@ -779,6 +777,15 @@ Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
 }
 
 Qs(mLatDirProp) *
+Qs(qlua_newZeroLatDirProp)(lua_State *L, int Sidx, int nc)
+{
+	Qs(mLatDirProp) *v = Qs(qlua_newZeroLatDirProp)(L, Sidx, nc);
+    mLattice *S = qlua_checkLattice(L, Sidx);
+	Qx(QDP_D,_P_eq_zero)(v->ptr, S->all);
+	return v;
+}
+
+Qs(mLatDirProp) *
 Qs(qlua_checkLatDirProp)(lua_State *L, int idx, mLattice *S, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qLatDirProp),
@@ -830,12 +837,11 @@ static int
 Qs(q_latdirprop_mat_)(lua_State *L, mLattice *S, int nc)
 {
     Qs(mLatColMat) *w = Qs(qlua_checkLatColMat)(L, 2, S, nc);
-    Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
+    Qs(mLatDirProp) *v = Qs(qlua_newZeroLatDirProp)(L, 1, nc);
     mLatComplex *c = qlua_newLatComplex(L, 1);
     int ic, jc, ks;
 
     CALL_QDP(L);
-    Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
     for (ic = 0; ic < nc; ic++) {
         for (jc = 0; jc < nc; jc++) {
             Qx(QDP_D,_C_eq_elem_M)(c->ptr, w->ptr, ic, jc, *S->qss);
@@ -853,21 +859,16 @@ Qs(q_latdirprop_)(lua_State *L, mLattice *S, int nc, int off)
 {
     switch (lua_gettop(L) - off) {
     case 1: {
-        Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
-
-        CALL_QDP(L);
-        Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
-        
+        Qs(qlua_newZeroLatDirProp)(L, 1, nc);
         return 1;
     }
     case 3: {
         Qs(mLatDirFerm) *z = Qs(qlua_checkLatDirFerm)(L, 2 + off, S, nc);
         int d = qlua_checkdiracindex(L, 3);
         int c = qlua_checkcolorindex(L, 3, nc);
-        Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, 1, nc);
+        Qs(mLatDirProp) *v = Qs(qlua_newZeroLatDirProp)(L, 1, nc);
 
         CALL_QDP(L);
-        Qx(QDP_D,_P_eq_zero)(v->ptr, *S->qss);
         Qx(QDP_D,_P_eq_diracvec_D)(v->ptr, z->ptr, c, d, *S->qss);
         return 1;
     }

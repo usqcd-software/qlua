@@ -10,6 +10,7 @@ int fini_latreal(lua_State *L);
 
 mLatReal *qlua_checkLatReal(lua_State *L, int idx, mLattice *S);
 mLatReal *qlua_newLatReal(lua_State *L, int Sidx);
+mLatReal *qlua_newZeroLatReal(lua_State *L, int Sidx);
 
 int q_R_random(lua_State *L);
 int q_R_gaussian(lua_State *L);

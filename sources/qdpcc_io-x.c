@@ -81,7 +81,7 @@ Qs(cc_read_P_)(lua_State *L, int off, int nc)
 
     mLattice         *S = qlua_checkLattice(L, 1 + off);
     const char       *fname = luaL_checkstring(L, 2 + off);
-    Qs(mLatDirProp)  *prop = Qs(qlua_newLatDirProp)(L, 1 + off, nc);
+    Qs(mLatDirProp)  *prop = Qs(qlua_newZeroLatDirProp)(L, 1 + off, nc);
     QIO_Reader       *reader = 0;
     QIO_String       *file_xml = 0;
     QIO_String       *record_xml = 0;

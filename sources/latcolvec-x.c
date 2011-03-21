@@ -343,8 +343,7 @@ Qs(q_V_sum)(lua_State *L)
 
         CALL_QDP(L);
         if (S->lss.mask) {
-            Qs(mLatColVec) *b = Qs(qlua_newLatColVec)(L, Sidx, nc);
-            Qx(QDP_D,_V_eq_zero)(b->ptr, *S->qss);
+            Qs(mLatColVec) *b = Qs(qlua_newZeroLatColVec)(L, Sidx, nc);
             Qx(QDP_D,_V_eq_V_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
             Qx(QDP_D,_v_eq_sum_V)(s->ptr, b->ptr, *S->qss);
             lua_pop(L, 1);
@@ -367,8 +366,7 @@ Qs(q_V_sum)(lua_State *L)
         Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
-            Qs(mSeqColVec) *vi = Qs(qlua_newSeqColVec)(L, QC(a));
-            Qx(QLA_D,_V_eq_zero)(QNC(nc) vi->ptr);
+            Qs(mSeqColVec) *vi = Qs(qlua_newZeroSeqColVec)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
         }
@@ -600,6 +598,15 @@ Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
 }
 
 Qs(mLatColVec) *
+Qs(qlua_newZeroLatColVec)(lua_State *L, int Sidx, int nc)
+{
+	Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, Sidx, nc);
+	mLattice *S = qlua_checkLattice(L, Sidx);
+	Qx(QDP_D,_V_eq_zero)(v->ptr, S->all);
+	return v;
+}
+
+Qs(mLatColVec) *
 Qs(qlua_checkLatColVec)(lua_State *L, int idx, mLattice *S, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qLatColVec), Qs(LatColVecName));
@@ -639,11 +646,7 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
 {
     switch (lua_gettop(L) - off) {
     case 1: {
-        Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, 1, nc);
-
-        CALL_QDP(L);
-        Qx(QDP_D,_V_eq_zero)(v->ptr, *S->qss);
-
+        Qs(qlua_newZeroLatColVec)(L, 1, nc);
         return 1;
     }
     case 2: {

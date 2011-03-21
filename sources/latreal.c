@@ -60,8 +60,7 @@ q_R_sum(lua_State *L)
 
         CALL_QDP(L);
         if (S->lss.mask) {
-            mLatReal *b = qlua_newLatReal(L, Sidx);
-            QDP_R_eq_zero(b->ptr, S->all);
+            mLatReal *b = qlua_newZeroLatReal(L, Sidx);
             QDP_R_eq_R_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
             QDP_r_eq_sum_R(&sum, b->ptr, *S->qss);
             lua_pop(L, 1);
@@ -1040,11 +1039,7 @@ q_latreal(lua_State *L)
 
     switch (lua_gettop(L)) {
     case 1: {
-        mLatReal *v = qlua_newLatReal(L, 1);
-
-        CALL_QDP(L);
-        QDP_R_eq_zero(v->ptr, *S->qss);
-
+        qlua_newZeroLatReal(L, 1);
         return 1;
     }
     case 2:
@@ -1141,6 +1136,15 @@ qlua_newLatReal(lua_State *L, int Sidx)
     lua_setmetatable(L, -2);
 
     return hdr;
+}
+
+mLatReal *
+qlua_newZeroLatReal(lua_State *L, int Sidx)
+{
+	mLatReal *v = qlua_newLatReal(L, Sidx);
+	mLattice *S = qlua_checkLattice(L, Sidx);
+	QDP_R_eq_zero(v->ptr, S->all);
+	return v;
 }
 
 mLatReal *

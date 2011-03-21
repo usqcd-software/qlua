@@ -26,7 +26,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
     case 2: {
         /* one colored object */
         QDP_String *info = QDP_string_create();
-        Qs(m) *X = Qs(qlua_new)(L, Sidx, nc);
+        Qs(m) *X = Qs(qlua_newZero)(L, Sidx, nc);
         int status = Qop(read)(reader->ptr, info, X->ptr);
         if (status == 0) {
             /* read successful -- convert to LUA */

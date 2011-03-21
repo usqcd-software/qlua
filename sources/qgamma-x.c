@@ -5,10 +5,9 @@ Qs(q_g_mul_d_)(lua_State *L)
     mClifford *m = qlua_checkClifford(L, 1);
     Qs(mSeqDirFerm) *f = Qs(qlua_checkSeqDirFerm)(L, 2, -1);
     Qs(mSeqDirFerm) *mf = Qs(qlua_newSeqDirFerm)(L, QC(f));
-    Qs(mSeqDirFerm) *r = Qs(qlua_newSeqDirFerm)(L, QC(f));
+    Qs(mSeqDirFerm) *r = Qs(qlua_newZeroSeqDirFerm)(L, QC(f));
     int i;
 
-    Qx(QLA_D,_D_eq_zero)(QNC(QC(f)) r->ptr);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
@@ -41,11 +40,10 @@ Qs(q_g_mul_D_)(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, 2);
     int Sidx = lua_gettop(L);
     Qs(mLatDirFerm) *mf = Qs(qlua_newLatDirFerm)(L, Sidx, QC(f));
-    Qs(mLatDirFerm) *r = Qs(qlua_newLatDirFerm)(L, Sidx, QC(f));
+    Qs(mLatDirFerm) *r = Qs(qlua_newZeroLatDirFerm)(L, Sidx, QC(f));
     int i;
 
     CALL_QDP(L);
-    Qx(QDP_D,_D_eq_zero)(r->ptr, *S->qss);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
@@ -76,10 +74,9 @@ Qs(q_g_mul_p_)(lua_State *L)
     mClifford *m = qlua_checkClifford(L, 1);
     Qs(mSeqDirProp) *f = Qs(qlua_checkSeqDirProp)(L, 2, -1);
     Qs(mSeqDirProp) *mf = Qs(qlua_newSeqDirProp)(L, QC(f));
-    Qs(mSeqDirProp) *r = Qs(qlua_newSeqDirProp)(L, QC(f));
+    Qs(mSeqDirProp) *r = Qs(qlua_newZeroSeqDirProp)(L, QC(f));
     int i;
     
-    Qx(QLA_D,_P_eq_zero)(QNC(QC(f)) r->ptr);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
@@ -112,11 +109,10 @@ Qs(q_g_mul_P_)(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, 2);
     int Sidx = lua_gettop(L);
     Qs(mLatDirProp) *mf = Qs(qlua_newLatDirProp)(L, Sidx, QC(f));
-    Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, Sidx, QC(f));
+    Qs(mLatDirProp) *r = Qs(qlua_newZeroLatDirProp)(L, Sidx, QC(f));
     int i;
     
     CALL_QDP(L);
-    Qx(QDP_D,_P_eq_zero)(r->ptr, *S->qss);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
@@ -147,10 +143,9 @@ Qs(q_p_mul_g_)(lua_State *L)
     Qs(mSeqDirProp) *f = Qs(qlua_checkSeqDirProp)(L, 1, -1);
     mClifford *m = qlua_checkClifford(L, 2);
     Qs(mSeqDirProp) *mf = Qs(qlua_newSeqDirProp)(L, QC(f));
-    Qs(mSeqDirProp) *r = Qs(qlua_newSeqDirProp)(L, QC(f));
+    Qs(mSeqDirProp) *r = Qs(qlua_newZeroSeqDirProp)(L, QC(f));
     int i;
 
-    Qx(QLA_D,_P_eq_zero)(QNC(QC(f)) r->ptr);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;
@@ -183,11 +178,10 @@ Qs(q_P_mul_g_)(lua_State *L)
     int Sidx = lua_gettop(L);
     mClifford *m = qlua_checkClifford(L, 2);
     Qs(mLatDirProp) *mf = Qs(qlua_newLatDirProp)(L, Sidx, QC(f));
-    Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, Sidx, QC(f));
+    Qs(mLatDirProp) *r = Qs(qlua_newZeroLatDirProp)(L, Sidx, QC(f));
     int i;
 
     CALL_QDP(L);
-    Qx(QDP_D,_P_eq_zero)(r->ptr, *S->qss);
     for (i = 0; i < 16; i++) {
         switch (m->g[i].t) {
         case qG_z: continue;

@@ -8,6 +8,7 @@ typedef struct {
 
 mLatColMat2 *qlua_checkLatColMat2(lua_State *L, int idx, mLattice *S, int nc);
 mLatColMat2 *qlua_newLatColMat2(lua_State *L, int Sidx, int nc);
+mLatColMat2 *qlua_newZeroLatColMat2(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_Nc3
@@ -17,6 +18,7 @@ typedef struct {
 
 mLatColMat3 *qlua_checkLatColMat3(lua_State *L, int idx, mLattice *S, int nc);
 mLatColMat3 *qlua_newLatColMat3(lua_State *L, int Sidx, int nc);
+mLatColMat3 *qlua_newZeroLatColMat3(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_NcN
@@ -27,6 +29,7 @@ typedef struct {
 
 mLatColMatN *qlua_checkLatColMatN(lua_State *L, int idx, mLattice *S, int nc);
 mLatColMatN *qlua_newLatColMatN(lua_State *L, int Sidx, int nc);
+mLatColMatN *qlua_newZeroLatColMatN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latcolmat(lua_State *L);

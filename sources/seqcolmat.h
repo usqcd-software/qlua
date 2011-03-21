@@ -8,6 +8,7 @@ typedef struct {
 
 mSeqColMat2 *qlua_checkSeqColMat2(lua_State *L, int idx, int nc);
 mSeqColMat2 *qlua_newSeqColMat2(lua_State *L, int nc);
+mSeqColMat2 *qlua_newZeroSeqColMat2(lua_State *L, int nc);
 #endif
 
 #if USE_Nc3
@@ -17,6 +18,7 @@ typedef struct {
 
 mSeqColMat3 *qlua_checkSeqColMat3(lua_State *L, int idx, int nc);
 mSeqColMat3 *qlua_newSeqColMat3(lua_State *L, int nc);
+mSeqColMat3 *qlua_newZeroSeqColMat3(lua_State *L, int nc);
 #endif
 
 #if USE_NcN
@@ -27,6 +29,7 @@ typedef struct {
 
 mSeqColMatN *qlua_checkSeqColMatN(lua_State *L, int idx, int nc);
 mSeqColMatN *qlua_newSeqColMatN(lua_State *L, int nc);
+mSeqColMatN *qlua_newZeroSeqColMatN(lua_State *L, int nc);
 #endif
 
 int init_seqcolmat(lua_State *L);
