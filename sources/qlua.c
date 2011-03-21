@@ -60,6 +60,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
+	/* XXX qlua version string */
     {"qlua",  "QLUA version 0.21.01 $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
