@@ -779,7 +779,7 @@ Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
 Qs(mLatDirProp) *
 Qs(qlua_newZeroLatDirProp)(lua_State *L, int Sidx, int nc)
 {
-	Qs(mLatDirProp) *v = Qs(qlua_newZeroLatDirProp)(L, Sidx, nc);
+	Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, Sidx, nc);
     mLattice *S = qlua_checkLattice(L, Sidx);
 	Qx(QDP_D,_P_eq_zero)(v->ptr, S->all);
 	return v;
