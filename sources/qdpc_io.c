@@ -53,18 +53,6 @@ static mWriter *q_checkWriter(lua_State *L, int idx, mLattice *S);
 static void check_reader(lua_State *L, mReader *b);
 static void check_writer(lua_State *L, mWriter *b);
 
-/* get QIO record precision */
-static int
-get_prec(QDP_Reader *qr)
-{
-  QIO_RecordInfo *ri = QIO_create_record_info(0, NULL, NULL, 0, "", "", 0, 0, 0, 0);
-  QDP_String *md = QDP_string_create();
-  QDP_read_qio_record_info(qr, ri, md);
-  int prec = *QIO_get_precision(ri);
-  QIO_destroy_record_info(ri);
-  QDP_string_destroy(md);
-  return prec;
-}
 
 /* plain lattice types */
 #define T_QTYPE       QDP_Int
@@ -782,81 +770,10 @@ q_qdpc_writer (lua_State *L)
     return rcount;
 }
 
-static void
-push_int_array(lua_State *L, int *dims, int ndim)
-{
-  lua_createtable(L, ndim, 0);
-  for(int i=0; i<ndim; i++) {
-    lua_pushnumber(L, dims[i]);
-    lua_rawseti(L, -2, i + 1);
-  }
-}
-
-/* QDP/C file info
- *
- * qcd.qdpc.FileInfo(file_name)
- */
-static int
-q_qdpc_fileinfo (lua_State *L)
-{
-  const char *name = luaL_checkstring(L, 1);
-
-  QIO_Layout ql;
-  ql.latdim = 0;
-  ql.latsize = NULL;
-  ql.this_node = QMP_get_node_number();
-  ql.number_of_nodes = QMP_get_number_of_nodes();
-  QIO_String *xml = QIO_string_create();
-  QIO_Reader *qr = QIO_open_read(xml, name, &ql, NULL, NULL);
-  if(!qr) {
-    QIO_string_destroy(xml);
-    return 0;
-  }
-  lua_newtable(L);
-  lua_pushstring(L, QIO_string_ptr(xml));
-  lua_setfield(L, -2, "xml");
-
-  int ndim, *dims;
-  ndim = QIO_get_reader_latdim(qr);
-  dims = QIO_get_reader_latsize(qr);
-  push_int_array(L, dims, ndim);
-  lua_setfield(L, -2, "latsize");
-
-  lua_newtable(L);
-
-  QIO_RecordInfo *qri =
-    QIO_create_record_info(0, NULL, NULL, 0, "", "", 0, 0, 0, 0);
-  int nrec = 0;
-  do {
-    if(QIO_read_record_info(qr, qri, xml)) break;
-    nrec++;
-
-    lua_newtable(L);
-
-#define setchar(f, s) lua_pushstring(L, f); lua_setfield(L, -2, s);
-#define setint(f, s) lua_pushnumber(L, f); lua_setfield(L, -2, s);
-
-    setchar(QIO_get_datatype(qri), "datatype");
-    setchar(QIO_get_precision(qri), "precision");
-    setchar(QIO_get_record_date(qri), "date");
-    setint(QIO_get_datacount(qri), "datacount");
-
-    lua_rawseti(L, -2, nrec);
-  } while(!QIO_next_record(qr));
-  QIO_destroy_record_info(qri);
-
-  lua_setfield(L, -2, "record");
-
-  QIO_close_read(qr);
-  QIO_string_destroy(xml);
-  return 1;
-}
-
 /* names and routines for qcd.qdpc table */
 static const struct luaL_Reg fQDPio[] = {
     { "Reader",   q_qdpc_reader},
     { "Writer",   q_qdpc_writer},
-    { "FileInfo", q_qdpc_fileinfo},
     { NULL,       NULL }
 };
 

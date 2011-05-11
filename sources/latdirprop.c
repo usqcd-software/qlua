@@ -300,7 +300,6 @@ int
 init_latdirprop(lua_State *L)
 {
     luaL_register(L, qcdlib, fQCDDirProp);
-    lua_pop(L, 1);
     luaL_getmetatable(L, opLattice);
     luaL_register(L, NULL, fLatDirProp);
     lua_pop(L, 1);

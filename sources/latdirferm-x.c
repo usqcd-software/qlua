@@ -220,8 +220,7 @@ Qs(q_D_sum)(lua_State *L)
 
         CALL_QDP(L);
         if (S->lss.mask) {
-            Qs(mLatDirFerm) *b = Qs(qlua_newLatDirFerm)(L, Sidx, nc);
-            Qx(QDP_D,_D_eq_zero)(b->ptr, *S->qss);
+            Qs(mLatDirFerm) *b = Qs(qlua_newZeroLatDirFerm)(L, Sidx, nc);
             Qx(QDP_D,_D_eq_D_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
             Qx(QDP_D,_d_eq_sum_D)(s->ptr, b->ptr, *S->qss);
             lua_pop(L, 1);
@@ -244,8 +243,7 @@ Qs(q_D_sum)(lua_State *L)
         Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
         lua_createtable(L, size, 0);
         for (int i = 0; i < size; i++) {
-            Qs(mSeqDirFerm) *vi = Qs(qlua_newSeqDirFerm)(L, QC(a));
-            Qx(QLA_D,_D_eq_zero)(QNC(nc) vi->ptr);
+            Qs(mSeqDirFerm) *vi = Qs(qlua_newZeroSeqDirFerm)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
         }
@@ -687,6 +685,15 @@ Qs(qlua_newLatDirFerm)(lua_State *L, int Sidx, int nc)
 }
 
 Qs(mLatDirFerm) *
+Qs(qlua_newZeroLatDirFerm)(lua_State *L, int Sidx, int nc)
+{
+	Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, Sidx, nc);
+    mLattice *S = qlua_checkLattice(L, Sidx);
+	Qx(QDP_D,_D_eq_zero)(v->ptr, S->all);
+	return v;
+}
+
+Qs(mLatDirFerm) *
 Qs(qlua_checkLatDirFerm)(lua_State *L, int idx, mLattice *S, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qLatDirFerm),
@@ -739,11 +746,7 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
 {
     switch (lua_gettop(L) - off) {
     case 1: {
-        Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
-
-        CALL_QDP(L);
-        Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
-
+        Qs(qlua_newZeroLatDirFerm)(L, 1, nc);
         return 1;
     }
     case 3: {
@@ -752,10 +755,9 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
             mLatComplex *z = qlua_checkLatComplex(L, 2 + off, S);
             int c = qlua_checkcolorindex(L, 3 + off, nc);
             int d = qlua_checkdiracindex(L, 3 + off);
-            Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
+            Qs(mLatDirFerm) *v = Qs(qlua_newZeroLatDirFerm)(L, 1, nc);
 
             CALL_QDP(L);
-            Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
             Qx(QDP_D,_D_eq_elem_C)(v->ptr, z->ptr, c, d, *S->qss);
 
             return 1;
@@ -763,10 +765,9 @@ Qs(q_latdirferm_)(lua_State *L, mLattice *S, int nc, int off)
         case Qs(qLatColVec): {
             Qs(mLatColVec) *w = Qs(qlua_checkLatColVec)(L, 2 + off, S, nc);
             int d = qlua_checkdiracindex(L, 3 + off);
-            Qs(mLatDirFerm) *v = Qs(qlua_newLatDirFerm)(L, 1, nc);
+            Qs(mLatDirFerm) *v = Qs(qlua_newZeroLatDirFerm)(L, 1, nc);
 
             CALL_QDP(L);
-            Qx(QDP_D,_D_eq_zero)(v->ptr, *S->qss);
             Qx(QDP_D,_D_eq_colorvec_V)(v->ptr, w->ptr, d, *S->qss);
             return 1;
         }

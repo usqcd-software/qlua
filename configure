@@ -26,7 +26,6 @@ show_help() {
    Supported packages:
      clover                   SciDAC L3 clover inverter
      mdwf                     SciDAC L3 Moebius Domain Wall inverter
-     qopqdp                   SciDAC L3 QOPQDP library
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
@@ -64,7 +63,7 @@ libdir_loc=lib/qlua
 incdir_loc=include
 docdir_loc=share/doc/qlua
 default_cc=gcc
-default_copts="-Wall"
+default_copts="-Wall -g"
 default_cflags=""
 default_ld="gcc -g"
 default_ldflags=""
@@ -88,7 +87,6 @@ process_args() {
       --with-qdp=*)     qdp=`echo "$1" | sed -e 's/--with-qdp=//'`    ;;
       --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
       --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'` ;;
-      --with-qopqdp=*)    qopqdp=`echo "$1" | sed -e 's/--with-qopqdp=//'` ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
@@ -159,11 +157,6 @@ normalize() {
      mdwf_libs=`$mdwf/bin/mdwf-config --libs`
      [ -z "$gsl" ] && show_error "MDWF requires GSL"
   fi
-  if [ ! -z "$qopqdp" ] ; then
-     qopqdp_cflags="-I$qopqdp/include"
-     qopqdp_ldflags="-L$qopqdp/lib"
-     qopqdp_libs="-lqopqdp"
-  fi
   if [ ! -z "$aff" ] ; then
      [ -x "$aff/bin/lhpc-aff-config" ] \
         || show_error "No lhpc-aff-config under $aff"
@@ -207,13 +200,12 @@ show_config() {
    echo "QDP location            $qdp"
    [ -z "$clover" ]  || echo "Clover location         $clover"
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
-   [ -z "$qopqdp" ]  || echo "QOPQDP location         $qopqdp"
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
-   [ "$use_nc2" = 0 ] || echo "Nc=2 special case"
-   [ "$use_nc3" = 0 ] || echo "Nc=3 special case"
-   [ "$use_ncN" = 0 ] || echo "Nc=N included"
+   [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
+   [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
+   [ "$use_ncN" == 0 ] || echo "Nc=N included"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
@@ -252,10 +244,6 @@ build() {
         -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
         -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
         -e "s|@mdwf_libs@|$mdwf_libs|g" \
-  | sed -e "s|@qopqdp@|$qopqdp|g" \
-        -e "s|@qopqdp_cflags@|$qopqdp_cflags|g" \
-        -e "s|@qopqdp_ldflags@|$qopqdp_ldflags|g" \
-        -e "s|@qopqdp_libs@|$qopqdp_libs|g" \
   | sed -e "s|@gsl@|$gsl|g" \
         -e "s|@gsl_cflags@|$gsl_cflags|g" \
         -e "s|@gsl_libs@|$gsl_libs|g" \
@@ -283,10 +271,6 @@ build_modules() {
   if [ ! -z "$mdwf" ] ; then
     echo "#define HAS_MDWF"
     echo "#define MDWF_VERSION \"$mdwf\""
-  fi
-  if [ ! -z "$qopqdp" ] ; then
-    echo "#define HAS_QOPQDP"
-    echo "#define QOPQDP_VERSION \"$qopqdp\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
   if [ ! -z "$cblas_libs" ] ; then

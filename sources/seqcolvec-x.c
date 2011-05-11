@@ -281,6 +281,13 @@ Qs(qlua_newSeqColVec)(lua_State *L, int nc)
 }
 
 Qs(mSeqColVec) *
+Qs(qlua_newZeroSeqColVec)(lua_State *L, int nc)
+{
+	Qs(mSeqColVec) *v = Qs(qlua_newSeqColVec)(L, nc);
+	Qx(QLA_D,_V_eq_zero)(QNC(nc) v->ptr);
+	return v;
+}
+Qs(mSeqColVec) *
 Qs(qlua_checkSeqColVec)(lua_State *L, int idx, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qSeqColVec), Qs(SeqColVecName));
@@ -300,10 +307,7 @@ Qs(q_seqcolvec_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
     case 0: {
-        Qs(mSeqColVec) *v = Qs(qlua_newSeqColVec)(L, nc);
-
-        Qx(QLA_D,_V_eq_zero)(QNC(nc) v->ptr);
-
+        Qs(qlua_newZeroSeqColVec)(L, nc);
         return 1;
     }
     case 1: {

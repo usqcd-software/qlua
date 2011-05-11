@@ -369,7 +369,7 @@ q_dirac_solver(lua_State *L)
     }
     case qLatDirFerm3: {
         mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 1, S, 3);
-        mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
+        mLatDirFerm3 *eta = qlua_newZeroLatDirFerm3(L, Sidx, 3);
         struct QOP_D3_MDWF_Fermion *c_psi;
         struct QOP_D3_MDWF_Fermion *c_eta;
         DW_D_env env;
@@ -380,7 +380,6 @@ q_dirac_solver(lua_State *L)
         CALL_QDP(L);
         QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_D_eq_zero(eta->ptr, S->all);
             lua_pushnumber(L, 0.0);
             lua_pushnumber(L, 0);
             if (c->type != DW_Shamir)
@@ -446,8 +445,7 @@ q_dirac_solver(lua_State *L)
             ac_env.scale = rhs_n * rhs_n;
             lua_createtable(L, QOP_MDWF_DIM, 0);
             for (int i = 0; i < QOP_MDWF_DIM; i++) {
-                ca_ps[i] = qlua_newLatReal(L, Sidx)->ptr;
-                QDP_D_R_eq_zero(ca_ps[i], S->all);
+                ca_ps[i] = qlua_newZeroLatReal(L, Sidx)->ptr;
                 ac_env.dst[i] = QDP_D_expose_R(ca_ps[i]);
                 lua_rawseti(L, -2, i + 1);
             }
@@ -459,10 +457,9 @@ q_dirac_solver(lua_State *L)
             for (int i = 0; i < QOP_MDWF_DIM; i++)
                 QDP_D_reset_R(ca_ps[i]);
 
-            QDP_D_Real *mp_ps = qlua_newLatReal(L, Sidx)->ptr;
+            QDP_D_Real *mp_ps = qlua_newZeroLatReal(L, Sidx)->ptr;
             DW_midpoint_env mp_env;
 
-            QDP_R_eq_zero(mp_ps, S->all);
             mp_env.lat = S->lat;
             mp_env.dst = QDP_D_expose_R(mp_ps);
             mp_env.scale = rhs_n * rhs_n;
@@ -482,7 +479,7 @@ q_dirac_solver(lua_State *L)
     }
     case qLatDirProp3: {
         mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 1, S, 3);
-        mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
+        mLatDirProp3 *eta = qlua_newZeroLatDirProp3(L, Sidx, 3);
         struct QOP_D3_MDWF_Fermion *c_psi;
         struct QOP_D3_MDWF_Fermion *c_eta;
         int gstatus = 0;
@@ -498,7 +495,6 @@ q_dirac_solver(lua_State *L)
 
         QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_P_eq_zero(eta->ptr, S->all);
             if (c->type != DW_Shamir)
                 return 3;
             lua_createtable(L, QOP_MDWF_DIM, 0);
@@ -521,15 +517,13 @@ q_dirac_solver(lua_State *L)
         ac_env.scale = rhs_n * rhs_n;
         lua_createtable(L, QOP_MDWF_DIM, 0);
         for (int i = 0; i < QOP_MDWF_DIM; i++) {
-            ca_ps[i] = qlua_newLatReal(L, Sidx)->ptr;
-            QDP_D_R_eq_zero(ca_ps[i], S->all);
+            ca_ps[i] = qlua_newZeroLatReal(L, Sidx)->ptr;
             ac_env.dst[i] = QDP_D_expose_R(ca_ps[i]);
             lua_rawseti(L, -2, i + 1);
         }
-        QDP_D_Real *mp_ps = qlua_newLatReal(L, Sidx)->ptr;
+        QDP_D_Real *mp_ps = qlua_newZeroLatReal(L, Sidx)->ptr;
         DW_midpoint_env mp_env;
         
-        QDP_R_eq_zero(mp_ps, S->all);
         mp_env.lat = S->lat;
         mp_env.dst = QDP_D_expose_R(mp_ps);
         mp_env.scale = rhs_n * rhs_n;

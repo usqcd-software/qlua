@@ -15,62 +15,6 @@ static const char opMatComplex[]  = "matrix.mtComplex.ops";
 
 static char matrix_ns[] = "matrix";
 
-static gsl_permutation *
-alloc_GSLPermutation(lua_State *L, int size)
-{
-    gsl_permutation *p = gsl_permutation_alloc(size);
-    if (p == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        p = gsl_permutation_alloc(size);
-        if (p == 0)
-            luaL_error(L, "not enough memory");
-    }
-	return p;
-}
-
-static gsl_vector *
-alloc_GSLRealVector(lua_State *L, int size)
-{
-	gsl_vector *w = gsl_vector_alloc(size);
-	if (w == 0) {
-		lua_gc(L, LUA_GCCOLLECT, 0);
-		w = gsl_vector_alloc(size);
-		if (w == 0)
-			luaL_error(L, "not enough memory");
-	}
-	return w;
-}
-
-static gsl_vector *
-qlua2gsl_real_vector(lua_State *L, int idx, int e_size)
-{
-	mVecReal *v = qlua_checkVecReal(L, idx);
-	gsl_vector *w;
-	int i;
-
-	if ((e_size >= 0) && (v->size != e_size))
-		luaL_error(L, "unexpected vector length");
-
-	w = alloc_GSLRealVector(L, v->size);
-	for (i = 0; i < v->size; i++) {
-		gsl_vector_set(w, i, v->val[i]);
-	}
-	return w;
-}
-
-static mVecReal *
-gsl2qlua_real_vector(lua_State *L, int size, gsl_vector *w)
-{
-	mVecReal *v = qlua_newVecReal(L, size);
-	int i;
-
-	for (i = 0; i < size; i++) {
-		v->val[i] = gsl_vector_get(w, i);
-	}
-	gsl_vector_free(w);
-	return v;
-}
-
 static void *
 qlua_checkMatrix(lua_State *L, int idx, const char *mt, const char *name)
 {
@@ -159,7 +103,13 @@ md_inverse(lua_State *L)
     lu = qlua_newMatReal(L, m->l_size, m->l_size);
     r = qlua_newMatReal(L, m->l_size, m->l_size);
     gsl_matrix_memcpy(lu->m, m->m);
-    p = alloc_GSLPermutation(L, m->l_size);
+    p = gsl_permutation_alloc(m->l_size);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m->l_size);
+        if (p == 0)
+            luaL_error(L, "not enough memory");
+    }
     gsl_linalg_LU_decomp(lu->m, p, &signum);
     if (gsl_linalg_LU_invert(lu->m, p, r->m))
         luaL_error(L, "matrix:inverse() failed");
@@ -223,32 +173,6 @@ md_qr(lua_State *L)                                            /* (-1,+2,e) */
     gsl_vector_free(tau);
     
     return 2;
-}
-
-static int
-md_solve(lua_State *L)
-{
-	mMatReal *m = qlua_checkMatReal(L, 1);
-	mMatReal *lu;
-	gsl_permutation *p;
-	gsl_vector *ss, *x;
-	
-	int signum;
-
-	if (m->l_size != m->r_size)
-		return luaL_error(L, "matrix:solve() expects a square matrix");
-	ss = qlua2gsl_real_vector(L, 2, m->l_size);
-	lu = qlua_newMatReal(L, m->l_size, m->r_size);
-	gsl_matrix_memcpy(lu->m, m->m);
-	p = alloc_GSLPermutation(L, m->l_size);
-	x = alloc_GSLRealVector(L, m->l_size);
-	gsl_linalg_LU_decomp(lu->m, p, &signum);
-	if (gsl_linalg_LU_solve(lu->m, p, ss, x)) {
-		luaL_error(L, "matrix:solve() failed");
-	}
-	gsl_permutation_free(p);
-	gsl2qlua_real_vector(L, m->l_size, x);
-	return 1;
 }
 
 static int
@@ -534,7 +458,6 @@ static const luaL_Reg MatRealMethods[] = {
     { "symmetric_eigen",      md_eigen      },
     { "qr",                   md_qr         },
     { "det",                  md_det        },
-	{ "solve",                md_solve      },
     { NULL, NULL}
 };
 
@@ -549,55 +472,6 @@ static const luaL_Reg mtMatReal[] = {
     { "__div",          qlua_div  },
     { NULL,             NULL      }
 };
-
-static gsl_vector_complex *
-alloc_GSLComplexVector(lua_State *L, int size)
-{
-	gsl_vector_complex *w = gsl_vector_complex_alloc(size);
-	if (w == 0) {
-		lua_gc(L, LUA_GCCOLLECT, 0);
-		w = gsl_vector_complex_alloc(size);
-		if (w == 0)
-			luaL_error(L, "not enough memory");
-	}
-	return w;
-}
-
-static gsl_vector_complex *
-qlua2gsl_complex_vector(lua_State *L, int idx, int e_size)
-{
-	mVecComplex *v = qlua_checkVecComplex(L, idx);
-	gsl_vector_complex *w;
-	int i;
-
-	if ((e_size >= 0) && (v->size != e_size))
-		luaL_error(L, "unexpected vector length");
-
-	w = alloc_GSLComplexVector(L, v->size);
-	for (i = 0; i < v->size; i++) {
-		gsl_complex zz;
-		QLA_D_Complex *vv = &v->val[i];
-
-		GSL_SET_COMPLEX(&zz, QLA_real(*vv), QLA_imag(*vv));
-		gsl_vector_complex_set(w, i, zz);
-	}
-	return w;
-}
-
-static mVecComplex *
-gsl2qlua_complex_vector(lua_State *L, int size, gsl_vector_complex *w)
-{
-	mVecComplex *v = qlua_newVecComplex(L, size);
-	int i;
-
-	for (i = 0; i < size; i++) {
-		gsl_complex zz = gsl_vector_complex_get(w, i);
-		QLA_real(v->val[i]) = GSL_REAL(zz);
-		QLA_imag(v->val[i]) = GSL_IMAG(zz);
-	}
-	gsl_vector_complex_free(w);
-	return v;
-}
 
 /* complex matrices */
 mMatComplex *
@@ -876,41 +750,14 @@ mc_qr(lua_State *L)                                            /* (-1,+2,e) */
         if (tau == 0)
             luaL_error(L, "not enough memory");
     }
-#if 0 // missing functions
     if (gsl_linalg_complex_QR_decomp(qr->m, tau))
         luaL_error(L, "matrix:qr() failed");
     
     if (gsl_linalg_complex_QR_unpack(qr->m, tau, q->m, r->m))
         luaL_error(L, "matrix:qr() failed");
-#endif
     gsl_vector_complex_free(tau);
     
     return 2;
-}
-static int
-mc_solve(lua_State *L)
-{
-	mMatComplex *m = qlua_checkMatComplex(L, 1);
-	mMatComplex *lu;
-	gsl_permutation *p;
-	gsl_vector_complex *ss, *x;
-	
-	int signum;
-
-	if (m->l_size != m->r_size)
-		return luaL_error(L, "matrix:solve() expects a square matrix");
-	ss = qlua2gsl_complex_vector(L, 2, m->l_size);
-	lu = qlua_newMatComplex(L, m->l_size, m->r_size);
-	gsl_matrix_complex_memcpy(lu->m, m->m);
-	p = alloc_GSLPermutation(L, m->l_size);
-	x = alloc_GSLComplexVector(L, m->l_size);
-	gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
-	if (gsl_linalg_complex_LU_solve(lu->m, p, ss, x)) {
-		luaL_error(L, "matrix:solve() failed");
-	}
-	gsl_permutation_free(p);
-	gsl2qlua_complex_vector(L, m->l_size, x);
-	return 1;
 }
 
 static int
@@ -1140,7 +987,6 @@ static const luaL_Reg MatComplexMethods[] = {
     { "hermitian_eigen",      mc_eigen      },
     { "qr",                   mc_qr         },
     { "det",                  mc_det        },
-	{ "solve",                mc_solve      },
     { NULL, NULL}
 };
 

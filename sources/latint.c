@@ -48,8 +48,7 @@ q_I_sum(lua_State *L)
 
         CALL_QDP(L);
         if (S->lss.mask) {
-            mLatInt *b = qlua_newLatInt(L, Sidx);
-            QDP_I_eq_zero(b->ptr, S->all);
+            mLatInt *b = qlua_newZeroLatInt(L, Sidx);
             QDP_I_eq_I_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
             QDP_r_eq_sum_I(&sum, b->ptr, *S->qss);
             lua_pop(L, 1);
@@ -828,11 +827,7 @@ q_latint(lua_State *L)
 
     switch (lua_gettop(L)) {
     case 1:{
-        mLatInt *v = qlua_newLatInt(L, 1);
-
-        CALL_QDP(L);
-        QDP_I_eq_zero(v->ptr, *S->qss);
-
+        qlua_newZeroLatInt(L, 1);
         return 1;
     }
     case 2:
@@ -902,6 +897,16 @@ qlua_newLatInt(lua_State *L, int Sidx)
     lua_setmetatable(L, -2);
 
     return hdr;
+}
+
+mLatInt *
+qlua_newZeroLatInt(lua_State *L, int Sidx)
+{
+	mLatInt *v = qlua_newLatInt(L, Sidx);
+	mLattice *S = qlua_checkLattice(L, Sidx);
+	
+	QDP_I_eq_zero(v->ptr, S->all);
+	return v;
 }
 
 mLatInt *

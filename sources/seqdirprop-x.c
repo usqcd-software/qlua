@@ -399,6 +399,14 @@ Qs(qlua_newSeqDirProp)(lua_State *L, int nc)
 }
 
 Qs(mSeqDirProp) *
+Qs(qlua_newZeroSeqDirProp)(lua_State *L, int nc)
+{
+	Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
+	Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
+	return v;
+}
+
+Qs(mSeqDirProp) *
 Qs(qlua_checkSeqDirProp)(lua_State *L, int idx, int nc)
 {
     void *v = qlua_checkLatticeType(L, idx, Qs(qSeqDirProp),
@@ -419,13 +427,11 @@ Qs(q_seqdirprop_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
     case 0: {
-        Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
-
-        Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
+        Qs(qlua_newZeroSeqDirProp)(L, nc);
         return 1;
     }
     case 1: {
-        Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
+        Qs(mSeqDirProp) *v = Qs(qlua_newZeroSeqDirProp)(L, nc);
         
         switch (qlua_qtype(L, 1)) {
         case Qs(qSeqColMat): {
@@ -433,7 +439,6 @@ Qs(q_seqdirprop_)(lua_State *L, int nc)
             QLA_D_Complex *c = qlua_newComplex(L);
             int ic, jc, ks;
 
-            Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
             for (ic = 0; ic < nc; ic++) {
                 for (jc = 0; jc < nc; jc++) {
                     Qx(QLA_D,_C_eq_elem_M)(QNC(nc) c, w->ptr, ic, jc);
@@ -454,9 +459,8 @@ Qs(q_seqdirprop_)(lua_State *L, int nc)
         Qs(mSeqDirFerm) *z = Qs(qlua_checkSeqDirFerm)(L, 1, nc);
         int d = qlua_checkdiracindex(L, 2);
         int c = qlua_checkcolorindex(L, 2, nc);
-        Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
+        Qs(mSeqDirProp) *v = Qs(qlua_newZeroSeqDirProp)(L, nc);
 
-        Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
         Qx(QLA_D,_P_eq_diracvec_D)(QNC(nc) v->ptr, z->ptr, c, d);
         return 1;
     }

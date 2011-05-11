@@ -7,6 +7,7 @@ typedef struct {
 
 mLatRandom *qlua_checkLatRandom(lua_State *L, int idx, mLattice *S);
 mLatRandom *qlua_newLatRandom(lua_State *L, int Sidx);
+mLatRandom *qlua_newZeroLatRandom(lua_State *L, int Sidx);
 
 int init_latrandom(lua_State *L);
 int fini_latrandom(lua_State *L);

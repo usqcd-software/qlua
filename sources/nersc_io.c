@@ -449,7 +449,7 @@ eoh:
                 }
                 break;
             default:
-				if (status == NULL)
+				if (status == NULL) 
 					status = "internal error: unsupported f_fp in endiannes conversion";
             }
         }
@@ -457,8 +457,8 @@ eoh:
         for (i = 0; i < site_size; i += sizeof (uint32_t))
             d_checksum += *(uint32_t *)(site_buf + i);
         /* convert to the ColorMatrix */
-		if (read_matrix != NULL)
-			read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real);
+		if (read_matrix != NULL) 
+			read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real); 
         /* check unitarity */
         {
             int d, a, b;

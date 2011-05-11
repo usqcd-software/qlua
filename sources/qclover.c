@@ -168,7 +168,7 @@ q_dirac_solver(lua_State *L)
     switch (qlua_qtype(L, 1)) {
     case qLatDirFerm3: {
         mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 1, S, 3);
-        mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
+        mLatDirFerm3 *eta = qlua_newZeroLatDirFerm3(L, Sidx, 3);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
         CL_D_env env;
@@ -179,7 +179,6 @@ q_dirac_solver(lua_State *L)
         CALL_QDP(L);
         QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_D_eq_zero(eta->ptr, S->all);
             lua_pushnumber(L, 0.0);
             lua_pushnumber(L, 0);
             lua_pushnumber(L, 0);
@@ -237,7 +236,7 @@ q_dirac_solver(lua_State *L)
 
     case qLatDirProp3: {
         mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 1, S, 3);
-        mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
+        mLatDirProp3 *eta = qlua_newZeroLatDirProp3(L, Sidx, 3);
         struct QOP_CLOVER_Fermion *c_psi;
         struct QOP_CLOVER_Fermion *c_eta;
         int gstatus = 0;
@@ -254,7 +253,6 @@ q_dirac_solver(lua_State *L)
 
         QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
-            QDP_D3_P_eq_zero(eta->ptr, S->all);
             return 3;
         }
         rhs_n = sqrt(rhs_norm2);

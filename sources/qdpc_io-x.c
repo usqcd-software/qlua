@@ -31,7 +31,7 @@ X_ID(qdpc_r_)(lua_State *L)
     case 1: {
         /* one color matrix */
         QDP_String *info = QDP_string_create();
-        QLUA_NAME(m) *U = QLUA_NAME(qlua_new)(L, Sidx);
+        QLUA_NAME(m) *U = QLUA_NAME(qlua_newZero)(L, Sidx);
         
         if (X_ID(QDP_read_)(reader->ptr, info, U->ptr) == 0) {
             /* read successful -- convert to LUA */
@@ -58,7 +58,7 @@ X_ID(qdpc_r_)(lua_State *L)
         T_QTYPE **U = qlua_malloc(L, n * sizeof (T_QTYPE *));
         lua_createtable(L, n, 0);
         for (i = 0; i < n; i++) {
-            QLUA_NAME(m) *ui = QLUA_NAME(qlua_new)(L, Sidx);
+            QLUA_NAME(m) *ui = QLUA_NAME(qlua_newZero)(L, Sidx);
             U[i] = ui->ptr;
             lua_rawseti(L, -2, i + 1);
         }

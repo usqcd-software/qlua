@@ -125,6 +125,12 @@ qlua_newLatRandom(lua_State *L, int Sidx)
 }
 
 mLatRandom *
+qlua_newZeroLatRandom(lua_State *L, int Sidx)
+{
+	return qlua_newLatRandom(L, Sidx);
+}
+
+mLatRandom *
 qlua_checkLatRandom(lua_State *L, int idx, mLattice *S)
 {
     void *v = qlua_checkLatticeType(L, idx, qLatRandom, LatRandomName);

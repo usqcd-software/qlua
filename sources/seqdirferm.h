@@ -8,6 +8,7 @@ typedef struct {
 
 mSeqDirFerm2 *qlua_checkSeqDirFerm2(lua_State *L, int idx, int nc);
 mSeqDirFerm2 *qlua_newSeqDirFerm2(lua_State *L, int nc);
+mSeqDirFerm2 *qlua_newZeroSeqDirFerm2(lua_State *L, int nc);
 #endif
 
 #if USE_Nc3
@@ -17,6 +18,7 @@ typedef struct {
 
 mSeqDirFerm3 *qlua_checkSeqDirFerm3(lua_State *L, int idx, int nc);
 mSeqDirFerm3 *qlua_newSeqDirFerm3(lua_State *L, int nc);
+mSeqDirFerm3 *qlua_newZeroSeqDirFerm3(lua_State *L, int nc);
 #endif
 
 #if USE_NcN
@@ -27,6 +29,7 @@ typedef struct {
 
 mSeqDirFermN *qlua_checkSeqDirFermN(lua_State *L, int idx, int nc);
 mSeqDirFermN *qlua_newSeqDirFermN(lua_State *L, int nc);
+mSeqDirFermN *qlua_newZeroSeqDirFermN(lua_State *L, int nc);
 #endif
 
 int init_seqdirferm(lua_State *L);

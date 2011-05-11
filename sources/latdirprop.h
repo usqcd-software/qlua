@@ -8,6 +8,7 @@ typedef struct {
 
 mLatDirProp2 *qlua_checkLatDirProp2(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirProp2 *qlua_newLatDirProp2(lua_State *L, int Sidx, int nc);
+mLatDirProp2 *qlua_newZeroLatDirProp2(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_Nc3
@@ -17,6 +18,7 @@ typedef struct {
 
 mLatDirProp3 *qlua_checkLatDirProp3(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirProp3 *qlua_newLatDirProp3(lua_State *L, int Sidx, int nc);
+mLatDirProp3 *qlua_newZeroLatDirProp3(lua_State *L, int Sidx, int nc);
 #endif
 
 #if USE_NcN
@@ -27,6 +29,7 @@ typedef struct {
 
 mLatDirPropN *qlua_checkLatDirPropN(lua_State *L, int idx, mLattice *S, int nc);
 mLatDirPropN *qlua_newLatDirPropN(lua_State *L, int Sidx, int nc);
+mLatDirPropN *qlua_newZeroLatDirPropN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latdirprop(lua_State *L);

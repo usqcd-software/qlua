@@ -191,7 +191,7 @@ q_defaults(lua_State *L)
                 S->nc = nc;
             else
                 return luaL_error(L, "bad default number of colors %d", nc);
-            return 0;
+            return 1;
         }
         break;
     }
@@ -349,7 +349,7 @@ qlua_intarray(lua_State *L, int n, int *dim)
 int *
 qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
 {
-    int d_dim=0;
+    int d_dim;
     int *idx = qlua_intarray(L, n, &d_dim);
 
     if (idx == 0)
@@ -452,18 +452,32 @@ qlua_checkShiftDir(lua_State *L, int idx)
 static int
 q_network(lua_State *L)
 {
-    int n = QMP_get_logical_number_of_dimensions();
-    const int *d = QMP_get_logical_dimensions();
-    int i;
-
     lua_pushnumber(L, QMP_get_number_of_nodes());
-    lua_createtable(L, n, 0);
-    for (i = 0; i < n; i++) {
-        lua_pushnumber(L, d[i]);
-        lua_rawseti(L, -2, i + 1);
-    }
 
-    return 2;
+	{
+		QMP_ictype_t mptype = QMP_get_msg_passing_type();
+		switch (mptype) {
+		case QMP_SWITCH: lua_pushstring(L, "switch"); break;
+		case QMP_GRID: lua_pushstring(L, "grid"); break;
+		case QMP_FATTREE: lua_pushstring(L, "fattree"); break;
+		default: lua_pushfstring(L, "type%d", (int)mptype); break;
+		}
+	}
+
+	if (QMP_logical_topology_is_declared() != QMP_TRUE)
+		return 2;
+	{
+		int n = QMP_get_logical_number_of_dimensions();
+		const int *d = QMP_get_logical_dimensions();
+		int i;
+		
+		lua_createtable(L, n, 0);
+		for (i = 0; i < n; i++) {
+			lua_pushnumber(L, d[i]);
+			lua_rawseti(L, -2, i + 1);
+		}
+	}
+	return 3;
 }
 
 static int

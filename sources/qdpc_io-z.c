@@ -26,7 +26,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
     case 2: {
         /* one colored object */
         QDP_String *info = QDP_string_create();
-        Qs(m) *X = Qs(qlua_new)(L, Sidx, nc);
+        Qs(m) *X = Qs(qlua_newZero)(L, Sidx, nc);
         int status = Qop(read)(reader->ptr, info, X->ptr);
         if (status == 0) {
             /* read successful -- convert to LUA */
@@ -60,21 +60,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         info = QDP_string_create();
 
         /* do the reading */
-        if(get_prec(reader->ptr)=='F') {
-          Stype *tt[n];
-#if QNc == 'N'
-	  for(i=0; i<n; i++) tt[i] = SopL(create)(nc, S->lat);
-#else
-	  for(i=0; i<n; i++) tt[i] = SopL(create)(S->lat);
-#endif
-          status = Sop(vread)(reader->ptr, info, tt, n);
-          for(i=0; i<n; i++) {
-	    FtoD(X[i], tt[i], S->all);
-	    Sop(destroy)(tt[i]);
-          }
-        } else {
-          status = Qop(vread)(reader->ptr, info, X, n);
-        }
+        status = Qop(vread)(reader->ptr, info, X, n);
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
@@ -265,7 +251,6 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
 #undef Sop
 #undef SopL
 #undef DtoF
-#undef FtoD
 #undef Qtype
 #undef Stype
 #undef Qcolors
