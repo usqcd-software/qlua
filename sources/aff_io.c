@@ -238,12 +238,11 @@ qaff_w_close(lua_State *L)
     qlua_Aff_leave();
     QMP_sum_int(&status);
 
-    if (status == 1) {
+    if (status == 1)
         lua_pushnil(L);
-        return 1;
-    }
+	else
+		lua_pushstring(L, s);
 
-    lua_pushstring(L, s);
     return 1;
 }
 
@@ -287,12 +286,11 @@ qaff_w_status(lua_State *L)
     qlua_Aff_leave();
     QMP_sum_int(&status);
 
-    if (status) {
+    if (status)
         lua_pushnil(L);
-        return 1;
-    }
+	else
+		lua_pushstring(L, s);
 
-    lua_pushstring(L, s);
     return 1;
 }
 

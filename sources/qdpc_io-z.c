@@ -167,6 +167,7 @@ Qs(dwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
     Qtype *X[n];
+	lua_checkstack(L, n + 2);
     for (i = 0; i < n; i++) {
         Qs(m) *xi;
         /* full table indexing here */
@@ -211,6 +212,7 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
 
     Qtype **X = qlua_malloc(L, n * sizeof (Qtype *));
     Stype **Y = qlua_malloc(L, n * sizeof (Stype *));
+	lua_checkstack(L, n + 2);
     for (i = 0; i < n; i++) {
         Qs(m) *xi;
         /* full table indexing here */

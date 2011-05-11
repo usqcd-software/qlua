@@ -708,11 +708,13 @@ static void
 skip(lua_State *L, int level, int nested)
 {
     if (nested) {
+		luaL_Buffer b;
         int i;
     
-        for (i = 0; i < level; i++)
-            lua_pushstring(L, "  ");
-        lua_concat(L, level + 1);
+		luaL_buffinit(L, &b);
+		for (i = 0; i < level; i++)
+			luaL_addstring(&b, "  ");
+		luaL_pushresult(&b);
     }
 }
 
