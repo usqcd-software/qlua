@@ -1,17 +1,20 @@
 #!/bin/sh
-PACKTOP=/Users/avp/Local/packages
+PACKTOP=/Users/avp/Local/packages/current
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-0.12.0-x
+TARGET=/Users/avp/Local/package/qlua-0.22.00-w0
 
+CC="gcc -g -std=c99" \
 LD="gcc -g" \
 ./configure \
    --prefix=$TARGET \
    --with-extras \
-   --with-lua=$PACKTOP/lua-5.1.4 \
-   --with-qdp=$PACKTOP/qdp-1.8.1.memleak \
-   --with-lhpc-aff=$PACKTOP/lhpc-aff-2.1.0 \
-   --with-clover=/Users/avp/Sandbox/USQCD/clover/install \
+   --with-lua=$PACKTOP/lua \
+   --with-qdp=$PACKTOP/qdp \
+   --with-lhpc-aff=$PACKTOP/aff \
+   --with-clover=$PACKTOP/clover \
+   --with-gsl=$PACKTOP/gsl \
+   --with-mdwf=$PACKTOP/mdwf \
    --without-nc=any \
    --with-nc=3 \
    --with-extras

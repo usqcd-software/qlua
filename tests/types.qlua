@@ -1,0 +1,23 @@
+-- check the types
+require "stdlib"
+
+function show_t(v)
+   printf("%-30s %q\n", type(v), tostring(v))
+end
+
+show_t(nil)
+show_t(true)
+show_t(show_t)
+show_t("a string")
+show_t({1, 2, 3})
+show_t(complex(1,2))
+L = qcd.lattice{2,4}
+show_t(L)
+show_t(L:Int())
+show_t(L:RandomState(0, L:Int()))
+show_t(gamma{mu=1})
+show_t(L:Real())
+show_t(L:ColorVector())
+show_t(L:ColorMatrix())
+show_t(L:DiracFermion())
+show_t(L:DiracPropagator())

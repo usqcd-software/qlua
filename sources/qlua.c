@@ -60,9 +60,9 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-	/* XXX qlua version string */
-	/* fixing a typo in qlua_newZero* */
-    {"qlua",  "QLUA version 0.21.01 $Id$"},
+        /* XXX qlua version string */
+        /* fixing a typo in qlua_newZero* */
+    {"qlua",  "QLUA version 0.22.00-wXXX $Id$"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
@@ -118,7 +118,7 @@ report(lua_State *L, const char *fname, int status)
             const char *msg = lua_tostring(L, -1);
             if (msg == NULL) msg = "(error object is not a string)";
             message("%s ERROR:: %s\n", progname, msg);
-			lua_pop(L, 1);
+                        lua_pop(L, 1);
         }
     }
 }
@@ -127,41 +127,41 @@ report(lua_State *L, const char *fname, int status)
 static int
 traceback(lua_State *L)
 {
-	if (!lua_isstring(L, 1))  /* 'message' not a string? */
-		return 1;  /* keep it intact */
-	lua_getfield(L, LUA_GLOBALSINDEX, "debug");
-	lua_getfield(L, -1, "traceback");
-	lua_pushvalue(L, 1);  /* pass error message */
-	lua_pushinteger(L, 2);  /* skip this function and traceback */
-	lua_call(L, 2, 1);  /* call debug.traceback */
-	return 1;
+        if (!lua_isstring(L, 1))  /* 'message' not a string? */
+                return 1;  /* keep it intact */
+        lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+        lua_getfield(L, -1, "traceback");
+        lua_pushvalue(L, 1);  /* pass error message */
+        lua_pushinteger(L, 2);  /* skip this function and traceback */
+        lua_call(L, 2, 1);  /* call debug.traceback */
+        return 1;
 }
 
 static int
 docall(lua_State *L)
 {
-	int status;
-	int base = lua_gettop(L);  /* function index */
-	lua_pushcfunction(L, traceback);  /* push traceback function */
-	lua_insert(L, base);  /* put it under chunk and args */
-	status = lua_pcall(L, 0, 0, base);
-	lua_remove(L, base);  /* remove traceback function */
-	/* force a complete garbage collection in case of errors */
-	if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
-	return status;
+        int status;
+        int base = lua_gettop(L);  /* function index */
+        lua_pushcfunction(L, traceback);  /* push traceback function */
+        lua_insert(L, base);  /* put it under chunk and args */
+        status = lua_pcall(L, 0, 0, base);
+        lua_remove(L, base);  /* remove traceback function */
+        /* force a complete garbage collection in case of errors */
+        if (status != 0) lua_gc(L, LUA_GCCOLLECT, 0);
+        return status;
 }
 
 static int
 dofile (lua_State *L, const char *name)
 {
-	return luaL_loadfile(L, name) || docall(L);
+        return luaL_loadfile(L, name) || docall(L);
 }
 
 
 static int
 dostring(lua_State *L, const char *s)
 {
-	return luaL_loadstring(L, s) || docall(L);
+        return luaL_loadstring(L, s) || docall(L);
 }
 
 
@@ -883,13 +883,13 @@ qlua_init(lua_State *L, int argc, char *argv[])
 void
 qlua_assert(int status, const char *msg)
 {
-	if (status != 0)
-		return;
-	fprintf(stderr, "QLUA ASSERT failed: %s\n", msg);
-	fflush(stdout);
-	fflush(stderr);
-	QDP_abort(1);
-	exit(1);
+        if (status != 0)
+                return;
+        fprintf(stderr, "QLUA ASSERT failed: %s\n", msg);
+        fflush(stdout);
+        fflush(stderr);
+        QDP_abort(1);
+        exit(1);
 }
 
 /* cleanup (mostly housekeeping to make various tools happy */
@@ -977,32 +977,32 @@ main(int argc, char *argv[])
             message(" %10s: %s\n", versions[i].name, versions[i].value);
     } else {
 
-		for (i = 1; i < argc; i++) {
-			char *source;
-			if(strcmp(argv[i],"-e")==0) { // process command
-				const char *chunk = argv[i] + 2;
-				if (*chunk == '\0') {
-					if (++i >= argc) {
-						message("missing argument to -e");
-						goto end;
-					}
-					chunk = argv[i];
-				}
-				QLUA_ASSERT(chunk != NULL);
-				status = dostring(L, chunk);
-				source = "=(command line)";
-			} else {
-				status = dofile(L, argv[i]);
-				source = argv[i];
-			}
-			report(L, source, status);
-			if (status) {
-				fflush(stdout);
-				fflush(stderr);
-				QDP_abort(1);
-				break;
-			}
-		}
+                for (i = 1; i < argc; i++) {
+                        char *source;
+                        if(strcmp(argv[i],"-e")==0) { // process command
+                                const char *chunk = argv[i] + 2;
+                                if (*chunk == '\0') {
+                                        if (++i >= argc) {
+                                                message("missing argument to -e");
+                                                goto end;
+                                        }
+                                        chunk = argv[i];
+                                }
+                                QLUA_ASSERT(chunk != NULL);
+                                status = dostring(L, chunk);
+                                source = "=(command line)";
+                        } else {
+                                status = dofile(L, argv[i]);
+                                source = argv[i];
+                        }
+                        report(L, source, status);
+                        if (status) {
+                                fflush(stdout);
+                                fflush(stderr);
+                                QDP_abort(1);
+                                break;
+                        }
+                }
     }
     qlua_fini(L);
     lua_close(L);

@@ -72,20 +72,20 @@ decode_hdr(lua_State *L, const char *value, int old, int expected,
 {
     int i;
 
-	if (*status != NULL)
-		return old;
+    if (*status != NULL)
+        return old;
 
     if (old != expected) {
-		*status = msg;
-		return old;
-	}
+        *status = msg;
+        return old;
+    }
 
     for (i = 0; t[i].name; i++) {
         if (strcmp(t[i].name, value) == 0)
             return t[i].value;
     }
-	*status = msg;
-	return old;
+    *status = msg;
+    return old;
 }
 
 typedef double (*RealReader)(char *data, int idx);
@@ -145,19 +145,19 @@ read_3x2(lua_State *L,
             }
         }
         QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,2), QLA_D3_elem_M(*U,0,0),
-                                                     QLA_D3_elem_M(*U,1,1));
+                              QLA_D3_elem_M(*U,1,1));
         QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,2), QLA_D3_elem_M(*U,0,1),
-                                                     QLA_D3_elem_M(*U,1,0));
+                              QLA_D3_elem_M(*U,1,0));
 
         QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,1), QLA_D3_elem_M(*U,0,2),
-                                                     QLA_D3_elem_M(*U,1,0));
+                              QLA_D3_elem_M(*U,1,0));
         QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,1), QLA_D3_elem_M(*U,0,0),
-                                                     QLA_D3_elem_M(*U,1,2));
+                              QLA_D3_elem_M(*U,1,2));
 
         QLA_c_eq_ca_times_ca( QLA_D3_elem_M(*U,2,0), QLA_D3_elem_M(*U,0,1),
-                                                     QLA_D3_elem_M(*U,1,2));
+                              QLA_D3_elem_M(*U,1,2));
         QLA_c_meq_ca_times_ca(QLA_D3_elem_M(*U,2,0), QLA_D3_elem_M(*U,0,2),
-                                                     QLA_D3_elem_M(*U,1,1));
+                              QLA_D3_elem_M(*U,1,1));
     }
 }
 
@@ -175,59 +175,59 @@ site2coord(int *coord, long long site, int nd, const int *dim)
 static void
 send_string(lua_State *L, int idx)
 {
-	const char *str = lua_tostring(L, idx);
-	int len = strlen(str) + 1;
+    const char *str = lua_tostring(L, idx);
+    int len = strlen(str) + 1;
 
-	QMP_broadcast(&len, sizeof (len));
-	QMP_broadcast((void *)str, len);
+    QMP_broadcast(&len, sizeof (len));
+    QMP_broadcast((void *)str, len);
 }
 
 static int
 receive_string(lua_State *L, char **str)
 {
-	int len;
-	*str = 0;
-	QMP_broadcast(&len, sizeof (len));
-	if (len == 0)
-		return 0;
-	*str = qlua_malloc(L, len);
-	QMP_broadcast(*str, len);
-	return 1;
+    int len;
+    *str = 0;
+    QMP_broadcast(&len, sizeof (len));
+    if (len == 0)
+        return 0;
+    *str = qlua_malloc(L, len);
+    QMP_broadcast(*str, len);
+    return 1;
 }
 
 static void
 normalize_int(lua_State *L, int idx, const char *key, char *fmt)
 {
-	lua_getfield(L, idx, key);
-	const char *value = lua_tostring(L, -1);
-	int v;
-	if (value == NULL)
-		return;
+    lua_getfield(L, idx, key);
+    const char *value = lua_tostring(L, -1);
+    int v;
+    if (value == NULL)
+        return;
 
-	if (sscanf(value, fmt, &v) == 1) {
-		lua_pop(L, 1);
-		lua_pushnumber(L, v);
-		lua_setfield(L, idx - 1, key);
-		return;
-	}
-	lua_pop(L, 1);
+    if (sscanf(value, fmt, &v) == 1) {
+        lua_pop(L, 1);
+        lua_pushnumber(L, v);
+        lua_setfield(L, idx - 1, key);
+        return;
+    }
+    lua_pop(L, 1);
 }
 
 static void
 normalize_float(lua_State *L, int idx, const char *key)
 {
-	lua_getfield(L, idx, key);
-	const char *value = lua_tostring(L, -1);
-	double v;
-	if (value == NULL)
-		return;
-	if (sscanf(value, "%lg", &v) == 1) {
-		lua_pop(L, 1);
-		lua_pushnumber(L, v);
-		lua_setfield(L, idx - 1, key);
-		return;
-	}
-	lua_pop(L, 1);
+    lua_getfield(L, idx, key);
+    const char *value = lua_tostring(L, -1);
+    double v;
+    if (value == NULL)
+        return;
+    if (sscanf(value, "%lg", &v) == 1) {
+        lua_pop(L, 1);
+        lua_pushnumber(L, v);
+        lua_setfield(L, idx - 1, key);
+        return;
+    }
+    lua_pop(L, 1);
 }
 
 static const char *ukey = "unitarity";
@@ -235,16 +235,16 @@ static const char *ukey = "unitarity";
 static void
 normalize_kv(lua_State *L, mLattice *S, int idx)
 {
-	int i;
-	for (i = 1; i <= S->rank; i++) {
-		char buf[128]; /* large enough for DIMENSION_%d */
-		snprintf(buf, sizeof (buf) - 1, "DIMENSION_%d", i);
-		normalize_int(L, idx, buf, "%d");
-	}
-	normalize_int(L, idx, "CHECKSUM", "%x");
-	normalize_float(L, idx, "PLAQUETTE");
-	normalize_float(L, idx, "LINK_TRACE");
-	normalize_float(L, idx, ukey);
+    int i;
+    for (i = 1; i <= S->rank; i++) {
+        char buf[128]; /* large enough for DIMENSION_%d */
+        snprintf(buf, sizeof (buf) - 1, "DIMENSION_%d", i);
+        normalize_int(L, idx, buf, "%d");
+    }
+    normalize_int(L, idx, "CHECKSUM", "%x");
+    normalize_float(L, idx, "PLAQUETTE");
+    normalize_float(L, idx, "LINK_TRACE");
+    normalize_float(L, idx, ukey);
 }
 
 static int
@@ -292,7 +292,7 @@ nersc_read_master(lua_State *L,
     QLA_D3_ColorMatrix mone;
     QLA_D_Complex cone;
     double max_eps = 0.0;
-	char *status = NULL;
+    char *status = NULL;
 
     QLA_c_eq_r_plus_ir(cone, 1.0, 0.0);
     QLA_D3_M_eq_c(&mone, &cone);
@@ -305,31 +305,31 @@ nersc_read_master(lua_State *L,
 
     /* parse the header */
     if ((status == NULL) && 
-		((nersc_gethdr(f, buffer, &key, &value) != 1) ||
-		 (strcmp(key, "BEGIN_HEADER") != 0)))
+        ((nersc_gethdr(f, buffer, &key, &value) != 1) ||
+         (strcmp(key, "BEGIN_HEADER") != 0)))
         status = "missing header";
 
-	while (status == NULL) {
-		switch (nersc_gethdr(f, buffer, &key, &value)) {
-		case 1:
-			if (strcmp(key, "END_HEADER") != 0)
+    while (status == NULL) {
+        switch (nersc_gethdr(f, buffer, &key, &value)) {
+        case 1:
+            if (strcmp(key, "END_HEADER") != 0)
                 status = "missing end of header";
-			goto eoh;
-		case 2:
-			lua_pushstring(L, value);
-			lua_setfield(L, -2, key);
+            goto eoh;
+        case 2:
+            lua_pushstring(L, value);
+            lua_setfield(L, -2, key);
             
-			if (strcmp(key, "DATATYPE") == 0) {
-				f_format = decode_hdr(L, value, f_format, ntNONE, nFMTs,
-									  "bad or conflicting DATATYPE", &status);
-			} else if (strcmp(key, "FLOATING_POINT") == 0) {
-				f_fp = decode_hdr(L, value, f_fp, 0, nFPs,
-								  "bad or conflicting FLOATING_POINT", &status);
-			} else if (strcmp(key, "CHECKSUM") == 0) {
+            if (strcmp(key, "DATATYPE") == 0) {
+                f_format = decode_hdr(L, value, f_format, ntNONE, nFMTs,
+                                      "bad or conflicting DATATYPE", &status);
+            } else if (strcmp(key, "FLOATING_POINT") == 0) {
+                f_fp = decode_hdr(L, value, f_fp, 0, nFPs,
+                                  "bad or conflicting FLOATING_POINT", &status);
+            } else if (strcmp(key, "CHECKSUM") == 0) {
                 if (f_cs_p)
                     status = "multiple CHECKSUMs";
                 if ((status == NULL) && 
-					(sscanf(value, "%x", &f_checksum) != 1))
+                    (sscanf(value, "%x", &f_checksum) != 1))
                     status = "illformed CHECKSUM";
                 f_cs_p = 1;
             } else if (sscanf(key, "DIMENSION_%d", &i) == 1) {
@@ -337,15 +337,15 @@ nersc_read_master(lua_State *L,
                 if ((i < 1) || (i > S->rank))
                     status = "DIMENSION out of range";
                 if ((status == NULL) &&
-					((sscanf(value, "%d", &di) != 1) ||
-					 (S->dim[i - 1] != di)))
+                    ((sscanf(value, "%d", &di) != 1) ||
+                     (S->dim[i - 1] != di)))
                     status = "DIMENSION mismatch";
                 dim_ok[i - 1] = 1;
             } else if (sscanf(key, "BOUNDARY_%d", &i) == 1) {
                 if ((i < 1) || (i > S->rank))
                     status = "BOUNDARY out of range";
                 if ((status == NULL) &&
-					(strcmp(value, "PERIODIC") != 0))
+                    (strcmp(value, "PERIODIC") != 0))
                     status = "bad BOUNDARY value";
             } else if ((strcmp(key, "PLAQUETTE") == 0) ||
                        (strcmp(key, "LINK_TRACE") == 0)) {
@@ -369,8 +369,8 @@ eoh:
         site_size = S->rank * 3 * (3 - 1) * 2;
         break;
     default:
-		if (status == NULL)
-			status = "unsupported data format";
+        if (status == NULL)
+            status = "unsupported data format";
     }
     switch (f_fp) {
     case 4:
@@ -384,15 +384,15 @@ eoh:
         uni_eps = 1e-12;
         break;
     default:
-		if (status == NULL)
-			status = "bad floating point size";
+        if (status == NULL)
+            status = "bad floating point size";
     }
     for (i = 0; i < S->rank; i++) {
         if ((!dim_ok[i]) && (status == NULL)) {
             status = "missing DIMENSION spec";
-		}
-	}
-	if ((f_cs_p == 0) && (status == NULL))
+        }
+    }
+    if ((f_cs_p == 0) && (status == NULL))
         status = "missing CHECKSUM";
 
     /* Read the data and send it to the target host */
@@ -405,7 +405,7 @@ eoh:
             unsigned char c[sizeof (uint64_t)];
         } b;
         uint64_t v;
-		big_endian = 1;
+        big_endian = 1;
         for (v = 1, i = 0; i < sizeof (uint64_t); i++)
             v = (v << CHAR_BIT) + i + 1;
         b.ll = v;
@@ -416,12 +416,12 @@ eoh:
         else if (status != NULL)
             status = "Unexpected host endianness";
     }
-	/* read every site in order on the master
-	 * compute the checksum and send it to the target node
-	 */
+    /* read every site in order on the master
+     * compute the checksum and send it to the target node
+     */
     char *site_buf = qlua_malloc(L, site_size);
     QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
-	QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
+    QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
 
     /* Go through all sites */
     for (site = 0; site < volume; site++) {
@@ -449,16 +449,16 @@ eoh:
                 }
                 break;
             default:
-				if (status == NULL) 
-					status = "internal error: unsupported f_fp in endiannes conversion";
+                if (status == NULL) 
+                    status = "internal error: unsupported f_fp in endiannes conversion";
             }
         }
         /* collect the checksum */
         for (i = 0; i < site_size; i += sizeof (uint32_t))
             d_checksum += *(uint32_t *)(site_buf + i);
         /* convert to the ColorMatrix */
-		if (read_matrix != NULL) 
-			read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real); 
+        if (read_matrix != NULL && read_real != NULL) 
+            read_matrix(L, S, CM, S->rank, site_buf, site_size, read_real); 
         /* check unitarity */
         {
             int d, a, b;
@@ -490,58 +490,58 @@ eoh:
         /* place ColorMatrix in U where it belongs */
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
-		if (s_node == QDP_this_node) {
+        if (s_node == QDP_this_node) {
             int idx = QDP_index_L(S->lat, coord);
             int d;
             
             for (d = 0; d < S->rank; d++)
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         } else {
-			QMP_msghandle_t mh = QMP_declare_send_to(mm, s_node, 0);
-			QMP_start(mh);
-			QMP_wait(mh);
-			QMP_free_msghandle(mh);
-		}
+            QMP_msghandle_t mh = QMP_declare_send_to(mm, s_node, 0);
+            QMP_start(mh);
+            QMP_wait(mh);
+            QMP_free_msghandle(mh);
+        }
     }
-	QMP_free_msgmem(mm);
-	qlua_free(L, coord);
-	qlua_free(L, dim_ok);
-	qlua_free(L, site_buf);
-	qlua_free(L, CM);
-	
+    QMP_free_msgmem(mm);
+    qlua_free(L, coord);
+    qlua_free(L, dim_ok);
+    qlua_free(L, site_buf);
+    qlua_free(L, CM);
+        
     fclose(f);
 
     /* check the checksum */
     if ((status == NULL) && (f_checksum != d_checksum))
         status = "checksum mismatch";
 
-	/* broadcast the size of status to everyone */
-	int status_len = (status != NULL)? (strlen(status) + 1): 0;
-	QMP_sum_int(&status_len);
-	/* if status is not NULL, broadcast to to everyone and call lua error */
-	if (status_len != 0) {
-		QMP_broadcast(status, status_len);
-		return nersc_error(L, status);
-	}
+    /* broadcast the size of status to everyone */
+    int status_len = (status != NULL)? (strlen(status) + 1): 0;
+    QMP_sum_int(&status_len);
+    /* if status is not NULL, broadcast to to everyone and call lua error */
+    if (status_len != 0) {
+        QMP_broadcast(status, status_len);
+        return nersc_error(L, status);
+    }
 
-	/* convert max_eps to a string and store it (L, -2, ukey) */
-	snprintf(buffer, sizeof (buffer) - 1, "%.10e", max_eps);
-	lua_pushstring(L, buffer);
-	lua_setfield(L, -2, ukey);
-	/* ditribute the table across the machine */
-	{
-		lua_pushnil(L);
-		while (lua_next(L, -2) != 0) {
-			send_string(L, -2); /* key */
-			send_string(L, -1); /* value */
-			lua_pop(L, 1);
-		}
-		int zero = 0;
-		QMP_broadcast(&zero, sizeof (zero));
-	}
-	/* normalize key/value pairs */
-	normalize_kv(L, S, -1);
-	return 2;
+    /* convert max_eps to a string and store it (L, -2, ukey) */
+    snprintf(buffer, sizeof (buffer) - 1, "%.10e", max_eps);
+    lua_pushstring(L, buffer);
+    lua_setfield(L, -2, ukey);
+    /* ditribute the table across the machine */
+    {
+        lua_pushnil(L);
+        while (lua_next(L, -2) != 0) {
+            send_string(L, -2); /* key */
+            send_string(L, -1); /* value */
+            lua_pop(L, 1);
+        }
+        int zero = 0;
+        QMP_broadcast(&zero, sizeof (zero));
+    }
+    /* normalize key/value pairs */
+    normalize_kv(L, S, -1);
+    return 2;
 }
 
 static int
@@ -552,24 +552,24 @@ nersc_read_slave(lua_State *L,
 {
     long long volume;
     long long site;
-	int i;
+    int i;
     QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
-	int *coord = qlua_malloc(L, S->rank * sizeof (int));
-	QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
-	QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
+    int *coord = qlua_malloc(L, S->rank * sizeof (int));
+    QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
+    QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
 
     /* get gauge element for this node */
     for (volume = 1, i = 0; i < S->rank; i++)
         volume *= S->dim[i];
 
-	/* get all data from node qlua_master_node */
+    /* get all data from node qlua_master_node */
     for (site = 0; site < volume; site++) {
-		int s_node;
+        int s_node;
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
-			QMP_start(mh);
-			QMP_wait(mh);
+            QMP_start(mh);
+            QMP_wait(mh);
 
             int idx = QDP_index_L(S->lat, coord);
             int d;
@@ -578,37 +578,37 @@ nersc_read_slave(lua_State *L,
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
-	QMP_free_msghandle(mh);
-	QMP_free_msgmem(mm);
-	qlua_free(L, coord);
-	qlua_free(L, CM);
+    QMP_free_msghandle(mh);
+    QMP_free_msgmem(mm);
+    qlua_free(L, coord);
+    qlua_free(L, CM);
 
-	/* get status size (broadcast) */
-	int status_len = 0;
-	QMP_sum_int(&status_len);
-	/* if not zero, get the message, call lua_error */
-	if (status_len != 0) {
-		char *msg = qlua_malloc(L, status_len);
-		QMP_broadcast(msg, status_len);
-		return nersc_error(L, msg); /* leaks msg, but it's in the abort path only */
-	}
-	
-	/* get keys and values */
-	/* NB: This may cause a slave node to run out of memory out of sync with the master */
-	for (;;) {
-		char *key, *value;
-		if (receive_string(L, &key) == 0)
-			break;
-		receive_string(L, &value);
-		lua_pushstring(L, value);
-		lua_setfield(L, -2, key);
-		qlua_free(L, key);
-		qlua_free(L, value);
-	}
-	
-	/* normalize key/value table */
-	normalize_kv(L, S, -1);
-	return 2;
+    /* get status size (broadcast) */
+    int status_len = 0;
+    QMP_sum_int(&status_len);
+    /* if not zero, get the message, call lua_error */
+    if (status_len != 0) {
+        char *msg = qlua_malloc(L, status_len);
+        QMP_broadcast(msg, status_len);
+        return nersc_error(L, msg); /* leaks msg, but it's in the abort path only */
+    }
+        
+    /* get keys and values */
+    /* NB: This may cause a slave node to run out of memory out of sync with the master */
+    for (;;) {
+        char *key, *value;
+        if (receive_string(L, &key) == 0)
+            break;
+        receive_string(L, &value);
+        lua_pushstring(L, value);
+        lua_setfield(L, -2, key);
+        qlua_free(L, key);
+        qlua_free(L, value);
+    }
+        
+    /* normalize key/value table */
+    normalize_kv(L, S, -1);
+    return 2;
 }
 
 
@@ -639,8 +639,8 @@ q_nersc_read(lua_State *L)
     for (i = 0; i < S->rank; i++) {
         QDP_D3_reset_M(M[i]);
     }
-	qlua_free(L, U);
-	qlua_free(L, M);
+    qlua_free(L, U);
+    qlua_free(L, M);
     
     return status;
 }

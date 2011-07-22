@@ -1,6 +1,10 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
 #include <string.h>
 
 const char mtnVecInt[]     = "vector.mtInt";
@@ -97,15 +101,60 @@ vi_fmt(lua_State *L)                                           /* (-1,+1,e) */
     return 1;
 }
 
+static struct {
+    mVecInt *mem;
+    QLA_Int *idx;
+    char *status;
+} get_pi;
+
+static void
+vi_get_p(QLA_Int *ptr, int idx)
+{
+    if (get_pi.status == 0) {
+        if (idx < 0 || idx >= get_pi.mem->size) {
+            get_pi.status = "int[LatInt]: index out of range";
+        }
+        *ptr = get_pi.mem->val[get_pi.idx[idx]];
+    }
+}
+
 static int
 vi_get(lua_State *L)                                           /* (-2,+1,e) */
 {
     mVecInt *v = qlua_checkVecInt(L, 1);
-    int i = luaL_checkint(L, 2);
 
-    if ((i >= 0) && (i < v->size)) {
-        lua_pushnumber(L, v->val[i]);
+    switch (qlua_qtype(L, 2)) {
+    case qReal: {
+        int i = luaL_checkint(L, 2);
+
+        if ((i >= 0) && (i < v->size)) {
+            lua_pushnumber(L, v->val[i]);
+            return 1;
+        }
+        break;
+    }
+    case qLatInt: {
+        mLatInt *i = qlua_checkLatInt(L, 2, NULL);
+        mLattice *S = qlua_ObjLattice(L, 2);
+        int Sidx = lua_gettop(L);
+        mLatInt *z = qlua_newLatInt(L, Sidx);
+        CALL_QDP(L);
+        get_pi.idx = QDP_expose_I(i->ptr);
+        get_pi.mem = v;
+        get_pi.status = NULL;
+        QDP_I_eq_funci(z->ptr, vi_get_p, *S->qss);
+        char *status = get_pi.status;
+        get_pi.idx = NULL;
+        get_pi.mem = NULL;
+        get_pi.status = NULL;
+        QDP_reset_I(i->ptr);
+        if (status)
+            qlua_badindex(L, status);
         return 1;
+        break;
+    }
+    default:
+        break;
     }
 
     return qlua_badindex(L, "vector.int[]");
@@ -159,15 +208,60 @@ vd_fmt(lua_State *L)                                           /* (-1,+1,e) */
     return 1;
 }
 
+static struct {
+    mVecReal *mem;
+    QLA_Int *idx;
+    char *status;
+} get_pd;
+
+static void
+vd_get_p(QLA_Real *ptr, int idx)
+{
+    if (get_pd.status == 0) {
+        if (idx < 0 || idx >= get_pd.mem->size) {
+            get_pd.status = "real[LatInt]: index out of range";
+        }
+        *ptr = get_pd.mem->val[get_pd.idx[idx]];
+    }
+}
+
 static int
 vd_get(lua_State *L)                                           /* (-2,+1,e) */
 {
     mVecReal *v = qlua_checkVecReal(L, 1);
-    int i = luaL_checkint(L, 2);
 
-    if ((i >= 0) && (i < v->size)) {
-        lua_pushnumber(L, v->val[i]);
+    switch (qlua_qtype(L, 2)) {
+    case qReal: {
+        int i = luaL_checkint(L, 2);
+
+        if ((i >= 0) && (i < v->size)) {
+            lua_pushnumber(L, v->val[i]);
+            return 1;
+        }
+        break;
+    }
+    case qLatInt: {
+        mLatInt *i = qlua_checkLatInt(L, 2, NULL);
+        mLattice *S = qlua_ObjLattice(L, 2);
+        int Sidx = lua_gettop(L);
+        mLatReal *z = qlua_newLatReal(L, Sidx);
+        CALL_QDP(L);
+        get_pd.idx = QDP_expose_I(i->ptr);
+        get_pd.mem = v;
+        get_pd.status = NULL;
+        QDP_R_eq_funci(z->ptr, vd_get_p, *S->qss);
+        char *status = get_pd.status;
+        get_pd.idx = NULL;
+        get_pd.mem = NULL;
+        get_pd.status = NULL;
+        QDP_reset_I(i->ptr);
+        if (status)
+            qlua_badindex(L, status);
         return 1;
+        break;
+    }
+    default:
+        break;
     }
 
     return qlua_badindex(L, "vector.real[]");
@@ -221,19 +315,64 @@ vc_fmt(lua_State *L)                                           /* (-1,+1,e) */
     return 1;
 }
 
+static struct {
+    mVecComplex *mem;
+    QLA_Int *idx;
+    char *status;
+} get_pc;
+
+static void
+vc_get_p(QLA_D_Complex *ptr, int idx)
+{
+    if (get_pc.status == 0) {
+        if (idx < 0 || idx >= get_pc.mem->size) {
+            get_pc.status = "complex[LatInt]: index out of range";
+        }
+        QLA_c_eq_c(*ptr, get_pc.mem->val[get_pc.idx[idx]]);
+    }
+}
+
 static int
 vc_get(lua_State *L)                                           /* (-2,+1,e) */
 {
     mVecComplex *v = qlua_checkVecComplex(L, 1);
-    int i = luaL_checkint(L, 2);
 
-    if ((i >= 0) && (i < v->size)) {
-        QLA_D_Complex *z = qlua_newComplex(L);
-        QLA_c_eq_c(*z, v->val[i]);
+    switch (qlua_qtype(L, 2)) {
+    case qReal: {
+        int i = luaL_checkint(L, 2);
+
+        if ((i >= 0) && (i < v->size)) {
+            QLA_D_Complex *z = qlua_newComplex(L);
+            QLA_c_eq_c(*z, v->val[i]);
+            return 1;
+        }
+        break;
+    }
+    case qLatInt: {
+        mLatInt *i = qlua_checkLatInt(L, 2, NULL);
+        mLattice *S = qlua_ObjLattice(L, 2);
+        int Sidx = lua_gettop(L);
+        mLatComplex *z = qlua_newLatComplex(L, Sidx);
+        CALL_QDP(L);
+        get_pc.idx = QDP_expose_I(i->ptr);
+        get_pc.mem = v;
+        get_pc.status = NULL;
+        QDP_D_C_eq_funci(z->ptr, vc_get_p, *S->qss);
+        char *status = get_pc.status;
+        get_pc.idx = NULL;
+        get_pc.mem = NULL;
+        get_pc.status = NULL;
+        QDP_reset_I(i->ptr);
+        if (status)
+            qlua_badindex(L, status);
         return 1;
+        break;
+    }
+    default:
+        break;
     }
 
-    return qlua_badindex(L, "vector.complex[]");
+    return qlua_badindex(L, "vector.real[]");
 }
 
 static int

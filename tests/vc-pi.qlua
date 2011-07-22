@@ -1,0 +1,46 @@
+-- check parallel index operations
+require "stdlib"
+
+L = qcd.lattice{3, 4}
+v = vector.complex(12)
+for i = 0, #v - 1 do
+   v[i] = complex(math.cos(-i*3+1), math.sin(i+3))
+end
+
+function show_v(name, v)
+   printf("seq vector: %s {\n", name)
+   for i = 0, #v - 1 do
+      printf(" [%3d] %7.4f %7.4f\n", i, v[i]:real(), v[i]:imag())
+   end
+   printf("}\n\n")
+end
+
+function show_I(name, z)
+   printf("lat Int: %s{\n", name)
+   for x = 0, L[0] - 1 do
+      for y = 0, L[1] - 1 do
+         local q = z[{x,y}]
+         printf("  [[%3d, %3d]]: %5d\n", x, y, q)
+      end
+   end
+   printf("}\n\n")
+end
+
+function show_C(name, z)
+   printf("lat Int: %s{\n", name)
+   for x = 0, L[0] - 1 do
+      for y = 0, L[1] - 1 do
+         local q = z[{x,y}]
+         printf("  [[%3d, %3d]]: %7.4f %7.4f\n", x, y, q:real(), q:imag())
+      end
+   end
+   printf("}\n\n")
+end
+
+show_v("starting v", v)
+show_I("pcoord(1)", L:pcoord(1))
+pindex = L:pcoord(0)*2+L:pcoord(1)
+show_I("p-index", pindex)
+show_C("v[2*p(0)+p(1)]", v[pindex])
+
+printf("ALL DONE\n")
