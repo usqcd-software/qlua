@@ -111,10 +111,11 @@ static void
 vi_get_p(QLA_Int *ptr, int idx)
 {
     if (get_pi.status == 0) {
-        if (idx < 0 || idx >= get_pi.mem->size) {
+        int q = get_pi.idx[idx];
+        if (q < 0 || q >= get_pi.mem->size) {
             get_pi.status = "int[LatInt]: index out of range";
         }
-        *ptr = get_pi.mem->val[get_pi.idx[idx]];
+        *ptr = get_pi.mem->val[q];
     }
 }
 
@@ -218,10 +219,11 @@ static void
 vd_get_p(QLA_Real *ptr, int idx)
 {
     if (get_pd.status == 0) {
-        if (idx < 0 || idx >= get_pd.mem->size) {
+        int q = get_pd.idx[idx];
+        if (q < 0 || q >= get_pd.mem->size) {
             get_pd.status = "real[LatInt]: index out of range";
         }
-        *ptr = get_pd.mem->val[get_pd.idx[idx]];
+        *ptr = get_pd.mem->val[q];
     }
 }
 
@@ -325,10 +327,11 @@ static void
 vc_get_p(QLA_D_Complex *ptr, int idx)
 {
     if (get_pc.status == 0) {
-        if (idx < 0 || idx >= get_pc.mem->size) {
+        int q = get_pc.idx[idx];
+        if (q < 0 || q >= get_pc.mem->size) {
             get_pc.status = "complex[LatInt]: index out of range";
         }
-        QLA_c_eq_c(*ptr, get_pc.mem->val[get_pc.idx[idx]]);
+        QLA_c_eq_c(*ptr, get_pc.mem->val[q]);
     }
 }
 
