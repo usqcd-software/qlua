@@ -247,6 +247,65 @@ normalize_kv(lua_State *L, mLattice *S, int idx)
     normalize_float(L, idx, ukey);
 }
 
+static void
+default_setup(lua_State *L)
+{
+    switch (lua_gettop(L)) {
+    case 2:
+        /* create an empty table at #3 */
+        lua_createtable(L, 0, 0);
+        break;
+    case 3:
+        if (!lua_istable(L, 3))
+            luaL_error(L, "expecting an overwrite table");
+        break;
+    default:
+        luaL_error(L, "wrong number of arguments");
+        break;
+    }
+}
+
+static double
+default_double(lua_State *L, const char *key, double def)
+{
+    double v = def;
+
+    lua_pushstring(L, key);
+    lua_gettable(L, 3);
+    if (lua_isnil(L, -1)) {
+        v = def;
+    } else {
+        v = luaL_checknumber(L, -1);
+    }
+    lua_pop(L, 1);
+    return v;
+}
+
+static int
+default_enum(lua_State *L, const char *key, int def, const NERSC_Value *tr)
+{
+    int v = def;
+
+    lua_pushstring(L, key);
+    lua_gettable(L, 3);
+    if (lua_isnil(L, -1)) {
+        v = def;
+    } else {
+        const char *val = luaL_checkstring(L, -1);
+        
+        for (; tr->name; tr++) {
+            if (strcmp(tr->name, val) == 0) {
+                v = tr->value;
+                break;
+            }
+        }
+        if (tr->name == NULL)
+            luaL_error(L, "unexpected overwrite value");
+    }
+    lua_pop(L, 1);
+    return v;
+}
+
 static int
 nersc_read_master(lua_State *L,
                   mLattice *S,
@@ -359,6 +418,11 @@ nersc_read_master(lua_State *L,
         }
     }
 eoh:
+    /* get defaults from the call */
+    f_format = default_enum(L, "DATATYPE", f_format, nFMTs);
+    f_fp = default_enum(L, "FLOATING_POINT", f_fp, nFPs);
+    uni_eps = default_double(L, ukey, 0.0);
+
     switch (f_format) {
     case nt4D_3x3:
         read_matrix = read_3x3;
@@ -376,12 +440,12 @@ eoh:
     case 4:
         read_real = read_float;
         site_size *= 4;
-        uni_eps = 1e-6;
+        if (uni_eps == 0) uni_eps = 1e-6;
         break;
     case 8:
         read_real = read_double;
         site_size *= 8;
-        uni_eps = 1e-12;
+        if (uni_eps == 0) uni_eps = 1e-12;
         break;
     default:
         if (status == NULL)
@@ -617,6 +681,7 @@ q_nersc_read(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
+    default_setup(L);
     QDP_D3_ColorMatrix **M = qlua_malloc(L, S->rank * sizeof (QDP_D3_ColorMatrix *));
     QLA_D3_ColorMatrix **U = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix *));
     int status;

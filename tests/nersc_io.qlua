@@ -10,7 +10,16 @@ if not file_name then
 end
 
 -- U, msg = L:nersc_gauge(file_name)
-U, msg = qcd.nersc.read_gauge(L, file_name)
+--- use a rather tight bound (for the test file) on the unitarity
+---- possible overwrite key/values
+----  unitarity      = <double> -- max tolerable unitary violation, default: float 1e-7, double 1e-12
+----  FLOATING_POINT = "IEEE32"      -- f32 big endian
+----                   "IEEE32BIG"   -- f32 big endian
+----                   "IEEE64BIG"   -- f64 big endian
+----  DATATYPE       = "4D_SU3_GAUGE_3x3" -- full 3x3 matrix
+----                   "4D_SU3_GAUGE_3x2" -- two first rows of the SU(3) matrix
+----
+U, msg = qcd.nersc.read_gauge(L, file_name, {unitarity=1.23e-7, FLOATING_POINT="IEEE32"})
 
 printf("NERSC read: U=%s, msg=%s\n", tostring(U), tostring(msg))
 
