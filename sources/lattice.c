@@ -278,16 +278,18 @@ q_lattice(lua_State *L)
         { "__len",        q_L_dim        },
         { NULL,           NULL           }
     };
-    
+
+#if 0 /* XXX */    
     if (lat_id) /* XXX need more work for multiple lattices */
         return luaL_error(L, "multiple lattices not supported yet");
+#endif /* XXX */
 
     luaL_checktype(L, 1, LUA_TTABLE);
     r = lua_objlen(L, 1);
     if (r <= 0)
         return luaL_error(L, "Bad lattice rank");
-	if (r > QLUA_MAX_LATTICE_RANK)
-		return luaL_error(L, "latice rank is too large");
+        if (r > QLUA_MAX_LATTICE_RANK)
+                return luaL_error(L, "latice rank is too large");
     S->rank = r;
     S->node = 0;
     S->neighbor_up = qlua_malloc(L, r * sizeof (int));
@@ -454,30 +456,30 @@ q_network(lua_State *L)
 {
     lua_pushnumber(L, QMP_get_number_of_nodes());
 
-	{
-		QMP_ictype_t mptype = QMP_get_msg_passing_type();
-		switch (mptype) {
-		case QMP_SWITCH: lua_pushstring(L, "switch"); break;
-		case QMP_GRID: lua_pushstring(L, "grid"); break;
-		case QMP_FATTREE: lua_pushstring(L, "fattree"); break;
-		default: lua_pushfstring(L, "type%d", (int)mptype); break;
-		}
-	}
+        {
+                QMP_ictype_t mptype = QMP_get_msg_passing_type();
+                switch (mptype) {
+                case QMP_SWITCH: lua_pushstring(L, "switch"); break;
+                case QMP_GRID: lua_pushstring(L, "grid"); break;
+                case QMP_FATTREE: lua_pushstring(L, "fattree"); break;
+                default: lua_pushfstring(L, "type%d", (int)mptype); break;
+                }
+        }
 
-	if (QMP_logical_topology_is_declared() != QMP_TRUE)
-		return 2;
-	{
-		int n = QMP_get_logical_number_of_dimensions();
-		const int *d = QMP_get_logical_dimensions();
-		int i;
-		
-		lua_createtable(L, n, 0);
-		for (i = 0; i < n; i++) {
-			lua_pushnumber(L, d[i]);
-			lua_rawseti(L, -2, i + 1);
-		}
-	}
-	return 3;
+        if (QMP_logical_topology_is_declared() != QMP_TRUE)
+                return 2;
+        {
+                int n = QMP_get_logical_number_of_dimensions();
+                const int *d = QMP_get_logical_dimensions();
+                int i;
+                
+                lua_createtable(L, n, 0);
+                for (i = 0; i < n; i++) {
+                        lua_pushnumber(L, d[i]);
+                        lua_rawseti(L, -2, i + 1);
+                }
+        }
+        return 3;
 }
 
 static int

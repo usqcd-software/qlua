@@ -127,6 +127,71 @@ q_I_norm2(lua_State *L)
 }
 
 static int
+q_I_xor(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_xor_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_or(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_or_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_and(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_and_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_min(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_min_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_max(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_max_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
 q_I_shift(lua_State *L)
 {
     mLatInt *a = qlua_checkLatInt(L, 1, NULL);
@@ -873,6 +938,11 @@ static struct luaL_Reg mtLatInt[] = {
     { "shift",        q_I_shift },
     { "sum",          q_I_sum },
     { "set",          q_I_set },
+    { "xor",          q_I_xor },
+    { "or",           q_I_or },
+    { "and",          q_I_and },
+    { "max",          q_I_max },
+    { "min",          q_I_min },
     /* "lattice" is inserted when the table is creates */
     /* "a-type"  is inserted as well */
     { NULL,           NULL}
@@ -902,11 +972,11 @@ qlua_newLatInt(lua_State *L, int Sidx)
 mLatInt *
 qlua_newZeroLatInt(lua_State *L, int Sidx)
 {
-	mLatInt *v = qlua_newLatInt(L, Sidx);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	
-	QDP_I_eq_zero(v->ptr, S->all);
-	return v;
+        mLatInt *v = qlua_newLatInt(L, Sidx);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        
+        QDP_I_eq_zero(v->ptr, S->all);
+        return v;
 }
 
 mLatInt *

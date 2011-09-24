@@ -1,20 +1,22 @@
+[DONE] * For lattice integers: xor, or, and and: I:xor(I)
+[DONE] * I,R: max, min
+
 * Multiple Lattices
--- send and receive operations
+-- scatter
+-- gather
 
-* Multi and part files for qdpcc and ddpairs
+or   I
+xor  I
+and  I
+max  IR
+min  IR
+mul  IRC
+add  IRCX
 
-? Extend QDP I/O interface to handle both double and single preicision
-? Extend QDP/C I/O to handle sections:
+* Make it work with oldish gcc: no variable size arrays, make all allocations explicit.
 
-    W:ColorVector(V, "foo", {0,1,2,3}, {5,6,4,L[3]-1})
+* qcd.physical() -- create a physical shape
+* qcd.linear() -- create a linear shape
+-- in both cases multiple calls should return the same object!!!!
 
-  while keeping
-
-    W:ColorVector(V, "foo")
-
-  equivalent to
-
-    W:ColorVector(V, "foo", {0,...}, {L[0] - 1, ...})
-
-   This will allow implemnting DD pairs writer in the QLUA space.
-   (with a lot copying though.)
+* Improve tutorials

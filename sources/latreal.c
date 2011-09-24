@@ -399,6 +399,32 @@ q_R_round(lua_State *L)
 }
 
 static int
+q_R_min(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_R_eq_R_min_R(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_R_max(lua_State *L)
+{
+    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatReal *b = qlua_checkLatReal(L, 2, S);
+    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_R_eq_R_max_R(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
 q_R_set(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1, NULL);
@@ -1112,6 +1138,8 @@ static struct luaL_Reg mtLatReal[] = {
     { "trunc",        q_R_trunc    },
     { "round",        q_R_round    },
     { "set",          q_R_set      },
+    { "min",          q_R_min      },
+    { "max",          q_R_max      },
     /* "lattice" */
     /* "a-type"  */
     { NULL,           NULL         }
@@ -1141,10 +1169,10 @@ qlua_newLatReal(lua_State *L, int Sidx)
 mLatReal *
 qlua_newZeroLatReal(lua_State *L, int Sidx)
 {
-	mLatReal *v = qlua_newLatReal(L, Sidx);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	QDP_R_eq_zero(v->ptr, S->all);
-	return v;
+        mLatReal *v = qlua_newLatReal(L, Sidx);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        QDP_R_eq_zero(v->ptr, S->all);
+        return v;
 }
 
 mLatReal *

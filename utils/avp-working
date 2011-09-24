@@ -1,10 +1,9 @@
 #!/bin/sh
-PACKTOP=/Users/avp/Local/packages/working-build
+PACKTOP=/Users/avp/Local/packages/qlua-devel
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-1-xxx
+TARGET=$PACKTOP/qlua-working
 ## for all colors. 
-QDP_TOP=$HOME/Local/packages/qdp-1.9.0-a7.mdir
 
 CC="gcc -g -std=c99 -DQDP_Nc=3"               \
 ./configure                                   \
@@ -19,6 +18,3 @@ CC="gcc -g -std=c99 -DQDP_Nc=3"               \
    --without-nc=any                           \
    --with-nc=3                                \
    $*
-
-#
-#
