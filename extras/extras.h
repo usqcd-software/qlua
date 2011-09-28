@@ -7,6 +7,8 @@
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_matrix_double.h>
 
+#include "aff_io.h"                                                 /* DEPS */
+
 void
 baryon_duu(mLattice *S,
 		   QDP_D_Complex *B,
@@ -75,6 +77,9 @@ gen_laplace_P(lua_State *L,
               QDP_D3_ColorMatrix **gauge,
               QDP_D3_DiracPropagator *source,
               int skip_axis);
+
+int         
+q_save_squark_wf(lua_State *L);
 
 int init_extras(lua_State *L);
 int fini_extras(lua_State *L);

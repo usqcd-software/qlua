@@ -8,7 +8,6 @@
 #include "modules.h"                                                /* DEPS */
 #include "qlua.h"                                                   /* DEPS */
 #include "lattice.h"                                                /* DEPS */
-#include "aff_io.h"                                                 /* DEPS */
 #include "extras.h"                                                 /* DEPS */
 
 static double complex

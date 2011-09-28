@@ -29,6 +29,7 @@ show_help() {
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
+     hdf5                     Use HDF5 library
 
    Environment variables:
      CC                      C compiler to use
@@ -89,6 +90,7 @@ process_args() {
       --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'` ;;
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
+      --with-hdf5=*)      hdf5=`echo "$1" | sed -e 's/--with-hdf5=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
@@ -176,6 +178,11 @@ normalize() {
       gsl_libs=`$gsl/bin/gsl-config --libs-without-cblas`
     fi
   fi
+  if [ ! -z "$hdf5" ] ; then
+    hdf5_cflags="-I$hdf5/include"
+    hdf5_ldflags="-L$hdf5/lib"
+    hdf5_libs="-lhdf5_hl -lhdf5 -lz -lm"
+  fi
   ## Add other packages here
 }
 
@@ -202,6 +209,7 @@ show_config() {
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
+   [ -z "$hdf5" ]    || echo "HDF5 location           $hdf5"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
    [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
@@ -248,6 +256,10 @@ build() {
         -e "s|@gsl_cflags@|$gsl_cflags|g" \
         -e "s|@gsl_libs@|$gsl_libs|g" \
         -e "s|@cblas_libs@|$cblas_libs|g" \
+  | sed -e "s|@hdf5@|$hdf5|g" \
+        -e "s|@hdf5_cflags@|$hdf5_cflags|g" \
+        -e "s|@hdf5_ldflags@|$hdf5_ldflags|g" \
+        -e "s|@hdf5_libs@|$hdf5_libs|g" \
   | sed -e "s|@use_nc2@|$use_nc2|g " \
         -e "s|@use_nc3@|$use_nc3|g " \
         -e "s|@use_ncN@|$use_ncN|g " \
@@ -280,6 +292,10 @@ build_modules() {
   if [ ! -z "$gsl" ] ; then
     echo "#define HAS_GSL"
     echo "#define GSL_VERSION \"$gsl\""
+  fi
+  if [ ! -z "$hdf5" ] ; then
+    echo "#define HAS_HDF5"
+    echo "#define HDF5_VERSION \"$hdf5\""
   fi
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"

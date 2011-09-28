@@ -46,6 +46,11 @@ GSL          = @gsl@
 GSL_CF       = @gsl_cflags@
 GSL_LIBS     = @gsl_libs@
 
+HDF5         = @hdf5@
+HDF5_CF      = @hdf5_cflags@
+HDF5_LF      = @hdf5_ldflags@
+HDF5_LIBS    = @hdf5_libs@
+
 CBLAS_LIBS   = @cblas_libs@
 
 ## ZZZ add other modules here
@@ -109,7 +114,9 @@ ifeq ("@use_nc3@", "1")
 ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
-              gen_laplace.c
+              gen_laplace.c \
+	      squark-wf.c \
+
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
 endif
@@ -133,12 +140,12 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF)\
-              $(GSL_CF)
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF) \
+              $(GSL_CF) $(HDF5_CF)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF)
+              $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF) $(HDF5_LF)
 LLIBS = $(CLOVER_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(QDP_LIBS) \
-        $(GSL_LIBS) $(CBLAS_LIBS) \
+        $(GSL_LIBS) $(CBLAS_LIBS) $(HDF5_LIBS) \
         -llua $(LIBS)
 
 ###############################################################################
