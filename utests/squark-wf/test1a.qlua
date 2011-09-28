@@ -1,0 +1,70 @@
+--require "stdlib"
+Lx = 6
+Lt = 12
+
+L = qcd.lattice {Lx, Lx, Lx, Lt}
+t_axis = #L - 1
+
+function make_test_V(src, list_mom, list_col, list_exp, t_axis)
+  local mom = {}
+  for i = 1, #list_mom do
+    local mom4 = {}
+    mom4[1+t_axis] = 0
+    for d = 0, #L-1 do
+      if d < t_axis then mom4[1+d] = list_mom[i][1+d]
+      else mom4[2+d] = list_mom[i][1+d] end
+    end
+    mom[i] = L:planewave(src, mom4)
+  end
+  
+  local col = {}
+  for i = 1, #list_col do
+    col[i] = L:ColorVector()
+    for c=0, 2 do
+      col[i][{c=c}] = L:Complex(1.) * list_col[i][1+c]
+    end
+  end
+  
+  local v012 = { {}, {}, {} }
+  local cnt = 1
+  for i = 1, #list_mom do
+    for k = 1, #list_col do
+      local v = mom[i] * col[k]
+      for n = 1, 3 do
+        v012[n][cnt] = v * L:Complex(
+            list_exp[n] * L:Real(L:pcoord(t_axis))):exp()
+      end
+      cnt = cnt + 1
+    end
+  end
+  
+
+  return v012
+end
+
+
+if       (nil == name 
+       or nil == path 
+       or nil == geom 
+       or nil == t_axis 
+       or nil == src0 
+       or nil == c0 
+       or nil == list_mom 
+       or nil == list_psrc 
+       or nil == list_col
+       or nil == list_exp ) then 
+  print "have unset parameters"
+  os.exit(1)
+end
+
+v012 = make_test_V(src0,
+                   list_mom,
+                   list_col, 
+                   list_exp,
+                   t_axis)
+
+qcd.save_squark_wf(name, path, 
+                   v012[1], v012[2], v012[3],
+                   list_psrc,
+                   t_axis, 
+                   c0)
