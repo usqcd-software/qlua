@@ -2,6 +2,7 @@
 #include <complex.h>
 #include <string.h>
 #include <assert.h>
+#include <sys/stat.h>
 
 #include <hdf5.h>
 
@@ -102,14 +103,27 @@ typedef struct {
     hid_t       buf_dspace;
 } h5output;
 
-static int
+static int 
+is_hsizearray_equal(int n, hsize_t *a, hsize_t *b)
+{
+    for (; n-- ; a++, b++)
+        if (*a != *b)
+            return 0;
+    return 1;
+}
+
+static const char *
 h5_open_v123ft_write(h5output *h5o, 
         const char *h5file, const char *h5path,
         int lt, int n_mom, 
         int n_v1, int n_v2, int n_v3)
 {
+    H5E_auto_t old_ehandler;
+    void *old_client_data;
+    hid_t error_stack = H5Eget_current_stack();
+
     if (0 != QDP_this_node)
-        return 0;
+        return NULL;
 
     assert(NULL != h5o &&
             NULL != h5file &&
@@ -120,10 +134,18 @@ h5_open_v123ft_write(h5output *h5o,
             0 < n_v2 &&
             0 < n_v3);
 
-    if ((0 > (h5o->h5f = H5Fcreate(h5file, H5F_ACC_EXCL,
-                            H5P_DEFAULT, H5P_DEFAULT))) \
-            && (0 > (h5o->h5f = H5Fopen(h5file, H5F_ACC_RDWR, H5P_DEFAULT))))
-        return 1;
+    /* try opening the datafile */
+    H5Eget_auto(error_stack, &old_ehandler, &old_client_data);
+    H5Eset_auto(error_stack, NULL, NULL);
+    h5o->h5f = H5Fopen(h5file, H5F_ACC_RDWR, H5P_DEFAULT);
+    H5Eset_auto(error_stack, old_ehandler, old_client_data);
+
+    if (h5o->h5f < 0) {    /* file does not exist */
+        H5Eclear(error_stack);
+        if (0 > (h5o->h5f = H5Fcreate(h5file, H5F_ACC_EXCL,
+                            H5P_DEFAULT, H5P_DEFAULT))) 
+            return "cannot create HDF5 file";
+    } 
 
     h5o->rank       = 6;
     h5o->dims[0]    = h5o->n_v1     = n_v1;
@@ -133,11 +155,33 @@ h5_open_v123ft_write(h5output *h5o,
     h5o->dims[4]    = h5o->n_mom    = n_mom;
     h5o->dims[5]    = 2; /* real/imag */
     if (0 > (h5o->dspace = H5Screate_simple(h5o->rank, h5o->dims, NULL)))
-        return 1;
+        return "cannot create dataspace" ;
     
-    if (0 > (h5o->dset = H5Dcreate(h5o->h5f, h5path, H5T_IEEE_F64BE, 
-                    h5o->dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)))
-        return 1;
+    /* try opening the dataset */
+
+    H5Eget_auto(error_stack, &old_ehandler, &old_client_data);
+    H5Eset_auto(error_stack, NULL, NULL);
+    h5o->dset = H5Dopen(h5o->h5f, h5path, H5P_DEFAULT);
+    H5Eset_auto(error_stack, old_ehandler, old_client_data);
+
+    if (0 < h5o->dset) { /* dataset exists */
+        hid_t dspace_orig;
+        if (0 > (dspace_orig = H5Dget_space(h5o->dset)))
+            return "cannot get dataspace from dataset";
+        int rank_orig;
+        rank_orig = H5Sget_simple_extent_ndims(dspace_orig);
+        if (6 != rank_orig)
+            return "dspace rank is not consistent";
+        hsize_t dims_orig[6];
+        H5Sget_simple_extent_dims(dspace_orig, dims_orig, NULL);
+        if (!is_hsizearray_equal(rank_orig, dims_orig, h5o->dims))
+            return "dspace dims are not consistent";
+    } else { /* dataset does not exist */
+        H5Eclear(error_stack);
+        if (0 > (h5o->dset = H5Dcreate(h5o->h5f, h5path, H5T_IEEE_F64BE, 
+                        h5o->dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)))
+            return "cannot create dataset" ;
+    }
 
     h5o->buf_rank       = 3;
     h5o->buf_dims[0]    = lt;
@@ -145,49 +189,49 @@ h5_open_v123ft_write(h5output *h5o,
     h5o->buf_dims[2]    = 2;
     if (0 > (h5o->buf_dspace = 
                 H5Screate_simple(h5o->buf_rank, h5o->buf_dims, NULL)))
-        return 1;
+        return "cannot create memory dataspace";
 
-    return 0;
+    return NULL;
 }
 
-static int
+static const char *
 h5_close_v123ft(h5output *h5o)
 {
     if (0 != QDP_this_node)
-        return 0;
+        return NULL;
 
     if (H5Sclose(h5o->dspace) 
             || H5Sclose(h5o->buf_dspace)
             || H5Dclose(h5o->dset)
             || H5Fclose(h5o->h5f))
-        return 1;
+        return "cannot close HDF5 file, dataspace or dataset";
     else
-        return 0;
+        return NULL;
 }
 
 
-static int 
+static const char *
 h5_save_v123ft(h5output *h5o, const gsl_complex *v123_ft, 
         int i_v1, int i_v2, int i_v3)
 {
     if (0 != QDP_this_node)
-        return 0;
+        return NULL;
 
     hsize_t dset_off[6] = { i_v1, i_v2, i_v3,       0,          0, 0 };
     hsize_t dset_cnt[6] = {    1,    1,    1, h5o->lt, h5o->n_mom, 2 };
     if (0 != H5Sselect_hyperslab(h5o->dspace, H5S_SELECT_SET, 
                 dset_off, NULL, dset_cnt, NULL))
-        return 1;
+        return "cannot select hyperslab";
     assert(H5Sget_select_npoints(h5o->dspace) == 
             H5Sget_select_npoints(h5o->buf_dspace));
     if (0 != H5Dwrite(h5o->dset, H5T_NATIVE_DOUBLE, h5o->buf_dspace, h5o->dspace,
                 H5P_DEFAULT, v123_ft))
-        return 1;
+        return "cannot write to dataset";
 
     return 0;
 }
 
-const char *
+static const char *
 save_squark_wf(lua_State *L,
         mLattice *S,
         const char *h5_file,
@@ -237,9 +281,8 @@ save_squark_wf(lua_State *L,
     
     /* HDF5 output */
     h5output h5o;
-    if (h5_open_v123ft_write(&h5o, h5_file, h5_path, 
-                lt, n_mom, n_v1, n_v2, n_v3)) {
-        err_str = "cannot open HDF5 file for writing";
+    if (NULL != (err_str = h5_open_v123ft_write(&h5o, h5_file, h5_path, 
+                lt, n_mom, n_v1, n_v2, n_v3))) {
         goto clearerr_0;
     }
 
@@ -331,16 +374,14 @@ save_squark_wf(lua_State *L,
             
                 QMP_sum_double_array((double *)v123_ft, 2 * lt * n_mom);
 
-                if (h5_save_v123ft(&h5o, v123_ft, i, j, k)) {
-                    err_str = "cannot save v123 hyperslab";
+                if (NULL != (err_str = h5_save_v123ft(&h5o, v123_ft, i, j, k))) {
                     goto clearerr_2;
                 }
             }
         }
 
 clearerr_2:
-    if (h5_close_v123ft(&h5o)) {
-        err_str = "cannot close HDF5 file cleanly";
+    if (NULL != (err_str = h5_close_v123ft(&h5o))) {
         goto clearerr_1;
     }
 
