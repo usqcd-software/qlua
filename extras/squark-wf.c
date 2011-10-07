@@ -1,8 +1,6 @@
 #include <math.h>
-#include <complex.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/stat.h>
 
 #include <hdf5.h>
 
@@ -11,14 +9,15 @@
 #include <gsl/gsl_matrix.h>
 
 #include "qmp.h"
-#include "lhpc-aff.h"
 
 #include "modules.h"                                                /* DEPS */
 #include "qlua.h"                                                   /* DEPS */
 #include "lattice.h"                                                /* DEPS */
-#include "qlua.h"
 #include "extras.h"                                                 /* DEPS */
 #include "latcolvec.h"                                              /* DEPS */
+
+#include "h5common.h"
+#include "qparam.h"
 
 
 #define LDIM 4      /* number of lattice dimensions */
@@ -101,26 +100,17 @@ typedef struct {
     int         buf_rank;
     hsize_t     buf_dims[3];
     hid_t       buf_dspace;
-} h5output;
-
-static int 
-is_hsizearray_equal(int n, hsize_t *a, hsize_t *b)
-{
-    for (; n-- ; a++, b++)
-        if (*a != *b)
-            return 0;
-    return 1;
-}
+} v123_h5output;
 
 static const char *
-h5_open_v123ft_write(h5output *h5o, 
+h5_open_v123ft_write(v123_h5output *h5o, 
         const char *h5file, const char *h5path,
         int lt, int n_mom, 
         int n_v1, int n_v2, int n_v3)
 {
     H5E_auto_t old_ehandler;
     void *old_client_data;
-    hid_t error_stack = H5Eget_current_stack();
+    hid_t error_stack = H5E_DEFAULT;
 
     if (0 != QDP_this_node)
         return NULL;
@@ -195,7 +185,7 @@ h5_open_v123ft_write(h5output *h5o,
 }
 
 static const char *
-h5_close_v123ft(h5output *h5o)
+h5_close_v123ft(v123_h5output *h5o)
 {
     if (0 != QDP_this_node)
         return NULL;
@@ -211,7 +201,7 @@ h5_close_v123ft(h5output *h5o)
 
 
 static const char *
-h5_save_v123ft(h5output *h5o, const gsl_complex *v123_ft, 
+h5_save_v123ft(v123_h5output *h5o, const gsl_complex *v123_ft, 
         int i_v1, int i_v2, int i_v3)
 {
     if (0 != QDP_this_node)
@@ -228,7 +218,7 @@ h5_save_v123ft(h5output *h5o, const gsl_complex *v123_ft,
                 H5P_DEFAULT, v123_ft))
         return "cannot write to dataset";
 
-    return 0;
+    return NULL;
 }
 
 static const char *
@@ -280,7 +270,7 @@ save_squark_wf(lua_State *L,
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
     
     /* HDF5 output */
-    h5output h5o;
+    v123_h5output h5o;
     if (NULL != (err_str = h5_open_v123ft_write(&h5o, h5_file, h5_path, 
                 lt, n_mom, n_v1, n_v2, n_v3))) {
         goto clearerr_0;
@@ -288,7 +278,7 @@ save_squark_wf(lua_State *L,
 
     /* expose fields */
     QLA_D3_ColorVector **qla_v[3];
-    qla_v[0] = qlua_malloc(L, sizeof(QLA_D3_ColorVector *) *n_v1);
+    qla_v[0] = qlua_malloc(L, sizeof(qla_v[0][0]) *n_v1);
     for (int i = 0 ; i < n_v1 ; i++)
         qla_v[0][i] = QDP_D3_expose_V(v1[i]);
     qla_v[1] = qlua_malloc(L, sizeof(QLA_D3_ColorVector *) *n_v2);
@@ -413,117 +403,6 @@ clearerr_0:
 }
 
 
-int *
-qlua_check_array1d_int(lua_State *L, int idx, 
-        int need_dim1, 
-        int *have_dim1)
-{
-    if (LUA_TTABLE != lua_type(L, idx))
-        luaL_error(L, "array1d(int) expected");
-
-    int d = lua_objlen(L, idx);
-    if (0 <= need_dim1 && d != need_dim1) {
-        luaL_error(L, "array1d(int)[%d] expected", need_dim1);
-        return NULL;
-    }
-    if (NULL != have_dim1)
-        *have_dim1 = d;
-
-    int *res = qlua_malloc(L, d * sizeof(int));
-    for (int i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, idx);
-        if (lua_type(L, -1) != LUA_TNUMBER) {
-            qlua_free(L, res);
-            luaL_error(L, "non-int encountered in array1d(int)");
-            return NULL;
-        }
-        res[i] = qlua_checkint(L, -1, "array element %d", i + 1);
-        lua_pop(L, 1);
-    }
-    return res;
-}
-
-
-int *
-qlua_check_array2d_int(lua_State *L, int idx, 
-        int need_dim1, int need_dim2,
-        int *have_dim1, int *have_dim2)
-{
-    if (LUA_TTABLE != lua_type(L, idx))
-        luaL_error(L, "array2d(int) expected");
-
-    int d1 = lua_objlen(L, idx);
-    if (0 <= need_dim1 && d1 != need_dim1) {
-        luaL_error(L, "array2d(int)[%d,..] expected", need_dim1, need_dim2);
-        return NULL;
-    }
-    if (NULL != have_dim1)
-        *have_dim1 = d1;
-    
-    lua_pushnumber(L, 1);
-    lua_gettable(L, idx);
-    int d2;
-    int *res0   = qlua_check_array1d_int(L, lua_gettop(L), need_dim2, &d2);
-    lua_pop(L, 1);
-    int *res    = qlua_malloc(L, d1 * d2 * sizeof(int));
-    memcpy(res, res0, d2 * sizeof(int));
-    qlua_free(L, res0);
-
-    if (NULL != have_dim2)
-        *have_dim2 = d2;
-
-    for (int i = 1; i < d1; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, idx);
-        int *res0 = qlua_check_array1d_int(L, lua_gettop(L), d2, NULL);
-        lua_pop(L, 1);
-        memcpy(res + i * d2, res0, d2 * sizeof(int));
-        qlua_free(L, res0);
-    }
-    lua_pop(L, 1);
-
-    return res;
-}
-
-QDP_D3_ColorVector **
-qlua_check_latcolvec_table(lua_State *L, int idx, 
-        mLattice *S, int need_dim1, 
-        mLattice **have_S, int *have_dim1)
-{
-    if (LUA_TTABLE != lua_type(L, idx))
-        luaL_error(L, "array1d(LatColVec) expected");
-    int d = lua_objlen(L, idx);
-    if (0 <= need_dim1 && d != need_dim1) {
-        luaL_error(L, "array1d(LatColVec)[%d] expected", need_dim1);
-        return NULL;
-    }
-    if (NULL != have_dim1)
-        *have_dim1 = d;
-
-    QDP_D3_ColorVector **res = qlua_malloc(L, d * sizeof(QDP_D3_ColorVector *));
-    for (int i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, idx);
-        mLatColVec3 *ch = qlua_checkLatColVec3(L, lua_gettop(L), S, 3);
-        assert(NULL != ch);
-        res[i] = ch->ptr;
-        mLattice *S1 = qlua_ObjLattice(L, lua_gettop(L));
-        if (NULL == S && 0 == i)
-            S = S1;
-        else {
-            if (S1->id != S->id) {
-                luaL_error(L, "expect array of same lattice fields");
-                return NULL;
-            }
-        }
-        lua_pop(L, 1);
-    }
-    if (NULL != have_S)
-        *have_S = S;
-
-    return res;
-}
 
 /* 
    qcd.save_squark_wf(h5_file, h5_path, v1, v2, v3, mom_list, t_axis, c0)

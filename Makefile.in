@@ -115,7 +115,11 @@ ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
               gen_laplace.c \
+	      h5common.c \
+	      qparam.c \
 	      squark-wf.c \
+	      save-q2pt.c \
+
 
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c

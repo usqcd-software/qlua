@@ -1,0 +1,92 @@
+--require "stdlib"
+Lx = 6
+Lt = 12
+
+L = qcd.lattice {Lx, Lx, Lx, Lt}
+t_axis = #L - 1
+
+function mom3_to_mom4(mom3, t_axis)
+  local mom4 = {}
+  mom4[1+t_axis] = 0
+  for d = 0, #L-1 do
+    if d < t_axis then mom4[1+d] = mom3[1+d]
+    else mom4[2+d] = mom3[1+d] end
+  end
+  return mom4
+end
+
+
+function make_test_V(src, list_mom, list_col, list_exp, t_axis)
+  -- v[i_v=i_mom*3+i_c][t] = exp(list_exp[i_c]*t) * exp(I*list_mom[i_mom].(coord3-src))
+  local mom = {}
+  for i = 1, #list_mom do
+    mom[i] = L:planewave(src, mom3_to_mom4(list_mom[i], t_axis))
+  end
+  
+  local col = {}
+  for i = 1, #list_col do
+    col[i] = L:ColorVector()
+    for c=0, 2 do
+      col[i][{c=c}] = L:Complex(1.) * list_col[i][1+c]
+    end
+  end
+  
+  local v = {}
+  local cnt = 1
+  for i = 1, #list_mom do
+    for k = 1, #list_col do
+      v[cnt] = mom[i] * col[k] * L:Complex(list_exp[k] * L:Real(L:pcoord(t_axis))):exp()
+      cnt = cnt + 1
+    end
+  end
+  
+  return v
+end
+
+function make_prop(v, tsrc, j_s, mom_sh, mom_c0, exp_sh, t_axis)
+  -- prop = v * exp(exp_sh * (t-tsrc)) * exp(I*mom_sh.(coord3-mom_c0))
+  local L   = v.lattice
+  local lt  = L[t_axis]
+  local dt  = (lt - tsrc + L:pcoord(t_axis)) % lt
+  return (L:DiracFermion(v, {d=j_s}) 
+          * L:planewave(mom_c0, mom3_to_mom4(mom_sh, t_axis))
+          * (L:Complex(L:Real(exp_sh)) * L:Complex(L:Real(dt))):exp())
+end
+
+
+
+if       (nil == name             -- test name
+       or nil == hdf5_out         -- hdf path
+       or nil == path             -- hdf path
+       or nil == geom             -- lattice geometry
+       or nil == t_axis           -- time axis 0 .. D-1
+       or nil == src0             -- starting point for all pw.'s
+       or nil == prop_mom_sh      -- pw.'s to mult propagator, dep. on spin 
+       or nil == prop_mom_c0      -- starting point for prop mom shift pw
+       or nil == prop_exp_sh      -- exponents to mult propagator, dep. on spin
+       or nil == list_mom         -- list of pw.'s to generate LapH vectors
+       or nil == list_col         -- list of colors to generate LapH vectors
+       or nil == list_exp         -- list of exps to generate LapH vectors
+       ) then 
+  print "have unset parameters"
+  os.exit(1)
+end
+
+list_v=make_test_V(src0,
+                   list_mom,
+                   list_col, 
+                   list_exp,
+                   t_axis)
+for tsrc = 0, geom[1+t_axis]-1 do
+  for j_v = 0, #list_v - 1 do
+    for j_s = 0, 3 do
+      -- prop = v * exp(exp_sh[spin2] * (t-tsrc)) * exp(I*mom_sh[spin2].(coord3-mom_c0))
+      local prop = make_prop(list_v[1+j_v], tsrc, j_s, 
+                             prop_mom_sh[1+j_s], prop_mom_c0, 
+                             prop_exp_sh[1+j_s], t_axis)
+      qcd.save_q2pt(hdf5_out, path, 
+                    tsrc, j_v, j_s, prop,
+                    list_v, t_axis)
+    end
+  end
+end

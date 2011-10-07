@@ -180,6 +180,7 @@ q_laplacian(lua_State *L)
 }
 
 extern int q_save_squark_wf(lua_State *L);
+extern int q_save_q2pt(lua_State *L);
 
 static struct luaL_Reg fExtra[] = {
     { "save_bb",    q_save_bb },
@@ -187,7 +188,8 @@ static struct luaL_Reg fExtra[] = {
 #ifdef HAS_GSL
 	{ "baryon_duu", q_baryon_duu },
 #endif /* defined(HAS_GSL) */
-    { "save_squark_wf", q_save_squark_wf },
+    { "save_squark_wf",     q_save_squark_wf },
+    { "save_q2pt",          q_save_q2pt },
     { NULL,         NULL }
 };
 

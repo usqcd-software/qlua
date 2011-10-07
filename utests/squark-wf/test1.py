@@ -4,27 +4,20 @@ import tables as tb
 import sys
 import os
 
-"""
-h5file  = 'squark-wf.test1.hdf5'
-h5path  = 'test1'
-
-h5f     = tb.openFile(h5file, mode='r')
-sqwf    = h5f[h5path][:]
-"""
-
-
 
 def make_test_res(geom, src0, t_axis, 
                list_psrc, list_mom, list_col, list_exp, c0):
-    """ create table for test1 
-        geom        lattice geometry
-        src0        starting point for color vector plane waves
-        t_axis      time axis index
-        list_psrc   list of src projection momenta
-        list_mom    list of ev momenta
-        list_col    list of color vectors
-        list_exp    t-exponents for color vectors
-        c0          starting point for src Fourier transform
+    """ create table for test1: v123_ft = det(v^1,v^2,v^3)_x exp(-i*psrc*x) 
+        with v^a_i = exp(list_exp[a]*t) * list_col[j] * exp(i*list_mom[k]*x), i=index(j,k)
+        geom                lattice geometry
+        src0                starting point for color vector plane waves
+        t_axis              time axis index
+        list_psrc[i_psrc]   list of src projection momenta
+        list_mom[i_mom]     list of ev momenta
+        list_col[i_col]     list of color vectors
+        list_exp[3]         t-exponents for color vectors
+        c0                  starting point for src Fourier transform
+        result[n_v, n_v, n_v, lt, n_p], n_v = n_mom * n_col
     """
     geom    = np.asarray(geom)
     src0    = np.asarray(src0)
@@ -47,14 +40,6 @@ def make_test_res(geom, src0, t_axis,
     # spatial mom part
     list_psrc   = np.asarray(list_psrc)
     list_mom    = np.asarray(list_mom)
-    def equal_sum_mom(l1, l2, l3, lsum):
-        l1  = np.asarray(l1)
-        l2  = np.asarray(l2)
-        l3  = np.asarray(l3)
-        def func(i,j,k, i_p):
-            return np.where(l1[i] + l2[j] + l3[k] == lsum[i_p], 1, 0)
-        return func
-
     mom012  = np.fromfunction(
                 (lambda i,j,k, i_p: 
                     np.where(np.all(
