@@ -123,3 +123,4 @@ h5_close(lua_State *L, h5output *h5o)
     h5o->dspace = h5o->dset = h5o->h5f = -1;
     return NULL;
 }
+

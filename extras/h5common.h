@@ -26,4 +26,5 @@ h5_open_write(lua_State *L,
 const char *
 h5_close(lua_State *L, h5output *h5o);
 
+
 #endif/*H5COMMON_H_PLJNSRPMGIPXDQUJXFJE*/

@@ -3,11 +3,12 @@ import numpy as np
 import tables as tb
 import sys
 import os
+import time
 
 func_name   = 'save-q2pt'
 test_name   = 'test1'
 
-list_test = [
+test_list = [
    {'name'            : func_name + '.' + test_name + '-0',
     'path'            : '/test1',
     'geom'            : [6,6,6,12],
@@ -27,11 +28,28 @@ list_test = [
     'src0'            : [1,2,3,4],
     'prop_mom_sh'     : [[1,0,0],[0,1,0],[0,0,1],[1,1,0]],
     'prop_mom_c0'     : [3,2,1,5],
-    'prop_exp_sh'     : [.15,.16,.18,.20],
+    'prop_exp_sh'     : [ .15, .16, .18-.12j, .20],
     'list_mom'        : [[0,0,0], [1,0,0], [0,1,0], [0,0,1]],
     'list_col'        : [[1,0,0],[0,1,0],[0,0,1]],
-    'list_exp'        : [.11,-.12, -.13] }
-    #'list_exp'        : [.0,-.0, -.0] }
+    'list_exp'        : [ .11, -.12, -.13+.08j ] },
+
+   {'name'            : func_name + '.' + test_name + '-2',
+    'path'            : '/test1',
+    'geom'            : [6,6,6,12],
+    't_axis'          : 3,
+    'src0'            : [1,2,3,4],
+    'prop_mom_sh'     : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
+    'prop_mom_c0'     : [3,2,1,5],
+    'prop_exp_sh'     : [-.015, .16, .18, .20],
+    'list_mom'        : [ [0,0,0],
+                          [1,0,0], [0,1,0], [0,0,1],
+                          [1,1,0], [1,0,1], [0,1,1],
+                          [1,1,1],
+                          [2,0,0], [3,0,0], [4,0,0] ],
+    'list_col'        : [ [-0.38668154,  0.91713577,  0.59997194],
+                          [ 0.20150464, -0.19782945,  0.35816456],
+                          [-0.9190735 ,  1.04076121,  1.02879648] ],
+    'list_exp'        : [ .07, -.14, .21] }
     ]
 
 def make_test_res(geom, src0, t_axis,
@@ -136,10 +154,7 @@ def qlua_string(v):
         raise ValueError, "cannot convert to qlua string: %s: %s" % (str(type(v)), str(v))
 
 
-qlua_bin    = './qlua'
-qlua_test   = 'utests/save-q2pt/test1a.qlua'
-
-def call_qlua(p, path_prefix=''):
+def call_qlua(p, path_prefix='', qlua_bin='./qlua', qlua_test=''):
     qlua_case   = path_prefix + p['name'] + '.qlua'
     hdf5_out    = path_prefix + p['name'] + '.h5'
     f   = open(qlua_case, 'w')
@@ -165,19 +180,35 @@ def check_test(p, path_prefix=''):
     h5.close()
 
     return res
-    
+   
+def timer():
+    time0 = time.time()
+    def dt(): 
+        return time.time() - time0
+    return dt
+
+
 
 if (__name__ == '__main__'):
-    for i,p in enumerate(test_list):
-        qlua_stat = call_qlua(p)
-        if 0 != qlua_stat:
-            qlua_stat_str   = 'Fail(%d)' % qlua_stat
-            check_stat      = False
-            check_stat_str  = 'None'
-            continue
-        else:
-            qlua_stat_str   = 'OK'
-            check_stat = check_test(p)
-            if check_stat:  check_stat_str = 'OK'
-            else: check_stat_str = 'Fail'
-        print "%d\t%s\t%s\t%s\n" % (i, p['name'], qlua_stat_str, check_stat_str)
+    qlua_bin = './qlua'
+    for qlua_test in [ 'utests/save-q2pt/test1a.qlua', 
+                       'utests/save-q2pt/test1b.qlua']:
+        print "# N\tname\t\tqlua-exec\tck-out"
+        print "# qlua_bin = ", qlua_bin, "qlua_test = ", qlua_test
+
+        for i,p in enumerate(test_list):
+
+            qlua_timer = timer()
+            qlua_stat = call_qlua(p, qlua_bin=qlua_bin, qlua_test=qlua_test)
+            if 0 != qlua_stat: 
+                qlua_stat_str   = 'Fail(%d)[%.3fs]' % (qlua_stat, qlua_timer())
+            else: qlua_stat_str   = 'OK[%.3fs]' % qlua_timer()
+
+            check_timer     = timer()
+            check_stat  = False
+            if 0 == qlua_stat:
+                check_stat = check_test(p)
+            if check_stat:  check_stat_str = 'OK[%.3fs]' % check_timer()
+            else: check_stat_str = 'Fail[%.3fs]' % check_timer()
+
+            print "%d\t%s\t%s\t%s" % (i, p['name'], qlua_stat_str, check_stat_str)

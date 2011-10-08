@@ -22,30 +22,6 @@
 
 #define LDIM 4      /* number of lattice dimensions */
 
-static void
-cross_VV(QLA_D3_ColorVector *r, 
-         QLA_D3_ColorVector *c1, QLA_D3_ColorVector *c2)
-{
-    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 0), QLA_D3_elem_V(*c1, 1), QLA_D3_elem_V(*c2, 2));
-    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 0), QLA_D3_elem_V(*c1, 2), QLA_D3_elem_V(*c2, 1));
-
-    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 1), QLA_D3_elem_V(*c1, 2), QLA_D3_elem_V(*c2, 0));
-    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 1), QLA_D3_elem_V(*c1, 0), QLA_D3_elem_V(*c2, 2));
-
-    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 2), QLA_D3_elem_V(*c1, 0), QLA_D3_elem_V(*c2, 1));
-    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 2), QLA_D3_elem_V(*c1, 1), QLA_D3_elem_V(*c2, 0));
-}
-
-static gsl_complex
-cmult_VV(QLA_D3_ColorVector c1, QLA_D3_ColorVector c2)
-{
-    QLA_D_Complex c;
-    QLA_c_eq_c_times_c(c, QLA_D3_elem_V(c1, 0), QLA_D3_elem_V(c2, 0));
-    QLA_c_peq_c_times_c(c, QLA_D3_elem_V(c1, 1), QLA_D3_elem_V(c2, 1));
-    QLA_c_peq_c_times_c(c, QLA_D3_elem_V(c1, 2), QLA_D3_elem_V(c2, 2));
-    return gsl_complex_rect(QLA_real(c), QLA_imag(c));
-}
-
 /* calculate subgrid dimensions and "lowest corner" coordinate for `lat'
    TODO check that the subgrid is rectilinear 
  */
@@ -81,6 +57,31 @@ calc_subgrid(QDP_Lattice *lat, int dims[], int cmin[])
     assert(vol == n_site);
 
     return 0;
+}
+
+
+static void
+cross_VV(QLA_D3_ColorVector *r, 
+         QLA_D3_ColorVector *c1, QLA_D3_ColorVector *c2)
+{
+    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 0), QLA_D3_elem_V(*c1, 1), QLA_D3_elem_V(*c2, 2));
+    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 0), QLA_D3_elem_V(*c1, 2), QLA_D3_elem_V(*c2, 1));
+
+    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 1), QLA_D3_elem_V(*c1, 2), QLA_D3_elem_V(*c2, 0));
+    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 1), QLA_D3_elem_V(*c1, 0), QLA_D3_elem_V(*c2, 2));
+
+    QLA_c_eq_c_times_c(QLA_D3_elem_V(*r, 2), QLA_D3_elem_V(*c1, 0), QLA_D3_elem_V(*c2, 1));
+    QLA_c_meq_c_times_c(QLA_D3_elem_V(*r, 2), QLA_D3_elem_V(*c1, 1), QLA_D3_elem_V(*c2, 0));
+}
+
+static gsl_complex
+cmult_VV(QLA_D3_ColorVector c1, QLA_D3_ColorVector c2)
+{
+    QLA_D_Complex c;
+    QLA_c_eq_c_times_c(c, QLA_D3_elem_V(c1, 0), QLA_D3_elem_V(c2, 0));
+    QLA_c_peq_c_times_c(c, QLA_D3_elem_V(c1, 1), QLA_D3_elem_V(c2, 1));
+    QLA_c_peq_c_times_c(c, QLA_D3_elem_V(c1, 2), QLA_D3_elem_V(c2, 2));
+    return gsl_complex_rect(QLA_real(c), QLA_imag(c));
 }
 
 typedef struct {
@@ -295,7 +296,7 @@ save_squark_wf(lua_State *L,
                    (c)[vol3_axis[1]] + vol3_dim[1] * (\
                    (c)[vol3_axis[2]])))
 #define i_X_vol3(X,c) (i_vol3(c) + vol3_local * (X))
-#define i_vol4(c) i_X_vol3((c)[t_axis], c)
+#define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
 #define mom(i_mom, k)   ((mom_list)[(i_mom)*(LDIM-1) + k])
 #else
 #error "LDIM!=4 is not consistent"

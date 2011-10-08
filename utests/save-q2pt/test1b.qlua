@@ -78,15 +78,16 @@ list_v=make_test_V(src0,
                    list_exp,
                    t_axis)
 for tsrc = 0, geom[1+t_axis]-1 do
+  local sol_list = {}
+  local cnt = 0;
   for j_v = 0, #list_v - 1 do
     for j_s = 0, 3 do
-      -- prop = v * exp(exp_sh[spin2] * (t-tsrc)) * exp(I*mom_sh[spin2].(coord3-mom_c0))
       local prop = make_prop(list_v[1+j_v], tsrc, j_s, 
                              prop_mom_sh[1+j_s], prop_mom_c0, 
                              prop_exp_sh[1+j_s], t_axis)
-      qcd.save_q2pt(hdf5_out, path, 
-                    tsrc, j_v, j_s, prop,
-                    list_v, t_axis)
+      sol_list[1 + cnt] = {tsrc, j_v, j_s, prop}
+      cnt = cnt + 1
     end
   end
+  qcd.save_q2pt_list(hdf5_out, path, sol_list, list_v, t_axis)
 end
