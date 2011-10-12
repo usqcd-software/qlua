@@ -1,5 +1,12 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
+
+#include <string.h>
+#include <stdarg.h>
+#include <libgen.h>
+#include "qmp.h"
+#include "qdp.h"
+
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
@@ -23,12 +30,13 @@
 #include "latcolmat.h"                                               /* DEPS */
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
+#include "qscatter.h"                                                /* DEPS */
+#include "qgather.h"                                                 /* DEPS */
 #include "qgamma.h"                                                  /* DEPS */
 #include "nersc_io.h"                                                /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
-#include "qmp.h"
 #ifdef HAS_AFF
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
@@ -43,17 +51,12 @@
 #include "extras.h"                                                  /* DEPS */
 #endif
 
-#include <string.h>
-#include <stdarg.h>
-#include <qmp.h>
-#include <libgen.h>
-
 /* ZZZ include other package headers here */
 
-const static char *a_type_key = "a-type";
 const static char *lattice_key = "lattice";
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
+const char *a_type_key = "a-type";
 int qlua_master_node = -1;
 
 static struct {
@@ -206,7 +209,7 @@ qlua_free(lua_State *L, void *ptr)
         free(ptr);
 }
 
-static void
+void
 qlua_fillmeta(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
 {
     int i;
@@ -758,16 +761,16 @@ q_ge(lua_State *L)
 }
 
 static struct luaL_Reg fQCD[] = {
-    { "dot",    q_dot }, /* local inner dot */
-    { "min",    q_min }, /* local min */
-    { "max",    q_max }, /* local min */
-    { "ne",     q_ne  }, /* local  != */
-    { "eq",     q_eq  }, /* local  == */
-    { "lt",     q_lt  }, /* local  <  */
-    { "le",     q_le  }, /* local  <= */
-    { "gt",     q_gt  }, /* local  >  */
-    { "ge",     q_ge  }, /* local  >= */
-    { NULL,     NULL}
+    { "dot",      q_dot }, /* local inner dot */
+    { "min",      q_min }, /* local min */
+    { "max",      q_max }, /* local min */
+    { "ne",       q_ne  }, /* local  != */
+    { "eq",       q_eq  }, /* local  == */
+    { "lt",       q_lt  }, /* local  <  */
+    { "le",       q_le  }, /* local  <= */
+    { "gt",       q_gt  }, /* local  >  */
+    { "ge",       q_ge  }, /* local  >= */
+    { NULL,       NULL}
 };
 
 /* gemeric error report on illegal write operations */
@@ -826,6 +829,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_latcolmat,
         init_latdirferm,
         init_latdirprop,
+        init_scatter,
+        init_gather,
         init_gamma,
 #ifdef HAS_AFF
         init_aff_io,
@@ -915,6 +920,8 @@ qlua_fini(lua_State *L)
         fini_aff_io,
 #endif
         fini_gamma,
+        fini_gather,
+        fini_scatter,
         fini_latdirprop,
         fini_latdirferm,
         fini_latcolmat,

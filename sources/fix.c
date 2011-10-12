@@ -347,6 +347,51 @@ qlua_getmetatable(lua_State *L)
 }
 
 /* This should be a simple table, but for now this will do */
+static char *
+q_qtypename(lua_State *L, int idx, char *def)
+{
+    char *t = def;
+    QLUA_Type tp = qlua_qtype(L, idx);
+
+    switch (tp) {
+    case qComplex: t = "complex"; break;
+    case qGamma: t = "gamma"; break;
+    case qMatReal: t = "matrix.real"; break;
+    case qMatComplex: t = "matrix.complex"; break;
+    case qSeqColVec2: case qSeqColVec3: case qSeqColVecN: t = "color.vector"; break;
+    case qSeqColMat2: case qSeqColMat3: case qSeqColMatN: t = "color.matrix"; break;
+    case qSeqDirFerm2: case qSeqDirFerm3: case qSeqDirFermN: t = "dirac.fermion"; break;
+    case qSeqDirProp2: case qSeqDirProp3: case qSeqDirPropN: t = "dirac.propagator"; break;
+    case qLatInt: t = "lattice.int"; break;
+    case qLatReal: t = "lattice.real"; break;
+    case qLatComplex: t = "lattice.complex"; break;
+    case qLatColVec2: case qLatColVec3: case qLatColVecN: t = "lattice.color.vector"; break;
+    case qLatColMat2: case qLatColMat3: case qLatColMatN: t = "lattice.color.matrix"; break;
+    case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: t = "lattice.dirac.fermion"; break;
+    case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: t = "lattice.dirac.propagator"; break;
+    case qLattice: t = "lattice"; break;
+    case qLatMulti: t = "multiset"; break;
+    case qLatSubset: t = "subset"; break;
+    case qVecInt: t = "vector.int"; break;
+    case qVecReal: t = "vector.real"; break;
+    case qVecComplex: t = "vector.complex"; break;
+    case qSeqRandom: t = "random.state"; break;
+    case qLatRandom: t = "lattice.random.state"; break;
+    case qReader: t = "qio.reader"; break;
+    case qWriter: t = "qio.writer"; break;
+    case qAffReader: t = "aff.reader"; break;
+    case qAffWriter: t = "aff.writer"; break;
+    case qClover: t = "clover"; break;
+    case qCloverDeflator: t = "clover.deflator"; break;
+    case qCloverDeflatorState: t = "clover.deflator.state"; break;
+    case qMDWF: t = "mdwf"; break;
+    case qMDWFDeflator: t = "mdwf.deflator"; break;
+    case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
+    default: break;
+    }
+    return t;
+}
+
 static int
 q_type(lua_State *L)
 {
@@ -360,43 +405,7 @@ q_type(lua_State *L)
     case LUA_TSTRING: t = "string"; break;
     case LUA_TTABLE: t = "table"; break;
     case LUA_TFUNCTION: t = "function"; break;
-    case LUA_TUSERDATA: switch (qlua_qtype(L, 1)) {
-        case qComplex: t = "complex"; break;
-        case qGamma: t = "gamma"; break;
-        case qMatReal: t = "matrix.real"; break;
-        case qMatComplex: t = "matrix.complex"; break;
-        case qSeqColVec2: case qSeqColVec3: case qSeqColVecN: t = "color.vector"; break;
-        case qSeqColMat2: case qSeqColMat3: case qSeqColMatN: t = "color.matrix"; break;
-        case qSeqDirFerm2: case qSeqDirFerm3: case qSeqDirFermN: t = "dirac.fermion"; break;
-        case qSeqDirProp2: case qSeqDirProp3: case qSeqDirPropN: t = "dirac.propagator"; break;
-        case qLatInt: t = "lattice.int"; break;
-        case qLatReal: t = "lattice.real"; break;
-        case qLatComplex: t = "lattice.complex"; break;
-        case qLatColVec2: case qLatColVec3: case qLatColVecN: t = "lattice.color.vector"; break;
-        case qLatColMat2: case qLatColMat3: case qLatColMatN: t = "lattice.color.matrix"; break;
-        case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: t = "lattice.dirac.fermion"; break;
-        case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: t = "lattice.dirac.propagator"; break;
-        case qLattice: t = "lattice"; break;
-        case qLatMulti: t = "multiset"; break;
-        case qLatSubset: t = "subset"; break;
-        case qVecInt: t = "vector.int"; break;
-        case qVecReal: t = "vector.real"; break;
-        case qVecComplex: t = "vector.complex"; break;
-        case qSeqRandom: t = "random.state"; break;
-        case qLatRandom: t = "lattice.random.state"; break;
-        case qReader: t = "qio.reader"; break;
-        case qWriter: t = "qio.writer"; break;
-        case qAffReader: t = "aff.reader"; break;
-        case qAffWriter: t = "aff.writer"; break;
-        case qClover: t = "clover"; break;
-        case qCloverDeflator: t = "clover.deflator"; break;
-        case qCloverDeflatorState: t = "clover.deflator.state"; break;
-        case qMDWF: t = "mdwf"; break;
-        case qMDWFDeflator: t = "mdwf.deflator"; break;
-        case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
-        default: break;
-        }
-        break;
+    case LUA_TUSERDATA: t = q_qtypename(L, 1, "userdata"); break;
     case LUA_TTHREAD: t = "thread"; break;
     }
     lua_pushstring(L, t);

@@ -1,2 +1,0 @@
-require "stdlib"
-printf("Hello World\n")

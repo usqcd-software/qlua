@@ -40,62 +40,64 @@
 
 typedef enum {
     /* start with all type that have any of arithmetic operations defined */
-    qReal,
-    qComplex,
-    qGamma,
-    qMatReal,
-    qMatComplex,
-    qSeqColVec2,
-    qSeqColVec3,
-    qSeqColVecN,
-    qSeqColMat2,
-    qSeqColMat3,
-    qSeqColMatN,
-    qSeqDirFerm2,
-    qSeqDirFerm3,
-    qSeqDirFermN,
-    qSeqDirProp2,
-    qSeqDirProp3,
-    qSeqDirPropN,
-    qLatInt,
-    qLatReal,
-    qLatComplex,
-    qLatColVec2,
-    qLatColVec3,
-    qLatColVecN,
-    qLatColMat2,
-    qLatColMat3,
-    qLatColMatN,
-    qLatDirFerm2,
-    qLatDirFerm3,
-    qLatDirFermN,
-    qLatDirProp2,
-    qLatDirProp3,
-    qLatDirPropN,
-    qOther,          /* no operations for this type */
-    qArithTypeCount, /* number of types in arith dispatch tables */
-    qLattice,
-    qLatMulti,
-    qLatSubset,
-    qString,
-    qTable,
-    qVecInt,
-    qVecReal,
-    qVecComplex,
-    qSeqRandom,
-    qLatRandom,
-    qReader,
-    qWriter,
-    qAffReader,
-    qAffWriter,
-    qClover,
-    qCloverDeflator,
-    qCloverDeflatorState,
-    qMDWF,
-    qMDWFDeflator,
-    qMDWFDeflatorState,
+    qReal,                    /*  0 */
+    qComplex,                 /*  1 */
+    qGamma,                   /*  2 */
+    qMatReal,                 /*  3 */
+    qMatComplex,              /*  4 */
+    qSeqColVec2,              /*  5 */
+    qSeqColVec3,              /*  6 */
+    qSeqColVecN,              /*  7 */
+    qSeqColMat2,              /*  8 */
+    qSeqColMat3,              /*  9 */
+    qSeqColMatN,              /* 10 */
+    qSeqDirFerm2,             /* 11 */
+    qSeqDirFerm3,             /* 12 */
+    qSeqDirFermN,             /* 13 */
+    qSeqDirProp2,             /* 14 */
+    qSeqDirProp3,             /* 15 */
+    qSeqDirPropN,             /* 16 */
+    qLatInt,                  /* 17 */
+    qLatReal,                 /* 18 */
+    qLatComplex,              /* 19 */
+    qLatColVec2,              /* 20 */
+    qLatColVec3,              /* 21 */
+    qLatColVecN,              /* 22 */
+    qLatColMat2,              /* 23 */
+    qLatColMat3,              /* 24 */
+    qLatColMatN,              /* 25 */
+    qLatDirFerm2,             /* 26 */
+    qLatDirFerm3,             /* 27 */
+    qLatDirFermN,             /* 28 */
+    qLatDirProp2,             /* 29 */
+    qLatDirProp3,             /* 30 */
+    qLatDirPropN,             /* 31 */
+    qOther,                   /* 32  no operations for this type */
+    qArithTypeCount,          /* 33  number of types in arith dispatch tables */
+    qLattice,                 /* 34 */
+    qLatMulti,                /* 35 */
+    qLatSubset,               /* 36 */
+    qString,                  /* 37 */
+    qTable,                   /* 38 */
+    qVecInt,                  /* 39 */
+    qVecReal,                 /* 40 */
+    qVecComplex,              /* 41 */
+    qSeqRandom,               /* 42 */
+    qLatRandom,               /* 43 */
+    qScatter,                 /* 44 */
+    qGather,                  /* 45 */
+    qReader,                  /* 46 */
+    qWriter,                  /* 47 */
+    qAffReader,               /* 48 */
+    qAffWriter,               /* 49 */
+    qClover,                  /* 50 */
+    qCloverDeflator,          /* 51 */
+    qCloverDeflatorState,     /* 52 */
+    qMDWF,                    /* 53 */
+    qMDWFDeflator,            /* 54 */
+    qMDWFDeflatorState,       /* 55 */
     /* ZZZ add types for other packages here */
-    qNoType
+    qNoType                   /* 56 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -108,8 +110,12 @@ typedef enum { /* simple arithmetic types */
 
 extern const char *progname;
 extern const char *qcdlib;
+extern const char *a_type_key;
 extern int qlua_master_node;
 
+void qlua_fillmeta(lua_State *L,
+                   const luaL_Reg *table,
+                   QLUA_Type t_id);
 void qlua_metatable(lua_State *L,
                     const char *name,
                     const luaL_Reg *table,

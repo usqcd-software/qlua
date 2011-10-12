@@ -60,26 +60,28 @@ libsrc = fix.c \
          qcomplex.c \
          seqrandom.c \
          seqcolvec.c \
-		 seqcolmat.c \
+	 seqcolmat.c \
          seqdirferm.c \
          seqdirprop.c \
          qvector.c \
          qxml.c \
-		 qlayout.c \
+	 qlayout.c \
          lattice.c \
          latint.c \
-		 latmulti.c \
+	 latmulti.c \
          latreal.c \
          latrandom.c \
          latcomplex.c \
          latsubset.c \
          latcolvec.c \
-		 latcolmat.c \
+	 latcolmat.c \
          latdirferm.c \
          latdirprop.c \
+         qscatter.c \
+         qgather.c \
          qgamma.c \
-		 nersc_io.c \
-		 qio_utils.c \
+	 nersc_io.c \
+	 qio_utils.c \
          qdpc_io.c \
          ddpairs_io.c \
          qdpcc_io.c

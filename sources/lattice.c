@@ -205,9 +205,10 @@ static int
 q_latnet(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
-    
+    int i;
+
     lua_createtable(L, S->rank, 0);
-    for (int i = 0; i < S->rank; i++) {
+    for (i = 0; i < S->rank; i++) {
         lua_pushnumber(L, S->net[i]);
         lua_rawseti(L, -2, i + 1);
     }

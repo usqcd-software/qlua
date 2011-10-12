@@ -31,10 +31,12 @@ Qs(unpack_prop)(int nc, double *std, QLA_DN_DiracPropagator(nc, (*src)))
 Qs(unpack_prop)(int nc, double *std, Qx(QLA_D,_DiracPropagator) *src)
 #endif
 {
-    for (int ci = 0; ci < nc; ci++) {
-        for (int cj = 0; cj < nc; cj++) {
-            for (int si = 0; si < QDP_Ns; si++) {
-                for (int sj = 0; sj < QDP_Ns; sj++) {
+    int ci, cj, si, sj;
+
+    for (ci = 0; ci < nc; ci++) {
+        for (cj = 0; cj < nc; cj++) {
+            for (si = 0; si < QDP_Ns; si++) {
+                for (sj = 0; sj < QDP_Ns; sj++) {
                     QLA_D_Complex *z = &Qx(QLA_D,_elem_P)(*src, ci, si, cj, sj);
                     int la = 2 * (ci + nc * (cj + nc * (si + QDP_Ns * sj)));
                     std[la] = QLA_real(*z);
@@ -53,10 +55,12 @@ Qs(pack_prop)(int nc, Qx(QLA_D,_DiracPropagator) *dst, const double *std)
 #endif
 {
     QLA_D_Complex z;
-    for (int ci = 0; ci < nc; ci++) {
-        for (int cj = 0; cj < nc; cj++) {
-            for (int si = 0; si < QDP_Ns; si++) {
-                for (int sj = 0; sj < QDP_Ns; sj++) {
+    int ci, cj, si, sj;
+
+    for (ci = 0; ci < nc; ci++) {
+        for (cj = 0; cj < nc; cj++) {
+            for (si = 0; si < QDP_Ns; si++) {
+                for (sj = 0; sj < QDP_Ns; sj++) {
                     int la = 2 * (ci + nc * (cj + nc * (si + QDP_Ns * sj)));
                     QLA_c_eq_r_plus_ir(z, std[la], std[la + 1]);
                     QLA_c_eq_c(Qx(QLA_D,_elem_P)(*dst, ci, si, cj, sj), z);
@@ -110,7 +114,7 @@ Qs(q_P_get)(lua_State *L)
             Qs(pack_prop)(QC(V), m->ptr, m_std);
             Qx(QDP_D,_reset_P)(V->ptr);
             qlua_free(L, idx);
-			qlua_free(L, m_std);
+                        qlua_free(L, m_std);
         }
         return 1;
     }
@@ -197,10 +201,11 @@ Qs(q_P_sum)(lua_State *L)
         int size = m->size;
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
-
         Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
+        int i, k, ci, cj, di, dj;
+
         lua_createtable(L, size, 0);
-        for (int i = 0; i < size; i++) {
+        for (i = 0; i < size; i++) {
             Qs(mSeqDirProp) *vi = Qs(qlua_newZeroSeqDirProp)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
@@ -208,7 +213,7 @@ Qs(q_P_sum)(lua_State *L)
         CALL_QDP(L);
         Vtype *xx = Qx(QDP_D,_expose_P)(a->ptr);
         
-        for (int k = 0; k < sites; k++, xx++, ii++) {
+        for (k = 0; k < sites; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
@@ -216,11 +221,11 @@ Qs(q_P_sum)(lua_State *L)
         }
         Qx(QDP_D,_reset_P)(a->ptr);
         QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * nc * QDP_Ns * QDP_Ns * sizeof (QLA_D_Real));
-        for (int i = 0; i < size; i++) {
-            for (int ci = 0; ci < nc; ci++) {
-                for (int cj = 0; cj < nc; cj++) {
-                    for (int di = 0; di < QDP_Ns; di++) {
-                        for (int dj = 0; dj < QDP_Ns; dj++) {
+        for (i = 0; i < size; i++) {
+            for (ci = 0; ci < nc; ci++) {
+                for (cj = 0; cj < nc; cj++) {
+                    for (di = 0; di < QDP_Ns; di++) {
+                        for (dj = 0; dj < QDP_Ns; dj++) {
                             QLA_D_Complex *z;
                             int ab = 2*(ci + nc*(cj + nc*(di + QDP_Ns*dj)));
                             z = &Qx(QLA_D,_elem_P)(*vv[i], ci, di, cj, dj);
@@ -232,11 +237,11 @@ Qs(q_P_sum)(lua_State *L)
             }
         }
         QMP_sum_double_array(rr, 2 * size * nc * nc * QDP_Ns * QDP_Ns);
-        for (int i = 0; i < size; i++) {
-            for (int ci = 0; ci < nc; ci++) {
-                for (int cj = 0; cj < nc; cj++) {
-                    for (int di = 0; di < QDP_Ns; di++) {
-                        for (int dj = 0; dj < QDP_Ns; dj++) {
+        for (i = 0; i < size; i++) {
+            for (ci = 0; ci < nc; ci++) {
+                for (cj = 0; cj < nc; cj++) {
+                    for (di = 0; di < QDP_Ns; di++) {
+                        for (dj = 0; dj < QDP_Ns; dj++) {
                             QLA_D_Complex z;
                             int ab = 2*(ci + nc*(cj + nc*(di + QDP_Ns*dj)));
                             QLA_c_eq_r_plus_ir(z, rr[ab], rr[ab + 1]);
@@ -246,8 +251,8 @@ Qs(q_P_sum)(lua_State *L)
                 }
             }
         }
-		qlua_free(L, rr);
-		qlua_free(L, vv);
+                qlua_free(L, rr);
+                qlua_free(L, vv);
         return 1;
     }
     }
@@ -779,10 +784,10 @@ Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
 Qs(mLatDirProp) *
 Qs(qlua_newZeroLatDirProp)(lua_State *L, int Sidx, int nc)
 {
-	Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, Sidx, nc);
+        Qs(mLatDirProp) *v = Qs(qlua_newLatDirProp)(L, Sidx, nc);
     mLattice *S = qlua_checkLattice(L, Sidx);
-	Qx(QDP_D,_P_eq_zero)(v->ptr, S->all);
-	return v;
+        Qx(QDP_D,_P_eq_zero)(v->ptr, S->all);
+        return v;
 }
 
 Qs(mLatDirProp) *
