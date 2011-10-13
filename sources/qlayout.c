@@ -4,8 +4,6 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "qlayout.h"                                                 /* DEPS */
 
-extern void XXXdump(const char *fmt, ...);
-
 /* All lattice params are stored in mLattice.
  * Here we only keep a pointer to it.
  */
@@ -13,18 +11,6 @@ typedef struct {
     mLattice *S;
     int numsites;
 } params;
-
-#if 0 /* XXXX */
-static void
-get_lex_x(int *x, int l, int *s, int ndim)
-{
-    int i;
-    for (i = ndim-1; i >= 0; --i) {
-        x[i] = l % s[i];
-        l = l / s[i];
-    }
-}
-#endif /* XXX */
 
 static void
 node2coord(int *x, int n, mLattice *S)

@@ -280,11 +280,6 @@ q_lattice(lua_State *L)
         { NULL,           NULL           }
     };
 
-#if 0 /* XXX */    
-    if (lat_id) /* XXX need more work for multiple lattices */
-        return luaL_error(L, "multiple lattices not supported yet");
-#endif /* XXX */
-
     luaL_checktype(L, 1, LUA_TTABLE);
     r = lua_objlen(L, 1);
     if (r <= 0)

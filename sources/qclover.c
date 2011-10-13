@@ -470,7 +470,7 @@ q_DF_eigenvalues(lua_State *L)
         for (i = 0; i < d->nev; i++)
             v->val[i] = t[i];
     }
-	qlua_free(L, t);
+        qlua_free(L, t);
     if (status == 0)
         return 1;
     else
@@ -534,13 +534,13 @@ static struct luaL_Reg mtDeflator[] = {
     { "stop",               q_DF_stop              },
     { "resume",             q_DF_resume            },
     { "eigenvalues",        q_DF_eigenvalues       },
-#if 0 /* XXX */
+#if 0  /* XXX deflator extra methods */
     { "truncate",           q_DF_truncate          },
     { "get_counter",        q_DF_get_counter       },
     { "put_counter",        q_DF_put_counter       },
     { "write_eigspace",     q_DF_write             },
     { "read_eigspace",      q_DF_read              },
-#endif /* XXX */
+#endif  /* XXX deflator extra methods */
     { NULL,                 NULL                   }
 };
 
@@ -985,7 +985,7 @@ q_clover(lua_State *L)
     for (i = 0; i < QOP_CLOVER_DIM; i++) {
         lua_pushnumber(L, i + 1); /* [sic] lua indexing */
         lua_gettable(L, 1);
-		UF[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
+                UF[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
         lua_pop(L, 1);
     }
 
