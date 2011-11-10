@@ -51,8 +51,9 @@ save_bb(lua_State *L,
         int t_axis,                  /* 0-based */
         double bc_baryon_t)
 {
-    /* gamma matrix parameterization for left multiplication:
-       Gamma_n [i,j] = gamma_coeff[n][i] * \delta_{i,gamma_ind[n][i]}
+    /* TODO: replace this section with Gamma definitions in gamma_dgr.h 
+       gamma matrix parameterization for left multiplication:
+       Gamma_n [i,j] = gamma_coeff[n][i] * \delta_{gamma_ind[n][i]==j}
                 
                 v[0]    a[0]*v[I[0]]
         Gamma * v[1] =  a[1]*v[I[1]]

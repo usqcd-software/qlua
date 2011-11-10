@@ -18,46 +18,8 @@
 
 #include "h5common.h"
 #include "qparam.h"
+#include "laph_common.h"
 
-
-#define LDIM 4      /* number of lattice dimensions */
-
-/* calculate subgrid dimensions and "lowest corner" coordinate for `lat'
-   TODO check that the subgrid is rectilinear 
- */
-static int 
-calc_subgrid(QDP_Lattice *lat, int dims[], int cmin[])
-{
-    assert(LDIM == QDP_ndim_L(lat));
-    int n_site = QDP_sites_on_node_L(lat);
-    assert(0 < n_site);
-
-    QDP_get_coords_L(lat, cmin, QDP_this_node, 0);
-    int cmax[LDIM];
-    for (int k = 0 ; k < LDIM ; k++)
-        cmax[k] = cmin[k];
-    
-    int coord[LDIM];
-    for (int i_site = 1; i_site < n_site ; i_site++) {
-        QDP_get_coords_L(lat, coord, QDP_this_node, i_site);
-        for (int k = 0 ; k < LDIM ; k++) {
-            if (coord[k] < cmin[k])
-                cmin[k] = coord[k];
-            if (cmax[k] < coord[k])
-                cmax[k] = coord[k];
-        }
-    }
-    
-    int vol = 1;
-    for (int k = 0; k < LDIM; k++) {
-        dims[k] = 1 + cmax[k] - cmin[k];
-        assert(0 < dims[k]);
-        vol *= dims[k];
-    }
-    assert(vol == n_site);
-
-    return 0;
-}
 
 
 static void
@@ -232,7 +194,7 @@ save_squark_wf(lua_State *L,
         int n_v3, QDP_D3_ColorVector **v3,
         int n_mom, const int *mom_list,     /* [n_mom][LDIM-1] */
         int t_axis,                         /* 0-based */
-        int *c0                             /* ref.point for momentum phase */
+        const int *c0                       /* ref.point for momentum phase */
         )
 /* FIXME economize: if v1==v2==v3, copy (not recalculate) 5 of 6=3! times */
 /* TODO save list of momenta in attributes? */
@@ -319,6 +281,7 @@ save_squark_wf(lua_State *L,
         QDP_get_coords_L(S->lat, coord, QDP_this_node, i_qdp);
         int i_lin = i_vol4(coord);
         i_vol4_qdp[i_qdp] = i_lin;
+        /* FIXME do this only for coord[t_axis]==node_t0 */
         for (int i_mom = 0; i_mom < n_mom ; i_mom++) {
             double phase = 0.;
             for (int k = 0; k < LDIM-1; k++)
