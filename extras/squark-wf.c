@@ -392,18 +392,48 @@ q_save_squark_wf(lua_State *L)
     int n_v1, n_v2, n_v3;
     mLattice *S = NULL;
     QDP_D3_ColorVector **v1   = qlua_check_latcolvec_table(L, 3, NULL, -1, &S, &n_v1);
+    if (NULL == v1) {
+        luaL_error(L, "a list of latcolvec expected in #3");
+        goto clearerr_0;
+    }
+
     QDP_D3_ColorVector **v2   = qlua_check_latcolvec_table(L, 4, S, -1, NULL, &n_v2);
+    if (NULL == v2) {
+        luaL_error(L, "a list of latcolvec expected in #4");
+        goto clearerr_1;
+    }
+
     QDP_D3_ColorVector **v3   = qlua_check_latcolvec_table(L, 5, S, -1, NULL, &n_v3);
+    if (NULL == v3) {
+        luaL_error(L, "a list of latcolvec expected in #5");
+        goto clearerr_2;
+    }
+
     int n_mom = 0;
     int *mom_list           = qlua_check_array2d_int(L, 6, -1, LDIM - 1, &n_mom, NULL);
+    if (NULL == mom_list) {
+        luaL_error(L, "list of momenta {{px,py,pz}...} expected in #6");
+        goto clearerr_3;
+    }
+
     int t_axis              = luaL_checkint(L, 7);
+
     int *c0                 = qlua_check_array1d_int(L, 8, LDIM, NULL);
+    if (NULL == c0) {        
+        luaL_error(L, "initial FT coordinate {x0,y0,z0,t0} expected in #8");
+        goto clearerr_4;
+    }
 
     /* TODO call save_quark_wf */
     const char *status = save_squark_wf(L, S, h5_file, h5_path,
             n_v1, v1, n_v2, v2, n_v3, v3,
             n_mom, mom_list,
             t_axis, c0);
+    if (NULL != status) {
+        luaL_error(L, status);
+        goto clearerr_5;
+    }
+
 
     /* cleanup */
     qlua_free(L, v1);
@@ -412,10 +442,14 @@ q_save_squark_wf(lua_State *L)
     qlua_free(L, mom_list);
     qlua_free(L, c0);
 
-    if (NULL != status)
-        luaL_error(L, status);
-
     return 0;
+
+clearerr_5:     qlua_free(L, c0);
+clearerr_4:     qlua_free(L, mom_list);
+clearerr_3:     qlua_free(L, v3);
+clearerr_2:     qlua_free(L, v2);
+clearerr_1:     qlua_free(L, v1);
+clearerr_0:     return 1;
 }
 
 

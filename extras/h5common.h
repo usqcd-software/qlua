@@ -27,4 +27,19 @@ const char *
 h5_close(lua_State *L, h5output *h5o);
 
 
+/* attribute utilities */
+int 
+h5_dspace_equal(lua_State *L, hid_t s1, hid_t s2);
+int     
+h5_check_attr(lua_State *L,
+              hid_t *p_a_id, hid_t obj_id, const char *a_name,
+              hid_t a_type, hid_t a_space);
+int
+h5_check_attr_data(lua_State *L,
+                   hid_t *p_a_id, hid_t obj_id, const char *a_name,
+                   const hid_t a_type, const hid_t a_space,
+                   void *buf, hid_t mem_type);
+char *
+h5_make_str_data(lua_State *L, hsize_t ls_dims[2], const char *s[]);
+
 #endif/*H5COMMON_H_PLJNSRPMGIPXDQUJXFJE*/

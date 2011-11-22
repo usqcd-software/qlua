@@ -512,7 +512,7 @@ q_save_q2pt_list(lua_State *L)
 {
     int argc = lua_gettop(L);
     if (5 != argc) {
-        luaL_error(L, "expect 8 arguments");
+        luaL_error(L, "expect 5 arguments");
         return 1;
     }
 
@@ -526,24 +526,30 @@ q_save_q2pt_list(lua_State *L)
     int n_vec;
     mLattice *S = NULL;
     QDP_D3_ColorVector **v  = qlua_check_latcolvec_table(L, 4, NULL, -1, &S, &n_vec);
+    if (NULL == v) {
+        luaL_error(L, "a list of latcolvec expected in #5");
+        goto clearerr_0;
+    }
+
     
     int t_axis              = luaL_checkint(L, 5);
 
-
     int sol_list_idx = 3;
+    int n_sol;
+    int *tsrc   = NULL, *jvec   = NULL, *jspin  = NULL;
+    QDP_D3_DiracFermion **sol = NULL;
+#if 0
     if (LUA_TTABLE != lua_type(L, sol_list_idx)) {
         luaL_error(L, "list of {tsrc, jvec, jspin, sol} objects expected");
         return 1;
     }
-    int n_sol = lua_objlen(L, sol_list_idx);
-    int *tsrc   = NULL, *jvec   = NULL, *jspin  = NULL;
+    n_sol = lua_objlen(L, sol_list_idx);
     tsrc    = qlua_malloc(L, sizeof(tsrc[0]) * n_sol);
     assert(NULL != tsrc);
     jvec    = qlua_malloc(L, sizeof(jvec[0]) * n_sol);
     assert(NULL != jvec);
     jspin   = qlua_malloc(L, sizeof(jspin[0]) * n_sol);
     assert(NULL != jspin);
-    QDP_D3_DiracFermion **sol = NULL;
     sol     = qlua_malloc(L, sizeof(sol[0]) * n_sol);
     assert(NULL != sol);
 
@@ -584,23 +590,39 @@ q_save_q2pt_list(lua_State *L)
 
         lua_pop(L, 1);
     }
+#else
+    if (qlua_check_laph_sol_list(L, sol_list_idx, S,
+                &n_sol, &tsrc, &jvec, &jspin, &sol, NULL)) {
+        luaL_error(L, "list of {tsrc, jvec, jspin, sol} objects expected");
+        goto clearerr_1;
+    }
+#endif
 
 
     const char *status = save_q2pt_list(L, S, h5_file, h5_path,
                             n_sol, tsrc, jvec, jspin, sol,
                             n_vec, v,
-                            t_axis);
+                            t_axis); 
+    if (NULL != status) {
+        luaL_error(L, status);
+        goto clearerr_2;
+    }
 
     qlua_free(L, tsrc);
     qlua_free(L, jvec);
     qlua_free(L, jspin);
     qlua_free(L, sol);
     qlua_free(L, v);
-    
-    if (NULL != status)
-        luaL_error(L, status);
 
     return 0;
+
+clearerr_2:
+    qlua_free(L, tsrc);
+    qlua_free(L, jvec);
+    qlua_free(L, jspin);
+    qlua_free(L, sol);
+clearerr_1:     qlua_free(L, v);
+clearerr_0:     return 1;
 }
 
 #endif
