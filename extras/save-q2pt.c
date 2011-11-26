@@ -84,6 +84,9 @@ q2pt_h5_close(lua_State *L, q2pt_h5output *q2pt_h5o)
 /* write a portion of data 
    buf      complex array [t1][n1][s1] of 
             q2pt[t1][t2][n1][n2][s1][s2][real/imag?0:1]
+   assume t1, n1, s1 = sink
+          t2, n2, s2 = source
+         
  */
 /*static*/ const char *
 q2pt_h5_write(q2pt_h5output *q2pt_h5o, 
@@ -507,6 +510,14 @@ clearerr_0:
     t_axis
 
  */
+/*DEBUG*/void
+print_sol_list(int n_sol, int *tsrc, int *jvec, int *jspin, QDP_D3_DiracFermion **sol)
+{
+    for (int i = 0 ; i < n_sol; i++)
+        printf("%d\t%d\t%d\t%d\t%p\n", i, tsrc[i], jvec[i], jspin[i], sol[i]);
+}
+
+
 int         
 q_save_q2pt_list(lua_State *L)
 {
@@ -591,7 +602,7 @@ q_save_q2pt_list(lua_State *L)
         lua_pop(L, 1);
     }
 #else
-    if (qlua_check_laph_sol_list(L, sol_list_idx, S,
+    if (qlua_check_laph_sol_list(L, sol_list_idx, S, // <<< error is in thsi function!@@
                 &n_sol, &tsrc, &jvec, &jspin, &sol, NULL)) {
         luaL_error(L, "list of {tsrc, jvec, jspin, sol} objects expected");
         goto clearerr_1;

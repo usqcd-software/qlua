@@ -1031,6 +1031,18 @@ q_latcomplex(lua_State *L)
             
             return 1;
         }
+        case qLatInt: {
+            mLatInt *i = qlua_checkLatInt(L, 2, S);
+            mLatComplex *v = qlua_newLatComplex(L, 1);
+
+            CALL_QDP(L);
+            QDP_D_Real *d = QDP_D_create_R_L(S->lat);
+            QDP_D_R_eq_I(d, i->ptr, *S->qss);
+            QDP_D_C_eq_R(v->ptr, d, *S->qss);
+            QDP_D_destroy_R(d);
+
+            return 1;
+        }
         case qLatReal: {
             mLatReal *d = qlua_checkLatReal(L, 2, S);
             mLatComplex *v = qlua_newLatComplex(L, 1);

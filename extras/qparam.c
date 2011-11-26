@@ -95,7 +95,7 @@ qlua_check_array2d_int(lua_State *L, int idx,
         memcpy(res + i * d2, res0, d2 * sizeof(int));
         qlua_free(L, res0);
     }
-    lua_pop(L, 1);
+//    lua_pop(L, 1); // <---- why did I put it here???
 
     return res;
 }
@@ -129,7 +129,9 @@ qlua_check_latcolvec_table(lua_State *L, int idx,
         mLatColVec3 *ch = qlua_checkLatColVec3(L, lua_gettop(L), S, 3);
         assert(NULL != ch);
         res[i] = ch->ptr;
+
         mLattice *S1 = qlua_ObjLattice(L, lua_gettop(L));
+        lua_pop(L, 1);
         if (NULL == S && 0 == i)
             S = S1;
         else {
@@ -139,6 +141,7 @@ qlua_check_latcolvec_table(lua_State *L, int idx,
                 return NULL;
             }
         }
+
         lua_pop(L, 1);
     }
     if (NULL != have_S)

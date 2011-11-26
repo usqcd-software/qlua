@@ -89,6 +89,7 @@ typedef struct {
 q3pt_check_meta(lua_State *L,
         const char **p_x_name, q3pt_h5output *q3pt_h5o)
 {
+    /* FIXME do only on a masternode */
     int x_status = 0;
     const char *x_name = NULL;
     {   const char *a_name = "latsize";
@@ -732,7 +733,7 @@ q_save_q3pt_0deriv_selectspin(lua_State *L)
             i_t12op[i] = i_t12op_0 + i;
     }
 
-#if 1
+#if 0
     /* print all parameters */
     DEBUG_L1("H5='%s'['%s']\n", h5_file, h5_path);
     DEBUG_L1("max_vec=%d  max_t12op=%d  t_axis=%d  c0={%d,%d,%d,%d}\n",

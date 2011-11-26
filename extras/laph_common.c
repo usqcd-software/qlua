@@ -3,8 +3,11 @@
 
 #include "modules.h"                                                /* DEPS */
 #include "latdirferm.h"                                             /* DEPS */
-
 #include <assert.h>
+
+/**/
+#define DEBUG_LEVEL 1
+#include "debug.h"
 
 /* calculate subgrid dimensions and "lowest corner" coordinate for `lat'
    TODO check that the subgrid is rectilinear 
@@ -62,15 +65,13 @@ qlua_check_laph_sol_list(lua_State *L, int tab_idx, mLattice *S,
         luaL_error(L, "list of {tsrc, jvec, jspin, sol} objects expected");
         return 1;
     }
+
     *n_sol = lua_objlen(L, tab_idx);
     *tsrc  = qlua_malloc(L, sizeof((*tsrc)[0]) * (*n_sol));
-    assert(NULL != *tsrc);
     *jvec  = qlua_malloc(L, sizeof((*jvec)[0]) * (*n_sol));
-    assert(NULL != *jvec);
     *jspin = qlua_malloc(L, sizeof((*jspin)[0]) * (*n_sol));
-    assert(NULL != *jspin);
     *sol   = qlua_malloc(L, sizeof((*sol)[0]) * (*n_sol));
-    assert(NULL != *sol);
+    assert(NULL != *tsrc && NULL != *jvec && NULL != *jspin && NULL != *sol);
 
     for (int isol = 0 ; isol < (*n_sol) ; isol++) {
         lua_pushnumber(L, isol + 1);
@@ -103,6 +104,8 @@ qlua_check_laph_sol_list(lua_State *L, int tab_idx, mLattice *S,
         (*sol)[isol]  = qlua_checkLatDirFerm3(L, -1, S, NCOLOR)->ptr;
         
         mLattice *S1 = qlua_ObjLattice(L, -1);
+        lua_pop(L, 1);
+        assert(NULL != S1);
         if (NULL == S && 0 == isol) 
             S = S1;
         else {
@@ -127,5 +130,5 @@ clearerr_1:
     qlua_free(L, *jspin);
     qlua_free(L, *sol);
 
-    return 0;
+    return 1;
 }

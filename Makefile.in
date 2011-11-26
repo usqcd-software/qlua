@@ -119,6 +119,8 @@ ifeq ("@extras@", "true")
 	      qparam.c \
 	      squark-wf.c \
 	      save-q2pt.c \
+	      save-q3pt.c \
+	      laph_common.c \
 
 
 ifneq ("$(GSL)", "")

@@ -1,0 +1,50 @@
+require('test_fields')
+
+if (nil == test_dir
+       or nil == h5_file          -- hdf path
+       or nil == h5_path          -- hdf path
+       or nil == latsize          -- lattice geometry
+       or nil == t_axis           -- time axis 0 .. D-1
+       or nil == laph_pw_x0       -- starting point for all pw.'s
+       or nil == prop_pw3_sh      -- pw.'s to mult propagator, dep. on spin 
+       or nil == prop_pw_x0       -- starting point for prop mom shift pw
+       or nil == prop_texp_sh     -- exponents to mult propagator, dep. on spin
+       or nil == laph_pw3_list    -- list of pw.'s to generate LapH vectors
+       or nil == laph_col_list    -- list of colors to generate LapH vectors
+       or nil == laph_texp        -- list of exps to generate LapH vectors
+       ) then 
+  print "have unset parameters"
+  os.exit(1)
+end
+
+L = qcd.lattice(latsize)
+
+laph_dep_col = {}
+for j = 1, #laph_col_list do 
+  laph_dep_col[j] = (laph_texp[j] * latR_lin(L, t_axis, 0)):exp()
+  -- FIXME replace 0 --> laph_pw_x0[1+t_axis] (XXX also in test2.py)
+end
+list_v = make_latcolvec_list_pw_c_expt(L, t_axis, laph_pw3_list, laph_pw_x0, 
+              laph_col_list, nil, laph_dep_col)
+
+for tsrc = 0, L[t_axis]-1 do
+  local prop_dep_spin = {}
+  for j_s = 0, 3 do
+    prop_dep_spin[1+j_s] = ((prop_texp_sh[1+j_s] * latR_lin(L, t_axis, tsrc)):exp() *
+                            L:planewave(prop_pw_x0, space2full(prop_pw3_sh[1+j_s], t_axis)))
+    -- FIXME replace latR_lin --> latR_dist (XXX also in test2.py)
+  end
+
+  for j_v = 0, #list_v - 1 do
+    local prop = make_4latdirferm_t(list_v[1+j_v], t_axis, 
+                    {0,0,0}, {0,0,0, tsrc}, prop_dep_spin)
+    for j_s = 0, 3 do
+      qcd.save_q2pt(test_dir .. '/' .. h5_file, h5_path, 
+                    tsrc, j_v, j_s, 
+                    prop[1+j_s],
+                    list_v, t_axis)
+    end
+  end
+end
+
+print("QLUA_RUN_SUCCESS")

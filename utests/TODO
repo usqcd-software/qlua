@@ -1,0 +1,3 @@
+* put qlua tests into python test files
+* make test_run.py callable independent of cwd
+* check logs within individual tests, just like as check_output_data

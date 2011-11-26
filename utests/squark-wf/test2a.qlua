@@ -1,0 +1,32 @@
+require("test_fields")
+
+if (nil == test_dir
+       or nil == h5_file          -- hdf path
+       or nil == h5_path          -- hdf path
+       or nil == latsize          -- lattice geometry
+       or nil == t_axis           -- time axis 0 .. D-1
+       or nil == ft_p3_list       -- projection momenta list
+       or nil == ft_x0            -- starting point for all FTs
+       or nil == laph_pw3_list    -- list of pw.'s to generate LapH vectors (spatial mom)
+       or nil == laph_pw_x0       -- origin for p.w. in test fields (full coord)
+       or nil == laph_col_list    -- list of colvecs to generate LapH vectors
+       or nil == laph_texp        -- list of colvecs to generate LapH vectors
+       ) then 
+  print "have unset parameters"
+  os.exit(1)          
+end   
+
+L = qcd.lattice(latsize)
+v012 = { 
+  make_latcolvec_list_pw_c_expt(L, t_axis, laph_pw3_list, laph_pw_x0, laph_col_list, 
+        vec_const(#laph_col_list, (laph_texp[1] * latR_lin(L, t_axis, 0)):exp())),
+  make_latcolvec_list_pw_c_expt(L, t_axis, laph_pw3_list, laph_pw_x0, laph_col_list,
+        vec_const(#laph_col_list, (laph_texp[2] * latR_lin(L, t_axis, 0)):exp())),
+  make_latcolvec_list_pw_c_expt(L, t_axis, laph_pw3_list, laph_pw_x0, laph_col_list, 
+        vec_const(#laph_col_list, (laph_texp[3] * latR_lin(L, t_axis, 0)):exp())) }
+
+qcd.save_squark_wf(test_dir .. '/' .. h5_file, h5_path, 
+                   v012[1], v012[2], v012[3],
+                   ft_p3_list, t_axis, ft_x0)
+
+print "QLUA_RUN_SUCCESS\n"

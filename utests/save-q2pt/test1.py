@@ -191,8 +191,8 @@ def timer():
 
 if (__name__ == '__main__'):
     qlua_bin = './qlua'
-    for qlua_test in [ 'utests/save-q2pt/test1a.qlua', 
-                       'utests/save-q2pt/test1b.qlua']:
+    for qlua_test in [ 'utests/save-q2pt/test1a.qlua',
+                       'utests/save-q2pt/test1b.qlua' ]:
         print "# N\tname\t\tqlua-exec\tck-out"
         print "# qlua_bin = ", qlua_bin, "qlua_test = ", qlua_test
 

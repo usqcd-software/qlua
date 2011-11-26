@@ -79,7 +79,7 @@ list_v=make_test_V(src0,
                    t_axis)
 for tsrc = 0, geom[1+t_axis]-1 do
   local sol_list = {}
-  local cnt = 0;
+  local cnt = 0
   for j_v = 0, #list_v - 1 do
     for j_s = 0, 3 do
       local prop = make_prop(list_v[1+j_v], tsrc, j_s, 
