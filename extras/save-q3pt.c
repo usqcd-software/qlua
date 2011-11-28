@@ -238,6 +238,7 @@ q3pt_h5_open_write(lua_State *L,
     q3pt_h5o->n_t12op       = n_t12op;
     q3pt_h5o->n_t12op_max   = n_t12op_max;
     
+    /* FIXME do I really need to save these tables? */
     q3pt_h5o->i_t12op       = qlua_malloc(L, sizeof(q3pt_h5o->i_t12op[0]) * n_t12op);
     assert(NULL != q3pt_h5o->i_t12op);
     q3pt_h5o->t_op          = qlua_malloc(L, sizeof(q3pt_h5o->t_op[0]) * n_t12op);
@@ -294,14 +295,18 @@ q3pt_h5_close(lua_State *L, q3pt_h5output *q3pt_h5o)
 }
 
 /*static*/ const char *
-q3pt_h5_write(q3pt_h5output *q3pt_h5o, int i_t12op,
-        int i_vec_1, int i_vec_2, int s1, int s2,
+q3pt_h5_write(q3pt_h5output *q3pt_h5o, 
+        int i_t12op,    /* index of (tsrc, tsnk, t_op) combination */
+        int i_vec_1,    /* snk vec */
+        int i_vec_2,    /* src vec */
+        int s1,         /* snk spin */
+        int s2,         /* src spin */
         const gsl_complex *buf)
 /* save [n_op, n_qmom, re/im] 
    datafile: [i_t12op, n1, n2, s1, s2, i_op, i_qmom, re/im]
  */
 {
-    hsize_t dset_off[8] = { q3pt_h5o->i_t12op[i_t12op],
+    hsize_t dset_off[8] = { i_t12op,
                             i_vec_1,
                             i_vec_2,
                             s1,
@@ -378,7 +383,8 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     int node_lt = node_latsize[t_axis];
     int node_t0 = node_x0[t_axis];
     int vol3_local  = 1,
-        vol4_local  = 1;
+        vol4_local  = 1,
+        vol3        = 1;
     for (int i=0, k=0 ; i < LDIM ; i++) {
         vol4_local  *= node_latsize[i];
         if (i == t_axis)
@@ -387,6 +393,7 @@ save_q3pt_0deriv_selectspin(lua_State *L,
         vol3_dim[k] = node_latsize[i];
         k++;
         vol3_local  *= node_latsize[i];
+        vol3        *= latsize[i];
     }       
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
 #if LDIM == 4  
@@ -394,7 +401,7 @@ save_q3pt_0deriv_selectspin(lua_State *L,
 #define i_vol3(c) ((c)[vol3_axis[0]] + vol3_dim[0]*(\
                    (c)[vol3_axis[1]] + vol3_dim[1]*(\
                    (c)[vol3_axis[2]])))
-#define i_X_vol3(X,c) (i_vol3(c) + vol3_local*(X))
+#define i_X_vol3(X,c) (i_vol3(c) + vol3_local*(X)) /* TODO eliminate this obscure macro */
 #define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
 #define mom(i_qmom, k)   ((qmom_list)[(i_qmom)*(LDIM-1) + k])
 #else
@@ -427,27 +434,26 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     for (int i_qdp = 0 ; i_qdp < vol4_local ; i_qdp++) {
         int coord[LDIM];
         QDP_get_coords_L(S->lat, coord, QDP_this_node, i_qdp);
-        if (coord[t_axis] != node_t0)
-            continue;
-        for (int i_qmom = 0; i_qmom < n_qmom ; i_qmom++) {
-            double phase = 0.;
-            for (int k = 0; k < LDIM - 1; k++)
-                phase += mom(i_qmom, k) * (coord[vol3_axis[k]] - c0[vol3_axis[k]])
-                            / (double)latsize[k];
-            exp_iqx[i_X_vol3(i_qmom, coord)] = gsl_complex_polar(1., phase*2*M_PI);
+        if (coord[t_axis] == node_t0) {
+            for (int i_qmom = 0; i_qmom < n_qmom ; i_qmom++) {
+                double phase = 0.;
+                for (int k = 0; k < LDIM - 1; k++)
+                    phase += mom(i_qmom, k) * (coord[vol3_axis[k]] 
+                                - c0[vol3_axis[k]]) / (double)latsize[k];
+                exp_iqx[i_X_vol3(i_qmom, coord)] = 
+                                gsl_complex_polar(1. / vol3, phase*2*M_PI);
+            }
         }
     }
 
     /* HDF5 output */
     q3pt_h5output q3pt_h5o;
-#if 1
     if (NULL != (err_str = q3pt_h5_open_write(L, &q3pt_h5o,
                     h5_file, h5_path, latsize, n_vec_max,
                     t_src, t_snk, n_t12op, n_t12op_max, i_t12op, t_op,
                     NSPIN*NSPIN, n_qmom, qmom_list))) {
         goto clearerr_0;
     }
-#endif
     const char *x_attr;
     if (q3pt_check_meta(L, &x_attr, &q3pt_h5o)) {
         err_str = "cannot update meta info";
@@ -477,12 +483,12 @@ save_q3pt_0deriv_selectspin(lua_State *L,
             (double *)q3pt_matr, vol3_local, NSPIN * NSPIN);
 #define Q3PTmatr(ix3, iG) (q3pt_matr[(iG) + (NSPIN)*(NSPIN)*(ix3)])
 
-    /* q3pt_qmom [i_qmom, iGamma] */
+    /* q3pt_qmom [iGamma, i_qmom] */
     gsl_complex *q3pt_mom_matr = NULL;
     q3pt_mom_matr = qlua_malloc(L, sizeof(q3pt_mom_matr[0]) * n_qmom * NSPIN * NSPIN);
     assert(NULL != q3pt_mom_matr);
     gsl_matrix_complex_view gsl_q3pt_mom = gsl_matrix_complex_view_array(
-            (double *)q3pt_mom_matr, n_qmom, NSPIN * NSPIN);
+            (double *)q3pt_mom_matr, NSPIN * NSPIN, n_qmom);
     gsl_vector_complex_view gsl_q3pt_mom_vec = gsl_vector_complex_view_array(
             (double *)q3pt_mom_matr, n_qmom * NSPIN * NSPIN);
 
@@ -537,8 +543,8 @@ save_q3pt_0deriv_selectspin(lua_State *L,
 #undef Q3tr
                     }
                     /* Fourier transform */
-                    gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, gsl_complex_rect(1, 0),
-                            &gsl_exp_iqx.matrix, &gsl_q3pt_matr.matrix, 
+                    gsl_blas_zgemm(CblasTrans, CblasTrans, gsl_complex_rect(1,0),
+                            &gsl_q3pt_matr.matrix, &gsl_exp_iqx.matrix,
                             gsl_complex_rect(0,0), &gsl_q3pt_mom.matrix);
                 } else {
                     gsl_vector_complex_set_all(&gsl_q3pt_mom_vec.vector, 
@@ -550,6 +556,8 @@ save_q3pt_0deriv_selectspin(lua_State *L,
                 /* multiply sol_snk with gamma5 from left: 
                    use GammaN_{ij} = A^N_i \delta_{I^N_i, j} 
                                  === A^{N(T)}_j \delta_{i,I^{N(T)}_j}
+                   (need transposed Gamma because we have 'j' from spin_snk, 
+                    not i that we have to use in the output table)
                  */
                 int spin_snk_orig = spin_snk[i_snk];
                 const int GTx_ind[NSPIN * NSPIN][NSPIN] = GammaT_dot_ind;
@@ -559,10 +567,10 @@ save_q3pt_0deriv_selectspin(lua_State *L,
                 gsl_blas_zscal(mul_snk, &gsl_q3pt_mom_vec.vector);
 
                 /* save */
-                /* FIXME change order [i_qmom, iGamma] -> [iGamma, i_qmom] */
+                /* order [iGamma, i_qmom] */
                 if (NULL != (err_str = (q3pt_h5_write(&q3pt_h5o, i_t12op[i_t], 
-                                    vec_src[i_src], vec_snk[i_snk], 
-                                    spin_src[i_src], spin_snk_conj, 
+                                    vec_snk[i_snk], vec_src[i_src],
+                                    spin_snk_conj, spin_src[i_src], 
                                     q3pt_mom_matr)))) {
                     goto clearerr_2;
                 }
@@ -584,7 +592,6 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     }
     qlua_free(L, tx2iqdp);
     qlua_free(L, exp_iqx);
-    DEBUG_LEAVE;
     return NULL;
 
 
@@ -624,7 +631,7 @@ clearerr_0:
     qcd.save_q3pt_selectspin(h5_file, h5_path,
                              max_vec, src_list, snk_list,
                              t_axis, c0, qmom_list
-                             max_t12op, t12op_list, i_t12op)
+                             t12op_list, i_t12op, max_t12op)
     h5_file     HDF5 file name
     h5_path     keypath
     max_vec     maximum number of laph-vectors
@@ -633,9 +640,9 @@ clearerr_0:
     t_axis      time axis
     c0          initial coordinates for FT
     qmom_list   insertion momenta
-    max_t12op   maximal number of (t_src, t_snk, t_op) combinations
     t_op_list   list of t_op
     i_t12op     a starting number OR a list [len(t_op_list)] of indices
+    max_t12op   maximal number of (t_src, t_snk, t_op) combinations
 */
 int
 q_save_q3pt_0deriv_selectspin(lua_State *L)
@@ -695,33 +702,34 @@ q_save_q3pt_0deriv_selectspin(lua_State *L)
         goto clearerr_3;
     }
 
-    int max_t12op           = luaL_checkint(L, 9);
+    /* FIXME handle case when max_t12op is not set (==nil) */
+    int max_t12op           = luaL_checkint(L, 11); 
 
     int n_t12op;
-    int *t_op = qlua_check_array1d_int(L, 10, -1, &n_t12op);
+    int *t_op = qlua_check_array1d_int(L, 9, -1, &n_t12op);
     if (NULL == t_op) {
-        luaL_error(L, "list of {t_op,...} expected in #10");
+        luaL_error(L, "list of {t_op,...} expected in #9");
         goto clearerr_4;
     }
 
     int *i_t12op = NULL;
-    if (LUA_TTABLE == lua_type(L, 11)) { 
+    if (LUA_TTABLE == lua_type(L, 10)) { 
         /* initialize i_t12op from a list */
-        i_t12op = qlua_check_array1d_int(L, 11, n_t12op, NULL);
+        i_t12op = qlua_check_array1d_int(L, 10, n_t12op, NULL);
         if (NULL == i_t12op) {
-            luaL_error(L, "list {i_t12op,...} must match list {t_op,...} in #11");
+            luaL_error(L, "list {i_t12op,...} must match list {t_op,...} in #10");
             goto clearerr_5;
         }
         for (int i = 0; i < n_t12op ; i++) {
             if (max_t12op <= i_t12op[i]) {
-                luaL_error(L, "i_t12op=%d exceeds max_t12op=%d in #11[%d]", 
+                luaL_error(L, "i_t12op=%d exceeds max_t12op=%d in #10[%d]", 
                            i_t12op[i], max_t12op, i);
                 goto clearerr_6;
             }
         }
-    } else if (LUA_TNUMBER == lua_type(L, 11)) {    
+    } else if (LUA_TNUMBER == lua_type(L, 10)) {
         /* initialize i_t12op[] with [x, x+n) */
-        int i_t12op_0 = luaL_checkint(L, 11);
+        int i_t12op_0 = luaL_checkint(L, 10);
         if (i_t12op_0 < 0 || max_t12op < i_t12op_0 + n_t12op) {
             luaL_error(L, "incorrect range [%d, %d) for i_t12op", 
                     i_t12op_0, i_t12op + n_t12op);
@@ -788,7 +796,6 @@ q_save_q3pt_0deriv_selectspin(lua_State *L)
     qlua_free(L, spin_src);
     qlua_free(L, sol_src);
     
-    DEBUG_LEAVE;
     return 0;    
 
 

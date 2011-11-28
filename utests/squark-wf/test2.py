@@ -56,9 +56,9 @@ def make_test_res(geom, src0, t_axis, list_psrc, list_mom, list_col, list_exp, c
     #print col012[None, :, None, :, None, :, None, None].shape
     #print mom012[:, None, :, None, :, None, None, :].shape
     #print exp012[..., :, None].shape
-    return (vol3* col012[None, :, None, :, None, :, None, None] \
-                * mom012[:, None, :, None, :, None, None, :] \
-                * exp012[..., :, None]).reshape((n_v, n_v, n_v, lt, n_p))
+    return (  col012[None, :, None, :, None, :, None, None] \
+            * mom012[:, None, :, None, :, None, None, :] \
+            * exp012[..., :, None]).reshape((n_v, n_v, n_v, lt, n_p))
 
 def make_test_res_p(p):
     return make_test_res(

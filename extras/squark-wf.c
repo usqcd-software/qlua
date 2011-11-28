@@ -220,7 +220,8 @@ save_squark_wf(lua_State *L,
     int node_lt = node_latsize[t_axis];
     int node_t0 = node_x0[t_axis];
     int vol3_local  = 1,
-        vol4_local  = 1;
+        vol4_local  = 1,
+        vol3        = 1;
     for (int i=0, k=0 ; i < LDIM ; i++) {
         vol4_local  *= node_latsize[i];
         if (i == t_axis)
@@ -229,6 +230,7 @@ save_squark_wf(lua_State *L,
         vol3_dim[k] = node_latsize[i];
         k++;
         vol3_local  *= node_latsize[i];
+        vol3        *= latsize[i];
     }
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
     
@@ -240,6 +242,7 @@ save_squark_wf(lua_State *L,
     }
 
     /* expose fields */
+    /* FIXME handle case when fields are the same QDP objects */
     QLA_D3_ColorVector **qla_v[3];
     qla_v[0] = qlua_malloc(L, sizeof(qla_v[0][0]) *n_v1);
     for (int i = 0 ; i < n_v1 ; i++)
@@ -281,13 +284,17 @@ save_squark_wf(lua_State *L,
         QDP_get_coords_L(S->lat, coord, QDP_this_node, i_qdp);
         int i_lin = i_vol4(coord);
         i_vol4_qdp[i_qdp] = i_lin;
-        /* FIXME do this only for coord[t_axis]==node_t0 */
-        for (int i_mom = 0; i_mom < n_mom ; i_mom++) {
-            double phase = 0.;
-            for (int k = 0; k < LDIM-1; k++)
-                phase += mom(i_mom, k) * (coord[vol3_axis[k]] - c0[vol3_axis[k]]) 
-                            / (double)latsize[k];
-            exp_mipx[i_X_vol3(i_mom, coord)] = gsl_complex_polar(1., -phase*2*M_PI);
+        if (coord[t_axis] == node_t0) {
+            /* FT matrix ; XXX note the (1/V_3) factor */
+            for (int i_mom = 0; i_mom < n_mom ; i_mom++) {
+                double phase = 0.;
+                for (int k = 0; k < LDIM-1; k++)
+                    phase += mom(i_mom, k) * (coord[vol3_axis[k]] 
+                            - c0[vol3_axis[k]]) / (double)latsize[k];
+                /* FIXME address matrix elements with gsl func/macro */ 
+                exp_mipx[i_X_vol3(i_mom, coord)] = 
+                            gsl_complex_polar(1. / vol3, -phase*2*M_PI);
+            }
         }
     }
     
@@ -322,6 +329,7 @@ save_squark_wf(lua_State *L,
                                                     qla_v[2][k][i_site]);
             
                 memset(v123_ft, 0, sizeof(v123_ft[0]) * lt * n_mom);
+                /* do FT */
                 gsl_blas_zgemm(CblasNoTrans, CblasTrans, gsl_complex_rect(1,0), 
                         &gsl_v123.matrix, &gsl_exp_mipx.matrix,
                         gsl_complex_rect(0,0), &gsl_v123_ft.matrix);

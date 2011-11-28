@@ -1,5 +1,38 @@
 import sys
 import re
+import numpy as np
+
+gamma_dgr = np.array([ 
+    [[  0,  0,  0, 1j], [  0,  0, 1j,  0], [  0,-1j,  0,  0], [-1j,  0,  0,  0]],
+    [[  0,  0,  0, -1], [  0,  0,  1,  0], [  0,  1,  0,  0], [ -1,  0,  0,  0]],
+    [[  0,  0, 1j,  0], [  0,  0,  0,-1j], [-1j,  0,  0,  0], [  0, 1j,  0,  0]],
+    [[  0,  0,  1,  0], [  0,  0,  0,  1], [  1,  0,  0,  0], [  0,  1,  0,  0]] ])
+
+def make_Gamma16(g_list):
+    assert 4 == len(g_list)
+    g1, g2, g3, g4 = g_list
+    from numpy import dot, identity
+    return \
+            [ identity(4),                      # 0 = 0000
+              g1,                               # 1 = 0001
+              g2,                               # 2 = 0010
+              dot(g1, g2),                      # 3 = 0011
+              g3,                               # 4 = 0100
+              dot(g1, g3),                      # 5 = 0101
+              dot(g2, g3),                      # 6 = 0110
+              dot(dot(g1, g2), g3),             # 7 = 0111
+
+              g4,                               # 8 = 1000
+              dot(g1, g4),                      # 9 = 1001
+              dot(g2, g4),                      #10 = 1010
+              dot(dot(g1, g2), g4),             #11 = 1011
+              dot(g3, g4),                      #12 = 1100
+              dot(dot(g1, g3), g4),             #13 = 1101
+              dot(dot(g2, g3), g4),             #14 = 1110
+              dot(dot(g1, g2), dot(g3, g4)) ]   #15 = 1111
+
+Gamma16_dgr = np.array(make_Gamma16(gamma_dgr))
+
 
 def qlua_string(v):
     if list == type(v):
@@ -82,7 +115,7 @@ def pw_prod_matr(latsize, *p_x0_list):
 
     def ft_val(*idx):
         pp = np.array([ p[i][idx[i]] for i in range(len(idx)) ])
-        if np.allclose(0, pp.sum(axis=0)):
+        if np.allclose(0, pp.sum(axis=0) % ls):
             phase = (pp[1:] * (xx[1] - xx[1:]) / ls).sum()
             return np.exp(2j * math.pi * phase)
         else: 

@@ -170,14 +170,14 @@ function latR_lin(L, axis, x0)
   return L:Real(((lt - x0) + L:pcoord(axis)) % lt)
 end
 -- linear function in 'axis' direction, starting at x0 and growing in neg. direction
-function latI_rlin(L, axis, x0)
+function latR_rlin(L, axis, x0)
   if nil == x0 then x0 = 0 end
   local lt = L[axis]
   x0 = x0 % lt
-  return ((lt + x0) - L:pcoord(axis)) % lt
+  return L:Real(((lt + x0) - L:pcoord(axis)) % lt)
 end
 -- linear function in 'axis' direction, starting at x0
-function latI_dist(L, axis, x0)
+function latR_dist(L, axis, x0)
   return L:Real(qcd.min(latI_lin(L, axis, x0), latI_rlin(L, axis, x0)))
 end
 
