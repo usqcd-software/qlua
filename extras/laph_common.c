@@ -132,3 +132,10 @@ clearerr_1:
 
     return 1;
 }
+
+int
+is_masternode()
+{
+    return (0 == QDP_this_node ||       /* masternode */
+            QDP_this_node < 0);         /* qdp not initialized */
+}

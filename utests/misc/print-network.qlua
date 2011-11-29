@@ -1,0 +1,28 @@
+package.path = package.path .. ';qlib-lhpc/?.qlua;lhpc/?.qlua'
+
+require "stdlib"
+
+function print_network_settings()
+  ms, s = qcd.network()
+  s_str=''
+  if s[1] then
+    s_str = string.format('%3d', s[1])
+    for i = 2, #s do s_str = s_str .. string.format(' %3d', s[i]) end
+  end
+  printf("network: %d nodes [%s]\n", ms, s_str)
+end
+function print_subgrid_settings(L)
+  ln = L:network()
+  ln_str = string.format('%3d', ln[1])
+  sg_str = string.format('%3d', L[0] / ln[1])
+  for i = 2, #ln do
+    ln_str = ln_str .. string.format(' %3d', ln[i])
+    sg_str = sg_str .. string.format(' %3d', L[i-1] / ln[i])
+  end
+  printf("%s: network=[%s] subgrid=[%s]\n", tostring(L), ln_str, sg_str)
+end
+
+
+print_network_settings()
+print_subgrid_settings(L)
+

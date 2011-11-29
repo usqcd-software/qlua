@@ -18,4 +18,5 @@ qlua_check_laph_sol_list(lua_State *L, int tab_idx, mLattice *S,
                int *n_sol, int **tsrc, int **jvec, int **jspin,
                QDP_D3_DiracFermion ***sol, mLattice **have_S);
 
+int is_masternode();
 #endif/*LAPH_COMMON_H_Trisdx0uvm7Huybtrmme*/

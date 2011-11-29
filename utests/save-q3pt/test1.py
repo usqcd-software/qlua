@@ -20,6 +20,7 @@ def make_metainfo_p(p):
         'index_order'   : [ 'i_t12op', 'vec_snk', 'vec_src', 'spin_snk', 'spin_src',
                             'i_op', 'i_qmom', 're_im' ],
         'latsize'       : np.array(p['latsize']),
+        't_axis'        : p['t_axis'],
         'nvec'          : len(p['laph_pw3_list']) * len(p['laph_col_list']), 
         'qmom'          : np.array(p['ft_p3_list']),
         't12op'         : np.array(make_t12op_full_list(0, p['latsize'][p['t_axis']], 

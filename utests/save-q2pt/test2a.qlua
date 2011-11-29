@@ -18,6 +18,7 @@ if (nil == test_dir
 end
 
 L = qcd.lattice(latsize)
+print_subgrid_settings(L)
 
 laph_dep_col = {}
 for j = 1, #laph_col_list do 
@@ -47,4 +48,4 @@ for tsrc = 0, L[t_axis]-1 do
   end
 end
 
-print("QLUA_RUN_SUCCESS")
+printf("QLUA_RUN_SUCCESS\n")

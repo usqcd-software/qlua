@@ -1,3 +1,5 @@
+#!/usr/bin/env python2.5
+
 import sys
 import re
 import numpy as np
@@ -70,9 +72,22 @@ def run_qlua_sh(qlua_bin, qlua_test_param, qlua_test_src,
 def run_qlua_mpi(qlua_bin, qlua_test_param, qlua_test_src, 
             qlua_stdout, qlua_stderr,
             **run_param):
-    # TODO implement actual call
-    raise NotImplementedError
-    return False 
+    import os
+    if (run_param.has_key('mpi')): mpiopts = run_param['mpi']
+    else: mpiopts = ''
+    if (run_param.has_key('qmp')): qmpopts = run_param['qmp']
+    else: qmpopts = ''
+    cmd = 'mpirun %s %s %s %s %s >%s 2>%s </dev/null ' % (
+                    mpiopts,
+                    qlua_bin, 
+                    qmpopts,
+                    qlua_test_param,
+                    qlua_test_src,
+                    qlua_stdout, 
+                    qlua_stderr)
+    print cmd
+    res = os.system(cmd)
+    return (0 == res)
 
 def run_qlua_cobalt(qlua_bin, qlua_test_param, qlua_test_src, 
             qlua_stdout, qlua_stderr,

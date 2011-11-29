@@ -20,7 +20,15 @@
 #include "qparam.h"
 #include "laph_common.h"
 
-
+#define V123_INDEX_STRMAX   16
+const char *v123_index_order[] = {
+    "vec1",
+    "vec2",
+    "vec3",
+    "t",
+    "i_mom",
+    "re_im"
+};
 
 static void
 cross_VV(QLA_D3_ColorVector *r, 
@@ -65,18 +73,68 @@ typedef struct {
     hid_t       buf_dspace;
 } v123_h5output;
 
+
+/*static*/int
+sqwf_check_meta(lua_State *L,
+        const char **p_x_name, 
+        v123_h5output *v123_h5o,
+        const int *latsize, int t_axis, 
+        int n_ft_mom, const int *ft_mom, const int *ft_x0)
+{
+    if (! is_masternode())
+        return 0;
+
+    hid_t d_id = v123_h5o->dset;
+    int x_status = 0;
+    const char *x_name = NULL;
+    if ((x_status = h5_check_attr_str_list(L, NULL, d_id, "index_order", 
+                        sizeof(v123_index_order) / sizeof(v123_index_order[0]),
+                        V123_INDEX_STRMAX, v123_index_order)) < 0) {
+        x_name = "index_order";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
+                            "latsize", LDIM, latsize)) < 0) {
+        x_name = "latsize";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_int(L, NULL, d_id,
+                        "t_axis", &t_axis)) < 0) {
+        x_name = "t_axis";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array2d_int(L, NULL, d_id,
+                        "ft_mom", n_ft_mom, LDIM - 1, ft_mom)) < 0) {
+        x_name = "ft_mom";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
+                            "ft_x0", LDIM, ft_x0)) < 0) {
+        x_name = "ft_x0";
+        goto clearerr_0;
+    }
+
+    return 0;
+
+clearerr_0:
+
+    if (NULL != p_x_name)
+        *p_x_name = x_name;
+    return x_status;
+}
+
 static const char *
 h5_open_v123ft_write(v123_h5output *h5o, 
         const char *h5file, const char *h5path,
         int lt, int n_mom, 
         int n_v1, int n_v2, int n_v3)
 {
+    if (! is_masternode())
+        return NULL;
+
     H5E_auto_t old_ehandler;
     void *old_client_data;
     hid_t error_stack = H5E_DEFAULT;
-
-    if (0 != QDP_this_node)
-        return NULL;
 
     assert(NULL != h5o &&
             NULL != h5file &&
@@ -150,7 +208,7 @@ h5_open_v123ft_write(v123_h5output *h5o,
 static const char *
 h5_close_v123ft(v123_h5output *h5o)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
 
     if (H5Sclose(h5o->dspace) 
@@ -167,7 +225,7 @@ static const char *
 h5_save_v123ft(v123_h5output *h5o, const gsl_complex *v123_ft, 
         int i_v1, int i_v2, int i_v3)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
 
     hsize_t dset_off[6] = { i_v1, i_v2, i_v3,       0,          0, 0 };
@@ -257,9 +315,9 @@ save_squark_wf(lua_State *L,
 
 #if LDIM == 4  
     assert(LDIM == S->rank);
-#define i_vol3(c) ((c)[vol3_axis[0]] + vol3_dim[0] * (\
-                   (c)[vol3_axis[1]] + vol3_dim[1] * (\
-                   (c)[vol3_axis[2]])))
+#define i_vol3(c) ((c)[vol3_axis[0]] - (node_x0)[vol3_axis[0]] + vol3_dim[0]*(\
+                   (c)[vol3_axis[1]] - (node_x0)[vol3_axis[1]] + vol3_dim[1]*(\
+                   (c)[vol3_axis[2]] - (node_x0)[vol3_axis[2]])))
 #define i_X_vol3(X,c) (i_vol3(c) + vol3_local * (X))
 #define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
 #define mom(i_mom, k)   ((mom_list)[(i_mom)*(LDIM-1) + k])

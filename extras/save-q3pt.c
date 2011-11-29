@@ -51,6 +51,7 @@ typedef struct {
     h5output    h5o;
 
     int latsize[LDIM];
+    int t_axis;
     int n_vec;
 
     int t_src, t_snk;       /* source and sink location: for Attr checking */
@@ -82,35 +83,43 @@ typedef struct {
             -1      cannot open+read or creat+write an attribute
             -2      wrong data type of an attribute
             -3      wrong data space of an attribute
-            -4      wrong data of an attribute
- 
+            -4      wrong data of an attribute 
 */
 /*static */int 
 q3pt_check_meta(lua_State *L,
         const char **p_x_name, q3pt_h5output *q3pt_h5o)
 {
-    /* FIXME do only on a masternode */
+    if (! is_masternode())
+        return 0;
+
+    hid_t d_id = q3pt_h5o->h5o.dset;
     int x_status = 0;
     const char *x_name = NULL;
-    if ((x_status = h5_check_attr_array1d_int(L, NULL, q3pt_h5o->h5o.dset, 
+    /* TODO add 'ft_x0', 't_axis' */
+    if ((x_status = h5_check_attr_str_list(L, NULL, d_id, 
+                    "index_order", sizeof(q3pt_index_order) / sizeof(q3pt_index_order[0]), 
+                    Q3PT_INDEX_STRMAX, q3pt_index_order)) < 0) {
+        x_name = "index_order";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id, 
                             "latsize", LDIM, q3pt_h5o->latsize)) < 0) {
         x_name = "latsize";
         goto clearerr_0;
     }
-    if ((x_status = h5_check_attr_int(L, NULL, q3pt_h5o->h5o.dset,
+    if ((x_status = h5_check_attr_int(L, NULL, d_id,
+                        "t_axis", &(q3pt_h5o->t_axis))) < 0) {
+        x_name = "t_axis";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_int(L, NULL, d_id,
                         "nvec", &(q3pt_h5o->n_vec))) < 0) {
         x_name = "nvec";
         goto clearerr_0;
     }
-    if ((x_status = h5_check_attr_array2d_int(L, NULL, q3pt_h5o->h5o.dset, 
+    if ((x_status = h5_check_attr_array2d_int(L, NULL, d_id, 
                             "qmom", q3pt_h5o->n_qmom, LDIM - 1, q3pt_h5o->qmom)) < 0) {
         x_name = "qmom";
-        goto clearerr_0;
-    }
-    if ((x_status = h5_check_attr_str_list(L, NULL, q3pt_h5o->h5o.dset, 
-                    "index_order", sizeof(q3pt_index_order) / sizeof(q3pt_index_order[0]), 
-                    Q3PT_INDEX_STRMAX, q3pt_index_order)) < 0) {
-        x_name = "index_order";
         goto clearerr_0;
     }
     {   /* TODO make subspace update */
@@ -118,7 +127,7 @@ q3pt_check_meta(lua_State *L,
         hsize_t ls_dims[] = { q3pt_h5o->n_t12op_max, 3 };
         hid_t a_space = H5Screate_simple(2, ls_dims, NULL);
         hid_t a_id;
-        x_status = h5_check_attr(L, &a_id, q3pt_h5o->h5o.dset,
+        x_status = h5_check_attr(L, &a_id, d_id,
                     a_name, H5T_STD_I32BE, a_space);
         H5Sclose(a_space);
         if (x_status < 0) {
@@ -179,7 +188,7 @@ clearerr_0:
 q3pt_h5_open_write(lua_State *L,
         q3pt_h5output *q3pt_h5o,
         const char *h5file, const char *h5path,
-        const int *latsize, int n_vec,
+        const int *latsize, int t_axis, int n_vec,
         int t_src, int t_snk,
         int n_t12op, int n_t12op_max, const int *i_t12op, const int *t_op,
         int n_op,
@@ -189,7 +198,7 @@ q3pt_h5_open_write(lua_State *L,
     
  */
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
 
     const char *err_str = NULL;
@@ -202,6 +211,7 @@ q3pt_h5_open_write(lua_State *L,
     for (int d = 0 ; d < LDIM ; d++)
         q3pt_h5o->latsize[d] = latsize[d];
     q3pt_h5o->n_vec         = n_vec;
+    q3pt_h5o->t_axis        = t_axis;
     q3pt_h5o->t_src         = t_src;
     q3pt_h5o->t_snk         = t_snk;
     q3pt_h5o->n_op          = n_op;
@@ -250,8 +260,9 @@ clearerr_0:
 /*static */ const char *
 q3pt_h5_close(lua_State *L, q3pt_h5output *q3pt_h5o)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
+
     if (NULL != q3pt_h5o->i_t12op) 
         qlua_free(L, q3pt_h5o->i_t12op);
     if (NULL != q3pt_h5o->t_op)
@@ -277,6 +288,9 @@ q3pt_h5_write(q3pt_h5output *q3pt_h5o,
    datafile: [i_t12op, n1, n2, s1, s2, i_op, i_qmom, re/im]
  */
 {
+    if (! is_masternode())
+        return NULL;
+
     hsize_t dset_off[8] = { i_t12op,
                             i_vec_1,
                             i_vec_2,
@@ -369,9 +383,9 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
 #if LDIM == 4  
     assert(LDIM == S->rank);
-#define i_vol3(c) ((c)[vol3_axis[0]] + vol3_dim[0]*(\
-                   (c)[vol3_axis[1]] + vol3_dim[1]*(\
-                   (c)[vol3_axis[2]])))
+#define i_vol3(c) ((c)[vol3_axis[0]] - (node_x0)[vol3_axis[0]] + vol3_dim[0]*(\
+                   (c)[vol3_axis[1]] - (node_x0)[vol3_axis[1]] + vol3_dim[1]*(\
+                   (c)[vol3_axis[2]] - (node_x0)[vol3_axis[2]])))
 #define i_X_vol3(X,c) (i_vol3(c) + vol3_local*(X)) /* TODO eliminate this obscure macro */
 #define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
 #define mom(i_qmom, k)   ((qmom_list)[(i_qmom)*(LDIM-1) + k])
@@ -420,7 +434,7 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     /* HDF5 output */
     q3pt_h5output q3pt_h5o;
     if (NULL != (err_str = q3pt_h5_open_write(L, &q3pt_h5o,
-                    h5_file, h5_path, latsize, n_vec_max,
+                    h5_file, h5_path, latsize, t_axis, n_vec_max,
                     t_src, t_snk, n_t12op, n_t12op_max, i_t12op, t_op,
                     NSPIN*NSPIN, n_qmom, qmom_list))) {
         goto clearerr_0;

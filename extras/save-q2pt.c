@@ -39,7 +39,7 @@ q2pt_h5_open_write(lua_State *L,
             const char *h5file, const char *h5path,
             int lt, int n_vec)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
 
     const char *err_str = NULL;
@@ -72,8 +72,9 @@ q2pt_h5_open_write(lua_State *L,
 /*static*/ const char *
 q2pt_h5_close(lua_State *L, q2pt_h5output *q2pt_h5o)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
+
     if (H5Sclose(q2pt_h5o->buf_dspace))
         return "cannot close HDF5 membuf";
     q2pt_h5o->buf_dspace = -1;
@@ -93,8 +94,9 @@ q2pt_h5_write(q2pt_h5output *q2pt_h5o,
               int t_src, int j_vec_prop, int j_spin_prop,
               const gsl_complex *buf)
 {
-    if (0 != QDP_this_node)
+    if (! is_masternode())
         return NULL;
+
     hsize_t dset_off[7] = { 0, 
                             t_src, 
                             0,
@@ -331,9 +333,9 @@ save_q2pt_list(lua_State *L,
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
 #if LDIM == 4  
     assert(LDIM == S->rank);
-#define i_vol3(c) ((c)[vol3_axis[0]] + vol3_dim[0]*(\
-                   (c)[vol3_axis[1]] + vol3_dim[1]*(\
-                   (c)[vol3_axis[2]])))
+#define i_vol3(c) ((c)[vol3_axis[0]] - (node_x0)[vol3_axis[0]] + vol3_dim[0]*(\
+                   (c)[vol3_axis[1]] - (node_x0)[vol3_axis[1]] + vol3_dim[1]*(\
+                   (c)[vol3_axis[2]] - (node_x0)[vol3_axis[2]])))
 #define i_X_vol3(X,c) (i_vol3(c) + vol3_local*(X))
 #define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
 #else
