@@ -176,9 +176,8 @@ h5_dspace_equal(lua_State *L, hid_t s1, hid_t s2)
             -3      wrong data space
 */
 int
-h5_check_attr(lua_State *L,
-              hid_t *p_a_id, hid_t obj_id, const char *a_name, 
-              hid_t a_type, hid_t a_space)
+h5_check_attr(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, hid_t a_type, hid_t a_space)
 {
     hid_t a_id;
     int status = 0;
@@ -252,10 +251,9 @@ clearerr_0:
             -4      wrong data 
 */
 int 
-h5_check_attr_data(lua_State *L,
-                   hid_t *p_a_id, hid_t obj_id, const char *a_name,
-                   const hid_t a_type, const hid_t a_space,
-                   void *buf, hid_t mem_type)
+h5_check_attr_data(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, const hid_t a_type, const hid_t a_space,
+        const void *buf, hid_t mem_type)
 {
     hid_t a_id;
     int x_status = h5_check_attr(L, &a_id, obj_id, a_name, a_type, a_space);
@@ -311,14 +309,68 @@ clearerr_1:
    null-terminated strings from s
  */
 char *
-h5_make_str_data(lua_State *L, hsize_t ls_dims[2], const char *s[])
+h5_make_str_data(lua_State *L, int n_str, int str_len_max, const char *s[])
 {
-    int n_str = ls_dims[0], 
-        str_len_max = ls_dims[1];
     char *d = qlua_malloc(L, sizeof(char) * n_str * str_len_max);
     assert(NULL != d);
     memset(d, '\0', n_str * str_len_max);
     for (int i = 0; i < n_str ; i++)
         strncpy(d + str_len_max * i, s[i], str_len_max);
     return d;
+}
+
+/* TODO generalize to any dataspace? */
+int
+h5_check_attr_str_list(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, int n_str, int str_max_len, const char *buf[])
+{
+    char *h5_buf = h5_make_str_data(L, n_str, str_max_len, buf);
+    hsize_t ls_dims[] = { n_str };
+    hid_t a_type  = H5Tcopy(H5T_C_S1);
+    H5Tset_size(a_type, str_max_len);
+    hid_t a_space = H5Screate_simple(1, ls_dims, NULL);
+    int x_status = h5_check_attr_data(L, p_a_id, obj_id, 
+                                a_name, a_type, a_space, h5_buf, a_type);
+    H5Sclose(a_space);
+    H5Tclose(a_type);
+    qlua_free(L, h5_buf);
+    return x_status;
+}
+
+int
+h5_check_attr_int(lua_State *L, hid_t *p_a_id, hid_t obj_id,
+        const char *a_name, const int *int_buf)
+{
+    hid_t a_space = H5Screate(H5S_SCALAR);
+    int x_status = h5_check_attr_data(L, p_a_id, obj_id, 
+                            a_name, H5T_STD_I32BE, a_space,
+                            int_buf, H5T_NATIVE_INT);
+    H5Sclose(a_space);
+    return x_status;
+}
+
+int
+h5_check_attr_array_int(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, int ndims, const hsize_t dims[], const int *int_buf)
+{
+    hid_t a_space = H5Screate_simple(ndims, dims, NULL);
+    int x_status = h5_check_attr_data(L, p_a_id, obj_id,
+                a_name, H5T_STD_I32BE, a_space,
+                int_buf, H5T_NATIVE_INT);
+    H5Sclose(a_space);
+
+    return x_status;
+}
+    
+int
+h5_check_attr_array1d_int(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, int n1, const int *int_buf) {
+    hsize_t dims[] = { n1 };
+    return h5_check_attr_array_int(L, p_a_id, obj_id, a_name, 1, dims, int_buf);
+}
+int
+h5_check_attr_array2d_int(lua_State *L, hid_t *p_a_id, hid_t obj_id, 
+        const char *a_name, int n1, int n2, const int *int_buf) {
+    hsize_t dims[] = { n1, n2 };
+    return h5_check_attr_array_int(L, p_a_id, obj_id, a_name, 2, dims, int_buf);
 }

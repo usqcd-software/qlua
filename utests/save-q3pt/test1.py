@@ -2,14 +2,40 @@ import math
 import numpy as np
 import tables as tb
 
+def make_t12op_full_list(t0, lt, tstep, src_snk_dt_max):
+    list_t12op = []
+    for tsrc in range(t0, lt, tstep):
+        for dt in range(2*tstep, src_snk_dt_max + 1, tstep):
+            tsnk = (lt + tsrc + dt) % lt
+            for dtau in range(tstep, dt, tstep):
+                t_op = (lt + tsrc + dtau) % lt
+                list_t12op.append((tsrc, tsnk, t_op))
+    return list_t12op
 
 def make_metainfo_p(p):
     """
     result: dictionary {attr : np.array}
     """
-    # TODO
-    raise NotImplementedError
-    return None
+    return {
+        'index_order'   : [ 'i_t12op', 'vec_snk', 'vec_src', 'spin_snk', 'spin_src',
+                            'i_op', 'i_qmom', 're_im' ],
+        'latsize'       : np.array(p['latsize']),
+        'nvec'          : len(p['laph_pw3_list']) * len(p['laph_col_list']), 
+        'qmom'          : np.array(p['ft_p3_list']),
+        't12op'         : np.array(make_t12op_full_list(0, p['latsize'][p['t_axis']], 
+                                   p['tstep'], p['src_snk_dt_max'])) }
+
+def check_metainfo(p, attr_f):
+    attr = make_metainfo_p(p)
+    for k in attr.keys():
+        if (not attr_f.has_key(k)):
+            print "%s: no key\n" % k
+            return False
+        if (not (attr_f[k] == attr[k]).all()):
+            print "%s: data mismatch: '%s' != '%s'" % (k, attr_f[k], attr[k])
+            return False
+    return True
+        
 
 def make_data(latsize, t_axis, 
             laph_pw3_list, laph_pw_x0, laph_col_list, laph_texp,
@@ -48,14 +74,8 @@ def make_data(latsize, t_axis,
     ft_x0           = np.asarray(ft_x0)
 
     # list_t12op[i_t12op,3]
-    list_t12op = []
-    for tsrc in range(0, lt, tstep):
-        for dt in range(2*tstep, src_snk_dt_max + 1, tstep):
-            tsnk = (lt + tsrc + dt) % lt
-            for dtau in range(tstep, dt, tstep):
-                t_op = (lt + tsrc + dtau) % lt
-                list_t12op.append((tsrc, tsnk, t_op))
-    list_t12op  = np.asarray(list_t12op)
+    list_t12op  = np.asarray(make_t12op_full_list(0, latsize[t_axis], 
+                             tstep, src_snk_dt_max))
     n_t12op     = len(list_t12op)
 
     def dist(a, b, lt):    
@@ -111,19 +131,23 @@ def make_data_p(p):
 def check_output_data(p, test_dir='.'):
     h5  = tb.openFile(test_dir + '/' + p['h5_file'])
     y   = h5.getNode('/' + p['h5_path'])
+    attr_f  = y.attrs
     y   = y[...,0] + 1j * y[...,1]
     h5.close()
 
     y1  = make_data_p(p)
 
-    res = np.allclose(y, y1)
-    dy  = y - y1
+    cmp_data    = np.allclose(y, y1)
+    cmp_meta    = check_metainfo(p, attr_f.__dict__)
+
+    # (debug?) printouts
     print y.shape, y1.shape
-    print math.sqrt((y*y.conj()).sum()), math.sqrt((y1*y1.conj()).sum()), math.sqrt((dy*dy.conj()).sum())
+    dy  = y - y1
+    print math.sqrt((y*y.conj()).sum()), \
+          math.sqrt((y1*y1.conj()).sum()), \
+          math.sqrt((dy*dy.conj()).sum())
 
-    # TODO check metainfo
-
-    return res
+    return (cmp_data and cmp_meta)
 
 def check_qlua_run(p, test_dir='.'):
     f = open(test_dir + '/stdout', 'r')

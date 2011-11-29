@@ -38,10 +38,10 @@
 #define Q3PT_INDEX_STRMAX   16
 const char *q3pt_index_order[] = {
     "i_t12op",      /* [ 0] */
-    "vec1",         /* [ 1] */
-    "vec2",         /* [ 2] */
-    "spin1",        /* [ 3] */
-    "spin2",        /* [ 4] */
+    "vec_snk",      /* [ 1] */
+    "vec_src",      /* [ 2] */
+    "spin_snk",     /* [ 3] */
+    "spin_src",     /* [ 4] */
     "i_op",         /* [ 5] */
     "i_qmom",       /* [ 6] */
     "re_im"         /* [ 7] */ };
@@ -92,58 +92,29 @@ q3pt_check_meta(lua_State *L,
     /* FIXME do only on a masternode */
     int x_status = 0;
     const char *x_name = NULL;
-    {   const char *a_name = "latsize";
-        hsize_t ls_dims[] = {4};
-        hid_t a_space = H5Screate_simple(1, ls_dims, NULL);
-        x_status = h5_check_attr_data(L, NULL, q3pt_h5o->h5o.dset, 
-                    a_name, H5T_STD_I32BE, a_space, 
-                    q3pt_h5o->latsize, H5T_NATIVE_INT);
-        H5Sclose(a_space);
-        if (x_status < 0) {
-            x_name = a_name;
-            goto clearerr_0;
-        }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, q3pt_h5o->h5o.dset, 
+                            "latsize", LDIM, q3pt_h5o->latsize)) < 0) {
+        x_name = "latsize";
+        goto clearerr_0;
     }
-    {   const char *a_name = "nvec";
-        hid_t a_space = H5Screate(H5S_SCALAR);
-        x_status = h5_check_attr_data(L, NULL, q3pt_h5o->h5o.dset, 
-                    a_name, H5T_STD_I32BE, a_space, 
-                    &(q3pt_h5o->n_vec), H5T_NATIVE_INT);
-        H5Sclose(a_space);
-        if (x_status < 0) {
-            x_name = a_name;
-            goto clearerr_0;
-        }
+    if ((x_status = h5_check_attr_int(L, NULL, q3pt_h5o->h5o.dset,
+                        "nvec", &(q3pt_h5o->n_vec))) < 0) {
+        x_name = "nvec";
+        goto clearerr_0;
     }
-    {   const char *a_name = "qmom";
-        hsize_t ls_dims[] = { q3pt_h5o->n_qmom, LDIM - 1 };
-        hid_t a_space = H5Screate_simple(2, ls_dims, NULL);
-        x_status = h5_check_attr_data(L, NULL, q3pt_h5o->h5o.dset, 
-                    a_name, H5T_STD_I32BE, a_space, 
-                    q3pt_h5o->qmom, H5T_NATIVE_INT);
-        H5Sclose(a_space);
-        if (x_status < 0) {
-            x_name = a_name;
-            goto clearerr_0;
-        }
+    if ((x_status = h5_check_attr_array2d_int(L, NULL, q3pt_h5o->h5o.dset, 
+                            "qmom", q3pt_h5o->n_qmom, LDIM - 1, q3pt_h5o->qmom)) < 0) {
+        x_name = "qmom";
+        goto clearerr_0;
     }
-    {   const char *a_name = "index_order";
-        hsize_t ls_dims[] = { sizeof(q3pt_index_order) / sizeof(q3pt_index_order[0]),
-                              Q3PT_INDEX_STRMAX };
-        hid_t a_space = H5Screate_simple(2, ls_dims, NULL);
-        char *index_order_data = h5_make_str_data(L, ls_dims, q3pt_index_order);
-        x_status = h5_check_attr_data(L, NULL, q3pt_h5o->h5o.dset, 
-                    a_name, H5T_STD_I8BE, a_space, 
-                    index_order_data, H5T_NATIVE_CHAR);
-        H5Sclose(a_space);
-        if (x_status < 0) {
-            x_name = a_name;
-            qlua_free(L, index_order_data);
-            goto clearerr_0;
-        }
-        qlua_free(L, index_order_data);
+    if ((x_status = h5_check_attr_str_list(L, NULL, q3pt_h5o->h5o.dset, 
+                    "index_order", sizeof(q3pt_index_order) / sizeof(q3pt_index_order[0]), 
+                    Q3PT_INDEX_STRMAX, q3pt_index_order)) < 0) {
+        x_name = "index_order";
+        goto clearerr_0;
     }
-    {   const char *a_name = "t12op";
+    {   /* TODO make subspace update */
+        const char *a_name = "t12op";
         hsize_t ls_dims[] = { q3pt_h5o->n_t12op_max, 3 };
         hid_t a_space = H5Screate_simple(2, ls_dims, NULL);
         hid_t a_id;
@@ -156,7 +127,7 @@ q3pt_check_meta(lua_State *L,
         }
         int *buf_r = qlua_malloc(L, sizeof(int) * ls_dims[0] * ls_dims[1]);
         assert(NULL != buf_r);
-        if (H5Aread(a_id, H5T_STD_I32BE, buf_r)) {
+        if (H5Aread(a_id, H5T_NATIVE_INT, buf_r)) {
             x_status = -1;
             x_name = a_name;
             qlua_free(L, buf_r);
@@ -186,7 +157,7 @@ q3pt_check_meta(lua_State *L,
                 goto clearerr_0;
             }
         }
-        if (H5Awrite(a_id, H5T_STD_I32BE, buf_r)) {
+        if (H5Awrite(a_id, H5T_NATIVE_INT, buf_r)) {
             x_status = -1;
             x_name = a_name;
             qlua_free(L, buf_r);
