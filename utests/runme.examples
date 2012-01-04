@@ -1,0 +1,1 @@
+QLUA_TOP='.' SCRATCH_DIR=~/tmp  utests/test_run.py utests/save-q2pt/test2.py all all all run=mpi,mpi='-np 16',qmp='-qmp-geom 2 2 2 2'

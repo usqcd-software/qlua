@@ -77,7 +77,10 @@ def run_qlua_mpi(qlua_bin, qlua_test_param, qlua_test_src,
     else: mpiopts = ''
     if (run_param.has_key('qmp')): qmpopts = run_param['qmp']
     else: qmpopts = ''
-    cmd = 'mpirun %s %s %s %s %s >%s 2>%s </dev/null ' % (
+    if (run_param.has_key('mpirun')): mpirun = run_param['mpirun']
+    else: mpirun = 'mpirun'
+    cmd = '%s %s %s %s %s %s >%s 2>%s </dev/null ' % (
+                    mpirun,
                     mpiopts,
                     qlua_bin, 
                     qmpopts,
