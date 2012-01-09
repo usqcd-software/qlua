@@ -1,12 +1,33 @@
 import math
 import numpy as np
 import tables as tb
-import sys
-import os
 
+def make_metainfo_p(p):
+    """
+    result: dictionary {attr : np.array}
+    """
+    nvec = len(p['laph_pw3_list']) * len(p['laph_col_list'])
+    return {
+        'index_order'   : [ 'vec1', 'vec2', 'vec3', 't', 'i_mom', 're_im' ],
+        'latsize'       : np.array(p['latsize']),
+        't_axis'        : p['t_axis'],
+        'nvec123'       : np.array([nvec, nvec, nvec]),
+        'ft_mom'        : np.array(p['ft_p3_list']),
+        'ft_x0'         : np.array(p['ft_x0'])
+        }
 
-def make_test_res(geom, src0, t_axis, 
-               list_psrc, list_mom, list_col, list_exp, c0):
+def check_metainfo(p, attr_f):
+    attr = make_metainfo_p(p)
+    for k in attr.keys():
+        if (not attr_f.has_key(k)):
+            print "%s: no key\n" % k
+            return False
+        if (not (attr_f[k] == attr[k]).all()):
+            print "%s: data mismatch: '%s' != '%s'" % (k, attr_f[k], attr[k])
+            return False
+    return True
+
+def make_test_res(geom, src0, t_axis, list_psrc, list_mom, list_col, list_exp, c0):
     """ create table for test1: v123_ft = det(v^1,v^2,v^3)_x exp(-i*psrc*x) 
         with v^a_i = exp(list_exp[a]*t) * list_col[j] * exp(i*list_mom[k]*x), i=index(j,k)
         geom                lattice geometry
@@ -63,101 +84,91 @@ def make_test_res(geom, src0, t_axis,
             * mom012[:, None, :, None, :, None, None, :] \
             * exp012[..., :, None]).reshape((n_v, n_v, n_v, lt, n_p))
 
+def make_test_res_p(p):
+    return make_test_res(
+        p['latsize'], p['laph_pw_x0'], p['t_axis'], p['ft_p3_list'], 
+        p['laph_pw3_list'], p['laph_col_list'], p['laph_texp'], p['ft_x0'])
 
 
-
-
-test_list = [
-  { 'name'      : 'squark-wf.test1-1.hdf5',
-    'path'      : 'test1',
-    'geom'      : [ 6, 6, 6, 12 ],
-    't_axis'    : 3,
-    'src0'      : [ 0, 0, 0, 0 ],
-    'c0'        : [ 0, 0, 0, 0 ],
-    'list_mom'  : [ [0,0,0], [1,0,0] ],
-    'list_psrc' : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
-    'list_col'  : [ [1,0,0], [0,1,0], [0,0,1] ],
-    'list_exp'  : [ 0., 0., 0.] },
-  { 'name'      : 'squark-wf.test1-2.hdf5',
-    'path'      : 'test1',
-    'geom'      : [ 6, 6, 6, 12 ],
-    't_axis'    : 3,
-    'src0'      : [ 0, 0, 0, 0 ],
-    'c0'        : [ 0, 0, 0, 0 ],
-    'list_mom'  : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
-    'list_psrc' : [ [0,0,0], 
-                    [1,0,0], [0,1,0], [0,0,1],
-                    [1,1,0], [1,0,1], [0,1,1],
-                    [1,1,1], 
-                    [2,0,0], [3,0,0], [4,0,0] ],
-    'list_col'  : [ [1,0,0], [0,1,0], [0,0,1] ],
-    'list_exp'  : [ 0.1, 0.2, -0.3] },
-  { 'name'      : 'squark-wf.test1-3.hdf5',
-    'path'      : 'test1',
-    'geom'      : [ 6, 6, 6, 12 ],
-    't_axis'    : 3,
-    'src0'      : [ 0, 0, 0, 0 ],
-    'c0'        : [ 0, 0, 0, 0 ],
-    'list_mom'  : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
-    'list_psrc' : [ [0,0,0], 
-                    [1,0,0], [0,1,0], [0,0,1],
-                    [1,1,0], [1,0,1], [0,1,1],
-                    [1,1,1], 
-                    [2,0,0], [3,0,0], [4,0,0] ],
-    'list_col'  : [ [-0.38668154,  0.91713577,  0.59997194],
-                    [ 0.20150464, -0.19782945,  0.35816456],
-                    [-0.9190735 ,  1.04076121,  1.02879648] ],
-    'list_exp'  : [ 0.1, -0.2, 0.4 ] }
-    ]
-
-
-qlua_bin    = './qlua'
-qlua_test   = 'utests/squark-wf/test1a.qlua'
-
-def qlua_string(v):
-    if list == type(v):
-        if (len(v) <= 0): return '{}'
-        s = '{ %s' % qlua_string(v[0])
-        for x in v[1:]:
-            s += ', %s' % qlua_string(x)
-        return s + ' }'
-    elif int == type(v) or float == type(v): return str(v)
-    elif str == type(v): return "'%s'" % v
-    else:
-        raise ValueError, "cannot convert to qlua string: %s: %s" % (str(type(v)), str(v))
-
-def call_qlua(p):
-    qlua_case = p['name'] + '.' + p['path'] + '.qlua'
-    f   = open(qlua_case, 'w')
-    for k,v in p.iteritems():
-        f.write('%s = %s\n' % (k, qlua_string(v)))
-    f.close()
-
-    os.system('rm -f %s' % p['name'])
-    return os.system(qlua_bin + ' ' + qlua_case + ' ' + qlua_test)
-
-
-
-def check_test(p):
-    h5  = tb.openFile(p['name'])
-    y   = h5.getNode('/' + p['path'])
+        
+def check_output_data(p, test_dir='.'):
+    h5  = tb.openFile(test_dir + '/' + p['h5_file'])
+    y   = h5.getNode('/' + p['h5_path'])
+    attr_f  = y.attrs
     y   = y[...,0] + 1j * y[...,1]
-    y1  = make_test_res(p['geom'], p['src0'], p['t_axis'],
-                        p['list_psrc'], p['list_mom'], p['list_col'], p['list_exp'], 
-                        p['c0'])
-    res = np.allclose(y, y1)
-    
     h5.close()
+
+    y1  = make_test_res_p(p)
+    
+    cmp_data    = np.allclose(y, y1)
+    cmp_meta    = check_metainfo(p, attr_f.__dict__)
+
+    print y.shape, y1.shape
+    dy  = y - y1
+    print math.sqrt((y*y.conj()).sum()), \
+          math.sqrt((y1*y1.conj()).sum()), \
+          math.sqrt((dy*dy.conj()).sum())
+
+    return (cmp_data and cmp_meta)
 
     return res
     
+def check_qlua_run(p, test_dir='.'):
+    f = open(test_dir + '/stdout', 'r')
+    for l in f:
+        if (l == 'QLUA_RUN_SUCCESS\n'):
+            return True
+    return False
 
-if (__name__ == '__main__'):
-    for i,p in enumerate(test_list):
-        stat = call_qlua(p)
-        if 0 != stat:
-            print "%s exited with stat=%d\n" % (qlua_bin, stat)
-            continue
+case_list = [
+    {   'case'      : 'laph_wf_baryon_pwave-test1a',
+        'qlua_src'  : 'laph_wf_baryon_pwave/test1a.qlua',
+        'make_data' : make_test_res_p,
+        'make_meta' : make_metainfo_p,
+        'check_log' : check_qlua_run,
+        'check_out' : check_output_data }
+]
 
-        res = check_test(p)
-        print i, res
+input_list = [
+  { 'h5_file'       : 'test.h5',
+    'h5_path'       : 'test1',
+    'latsize'       : [ 6, 6, 6, 12 ],
+    't_axis'        : 3,
+    'laph_pw_x0'    : [ 0, 0, 0, 0 ],
+    'ft_x0'         : [ 0, 0, 0, 0 ],
+    'laph_pw3_list' : [ [0,0,0], [1,0,0] ],
+    'ft_p3_list'    : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
+    'laph_col_list' : [ [1,0,0], [0,1,0], [0,0,1] ],
+    'laph_texp'     : [ 0., 0., 0.] },
+  { 'h5_file'       : 'test.h5',
+    'h5_path'       : 'test1',
+    'latsize'       : [ 6, 6, 6, 12 ],
+    't_axis'        : 3,
+    'laph_pw_x0'    : [ 0, 0, 0, 0 ],
+    'ft_x0'         : [ 0, 0, 0, 0 ],
+    'laph_pw3_list' : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
+    'ft_p3_list'    : [ [0,0,0], 
+                        [1,0,0], [0,1,0], [0,0,1],
+                        [1,1,0], [1,0,1], [0,1,1],
+                        [1,1,1], 
+                        [2,0,0], [3,0,0], [4,0,0] ],
+    'laph_col_list' : [ [1,0,0], [0,1,0], [0,0,1] ],
+    'laph_texp'     : [ 0.1, 0.2, -0.3] },
+  { 'h5_file'       : 'test.h5',
+    'h5_path'       : 'test1',
+    'latsize'       : [ 6, 6, 6, 12 ],
+    't_axis'        : 3,
+    'laph_pw_x0'    : [ 0, 0, 0, 0 ],
+    'ft_x0'         : [ 0, 0, 0, 0 ],
+    'laph_pw3_list' : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
+    'ft_p3_list'    : [ [0,0,0], 
+                        [1,0,0], [0,1,0], [0,0,1],
+                        [1,1,0], [1,0,1], [0,1,1],
+                        [1,1,1], 
+                        [2,0,0], [3,0,0], [4,0,0] ],
+    'laph_col_list' : [ [-0.38668154,  0.91713577,  0.59997194],
+                        [ 0.20150464, -0.19782945,  0.35816456],
+                        [-0.9190735 ,  1.04076121,  1.02879648] ],
+    'laph_texp'     : [ 0.1, -0.2, 0.4 ] }
+    ]
+

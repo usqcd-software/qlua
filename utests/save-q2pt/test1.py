@@ -1,56 +1,29 @@
 import math
 import numpy as np
 import tables as tb
-import sys
-import os
-import time
 
-func_name   = 'save-q2pt'
-test_name   = 'test1'
+def make_metainfo_p(p):
+    """
+    result: dictionary {attr : np.array}
+    """
+    return {
+        'index_order'   : [ 't_snk', 't_src', 'vec_snk', 'vec_src', 
+                            'spin_snk', 'spin_src', 're_im' ],
+        'latsize'       : np.array(p['latsize']),
+        't_axis'        : p['t_axis'],
+        'nvec'          : len(p['laph_pw3_list']) * len(p['laph_col_list'])
+        }
 
-test_list = [
-   {'name'            : func_name + '.' + test_name + '-0',
-    'path'            : '/test1',
-    'geom'            : [6,6,6,12],
-    't_axis'          : 3,
-    'src0'            : [0,0,0,0],
-    'prop_mom_sh'     : [[0,0,0], [0,0,0], [0,0,0], [0,0,0]],
-    'prop_mom_c0'     : [0,0,0,0],
-    'prop_exp_sh'     : [.0,.0,.0,.0],
-    'list_mom'        : [[0,0,0]],
-    'list_col'        : [[1,0,0],[0,1,0],[0,0,1]],
-    'list_exp'        : [.0,-.0, -.0] },
-
-   {'name'            : func_name + '.' + test_name + '-1',
-    'path'            : '/test1',
-    'geom'            : [6,6,6,12],
-    't_axis'          : 3,
-    'src0'            : [1,2,3,4],
-    'prop_mom_sh'     : [[1,0,0],[0,1,0],[0,0,1],[1,1,0]],
-    'prop_mom_c0'     : [3,2,1,5],
-    'prop_exp_sh'     : [ .15, .16, .18-.12j, .20],
-    'list_mom'        : [[0,0,0], [1,0,0], [0,1,0], [0,0,1]],
-    'list_col'        : [[1,0,0],[0,1,0],[0,0,1]],
-    'list_exp'        : [ .11, -.12, -.13+.08j ] },
-
-   {'name'            : func_name + '.' + test_name + '-2',
-    'path'            : '/test1',
-    'geom'            : [6,6,6,12],
-    't_axis'          : 3,
-    'src0'            : [1,2,3,4],
-    'prop_mom_sh'     : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
-    'prop_mom_c0'     : [3,2,1,5],
-    'prop_exp_sh'     : [-.015, .16, .18, .20],
-    'list_mom'        : [ [0,0,0],
-                          [1,0,0], [0,1,0], [0,0,1],
-                          [1,1,0], [1,0,1], [0,1,1],
-                          [1,1,1],
-                          [2,0,0], [3,0,0], [4,0,0] ],
-    'list_col'        : [ [-0.38668154,  0.91713577,  0.59997194],
-                          [ 0.20150464, -0.19782945,  0.35816456],
-                          [-0.9190735 ,  1.04076121,  1.02879648] ],
-    'list_exp'        : [ .07, -.14, .21] }
-    ]
+def check_metainfo(p, attr_f):
+    attr = make_metainfo_p(p)
+    for k in attr.keys():
+        if (not attr_f.has_key(k)):
+            print "%s: no key\n" % k
+            return False
+        if (not (attr_f[k] == attr[k]).all()):
+            print "%s: data mismatch: '%s' != '%s'" % (k, attr_f[k], attr[k])
+            return False
+    return True
 
 def make_test_res(geom, src0, t_axis,
                   prop_mom_sh, prop_mom_c0, prop_exp_sh, 
@@ -71,10 +44,11 @@ def make_test_res(geom, src0, t_axis,
     src0        = np.asarray(src0)
     lt          = geom[t_axis]
     vol3        = geom.prod() / lt
-    t0      = src0[t_axis]
+    t0          = src0[t_axis]
     prop_mom_c0 = np.asarray(prop_mom_c0)
     prop_mom_sh = np.asarray(prop_mom_sh)
     prop_exp_sh = np.asarray(prop_exp_sh)
+    list_mom    = np.asarray(list_mom)
 
     n_c     = len(list_col)
     n_mom   = len(list_mom)
@@ -96,23 +70,10 @@ def make_test_res(geom, src0, t_axis,
     s12     = s12[None, None, None, None, None, None, :, :] 
 
     # spatial mom part [p1, p2, s2] 
-    # = delta(list_mom[p1]==list_mom[p2]+prop_mom_sh[s2])
-    # ---  *exp(2pi*I*list_mom[p1].(src0-prop_mom_c0))
-    #   *exp(2pi*I*prop_mom_sh[p1].(src0-prop_mom_c0))
-    prop_mom_sh = np.asarray(prop_mom_sh)
-    list_mom    = np.asarray(list_mom)
-    mom12   = np.fromfunction(
-                (lambda p1,p2, s2:
-                    np.where(np.all(
-                        list_mom[p1] == list_mom[p2] + prop_mom_sh[s2], axis=-1),
-                        1, 0)),
-                (n_mom, n_mom, 4), 
-                dtype=int)
-    s_axis  = range(len(geom)); del s_axis[t_axis]
-    #mom12   = mom12 * np.exp(2j * math.pi * np.dot(list_mom, 
-    #                   ((src0 - prop_mom_c0) / np.array(geom, float))[s_axis]))[:,None,None]
-    mom12   = mom12 * np.exp(2j * math.pi * np.dot(prop_mom_sh, 
-                       ((src0 - prop_mom_c0) / np.array(geom, float))[s_axis]))
+    x0 = full2space(src0, t_axis)
+    xp = full2space(prop_mom_c0, t_axis)
+    ls = full2space(geom, t_axis)
+    mom12   = pw_prod_matr(ls, (-list_mom, x0), (list_mom, x0), (prop_mom_sh, xp))
     # complex [t1, t2, p1, c1, p2, c2, s1, s2]
     mom12   = mom12[None, None, :, None, :, None, None, :]
 
@@ -128,87 +89,100 @@ def make_test_res(geom, src0, t_axis,
     exp12   = exp12[:, :, None, :, None, :, None, :]
 
     # complex [t1, t2, p1, c1, p2, c2, s1, s2]
-    #print col12.shape
-    #print s12.shape
-    #print mom12.shape
-    #print exp12.shape
-    # complex [t1, t2, n1, n2, s1, s2]
     return (vol3 * col12 * s12 * mom12 * exp12).reshape((lt, lt, n_v, n_v, 4, 4))
 
+
 def make_test_res_p(p):
-    return make_test_res(p['geom'], p['src0'], p['t_axis'],
-                         p['prop_mom_sh'], p['prop_mom_c0'], p['prop_exp_sh'], 
-                         p['list_mom'], p['list_col'], p['list_exp'])
-
-def qlua_string(v):
-    if list == type(v):
-        if (len(v) <= 0): return '{}'
-        s = '{ %s' % qlua_string(v[0])
-        for x in v[1:]:
-            s += ', %s' % qlua_string(x)
-        return s + ' }'
-    elif int == type(v) or float == type(v): return str(v)
-    elif str == type(v): return "'%s'" % v
-    elif complex == type(v): return "complex(%s,%s)" % (str(v.real), str(v.imag))
-    else:
-        raise ValueError, "cannot convert to qlua string: %s: %s" % (str(type(v)), str(v))
+    return make_test_res(p['latsize'], p['laph_pw_x0'], p['t_axis'],
+                         p['prop_pw3_sh'], p['prop_pw_x0'], p['prop_texp_sh'], 
+                         p['laph_pw3_list'], p['laph_col_list'], p['laph_texp'])
 
 
-def call_qlua(p, path_prefix='', qlua_bin='./qlua', qlua_test=''):
-    qlua_case   = path_prefix + p['name'] + '.qlua'
-    hdf5_out    = path_prefix + p['name'] + '.h5'
-    f   = open(qlua_case, 'w')
-    for k,v in p.iteritems():
-        f.write('%s = %s\n' % (k, qlua_string(v)))
-    f.write('hdf5_out = %s\n' % qlua_string(hdf5_out))
-    f.close()
-
-    os.system('rm -f %s' % hdf5_out)
-    return os.system(qlua_bin + ' ' + qlua_case + ' ' + qlua_test)
-
-
-def check_test(p, path_prefix=''):
-    hdf5_out    = path_prefix + p['name'] + '.h5'
-    h5  = tb.openFile(hdf5_out)
-    y   = h5.getNode('/' + p['path'])
+def check_output_data(p, test_dir='.'):
+    h5  = tb.openFile(test_dir + '/' + p['h5_file'])
+    y   = h5.getNode('/' + p['h5_path'])
+    attr_f  = y.attrs
     y   = y[...,0] + 1j * y[...,1]
-    y1  = make_test_res(p['geom'], p['src0'], p['t_axis'],
-                        p['prop_mom_sh'], p['prop_mom_c0'], p['prop_exp_sh'], 
-                        p['list_mom'], p['list_col'], p['list_exp'])
-    res = np.allclose(y, y1)
-    
     h5.close()
 
-    return res
-   
-def timer():
-    time0 = time.time()
-    def dt(): 
-        return time.time() - time0
-    return dt
+    y1  = make_test_res_p(p)
+    
+    cmp_data    = np.allclose(y, y1)
+    cmp_meta    = check_metainfo(p, attr_f.__dict__)    
+
+    print y.shape, y1.shape
+    dy  = y - y1    
+    print math.sqrt((y*y.conj()).sum()), \
+          math.sqrt((y1*y1.conj()).sum()), \
+          math.sqrt((dy*dy.conj()).sum())
+    
+    return (cmp_data and cmp_meta)
+
+def check_qlua_run(p, test_dir='.'):
+    f = open(test_dir + '/stdout', 'r')
+    for l in f:
+        if (l == 'QLUA_RUN_SUCCESS\n'):
+            return True
+    return False
+    
+
+case_list = [
+    {   'case'      : 'save-q2pt-test1a',
+        'qlua_src'  : 'save-q2pt/test1a.qlua',
+        'make_data' : make_test_res_p,
+        'make_meta' : make_metainfo_p,
+        'check_log' : check_qlua_run,
+        'check_out' : check_output_data },
+    {   'case'      : 'save-q2pt-test1b',
+        'qlua_src'  : 'save-q2pt/test1b.qlua',
+        'make_data' : make_test_res_p,
+        'make_meta' : make_metainfo_p,
+        'check_log' : check_qlua_run,
+        'check_out' : check_output_data }
+]
+
+input_list = [
+   {'h5_file'           : 'test.h5',
+    'h5_path'           : '/test1',
+    'latsize'           : [6,6,6,12],
+    't_axis'            : 3,
+    'laph_pw_x0'        : [0,0,0,0],
+    'prop_pw3_sh'       : [[0,0,0], [0,0,0], [0,0,0], [0,0,0]],
+    'prop_pw_x0'        : [0,0,0,0],
+    'prop_texp_sh'      : [.0,.0,.0,.0],
+    'laph_pw3_list'     : [[0,0,0]],
+    'laph_col_list'     : [[1,0,0],[0,1,0],[0,0,1]],
+    'laph_texp'         : [.0,-.0, -.0] },
+
+   {'h5_file'           : 'test.h5',
+    'h5_path'           : '/test1',
+    'latsize'           : [6,6,6,12],
+    't_axis'            : 3,
+    'laph_pw_x0'        : [1,2,3,4],
+    'prop_pw3_sh'       : [[1,0,0],[0,1,0],[0,0,1],[1,1,0]],
+    'prop_pw_x0'        : [3,2,1,5],
+    'prop_texp_sh'      : [ .15, .16, .18-.12j, .20],
+    'laph_pw3_list'     : [[0,0,0], [1,0,0], [0,1,0], [0,0,1]],
+    'laph_col_list'     : [[1,0,0],[0,1,0],[0,0,1]],
+    'laph_texp'         : [ .11, -.12, -.13+.08j ] },
+
+   {'h5_file'           : 'test.h5',
+    'h5_path'           : '/test1',
+    'latsize'           : [6,6,6,12],
+    't_axis'            : 3,
+    'laph_pw_x0'        : [1,2,3,4],
+    'prop_pw3_sh'       : [ [0,0,0], [1,0,0], [0,1,0], [0,0,1] ],
+    'prop_pw_x0'        : [3,2,1,5],
+    'prop_texp_sh'      : [-.015, .16, .18, .20],
+    'laph_pw3_list'     : [ [0,0,0],
+                            [1,0,0], [0,1,0], [0,0,1],
+                            [1,1,0], [1,0,1], [0,1,1],
+                            [1,1,1],
+                            [2,0,0], [3,0,0], [4,0,0] ],
+    'laph_col_list'     : [ [-0.38668154,  0.91713577,  0.59997194],
+                            [ 0.20150464, -0.19782945,  0.35816456],
+                            [-0.9190735 ,  1.04076121,  1.02879648] ],
+    'laph_texp'         : [ .07, -.14, .21] }
+    ]
 
 
-
-if (__name__ == '__main__'):
-    qlua_bin = './qlua'
-    for qlua_test in [ 'utests/save-q2pt/test1a.qlua',
-                       'utests/save-q2pt/test1b.qlua' ]:
-        print "# N\tname\t\tqlua-exec\tck-out"
-        print "# qlua_bin = ", qlua_bin, "qlua_test = ", qlua_test
-
-        for i,p in enumerate(test_list):
-
-            qlua_timer = timer()
-            qlua_stat = call_qlua(p, qlua_bin=qlua_bin, qlua_test=qlua_test)
-            if 0 != qlua_stat: 
-                qlua_stat_str   = 'Fail(%d)[%.3fs]' % (qlua_stat, qlua_timer())
-            else: qlua_stat_str   = 'OK[%.3fs]' % qlua_timer()
-
-            check_timer     = timer()
-            check_stat  = False
-            if 0 == qlua_stat:
-                check_stat = check_test(p)
-            if check_stat:  check_stat_str = 'OK[%.3fs]' % check_timer()
-            else: check_stat_str = 'Fail[%.3fs]' % check_timer()
-
-            print "%d\t%s\t%s\t%s" % (i, p['name'], qlua_stat_str, check_stat_str)

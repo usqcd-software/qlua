@@ -82,6 +82,8 @@ bpw_h5_check_meta(lua_State *L,
     hid_t d_id = bpw_h5o->h5o.dset;
     int x_status = 0;
     const char *x_name = NULL;
+    int n_vec_a[] = { bpw_h5o->n_v1, bpw_h5o->n_v2, bpw_h5o->n_v3 };
+
     if ((x_status = h5_check_attr_str_list(L, NULL, d_id, "index_order", 
                         sizeof(v123_index_order) / sizeof(v123_index_order[0]),
                         V123_INDEX_STRMAX, v123_index_order)) < 0) {
@@ -96,6 +98,12 @@ bpw_h5_check_meta(lua_State *L,
     if ((x_status = h5_check_attr_int(L, NULL, d_id,
                         "t_axis", &bpw_h5o->t_axis)) < 0) {
         x_name = "t_axis";
+        goto clearerr_0;
+    }
+    
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
+                        "nvec123", 3, n_vec_a)) < 0) {
+        x_name = "nvec123";
         goto clearerr_0;
     }
     if ((x_status = h5_check_attr_array2d_int(L, NULL, d_id,
