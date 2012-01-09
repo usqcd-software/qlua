@@ -23,6 +23,7 @@ def make_metainfo_p(p):
         't_axis'        : p['t_axis'],
         'nvec'          : len(p['laph_pw3_list']) * len(p['laph_col_list']), 
         'qmom'          : np.array(p['ft_p3_list']),
+        'ft_x0'         : np.array(p['ft_x0']),
         't12op'         : np.array(make_t12op_full_list(0, p['latsize'][p['t_axis']], 
                                    p['tstep'], p['src_snk_dt_max'])) }
 

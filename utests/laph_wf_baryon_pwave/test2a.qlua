@@ -27,7 +27,7 @@ v012 = {
   make_latcolvec_list_pw_c_expt(L, t_axis, laph_pw3_list, laph_pw_x0, laph_col_list, 
         vec_const(#laph_col_list, (laph_texp[3] * latR_lin(L, t_axis, 0)):exp())) }
 
-qcd.save_squark_wf(test_dir .. '/' .. h5_file, h5_path, 
+qcd.save_laph_wf_baryon_pwave(test_dir .. '/' .. h5_file, h5_path, 
                    v012[1], v012[2], v012[3],
                    ft_p3_list, t_axis, ft_x0)
 

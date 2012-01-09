@@ -55,36 +55,31 @@ cmult_VV(QLA_D3_ColorVector c1, QLA_D3_ColorVector c2)
 }
 
 typedef struct {
-    int         lt,
-                n_mom;
-    int         n_v1, 
-                n_v2, 
-                n_v3;
-    
-    hid_t       h5f;
-    hid_t       dset;
-    
-    int         rank;
-    hsize_t     dims[6];
-    hid_t       dspace;
+    h5output    h5o;
 
+    int         latsize[LDIM];
+    int         t_axis;
+
+    int         n_mom;
+    int         *ft_mom;
+    int         ft_x0[LDIM];
+
+    int         n_v1, n_v2, n_v3;
+    
     int         buf_rank;
     hsize_t     buf_dims[3];
     hid_t       buf_dspace;
-} v123_h5output;
+} barpw_h5output;
 
 
-/*static*/int
-sqwf_check_meta(lua_State *L,
-        const char **p_x_name, 
-        v123_h5output *v123_h5o,
-        const int *latsize, int t_axis, 
-        int n_ft_mom, const int *ft_mom, const int *ft_x0)
+static int
+bpw_h5_check_meta(lua_State *L,
+        const char **p_x_name, barpw_h5output *bpw_h5o)
 {
     if (! is_masternode())
         return 0;
 
-    hid_t d_id = v123_h5o->dset;
+    hid_t d_id = bpw_h5o->h5o.dset;
     int x_status = 0;
     const char *x_name = NULL;
     if ((x_status = h5_check_attr_str_list(L, NULL, d_id, "index_order", 
@@ -94,22 +89,22 @@ sqwf_check_meta(lua_State *L,
         goto clearerr_0;
     }
     if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
-                            "latsize", LDIM, latsize)) < 0) {
+                            "latsize", LDIM, bpw_h5o->latsize)) < 0) {
         x_name = "latsize";
         goto clearerr_0;
     }
     if ((x_status = h5_check_attr_int(L, NULL, d_id,
-                        "t_axis", &t_axis)) < 0) {
+                        "t_axis", &bpw_h5o->t_axis)) < 0) {
         x_name = "t_axis";
         goto clearerr_0;
     }
     if ((x_status = h5_check_attr_array2d_int(L, NULL, d_id,
-                        "ft_mom", n_ft_mom, LDIM - 1, ft_mom)) < 0) {
+                        "ft_mom", bpw_h5o->n_mom, LDIM - 1, bpw_h5o->ft_mom)) < 0) {
         x_name = "ft_mom";
         goto clearerr_0;
     }
     if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
-                            "ft_x0", LDIM, ft_x0)) < 0) {
+                            "ft_x0", LDIM, bpw_h5o->ft_x0)) < 0) {
         x_name = "ft_x0";
         goto clearerr_0;
     }
@@ -124,118 +119,84 @@ clearerr_0:
 }
 
 static const char *
-h5_open_v123ft_write(v123_h5output *h5o, 
+bpw_h5_open_write(lua_State *L, 
+        barpw_h5output *bpw_h5o, 
         const char *h5file, const char *h5path,
-        int lt, int n_mom, 
+        const int latsize[], int t_axis, 
+        int n_mom, const int ft_mom[], const int ft_x0[],
         int n_v1, int n_v2, int n_v3)
 {
     if (! is_masternode())
         return NULL;
 
-    H5E_auto_t old_ehandler;
-    void *old_client_data;
-    hid_t error_stack = H5E_DEFAULT;
+    const char *err_str = NULL;
+    int lt = latsize[t_axis];
+    hsize_t dims[6] = {n_v1, n_v2, n_v3, lt, n_mom, 2};
+    err_str = h5_open_write(L, &(bpw_h5o->h5o), h5file, h5path, 6, dims);
+    if (NULL != err_str)
+        return err_str;
 
-    assert(NULL != h5o &&
-            NULL != h5file &&
-            NULL != h5path);
-    assert(0 < lt &&
-            0 < n_mom &&
-            0 < n_v1 &&
-            0 < n_v2 &&
-            0 < n_v3);
+    for (int d = 0 ; d < LDIM ; d++)
+        bpw_h5o->latsize[d] = latsize[d];
+    bpw_h5o->t_axis = t_axis;
+    bpw_h5o->n_v1   = n_v1;
+    bpw_h5o->n_v2   = n_v2;
+    bpw_h5o->n_v3   = n_v3;
 
-    /* try opening the datafile */
-    H5Eget_auto(error_stack, &old_ehandler, &old_client_data);
-    H5Eset_auto(error_stack, NULL, NULL);
-    h5o->h5f = H5Fopen(h5file, H5F_ACC_RDWR, H5P_DEFAULT);
-    H5Eset_auto(error_stack, old_ehandler, old_client_data);
+    bpw_h5o->n_mom  = n_mom;
+    bpw_h5o->ft_mom = qlua_malloc(L, sizeof(bpw_h5o->ft_mom[0])
+                                * (LDIM - 1) * n_mom);
+    assert(NULL != bpw_h5o->ft_mom);
+    for (int i = 0; i < (LDIM - 1) * n_mom ; i++)
+        bpw_h5o->ft_mom[i] = ft_mom[i];
+    for (int i = 0 ; i < LDIM ; i++)
+        bpw_h5o->ft_x0[i] = ft_x0[i];
 
-    if (h5o->h5f < 0) {    /* file does not exist */
-        H5Eclear(error_stack);
-        if (0 > (h5o->h5f = H5Fcreate(h5file, H5F_ACC_EXCL,
-                            H5P_DEFAULT, H5P_DEFAULT))) 
-            return "cannot create HDF5 file";
-    } 
-
-    h5o->rank       = 6;
-    h5o->dims[0]    = h5o->n_v1     = n_v1;
-    h5o->dims[1]    = h5o->n_v2     = n_v2;
-    h5o->dims[2]    = h5o->n_v3     = n_v3;
-    h5o->dims[3]    = h5o->lt       = lt;
-    h5o->dims[4]    = h5o->n_mom    = n_mom;
-    h5o->dims[5]    = 2; /* real/imag */
-    if (0 > (h5o->dspace = H5Screate_simple(h5o->rank, h5o->dims, NULL)))
-        return "cannot create dataspace" ;
-    
-    /* try opening the dataset */
-
-    H5Eget_auto(error_stack, &old_ehandler, &old_client_data);
-    H5Eset_auto(error_stack, NULL, NULL);
-    h5o->dset = H5Dopen(h5o->h5f, h5path, H5P_DEFAULT);
-    H5Eset_auto(error_stack, old_ehandler, old_client_data);
-
-    if (0 < h5o->dset) { /* dataset exists */
-        hid_t dspace_orig;
-        if (0 > (dspace_orig = H5Dget_space(h5o->dset)))
-            return "cannot get dataspace from dataset";
-        int rank_orig;
-        rank_orig = H5Sget_simple_extent_ndims(dspace_orig);
-        if (6 != rank_orig)
-            return "dspace rank is not consistent";
-        hsize_t dims_orig[6];
-        H5Sget_simple_extent_dims(dspace_orig, dims_orig, NULL);
-        if (!is_hsizearray_equal(rank_orig, dims_orig, h5o->dims))
-            return "dspace dims are not consistent";
-    } else { /* dataset does not exist */
-        H5Eclear(error_stack);
-        if (0 > (h5o->dset = H5Dcreate(h5o->h5f, h5path, H5T_IEEE_F64BE, 
-                        h5o->dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT)))
-            return "cannot create dataset" ;
-    }
-
-    h5o->buf_rank       = 3;
-    h5o->buf_dims[0]    = lt;
-    h5o->buf_dims[1]    = n_mom;
-    h5o->buf_dims[2]    = 2;
-    if (0 > (h5o->buf_dspace = 
-                H5Screate_simple(h5o->buf_rank, h5o->buf_dims, NULL)))
+    bpw_h5o->buf_rank       = 3;
+    bpw_h5o->buf_dims[0]    = lt;
+    bpw_h5o->buf_dims[1]    = n_mom;
+    bpw_h5o->buf_dims[2]    = 2;
+    if (0 > (bpw_h5o->buf_dspace = 
+                H5Screate_simple(bpw_h5o->buf_rank, bpw_h5o->buf_dims, NULL)))
         return "cannot create memory dataspace";
 
     return NULL;
 }
 
 static const char *
-h5_close_v123ft(v123_h5output *h5o)
+bpw_h5_close(lua_State *L, barpw_h5output *bpw_h5o)
 {
     if (! is_masternode())
         return NULL;
 
-    if (H5Sclose(h5o->dspace) 
-            || H5Sclose(h5o->buf_dspace)
-            || H5Dclose(h5o->dset)
-            || H5Fclose(h5o->h5f))
-        return "cannot close HDF5 file, dataspace or dataset";
-    else
-        return NULL;
+    if (NULL != bpw_h5o->ft_mom)
+        qlua_free(L, bpw_h5o->ft_mom);
+
+    if (H5Sclose(bpw_h5o->buf_dspace))
+        return "cannot close HDF5 membuf";
+
+    return h5_close(L, &(bpw_h5o->h5o));
 }
 
 
 static const char *
-h5_save_v123ft(v123_h5output *h5o, const gsl_complex *v123_ft, 
+bpw_h5_write(barpw_h5output *bpw_h5o, 
+        const gsl_complex *v123_ft, 
         int i_v1, int i_v2, int i_v3)
 {
     if (! is_masternode())
         return NULL;
 
-    hsize_t dset_off[6] = { i_v1, i_v2, i_v3,       0,          0, 0 };
-    hsize_t dset_cnt[6] = {    1,    1,    1, h5o->lt, h5o->n_mom, 2 };
-    if (0 != H5Sselect_hyperslab(h5o->dspace, H5S_SELECT_SET, 
+    int lt = bpw_h5o->latsize[bpw_h5o->t_axis];
+    hsize_t dset_off[6] = { i_v1, i_v2, i_v3,  0,              0, 0 };
+    hsize_t dset_cnt[6] = {    1,    1,    1, lt, bpw_h5o->n_mom, 2 };
+    if (0 != H5Sselect_hyperslab(bpw_h5o->h5o.dspace, H5S_SELECT_SET, 
                 dset_off, NULL, dset_cnt, NULL))
         return "cannot select hyperslab";
-    assert(H5Sget_select_npoints(h5o->dspace) == 
-            H5Sget_select_npoints(h5o->buf_dspace));
-    if (0 != H5Dwrite(h5o->dset, H5T_NATIVE_DOUBLE, h5o->buf_dspace, h5o->dspace,
+    assert(H5Sget_select_npoints(bpw_h5o->h5o.dspace) == 
+            H5Sget_select_npoints(bpw_h5o->buf_dspace));
+    if (0 != H5Dwrite(bpw_h5o->h5o.dset, H5T_NATIVE_DOUBLE, 
+                bpw_h5o->buf_dspace, bpw_h5o->h5o.dspace,
                 H5P_DEFAULT, v123_ft))
         return "cannot write to dataset";
 
@@ -243,16 +204,16 @@ h5_save_v123ft(v123_h5output *h5o, const gsl_complex *v123_ft,
 }
 
 static const char *
-save_squark_wf(lua_State *L,
+save_laph_wf_baryon_pwave(lua_State *L,
         mLattice *S,
         const char *h5_file,
         const char *h5_path,
         int n_v1, QDP_D3_ColorVector **v1,
         int n_v2, QDP_D3_ColorVector **v2,
         int n_v3, QDP_D3_ColorVector **v3,
-        int n_mom, const int *mom_list,     /* [n_mom][LDIM-1] */
+        int n_mom, const int *ft_mom,     /* [n_mom][LDIM-1] */
         int t_axis,                         /* 0-based */
-        const int *c0                       /* ref.point for momentum phase */
+        const int *ft_x0                       /* ref.point for momentum phase */
         )
 /* FIXME economize: if v1==v2==v3, copy (not recalculate) 5 of 6=3! times */
 /* TODO save list of momenta in attributes? */
@@ -293,9 +254,17 @@ save_squark_wf(lua_State *L,
     assert(QDP_sites_on_node_L(S->lat) == vol4_local);
     
     /* HDF5 output */
-    v123_h5output h5o;
-    if (NULL != (err_str = h5_open_v123ft_write(&h5o, h5_file, h5_path, 
-                lt, n_mom, n_v1, n_v2, n_v3))) {
+    barpw_h5output bpw_h5o;
+    if (NULL != (err_str = bpw_h5_open_write(L, &bpw_h5o, 
+                    h5_file, h5_path, latsize, t_axis, 
+                    n_mom, ft_mom, ft_x0, n_v1, n_v2, n_v3))) {
+        goto clearerr_0;
+    }
+    const char *x_attr;
+    if (bpw_h5_check_meta(L, &x_attr, &bpw_h5o)) {
+        err_str = "cannot update meta info";
+        luaL_error(L, err_str);
+        bpw_h5_close(L, &bpw_h5o);
         goto clearerr_0;
     }
 
@@ -320,7 +289,7 @@ save_squark_wf(lua_State *L,
                    (c)[vol3_axis[2]] - (node_x0)[vol3_axis[2]])))
 #define i_X_vol3(X,c) (i_vol3(c) + vol3_local * (X))
 #define i_vol4(c) i_X_vol3(((c)[t_axis] - node_t0), c)
-#define mom(i_mom, k)   ((mom_list)[(i_mom)*(LDIM-1) + k])
+#define mom(i_mom, k)   ((ft_mom)[(i_mom)*(LDIM-1) + k])
 #else
 #error "LDIM!=4 is not consistent"
 #endif
@@ -348,7 +317,7 @@ save_squark_wf(lua_State *L,
                 double phase = 0.;
                 for (int k = 0; k < LDIM-1; k++)
                     phase += mom(i_mom, k) * (coord[vol3_axis[k]] 
-                            - c0[vol3_axis[k]]) / (double)latsize[k];
+                            - ft_x0[vol3_axis[k]]) / (double)latsize[k];
                 /* FIXME address matrix elements with gsl func/macro */ 
                 exp_mipx[i_X_vol3(i_mom, coord)] = 
                             gsl_complex_polar(1. / vol3, -phase*2*M_PI);
@@ -394,14 +363,14 @@ save_squark_wf(lua_State *L,
             
                 QMP_sum_double_array((double *)v123_ft, 2 * lt * n_mom);
 
-                if (NULL != (err_str = h5_save_v123ft(&h5o, v123_ft, i, j, k))) {
+                if (NULL != (err_str = bpw_h5_write(&bpw_h5o, v123_ft, i, j, k))) {
                     goto clearerr_2;
                 }
             }
         }
 
 clearerr_2:
-    if (NULL != (err_str = h5_close_v123ft(&h5o))) {
+    if (NULL != (err_str = bpw_h5_close(L, &bpw_h5o))) {
         goto clearerr_1;
     }
 
@@ -435,16 +404,16 @@ clearerr_0:
 
 
 /* 
-   qcd.save_squark_wf(h5_file, h5_path, v1, v2, v3, mom_list, t_axis, c0)
+   qcd.save_laph_wf_baryon_pwave(h5_file, h5_path, v1, v2, v3, ft_mom, t_axis, ft_x0)
    h5_file      HDF5 file name
    h5_path      keypath
    v1, v2, v3   LapH evectors
-   mom_list
+   ft_mom
    t_axis
-   c0
+   ft_x0
  */
 int
-q_save_squark_wf(lua_State *L)
+q_save_laph_wf_baryon_pwave(lua_State *L)
 {
     /* check & parse parameters */
     int argc = lua_gettop(L);
@@ -476,25 +445,25 @@ q_save_squark_wf(lua_State *L)
     }
 
     int n_mom = 0;
-    int *mom_list           = qlua_check_array2d_int(L, 6, -1, LDIM - 1, &n_mom, NULL);
-    if (NULL == mom_list) {
+    int *ft_mom           = qlua_check_array2d_int(L, 6, -1, LDIM - 1, &n_mom, NULL);
+    if (NULL == ft_mom) {
         luaL_error(L, "list of momenta {{px,py,pz}...} expected in #6");
         goto clearerr_3;
     }
 
     int t_axis              = luaL_checkint(L, 7);
 
-    int *c0                 = qlua_check_array1d_int(L, 8, LDIM, NULL);
-    if (NULL == c0) {        
+    int *ft_x0              = qlua_check_array1d_int(L, 8, LDIM, NULL);
+    if (NULL == ft_x0) {        
         luaL_error(L, "initial FT coordinate {x0,y0,z0,t0} expected in #8");
         goto clearerr_4;
     }
 
     /* TODO call save_quark_wf */
-    const char *status = save_squark_wf(L, S, h5_file, h5_path,
+    const char *status = save_laph_wf_baryon_pwave(L, S, h5_file, h5_path,
             n_v1, v1, n_v2, v2, n_v3, v3,
-            n_mom, mom_list,
-            t_axis, c0);
+            n_mom, ft_mom,
+            t_axis, ft_x0);
     if (NULL != status) {
         luaL_error(L, status);
         goto clearerr_5;
@@ -505,13 +474,13 @@ q_save_squark_wf(lua_State *L)
     qlua_free(L, v1);
     qlua_free(L, v2);
     qlua_free(L, v3);
-    qlua_free(L, mom_list);
-    qlua_free(L, c0);
+    qlua_free(L, ft_mom);
+    qlua_free(L, ft_x0);
 
     return 0;
 
-clearerr_5:     qlua_free(L, c0);
-clearerr_4:     qlua_free(L, mom_list);
+clearerr_5:     qlua_free(L, ft_x0);
+clearerr_4:     qlua_free(L, ft_mom);
 clearerr_3:     qlua_free(L, v3);
 clearerr_2:     qlua_free(L, v2);
 clearerr_1:     qlua_free(L, v1);

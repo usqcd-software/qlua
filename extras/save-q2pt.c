@@ -21,11 +21,23 @@
 #include "qparam.h"
 #include "laph_common.h"
 
+#define Q2PT_INDEX_STRMAX   16
+const char *q2pt_index_order[] = {
+    "t_snk",        /* [ 0] */
+    "t_src",        /* [ 1] */
+    "vec_snk",      /* [ 2] */
+    "vec_src",      /* [ 3] */
+    "spin_snk",     /* [ 4] */
+    "spin_src",     /* [ 5] */
+    "re_im"         /* [ 6] */
+};
 
 typedef struct {
     h5output    h5o;
 
-    int lt;
+    int latsize[LDIM];
+    int t_axis;
+
     int n_vec;
 
     int         buf_rank;
@@ -33,23 +45,79 @@ typedef struct {
     hid_t       buf_dspace;
 } q2pt_h5output;
 
+
+/* check all attributes 
+    IN:
+    OUT:
+        p_x_name    name of the problem attribute
+    result:
+        OK:
+            0
+        Fail:
+            -1      cannot open+read or creat+write an attribute
+            -2      wrong data type of an attribute
+            -3      wrong data space of an attribute
+            -4      wrong data of an attribute 
+*/
+/*static */int
+q2pt_check_meta(lua_State *L,
+        const char **p_x_name, q2pt_h5output *q2pt_h5o)
+{
+    if (! is_masternode())
+        return 0;
+
+    hid_t d_id = q2pt_h5o->h5o.dset;
+    int x_status = 0;
+    const char *x_name = NULL;
+    if ((x_status = h5_check_attr_str_list(L, NULL, d_id,
+                    "index_order", sizeof(q2pt_index_order) / sizeof(q2pt_index_order[0]),
+                    Q2PT_INDEX_STRMAX, q2pt_index_order)) < 0) {
+        x_name = "index_order";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id,
+                            "latsize", LDIM, q2pt_h5o->latsize)) < 0) {
+        x_name = "latsize";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_int(L, NULL, d_id,
+                        "t_axis", &(q2pt_h5o->t_axis))) < 0) {
+        x_name = "t_axis";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_int(L, NULL, d_id,
+                        "nvec", &(q2pt_h5o->n_vec))) < 0) {
+        x_name = "nvec";
+        goto clearerr_0;
+    }
+    return 0;
+
+clearerr_0:
+    if (NULL != p_x_name)
+        *p_x_name = x_name;
+    return x_status;
+
+}
+
 /*static*/ const char *
 q2pt_h5_open_write(lua_State *L,
             q2pt_h5output *q2pt_h5o,
             const char *h5file, const char *h5path,
-            int lt, int n_vec)
+            const int latsize[], int t_axis, int n_vec)
 {
     if (! is_masternode())
         return NULL;
 
     const char *err_str = NULL;
-
+    int lt = latsize[t_axis];
     hsize_t dims[7] = { lt, lt, n_vec, n_vec, NSPIN, NSPIN, 2};
     err_str = h5_open_write(L, &(q2pt_h5o->h5o), h5file, h5path, 7, dims);
     if (NULL != err_str)
         return err_str;
 
-    q2pt_h5o->lt            = lt;
+    for (int d = 0 ; d < LDIM ; d++)
+        q2pt_h5o->latsize[d] = latsize[d];
+    q2pt_h5o->t_axis        = t_axis;
     q2pt_h5o->n_vec         = n_vec;
 
     q2pt_h5o->buf_rank = 4;
@@ -97,6 +165,7 @@ q2pt_h5_write(q2pt_h5output *q2pt_h5o,
     if (! is_masternode())
         return NULL;
 
+    int lt = q2pt_h5o->latsize[q2pt_h5o->t_axis];
     hsize_t dset_off[7] = { 0, 
                             t_src, 
                             0,
@@ -104,7 +173,7 @@ q2pt_h5_write(q2pt_h5output *q2pt_h5o,
                             0,
                             j_spin_prop,
                             0 };
-    hsize_t dset_cnt[7] = { q2pt_h5o->lt,
+    hsize_t dset_cnt[7] = { lt,
                             1,
                             q2pt_h5o->n_vec,
                             1,
@@ -152,7 +221,14 @@ save_q2pt(lua_State *L,
     /* HDF5 output */
     q2pt_h5output q2pt_h5o;
     if (NULL != (err_str = q2pt_h5_open_write(L, &q2pt_h5o, 
-                    h5_file, h5_path, lt, n_vec))) {
+                    h5_file, h5_path, latsize, t_axis, n_vec))) {
+        goto clearerr_0;
+    }
+    const char *x_attr;
+    if (q2pt_check_meta(L, &x_attr, &q2pt_h5o)) {
+        err_str = "cannot update meta info";
+        luaL_error(L, err_str);
+        q2pt_h5_close(L, &q2pt_h5o);
         goto clearerr_0;
     }
 
@@ -360,7 +436,14 @@ save_q2pt_list(lua_State *L,
     /* HDF5 output */
     q2pt_h5output q2pt_h5o;
     if (NULL != (err_str = q2pt_h5_open_write(L, &q2pt_h5o, 
-                    h5_file, h5_path, lt, n_vec))) {
+                    h5_file, h5_path, latsize, t_axis, n_vec))) {
+        goto clearerr_0;
+    }
+    const char *x_attr;
+    if (q2pt_check_meta(L, &x_attr, &q2pt_h5o)) {
+        err_str = "cannot update meta info";
+        luaL_error(L, err_str);
+        q2pt_h5_close(L, &q2pt_h5o);
         goto clearerr_0;
     }
 

@@ -45,7 +45,7 @@ const char *q3pt_index_order[] = {
     "i_op",         /* [ 5] */
     "i_qmom",       /* [ 6] */
     "re_im"         /* [ 7] */ };
-
+#define Q3PT_OP_STRMAX      16
 
 typedef struct {
     h5output    h5o;
@@ -61,9 +61,11 @@ typedef struct {
     int *t_op;              /* [n_t12op] op.insertion tslices */
 
     int n_op;
+    char **op_str;          /* operator names */
 
     int n_qmom;             /* number of mom insertions */
     int *qmom;              /* mom insertions [n_qmom][LDIM-1] */
+    int ft_x0[LDIM];        /* starting point for FT [LDIM] */
 
     int         buf_rank;
     hsize_t     buf_dims[3];
@@ -71,6 +73,19 @@ typedef struct {
 } q3pt_h5output;
 
 
+/*static */char **
+q3pt_make_opstr_qb_0deriv(lua_State *L)
+{
+    int n_op = NSPIN * NSPIN;
+    char **res = qlua_malloc(L, sizeof(char *) * NSPIN*NSPIN);
+    assert(NULL != res);
+    for (int i = 0 ; i < n_op ; i++) {
+        res[i] = qlua_malloc(L, sizeof(char) * Q3PT_OP_STRMAX);
+        assert(NULL != res[i]);
+        snprintf(res[i], Q3PT_OP_STRMAX, "qb_G%d", i);
+    }
+    return res;
+}
 
 /* check all attributes 
     IN:
@@ -95,7 +110,6 @@ q3pt_check_meta(lua_State *L,
     hid_t d_id = q3pt_h5o->h5o.dset;
     int x_status = 0;
     const char *x_name = NULL;
-    /* TODO add 'ft_x0', 't_axis' */
     if ((x_status = h5_check_attr_str_list(L, NULL, d_id, 
                     "index_order", sizeof(q3pt_index_order) / sizeof(q3pt_index_order[0]), 
                     Q3PT_INDEX_STRMAX, q3pt_index_order)) < 0) {
@@ -120,6 +134,17 @@ q3pt_check_meta(lua_State *L,
     if ((x_status = h5_check_attr_array2d_int(L, NULL, d_id, 
                             "qmom", q3pt_h5o->n_qmom, LDIM - 1, q3pt_h5o->qmom)) < 0) {
         x_name = "qmom";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_array1d_int(L, NULL, d_id, 
+                            "ft_x0", LDIM, q3pt_h5o->ft_x0)) < 0) {
+        x_name = "ft_x0";
+        goto clearerr_0;
+    }
+    if ((x_status = h5_check_attr_str_list(L, NULL, d_id, 
+                    "op", q3pt_h5o->n_op, Q3PT_OP_STRMAX,  
+                    (const char **)q3pt_h5o->op_str)) < 0) {
+        x_name = "op";
         goto clearerr_0;
     }
     {   /* TODO make subspace update */
@@ -192,7 +217,7 @@ q3pt_h5_open_write(lua_State *L,
         int t_src, int t_snk,
         int n_t12op, int n_t12op_max, const int *i_t12op, const int *t_op,
         int n_op,
-        int n_qmom, const int *qmom)
+        int n_qmom, const int *qmom, const int ft_x0[])
 /* store q3pt correlator:
    [i_t12op, n1, n2, s1, s2, i_op, i_qmom, re/im]
     
@@ -202,7 +227,6 @@ q3pt_h5_open_write(lua_State *L,
         return NULL;
 
     const char *err_str = NULL;
-    /* TODO put right dimensions */
     hsize_t dims[8] = { n_t12op_max, n_vec, n_vec, NSPIN, NSPIN, n_op, n_qmom, 2};
     err_str = h5_open_write(L, &(q3pt_h5o->h5o), h5file, h5path, 8, dims);
     if (NULL != err_str)
@@ -219,7 +243,6 @@ q3pt_h5_open_write(lua_State *L,
     q3pt_h5o->n_t12op       = n_t12op;
     q3pt_h5o->n_t12op_max   = n_t12op_max;
     
-    /* FIXME do I really need to save these tables? */
     q3pt_h5o->i_t12op       = qlua_malloc(L, sizeof(q3pt_h5o->i_t12op[0]) * n_t12op);
     assert(NULL != q3pt_h5o->i_t12op);
     q3pt_h5o->t_op          = qlua_malloc(L, sizeof(q3pt_h5o->t_op[0]) * n_t12op);
@@ -235,6 +258,10 @@ q3pt_h5_open_write(lua_State *L,
     assert(NULL != q3pt_h5o->qmom);
     for (int i = 0; i < (LDIM - 1) * n_qmom ; i++)
         q3pt_h5o->qmom[i] = qmom[i];
+    for (int i = 0 ; i < LDIM ; i++)
+        q3pt_h5o->ft_x0[i] = ft_x0[i];
+
+    q3pt_h5o->op_str = q3pt_make_opstr_qb_0deriv(L);
 
     q3pt_h5o->buf_rank      = 3;
     q3pt_h5o->buf_dims[0]   = n_op;
@@ -269,6 +296,13 @@ q3pt_h5_close(lua_State *L, q3pt_h5output *q3pt_h5o)
         qlua_free(L, q3pt_h5o->t_op);
     if (NULL != q3pt_h5o->qmom)
         qlua_free(L, q3pt_h5o->qmom);
+    if (NULL != q3pt_h5o->op_str) {
+        for (int i = 0 ; i < q3pt_h5o->n_op ; i++) {
+            if (NULL != q3pt_h5o->op_str[i])
+                free(q3pt_h5o->op_str[i]);
+        }
+        free(q3pt_h5o->op_str);
+    }
 
     if (H5Sclose(q3pt_h5o->buf_dspace))
         return "cannot close HDF5 membuf";
@@ -436,7 +470,7 @@ save_q3pt_0deriv_selectspin(lua_State *L,
     if (NULL != (err_str = q3pt_h5_open_write(L, &q3pt_h5o,
                     h5_file, h5_path, latsize, t_axis, n_vec_max,
                     t_src, t_snk, n_t12op, n_t12op_max, i_t12op, t_op,
-                    NSPIN*NSPIN, n_qmom, qmom_list))) {
+                    NSPIN*NSPIN, n_qmom, qmom_list, c0))) {
         goto clearerr_0;
     }
     const char *x_attr;

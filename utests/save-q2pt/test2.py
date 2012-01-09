@@ -2,6 +2,29 @@ import math
 import numpy as np
 import tables as tb
 
+def make_metainfo_p(p):
+    """
+    result: dictionary {attr : np.array}
+    """
+    return {
+        'index_order'   : [ 't_snk', 't_src', 'vec_snk', 'vec_src', 
+                            'spin_snk', 'spin_src', 're_im' ],
+        'latsize'       : np.array(p['latsize']),
+        't_axis'        : p['t_axis'],
+        'nvec'          : len(p['laph_pw3_list']) * len(p['laph_col_list'])
+        }
+
+def check_metainfo(p, attr_f):
+    attr = make_metainfo_p(p)
+    for k in attr.keys():
+        if (not attr_f.has_key(k)):
+            print "%s: no key\n" % k
+            return False
+        if (not (attr_f[k] == attr[k]).all()):
+            print "%s: data mismatch: '%s' != '%s'" % (k, attr_f[k], attr[k])
+            return False
+    return True
+
 def make_test_res(geom, src0, t_axis,
                   prop_mom_sh, prop_mom_c0, prop_exp_sh, 
                   list_mom, list_col, list_exp):
@@ -78,16 +101,22 @@ def make_test_res_p(p):
 def check_output_data(p, test_dir='.'):
     h5  = tb.openFile(test_dir + '/' + p['h5_file'])
     y   = h5.getNode('/' + p['h5_path'])
+    attr_f  = y.attrs
     y   = y[...,0] + 1j * y[...,1]
     h5.close()
 
     y1  = make_test_res_p(p)
     
-    res = np.allclose(y, y1)
-    
-    # TODO check metainfo
+    cmp_data    = np.allclose(y, y1)
+    cmp_meta    = check_metainfo(p, attr_f.__dict__)    
 
-    return res
+    print y.shape, y1.shape
+    dy  = y - y1    
+    print math.sqrt((y*y.conj()).sum()), \
+          math.sqrt((y1*y1.conj()).sum()), \
+          math.sqrt((dy*dy.conj()).sum())
+    
+    return (cmp_data and cmp_meta)
 
 def check_qlua_run(p, test_dir='.'):
     f = open(test_dir + '/stdout', 'r')
@@ -101,11 +130,13 @@ case_list = [
     {   'case'      : 'save-q2pt-test2a',
         'qlua_src'  : 'save-q2pt/test2a.qlua',
         'make_data' : make_test_res_p,
+        'make_meta' : make_metainfo_p,
         'check_log' : check_qlua_run,
         'check_out' : check_output_data },
     {   'case'      : 'save-q2pt-test2b',
         'qlua_src'  : 'save-q2pt/test2b.qlua',
         'make_data' : make_test_res_p,
+        'make_meta' : make_metainfo_p,
         'check_log' : check_qlua_run,
         'check_out' : check_output_data }
 ]

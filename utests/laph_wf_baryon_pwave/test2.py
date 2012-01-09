@@ -89,8 +89,8 @@ def check_qlua_run(p, test_dir='.'):
     return False
 
 case_list = [
-    {   'case'      : 'squark-wf-test2a',
-        'qlua_src'  : 'squark-wf/test2a.qlua',
+    {   'case'      : 'laph_wf_baryon_pwave-test2a',
+        'qlua_src'  : 'laph_wf_baryon_pwave/test2a.qlua',
         'make_data' : make_test_res_p,
         'check_log' : check_qlua_run,
         'check_out' : check_output_data }

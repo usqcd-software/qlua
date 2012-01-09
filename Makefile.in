@@ -117,7 +117,7 @@ ifeq ("@extras@", "true")
               gen_laplace.c \
 	      h5common.c \
 	      qparam.c \
-	      squark-wf.c \
+	      laph_wf_baryon.c \
 	      save-q2pt.c \
 	      save-q3pt.c \
 	      laph_common.c \

@@ -63,7 +63,7 @@ v012 = make_test_V(src0,
                    list_exp,
                    t_axis)
 
-qcd.save_squark_wf(name, path, 
+qcd.save_laph_wf_baryon_pwave(name, path, 
                    v012[1], v012[2], v012[3],
                    list_psrc,
                    t_axis, 
