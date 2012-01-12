@@ -1,0 +1,16 @@
+-- momentum lists 
+function mom3d_list_norm2max(mom2_max)
+  local pi_max = 0
+  while pi_max * pi_max <= mom2_max do pi_max = pi_max + 1 end
+  local mom_list = {}
+  for px = -pi_max + 1, pi_max - 1 do
+    for py = -pi_max + 1, pi_max - 1 do
+      for pz = -pi_max + 1, pi_max - 1 do
+        if px * px + py * py + pz * pz <= mom2_max then
+          table.insert(mom_list, {px, py, pz})
+        end
+      end
+    end
+  end
+  return mom_list
+end
