@@ -227,6 +227,23 @@ function make_latcolvec_list_pw_c_expt(L, t_axis, pw3_list, pw_x0, col_list, dep
   return v
 end
 
+-- make propagator exp(ip(x-x0)) * [c0 +c_ac*ic +c_as*is +c_bc*jc +c_bs*js]
+-- lc5 = { c0, c_ac, c_as, c_bc, c_bs }
+function make_latdirprop_lin_pw(L, lc5, ft_mom, ft_x0)
+  local pw = L:planewave(ft_x0, ft_mom)
+  local p = L:DiracPropagator()
+  for jc=0,2 do  for js=0,3 do
+    local d = L:DiracFermion()
+    for ic=0,2 do  for is=0,3 do
+      d[{c=ic, d=is}] = pw * (lc5[1] + lc5[2]*ic + lc5[3]*is + lc5[4]*jc + lc5[5]*js)
+    end  end
+    p[{c=jc, d=js}] = d
+  end  end
+  return p
+end
+
+
+
 -- make "propagator": latdirferm x 4 {d0, d1, d2, d3 } = tdep \otimes {v} 
 -- with t-dependent gamma structure
 --    v         latcolvec

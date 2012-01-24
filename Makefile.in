@@ -121,6 +121,8 @@ ifeq ("@extras@", "true")
 	      save-q2pt.c \
 	      save-q3pt.c \
 	      laph_common.c \
+	      save_npr.c \
+	      extras_common.c \
 
 
 ifneq ("$(GSL)", "")

@@ -3,12 +3,13 @@
 
 #define Gamma_dot_vec(i_G, i, c0,c1,c2,c3)    (Gamma ## i_G ##  _dot_vec_##i(c0,c1,c2,c3))
 #define GammaT_dot_vec(i_G, i, c0,c1,c2,c3)   (Gamma ## i_G ## T_dot_vec_##i(c0,c1,c2,c3))
-
+/* calculate Tr(Gamma[i_G] . C) */
 #define TrGamma_dot(i_G, c00,c01,c02,c03, c10,c11,c12,c13, c20,c21,c22,c23, c30,c31,c32,c33) \
       (Gamma_dot_vec(i_G,0, c00,c10,c20,c30) \
      + Gamma_dot_vec(i_G,1, c01,c11,c21,c31) \
      + Gamma_dot_vec(i_G,2, c02,c12,c22,c32) \
      + Gamma_dot_vec(i_G,3, c03,c13,c23,c33))
+/* calculate Tr(Gamma[i_G]^T . C) */
 #define TrGammaT_dot(i_G, c00,c01,c02,c03, c10,c11,c12,c13, c20,c21,c22,c23, c30,c31,c32,c33) \
       (GammaT_dot_vec(i_G,0, c00,c10,c20,c30) \
      + GammaT_dot_vec(i_G,1, c01,c11,c21,c31) \

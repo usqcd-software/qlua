@@ -27,10 +27,6 @@
 #include "gamma_dgr_defs.h"
 #include "gamma_defs.h"
 
-#define NSPIN   4
-#define NCOLOR  3
-#define LDIM    4
-
 #define DEBUG_LEVEL 1   
 #include "debug.h"
 
@@ -787,6 +783,8 @@ q_save_q3pt_0deriv_selectspin(lua_State *L)
         DEBUG_L1("{%d->%d} ", i_t12op[i], t_op[i]);
     DEBUG_L1("}\n");
 #endif
+
+    CALL_QDP(L);
     const char *status = save_q3pt_0deriv_selectspin(L, S, h5_file, h5_path,
                             max_vec, 
                             t_src[0], n_src, vec_src, spin_src, sol_src,

@@ -20,12 +20,6 @@ function calc_bb(
     bc_quark_t,         -- BC for quarks, only in t dir? FIXME need general?
     bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
     )
-  -- handy function to copy tables
-  local function copy_table(tab) 
-    local a = {}; for i,v in pairs(tab) do a[i] = v end
-    return a
-  end
-  
   -- multiply gauge links in [t] direction, at [Lt-1], by BC
   local gauge_u = copy_table(gauge_u_)
   gauge_u[1+t_axis] = L:ColorMatrix(gauge_u[1+t_axis])

@@ -1,0 +1,42 @@
+require("test_fields")
+
+if (nil == test_dir
+    or nil == aff_file
+    or nil == qv_kpath
+    or nil == latsize
+    or nil == frw_kpath
+    or nil == frw_ft_mom
+    or nil == frw_lin_coeff
+    or nil == bkw_kpath
+    or nil == bkw_ft_mom
+    or nil == bkw_lin_coeff
+    or nil == ft_x0) then 
+  print "have unset parameters"
+  os.exit(1)
+end
+
+require("stdlib")
+
+L = qcd.lattice(latsize)
+print_subgrid_settings(L)
+
+aff_w = qcd.aff.Writer(test_dir .. '/' .. aff_file)
+
+frw_prop = make_latdirprop_lin_pw(L, frw_lin_coeff, frw_ft_mom, ft_x0)
+qcd.save_npr_prop(aff_w, frw_kpath, frw_prop, frw_ft_mom, ft_x0)
+printf("frw_prop:norm2=%e\n", frw_prop:norm2())
+
+bkw_prop = make_latdirprop_lin_pw(L, bkw_lin_coeff, bkw_ft_mom, ft_x0)
+qcd.save_npr_prop(aff_w, bkw_kpath, bkw_prop, bkw_ft_mom, ft_x0)
+printf("bkw_prop:norm2=%e\n", bkw_prop:norm2())
+
+ins_ft_mom = {}
+for i=1,#frw_ft_mom do
+  ins_ft_mom[i] = frw_ft_mom[i] - bkw_ft_mom[i]
+end
+qcd.save_npr_2qvertex(aff_w, qv_kpath, frw_prop, bkw_prop, ins_ft_mom, ft_x0)
+io.stderr:write("qv done\n")
+
+aff_w:close()
+
+printf("QLUA_RUN_SUCCESS\n")

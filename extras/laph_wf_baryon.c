@@ -467,7 +467,7 @@ q_save_laph_wf_baryon_pwave(lua_State *L)
         goto clearerr_4;
     }
 
-    /* TODO call save_quark_wf */
+    CALL_QDP(L);
     const char *status = save_laph_wf_baryon_pwave(L, S, h5_file, h5_path,
             n_v1, v1, n_v2, v2, n_v3, v3,
             n_mom, ft_mom,

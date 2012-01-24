@@ -3,6 +3,42 @@
 import sys
 import re
 import numpy as np
+import math
+
+# functions for testing test field contractions
+# TODO maybe it deserves a separate file/module?
+def pw_prod_matr(latsize, *p_x0_list):
+    """ return a normalized matrix of products of plane waves:
+        M[{{i^(a)}}] = \sum_x[ exp(I * \sum_a[ p^(a)_{i^(a)} . (x - x^(a)_i) ]) ] / \sum_x[ 1 ]
+            latsize     lattice size
+            p_x0_list = [ ( [ p^(1), ... ], x^(a) ), ... ]
+    """
+    p  = [ np.array(t[0]) for t in p_x0_list ]
+    xx = np.array([ t[1] for t in p_x0_list ])
+    ls = np.array(latsize, float)
+    res_sh = tuple(len(p_i) for p_i in p)
+
+    def ft_val(*idx):
+        pp = np.array([ p[i][idx[i]] for i in range(len(idx)) ])
+        if np.allclose(0, pp.sum(axis=0) % ls):
+            phase = (pp[1:] * (xx[1] - xx[1:]) / ls).sum()
+            return np.exp(2j * math.pi * phase)
+        else: 
+            return 0.
+
+    return np.fromfunction(np.vectorize(ft_val, otypes=[np.complex128]),
+                           res_sh, dtype=int)
+
+def space2full(c, axis, c_t=0):
+    res = [ c_i for c_i in c ]
+    res.insert(axis, c_t)
+    return res
+
+def full2space(c, axis):
+    idx = range(len(c))
+    del(idx[axis])
+    return c[idx]
+
 
 gamma_dgr = np.array([ 
     [[  0,  0,  0, 1j], [  0,  0, 1j,  0], [  0,-1j,  0,  0], [-1j,  0,  0,  0]],
@@ -35,7 +71,33 @@ def make_Gamma16(g_list):
 
 Gamma16_dgr = np.array(make_Gamma16(gamma_dgr))
 
+def tensor_matrix_dot(t, m, axis_t):
+    """ right-multiply tensor . matrix, using 'axis_t'th index of the tensor 
+        preserving the meaning of all the other tensor indices
+    """
+    assert 2 == len(m.shape)
+    return np.rollaxis(np.tensordot(t, m, axes=(axis_t, 0)), -1, axis_t)
+def matrix_tensor_dot(m, t, axis_t):
+    """ left-multiply tensor . matrix, using 'axis_t'th index of the tensor 
+        preserving the meaning of all the other tensor indices
+    """
+    assert 2 == len(m.shape)
+    return np.rollaxis(np.tensordot(t, m, axes=(axis_t, 1)), -1, axis_t)
 
+def cplx_norm2(a): 
+    a   = np.asarray(a)
+    return (a.real*a.real).sum() + (a.imag*a.imag).sum()
+
+# reporting
+def rdiff(a, b):
+    if 0 == np.abs(a).sum():
+        if 0 == np.abs(b).sum(): return 0
+        else: return 2.
+    else:
+        if 0 == np.abs(a).sum(): return 2.
+        else: return 2 * np.abs(a - b).sum() / (np.abs(a).sum() + np.abs(b).sum())
+
+# qlua code generation
 def qlua_string(v):
     if list == type(v):
         if (len(v) <= 0): return '{}'
@@ -62,10 +124,11 @@ def run_qlua_sh(qlua_bin, qlua_test_param, qlua_test_src,
             qlua_stdout, qlua_stderr,
             **run_param):
     import os
-    #print '%s %s %s >%s 2>%s </dev/null' % (qlua_bin, qlua_test_param, qlua_test_src, qlua_stdout, qlua_stderr)
-    res = os.system('time %s %s %s >%s 2>%s </dev/null' % (
-                        qlua_bin, qlua_test_param, qlua_test_src, 
+    cmd = ('time %s %s %s >%s 2>%s </dev/null' % (
+                        qlua_bin, qlua_test_param, qlua_test_src,
                         qlua_stdout, qlua_stderr))
+    print cmd
+    res = os.system(cmd)
 
     return (0 == res)
 
@@ -115,42 +178,6 @@ def parse_comma_list(s):
         else: d[rp.groups()[0]] = rp.groups()[1]
     return l, d
 
-
-# functions for testing test field contractions
-# TODO maybe it deserves a separate file/module?
-import numpy as np
-import math
-def pw_prod_matr(latsize, *p_x0_list):
-    """ return a normalized matrix of products of plane waves:
-        M[{{i^(a)}}] = \sum_x[ exp(I * \sum_a[ p^(a)_{i^(a)} . (x - x^(a)_i) ]) ] / \sum_x[ 1 ]
-            latsize     lattice size
-            p_x0_list = [ ( [ p^(1), ... ], x^(a) ), ... ]
-    """
-    p  = [ np.array(t[0]) for t in p_x0_list ]
-    xx = np.array([ t[1] for t in p_x0_list ])
-    ls = np.array(latsize, float)
-    res_sh = tuple(len(p_i) for p_i in p)
-
-    def ft_val(*idx):
-        pp = np.array([ p[i][idx[i]] for i in range(len(idx)) ])
-        if np.allclose(0, pp.sum(axis=0) % ls):
-            phase = (pp[1:] * (xx[1] - xx[1:]) / ls).sum()
-            return np.exp(2j * math.pi * phase)
-        else: 
-            return 0.
-
-    return np.fromfunction(np.vectorize(ft_val, otypes=[np.complex128]),
-                           res_sh, dtype=int)
-
-def space2full(c, axis, c_t=0):
-    res = [ c_i for c_i in c ]
-    res.insert(axis, c_t)
-    return res
-
-def full2space(c, axis):
-    idx = range(len(c))
-    del(idx[axis])
-    return c[idx]
 
 
 # main loop

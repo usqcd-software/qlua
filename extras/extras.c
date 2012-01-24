@@ -48,61 +48,6 @@ q_baryon_duu(lua_State *L)
 #endif /* defined(HAS_GSL) */
 
 static int
-q_save_bb(lua_State *L)
-{
-    mAffWriter *aff_w = qlua_checkAffWriter(L, 1);
-    const char *key_path = luaL_checkstring(L, 2);
-    mLatDirProp3 *F = qlua_checkLatDirProp3(L, 3, NULL, 3);
-    mLattice *S = qlua_ObjLattice(L, 3);
-    int Sidx = lua_gettop(L);
-    mLatDirProp3 *B = qlua_checkLatDirProp3(L, 4, S, 3);
-    int *csrc = qlua_checkintarray(L, 5, S->rank, NULL);
-    int tsnk = luaL_checkint(L, 6);
-    int time_rev = luaL_checkint(L, 8);
-    int t_axis = luaL_checkint(L, 9);
-    double bc_baryon = luaL_checknumber(L, 10);
-    int i, j, k;
-    const char *status = NULL;
-
-    if (Sidx < 11)
-        return luaL_error(L, "bad arguments");
-
-    if (csrc == NULL)
-        return luaL_error(L, "bad value for coord_src");
-
-    luaL_checktype(L, 7, LUA_TTABLE);
-    int n_qext = lua_objlen(L, 7);
-    int qext[n_qext * S->rank];
-    for (k = i = 0; i < n_qext; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, 7);
-        qlua_checktable(L, -1, "momentum at #7[%d]", i + 1);
-        for (j = 0; j < S->rank; j++, k++) {
-            lua_pushnumber(L, j + 1);
-            lua_gettable(L, -2);
-            qext[k] = qlua_checkint(L, -1, "momentum component at #7[%d][%d]",
-                                    i + 1, j + 1);
-            lua_pop(L, 1);
-        }
-        lua_pop(L, 1);
-    }
-
-    qlua_Aff_enter(L);
-    CALL_QDP(L);
-    
-    status = save_bb(L, S, aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
-                     time_rev, t_axis, bc_baryon);
-    qlua_Aff_leave();
-    
-    qlua_free(L, csrc);
-
-    if (status)
-        luaL_error(L, status);
-
-    return 0;
-}
-
-static int
 q_laplacian(lua_State *L)
 {
     double a = luaL_checknumber(L, 1); /* [1] : a */
@@ -179,23 +124,27 @@ q_laplacian(lua_State *L)
     return 1;
 }
 
-extern int q_save_laph_wf_baryon_pwave(lua_State *L);
-
-extern int q_save_q2pt(lua_State *L);
-extern int q_save_q2pt_list(lua_State *L);
-
-extern int q_save_q3pt_0deriv_selectspin(lua_State *L);
+int q_save_x_test(lua_State *L) 
+{
+    CALL_QDP(L);
+    /**/QDP_D3_DiracPropagator *p = QDP_D3_create_P();
+    QDP_D3_P_eq_zero(p, QDP_all);
+    return 0;
+}
 
 static struct luaL_Reg fExtra[] = {
-    { "save_bb",    q_save_bb },
-    { "laplacian",  q_laplacian },
+    { "save_bb",                    q_save_bb },
+    { "laplacian",                  q_laplacian },
 #ifdef HAS_GSL
-	{ "baryon_duu", q_baryon_duu },
+    { "baryon_duu",                 q_baryon_duu },
 #endif /* defined(HAS_GSL) */
-    { "save_laph_wf_baryon_pwave",     q_save_laph_wf_baryon_pwave },
-    { "save_q2pt",          q_save_q2pt },
-    { "save_q2pt_list",     q_save_q2pt_list },
-    { "save_q3pt_selectspin",     q_save_q3pt_0deriv_selectspin },
+    { "save_laph_wf_baryon_pwave",  q_save_laph_wf_baryon_pwave },
+    { "save_q2pt",                  q_save_q2pt },
+    { "save_q2pt_list",             q_save_q2pt_list },
+    { "save_q3pt_selectspin",       q_save_q3pt_0deriv_selectspin },
+    { "save_npr_prop",              q_save_npr_prop },
+    { "save_npr_2qvertex",          q_save_npr_2qvertex },
+    { "save_x_test",                q_save_x_test }, 
     { NULL,         NULL }
 };
 

@@ -694,7 +694,7 @@ q_save_q2pt_list(lua_State *L)
     }
 #endif
 
-
+    CALL_QDP(L);
     const char *status = save_q2pt_list(L, S, h5_file, h5_path,
                             n_sol, tsrc, jvec, jspin, sol,
                             n_vec, v,

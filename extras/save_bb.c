@@ -9,6 +9,7 @@
 #include "qlua.h"                                                   /* DEPS */
 #include "lattice.h"                                                /* DEPS */
 #include "extras.h"                                                 /* DEPS */
+#include "latdirprop.h"
 
 static double complex
 calc_exp_iphase(const int coord[], const int c0[], 
@@ -36,7 +37,7 @@ calc_exp_iphase(const int coord[], const int c0[],
     time_rev ==0 for proton_3, ==1 for proton_negpar_3
     bc_baryon_t =+/-1 boundary condition for baryon 2pt[sic!] function; =bc_quark^3
  */
-const char *
+static const char *
 save_bb(lua_State *L,
         mLattice *S,
         mAffWriter *aff_w,
@@ -270,3 +271,58 @@ save_bb(lua_State *L,
     QDP_D3_reset_P(B);
     return 0;
 }
+int
+q_save_bb(lua_State *L)
+{
+    mAffWriter *aff_w = qlua_checkAffWriter(L, 1);
+    const char *key_path = luaL_checkstring(L, 2);
+    mLatDirProp3 *F = qlua_checkLatDirProp3(L, 3, NULL, 3);
+    mLattice *S = qlua_ObjLattice(L, 3);
+    int Sidx = lua_gettop(L);
+    mLatDirProp3 *B = qlua_checkLatDirProp3(L, 4, S, 3);
+    int *csrc = qlua_checkintarray(L, 5, S->rank, NULL);
+    int tsnk = luaL_checkint(L, 6);
+    int time_rev = luaL_checkint(L, 8);
+    int t_axis = luaL_checkint(L, 9);
+    double bc_baryon = luaL_checknumber(L, 10);
+    int i, j, k;
+    const char *status = NULL;
+
+    if (Sidx < 11)
+        return luaL_error(L, "bad arguments");
+
+    if (csrc == NULL)
+        return luaL_error(L, "bad value for coord_src");
+
+    luaL_checktype(L, 7, LUA_TTABLE);
+    int n_qext = lua_objlen(L, 7);
+    int qext[n_qext * S->rank];
+    for (k = i = 0; i < n_qext; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, 7);
+        qlua_checktable(L, -1, "momentum at #7[%d]", i + 1);
+        for (j = 0; j < S->rank; j++, k++) {
+            lua_pushnumber(L, j + 1);
+            lua_gettable(L, -2);
+            qext[k] = qlua_checkint(L, -1, "momentum component at #7[%d][%d]",
+                                    i + 1, j + 1);
+            lua_pop(L, 1);
+        }
+        lua_pop(L, 1);
+    }
+
+    qlua_Aff_enter(L);
+    CALL_QDP(L);
+    
+    status = save_bb(L, S, aff_w, key_path, F->ptr, B->ptr, csrc, tsnk, n_qext, qext,
+                     time_rev, t_axis, bc_baryon);
+    qlua_Aff_leave();
+    
+    qlua_free(L, csrc);
+
+    if (status)
+        luaL_error(L, status);
+
+    return 0;
+}
+
