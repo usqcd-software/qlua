@@ -24,6 +24,15 @@ function save_qdpc_colmat(L, fields, name, finfo, rinfo, volfmt)
   end
   qdp_w:close()
 end
+function save_qdpc_dirprop(L, fields, name, finfo, rinfo, volfmt)
+  local qdp_w = open_qdpc_write(L, name, finfo, volfmt)
+  if not qdp_w:DiracPropagator(fields, rinfo) then
+    printf("Error writing to '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_w:close()
+end
+  
 
 
 -- READ functions
