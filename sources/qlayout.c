@@ -13,6 +13,17 @@ typedef struct {
 } params;
 
 static void
+get_lex_x(int *x, int l, int *s, int ndim)
+{
+    int i;
+
+    for (i = ndim-1; i >= 0; --i) {
+        x[i] = l % s[i];
+        l = l / s[i];
+    }
+}
+
+static void
 node2coord(int *x, int n, mLattice *S)
 {
     int i;
@@ -29,6 +40,7 @@ coord2node(int *x, mLattice *S)
     int i;
     int l = 0;
     int f = 1;
+
     for (i = 0; i < S->rank; i++) {
         l = l + f * x[i];
         f = f * S->net[i];
@@ -37,7 +49,7 @@ coord2node(int *x, mLattice *S)
 }
 
 static int prime[] = {
-    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71
+    2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67
 };
 #define MAXPRIMES (sizeof(prime)/sizeof(int))
 
@@ -62,8 +74,7 @@ eo_setup(QDP_Lattice *lat, void *args)
         int squaresize[QLUA_MAX_LATTICE_RANK];
         int extrafactors[QLUA_MAX_LATTICE_RANK];
         int i;
-
-        for (i=0; i < S->rank; i++) {
+        for (i = 0; i < S->rank; i++) {
             squaresize[i] = S->dim[i];
             extrafactors[i] = 1;
             S->net[i] = 1;
@@ -85,7 +96,6 @@ eo_setup(QDP_Lattice *lat, void *args)
                with largest dimension. */
             int j = -1;
             int i;
-
             for (i = 0; i < S->rank; i++) {
                 if (squaresize[i] % pfac == 0) {
                     if ((j<0) ||
@@ -104,7 +114,6 @@ eo_setup(QDP_Lattice *lat, void *args)
             /* then just choose largest dimension */
             if (j < 0) {
                 int i;
-
                 for (i = 0; i < S->rank; i++) {
                     if ((j<0) ||
                         (extrafactors[j] * squaresize[i] >
@@ -132,13 +141,14 @@ eo_setup(QDP_Lattice *lat, void *args)
     int i;
 
     node2coord(mc, QDP_this_node, S);
-    for (i=0; i < S->rank; i++) {
+    for (i = 0; i < S->rank; i++) {
         int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
         int x1 = ((mc[i]+1) * S->dim[i] + S->net[i] - 1)/S->net[i];
         numsites *= x1 - x0;
     }
     p->numsites = numsites;
     S->node = QDP_this_node;
+
     for (i = 0; i < S->rank; i++) {
         int x = mc[i];
 
@@ -177,8 +187,8 @@ eo_numsites(QDP_Lattice *lat, int node)
 
         node2coord(mc, node, S);
         for (i = 0; i<nd; ++i) {
-            int x0 = (mc[i] * S->dim[i]) / S->net[i];
-            int x1 = ((mc[i] + 1) * S->dim[i]) / S->net[i];
+            int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
+            int x1 = ((mc[i] + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
             numsites *= x1-x0;
         }
         return numsites;
@@ -191,17 +201,88 @@ eo_node_number(QDP_Lattice *lat, const int x[])
     params *p = QDP_get_lattice_params(lat);
     mLattice *S = p->S;
     int m[QLUA_MAX_LATTICE_RANK];
-    int i, n;
+    int i;
     
     for (i = 0; i < S->rank; i++) {
         m[i] = (x[i] * S->net[i]) / S->dim[i];
     }
-    n = coord2node(m, S);
-
-    return n;
+    return coord2node(m, S);
 }
 
-/* Used by clover and mdwf as well */
+static int
+eo_index(QDP_Lattice *lat, const int x[])
+{
+    params *p = QDP_get_lattice_params(lat);
+    mLattice *S = p->S;
+    int s=0, l=0;
+    int i;
+
+    for (i = 0; i < S->rank; i++) {
+        int m = (x[i] * S->net[i]) / S->dim[i];
+        int x0 = (m * S->dim[i] + S->net[i] - 1) / S->net[i];
+        int x1 = ((m + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
+        l = l * (x1 - x0) + x[i] - x0;
+        s += x[i];
+    }
+
+    if( s % 2==0 ) { /* even site */
+        l /= 2;
+    } else {
+        l = (l + p->numsites) / 2;
+    }
+    return l;
+}
+
+static void
+eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
+{
+    params *p = (params *) QDP_get_lattice_params(lat);
+    mLattice *S = p->S;
+    int nd = S->rank;
+    int m[QLUA_MAX_LATTICE_RANK];
+    int dx[QLUA_MAX_LATTICE_RANK];
+    int sx[QLUA_MAX_LATTICE_RANK];
+    int s0 = 0;
+    int n0 = 1;
+    int i;
+
+
+    node2coord(m, node, S);
+    
+    for (i = 0; i < nd; i++) {
+        x[i] = (m[i] * S->dim[i] + S->net[i]-1) / S->net[i];
+        int x1 = ((m[i] + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
+        dx[i] = x1 - x[i];
+        s0 += x[i];
+        n0 *= dx[i];
+    }
+
+    int neven = (n0 + 1 - (s0 & 1)) / 2;
+    if (index < neven) {
+        int l = 2*index;
+        int s1 = s0;
+
+        get_lex_x(sx, l, dx, nd);
+        for(i = 0; i<nd; ++i) s1 += sx[i];
+        if ((s1&1)!=0) {
+            get_lex_x(sx, l+1, dx, nd);
+        }
+    } else {
+        int l = 2 * index - n0 + ((n0 & 1) * (s0 & 1));
+        int s1 = s0;
+
+        get_lex_x(sx, l, dx, nd);
+        for (i = 0; i < nd; i++)
+            s1 += sx[i];
+        if ((s1&1)==0) {
+            get_lex_x(sx, l+1, dx, nd);
+        }
+    }
+    for (i = 0; i < nd; ++i)
+        x[i] += sx[i];
+
+}
+
 void
 qlua_sublattice(int lo[], int hi[], int node, void *env)
 {
@@ -213,62 +294,6 @@ qlua_sublattice(int lo[], int hi[], int node, void *env)
     for (i = 0; i < S->rank; i++) {
         lo[i] = (nD[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
         hi[i] = ((nD[i] + 1) * S->dim[i] + S->net[i] - 1)/S->net[i];
-    }
-}
-
-static int
-eo_index(QDP_Lattice *lat, const int x[])
-{
-    params *lp = QDP_get_lattice_params(lat);
-    mLattice *S = lp->S;
-    int s = 0, l = 0, z  = 0, f = 1;
-    int i, p;
-
-    for (i = 0; i < S->rank; i++) {
-        int n = (x[i] * S->net[i]) / S->dim[i];
-        int lo = (n * S->dim[i] + S->net[i] - 1) / S->net[i];
-        int hi = ((n + 1) * S->dim[i] + S->net[i] - 1)/S->net[i];
-        z += lo;
-        s += x[i];
-        l = l + (x[i] - lo) * f;
-        f *= hi - lo;
-    }
-    z &= 1;
-    s &= 1;
-
-    p = l / 2 + s * (f + 1 - z) / 2;
-
-    return p;
-}
-
-static void
-eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
-{
-    params *lp = QDP_get_lattice_params(lat);
-    mLattice *S = lp->S;
-    int lo[QLUA_MAX_LATTICE_RANK];
-    int hi[QLUA_MAX_LATTICE_RANK];
-    int s = 0, z = 0, f = 1;
-    int i, e, l;
-
-    qlua_sublattice(lo, hi, node, S);
-    for (i = 0; i < S->rank; i++) {
-        z += lo[i];
-        f *= hi[i] - lo[i];
-    }
-    z &= 1;
-    e = (f + 1 - z) / 2;
-    if (index < e) {
-        s = 0;
-    } else {
-        s = 1;
-        index -= e;
-    }
-    l = s + z + 2 * (index - s * z);
-    for (i = 0; i < S->rank; i++) {
-        int d = hi[i] - lo[i];
-        x[i] = lo[i] + l % d;
-        l = l / d;
     }
 }
 

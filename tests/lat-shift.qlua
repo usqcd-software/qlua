@@ -1,0 +1,41 @@
+require "stdlib"
+
+L = qcd.lattice{4,6,8,8}
+-- show the qlua version
+printf("Qlua %s\n", tostring(qcd.version.qlua))
+printf("Ns   %s\n", tostring(qcd.Ns))
+
+m = ((L:pcoord(0) * 10 + L:pcoord(1)) * 10 + L:pcoord(2)) * 10 + L:pcoord(3)
+
+printf("checking shift(0, \"from_forward\")\n")
+v = m:shift(0, "from_forward")
+status = true
+for x = 0, L[0]-1 do
+   if status then
+      for y = 0, L[1]-1 do
+         if status then
+            for z = 0, L[2]-1 do
+               if status then
+                  for t = 0, L[3]-1 do 
+                     if status then
+                        local q = v[{x,y,z,t}]
+                        local s = ((((x + 1) % L[0]) * 10 + y) * 10 + z) * 10 + t
+                        if not (s == q) then
+                           printf("failed at {%d, %d, %d, %d}: %10.0f vs %10.0f\n", x, y, z, t, q, s)
+                           status = false
+                        end
+                     end
+                  end
+               end
+            end
+         end
+      end
+   end
+end
+
+if status then
+   printf("=== SHIFT OK ===\n")
+else
+   printf("***** SHIFT TEST FAILED*****\n");
+end
+
