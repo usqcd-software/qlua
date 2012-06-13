@@ -142,8 +142,8 @@ eo_setup(QDP_Lattice *lat, void *args)
 
     node2coord(mc, QDP_this_node, S);
     for (i = 0; i < S->rank; i++) {
-        int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
-        int x1 = ((mc[i]+1) * S->dim[i] + S->net[i] - 1)/S->net[i];
+        int x0 = (mc[i] * S->dim[i]) / S->net[i];
+        int x1 = ((mc[i]+1) * S->dim[i]) / S->net[i];
         numsites *= x1 - x0;
     }
     p->numsites = numsites;
@@ -187,8 +187,8 @@ eo_numsites(QDP_Lattice *lat, int node)
 
         node2coord(mc, node, S);
         for (i = 0; i<nd; ++i) {
-            int x0 = (mc[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
-            int x1 = ((mc[i] + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
+            int x0 = (mc[i] * S->dim[i]) / S->net[i];
+            int x1 = ((mc[i] + 1) * S->dim[i]) / S->net[i];
             numsites *= x1-x0;
         }
         return numsites;
@@ -219,8 +219,8 @@ eo_index(QDP_Lattice *lat, const int x[])
 
     for (i = 0; i < S->rank; i++) {
         int m = (x[i] * S->net[i]) / S->dim[i];
-        int x0 = (m * S->dim[i] + S->net[i] - 1) / S->net[i];
-        int x1 = ((m + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
+        int x0 = (m * S->dim[i]) / S->net[i];
+        int x1 = ((m + 1) * S->dim[i]) / S->net[i];
         l = l * (x1 - x0) + x[i] - x0;
         s += x[i];
     }
@@ -250,8 +250,8 @@ eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
     node2coord(m, node, S);
     
     for (i = 0; i < nd; i++) {
-        x[i] = (m[i] * S->dim[i] + S->net[i]-1) / S->net[i];
-        int x1 = ((m[i] + 1) * S->dim[i] + S->net[i] - 1) / S->net[i];
+        x[i] = (m[i] * S->dim[i]) / S->net[i];
+        int x1 = ((m[i] + 1) * S->dim[i]) / S->net[i];
         dx[i] = x1 - x[i];
         s0 += x[i];
         n0 *= dx[i];
@@ -292,8 +292,8 @@ qlua_sublattice(int lo[], int hi[], int node, void *env)
 
     node2coord(nD, node, S);
     for (i = 0; i < S->rank; i++) {
-        lo[i] = (nD[i] * S->dim[i] + S->net[i] - 1) / S->net[i];
-        hi[i] = ((nD[i] + 1) * S->dim[i] + S->net[i] - 1)/S->net[i];
+        lo[i] = (nD[i] * S->dim[i]) / S->net[i];
+        hi[i] = ((nD[i] + 1) * S->dim[i])/S->net[i];
     }
 }
 
