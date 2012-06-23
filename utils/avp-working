@@ -1,16 +1,13 @@
 #!/bin/sh
-PACKTOP=/Users/avp/Local/packages/macosx-devel
+PACKTOP=$HOME/Local/packages/macosx-20120606
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$PACKTOP/qlua-working
 ## for all colors. 
 
-#GCC=gcc
-#GCC="gcc -g" # This crashes
-GCC="gcc-4.0 -g"
-
-CC="$GCC -m64"                            \
-COPTS="-Wall"                                 \
+CC='gcc -m64 -std=c99' \
+CFLAGS='-DQDP_Nc=3' \
+COPTS=-'O2' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \
    --with-lua=$PACKTOP/lua                    \
