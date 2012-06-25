@@ -41,7 +41,7 @@ dump_meta(LAT)
 dump_meta(crnd)
 dump_meta(x)
 -- metatable for all QLUA types are hidden
--- getmetatable(x)["b-type"] = "XXXXXXXXXXXXXXXXXXXXX"
+-- getmetatable(x)["b-type"] = "?????????????"
 -- dump_meta(x)
 dump_meta(rnd:gaussian_ColorVector())
 

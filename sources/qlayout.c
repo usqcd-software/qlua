@@ -7,41 +7,11 @@
 
 static int eo_numsites(QDP_Lattice *lat, int node);
 
-/**+  DEBUGING the layout */
-#include <stdio.h>
-#include <unistd.h>
-#include <stdarg.h>
-
-static void
-dbg_out(char *fmt, ...)
-{
-    FILE *f;
-    static int first = 1;
-    char fname[1024];
-    va_list v;
-
-    sprintf(fname, "dbg_qlayout.%d.output", (int)QDP_this_node);
-    if (first) {
-        f = fopen(fname, "wt");
-        fprintf(f, "\n===== output from %d (id %d)\n", (int)getpid(), (int)QDP_this_node);
-        first = 0;
-    } else {
-        f = fopen(fname, "at");
-    }
-    va_start(v, fmt);
-    vfprintf(f, fmt, v);
-    va_end(v);
-    fclose(f);
-}
-/**-  DEBUGING the layout */
-
-
 /* All lattice params are stored in mLattice.
  * Here we only keep a pointer to it.
  */
 typedef struct {
     mLattice *S;
-    int numsites;
 } params;
 
 static void
@@ -60,19 +30,10 @@ node2coord(int *x, int n, mLattice *S)
 {
     int i;
 
-    /**+ DEBUG */
-    dbg_out("node2coord: %d [", n);
-    /**- DEBUG */
     for(i = 0; i < S->rank; i++) {
         x[i] = n % S->net[i];
         n = n / S->net[i];
-        /**+ DEBUG */
-        dbg_out(" %d", x[i]);
-        /**- DEBUG */
     }
-    /**+ DEBUG */
-    dbg_out("]\n");
-    /**- DEBUG */
 }
 
 static int
@@ -181,25 +142,8 @@ eo_setup(QDP_Lattice *lat, void *args)
     int mc[QLUA_MAX_LATTICE_RANK];
     int i;
 
-    /**+ DEBUG */
-    {
-        int i;
-        dbg_out("Lattice rank %d, net/dim [", S->rank);
-        for (i = 0; i < S->rank; i++)
-            dbg_out(" %d/%d", S->net[i], S->dim[i]);
-        dbg_out("]\n");
-    }
-    /**- DEBUG */
-
-    p->numsites = -1;
     S->node = QDP_this_node;
-    p->numsites = eo_numsites(lat, S->node);
     node2coord(mc, QDP_this_node, S);
-    /**+ DEBUG */
-    {
-        dbg_out("numsites %d, node %d\n", p->numsites, S->node);
-    }
-    /**- DEBUG */
 
     for (i = 0; i < S->rank; i++) {
         int x = mc[i];
@@ -215,11 +159,6 @@ eo_setup(QDP_Lattice *lat, void *args)
         S->neighbor_down[i] = coord2node(mc, S);
 
         mc[i] = x;
-    /**+ DEBUG */
-    {
-        dbg_out("  neighbors [%d]: up %d, down %d\n", i, S->neighbor_up[i], S->neighbor_down[i]);
-    }
-    /**- DEBUG */
     }
 }
 
@@ -233,34 +172,18 @@ eo_numsites(QDP_Lattice *lat, int node)
 {
     params *p = QDP_get_lattice_params(lat);
     mLattice *S = p->S;
-
-    if ((node == QDP_this_node) && (p->numsites != -1)) {
-        /**+ DEBUG */
-        {
-            dbg_out("  eo_numsites(%d) : %d\n", node, p->numsites);
-        }
-        /**- DEBUG */
-        return p->numsites;
-    } else {
-        int numsites = 1;
-        int nd = S->rank;
-        int mc[QLUA_MAX_LATTICE_RANK];
-        int i;
-
-        node2coord(mc, node, S);
-        for (i = 0; i<nd; ++i) {
-            int x0 = (mc[i] * S->dim[i]) / S->net[i];
-            int x1 = ((mc[i] + 1) * S->dim[i]) / S->net[i];
-            numsites *= x1-x0;
-        }
-        /**+ DEBUG */
-        {
-            dbg_out("  eo_numsites(%d) : %d\n", node, numsites);
-        }
-        /**- DEBUG */
-
-        return numsites;
+    int numsites = 1;
+    int nd = S->rank;
+    int mc[QLUA_MAX_LATTICE_RANK];
+    int i;
+    
+    node2coord(mc, node, S);
+    for (i = 0; i<nd; ++i) {
+        int x0 = (mc[i] * S->dim[i]) / S->net[i];
+        int x1 = ((mc[i] + 1) * S->dim[i]) / S->net[i];
+        numsites *= x1-x0;
     }
+    return numsites;
 }
 
 static int
@@ -270,29 +193,12 @@ eo_node_number(QDP_Lattice *lat, const int x[])
     mLattice *S = p->S;
     int n, m[QLUA_MAX_LATTICE_RANK];
     int i, node;
-    
-    /**+ DEBUG */
-    {
-        dbg_out("  eo_node_number : [");
-    }
-    /**- DEBUG */
+
     for (i = 0; i < S->rank; i++) {
         m[i] = ((x[i] + 1) * S->net[i] - 1) / S->dim[i];
-        /**+ DEBUG */
-        {
-            dbg_out(" %d", x[i]);
-        }
-        /**- DEBUG */
     }
     node = coord2node(m, S);
-    /**+ DEBUG */
-    {
-        dbg_out("] ->  %d  // [", node);
-        for (i = 0; i < S->rank; i++)
-            dbg_out(" %d", m[i]);
-        dbg_out("]\n");
-    }
-    /**- DEBUG */
+
     return node;
 }
 
@@ -304,11 +210,6 @@ eo_index(QDP_Lattice *lat, const int x[])
     int s = 0, l = 0, n = 1;
     int i;
 
-    /**+ DEBUG */
-    {
-        dbg_out("  eo_index : [");
-    }
-    /**- DEBUG */
     for (i = 0; i < S->rank; i++) {
         int m = ((x[i] + 1) * S->net[i] - 1) / S->dim[i];
         int x0 = (m * S->dim[i]) / S->net[i];
@@ -316,11 +217,6 @@ eo_index(QDP_Lattice *lat, const int x[])
         l = l * (x1 - x0) + x[i] - x0;
         n = n * (x1 - x0);
         s += x[i];
-        /**+ DEBUG */
-        {
-            dbg_out(" %d", x[i]);
-        }
-        /**- DEBUG */
     }
 
     if( s % 2==0 ) { /* even site */
@@ -328,11 +224,6 @@ eo_index(QDP_Lattice *lat, const int x[])
     } else {
         l = (l + n) / 2;
     }
-    /**+ DEBUG */
-    {
-        dbg_out("] -> %5d\n", l);
-    }
-    /**- DEBUG */
     return l;
 }
 
@@ -350,11 +241,6 @@ eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
     int i;
 
     node2coord(m, node, S);
-    /**+ DEBUG */
-    {
-        dbg_out("  eo_get_coords: node %d index %5d  -> [", node, index);
-    }
-    /**- DEBUG */
     
     for (i = 0; i < nd; i++) {
         x[i] = (m[i] * S->dim[i]) / S->net[i];
@@ -387,18 +273,7 @@ eo_get_coords(QDP_Lattice *lat, int x[], int node, int index)
     }
     for (i = 0; i < nd; ++i) {
         x[i] += sx[i];
-        /**+ DEBUG */
-        {
-            dbg_out(" %d", x[i]);
-        }
-        /**- DEBUG */
     }
-    /**+ DEBUG */
-    {
-        dbg_out("]\n");
-    }
-    /**- DEBUG */
-    
 }
 
 void
@@ -408,20 +283,10 @@ qlua_sublattice(int lo[], int hi[], int node, void *env)
     int nD[QLUA_MAX_LATTICE_RANK];
     int i;
 
-    /**+ DEBUG */
-    {
-        dbg_out("  qlua_sublattice node %d\n", node);
-    }
-    /**- DEBUG */
     node2coord(nD, node, S);
     for (i = 0; i < S->rank; i++) {
         lo[i] = (nD[i] * S->dim[i]) / S->net[i];
         hi[i] = ((nD[i] + 1) * S->dim[i])/S->net[i];
-        /**+ DEBUG */
-        {
-            dbg_out("  qlua_sublattice [%d] lo %d hi %d\n", i, lo[i], hi[i]);
-        }
-        /**- DEBUG */
     }
 }
 
