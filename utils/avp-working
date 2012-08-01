@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20120606
+PACKTOP=$HOME/Local/packages/macosx-20120625
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$PACKTOP/qlua-working
