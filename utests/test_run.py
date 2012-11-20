@@ -92,10 +92,10 @@ def cplx_norm2(a):
 def rdiff(a, b):
     if 0 == np.abs(a).sum():
         if 0 == np.abs(b).sum(): return 0
-        else: return 2.
+        else: return 1.
     else:
-        if 0 == np.abs(a).sum(): return 2.
-        else: return 2 * np.abs(a - b).sum() / (np.abs(a).sum() + np.abs(b).sum())
+        if 0 == np.abs(a).sum(): return 1.
+        else: return float(np.abs(a - b).sum()) / (np.abs(a).sum() + np.abs(b).sum())
 
 # qlua code generation
 def qlua_string(v):
