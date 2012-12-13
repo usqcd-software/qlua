@@ -1,0 +1,59 @@
+Interface to the HYPRE library
+
+top level table hypre contains all bindings
+
+G = hypre.grid(lattice [, colors]) -- create the grid object for a given number of colors
+                                      (or lattice default). This object does not directly
+                                      correspond to anything in HYPRE. Instead it is used
+                                      to encapsulate the configuration.
+L = G.lattice                       -- lattice object of the grid
+Nc = G.colors                       -- number of colors
+
+M = G:matrixWilson({U0,...}, kappa) -- create the wilson dirac matrix. Us must be on the
+                                        G.lattice() and Ui.colors() == G.colors(). The number
+                                        of Us must be equal to the rak of G.lattice()
+M = G:matrixClover({U0,...}, kappa, c_sw) -- wilson-clover dirac matrix.
+G.matrix*                              -- constructors for other matrices will be here
+M.grid
+
+V = M:vector(psi)                      -- convert a dirac fermion to the HYPRE vector
+                                       -- For other matrices, take an appropriate argument
+V:value()                              -- convert a HYPRE vector back to qlua
+                                       -- XXX find a better name?
+V.grid
+W = M(V)                               -- apply matrix to a vector
+W = M * V
+W = a * V                              -- arithmetics
+W = V * a
+W = V / a
+W = V1 + V2
+W = V1 - V2
+dot(V1,V2)
+V:norm2()
+
+S = M:solver*()                       -- create a solver. What are arguments?
+S.grid
+S.matrix
+
+W,d = S(V)                             -- apply the solver to a vector, return the solution
+                                          and statistics table
+
+what other operations on solvers are permitted?
+
+
+Things that should be done differently in the long run:
+* access to the MPI communicator of a lattice.
+* access to gamma-matrix prepresentation.
+* complex arithmetics.
+
+
+====
+Should the dictionary be used throughout? E.g.,
+G.matrixClover({U0,U1,U2,U3}, {kappa=0.123, c_sw = 1})
+** pro: concise, simple to handle multiple parameters, e.g., for Moebius and solvers
+** CONTRA: implies there are defaults for parameters
+
+====
+* Should there be set of set calls for inverters?
+* Access to solver parameters
+
