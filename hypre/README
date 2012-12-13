@@ -2,58 +2,66 @@ Interface to the HYPRE library
 
 top level table hypre contains all bindings
 
-G = hypre.grid(lattice [, colors]) -- create the grid object for a given number of colors
-                                      (or lattice default). This object does not directly
-                                      correspond to anything in HYPRE. Instead it is used
-                                      to encapsulate the configuration.
-L = G.lattice                       -- lattice object of the grid
-Nc = G.colors                       -- number of colors
+hypre.matrix.Dummy {L=lattice, m=v } -- create a dummy matrix (real laplacian)
+hypre.matrix.Wilson { ... } -- create the Wilson matrix
+hypre.matrix.Clover { ... } -- create the Clover matrix
 
-M = G:matrixWilson({U0,...}, kappa) -- create the wilson dirac matrix. Us must be on the
-                                        G.lattice() and Ui.colors() == G.colors(). The number
-                                        of Us must be equal to the rak of G.lattice()
-M = G:matrixClover({U0,...}, kappa, c_sw) -- wilson-clover dirac matrix.
-G.matrix*                              -- constructors for other matrices will be here
-M.grid
+hypre.solver.* {}           -- create a solver (just remember the parameters)
 
-V = M:vector(psi)                      -- convert a dirac fermion to the HYPRE vector
-                                       -- For other matrices, take an appropriate argument
-V:value()                              -- convert a HYPRE vector back to qlua
-                                       -- XXX find a better name?
-V.grid
-W = M(V)                               -- apply matrix to a vector
-W = M * V
-W = a * V                              -- arithmetics
-W = V * a
-W = V / a
-W = V1 + V2
-W = V1 - V2
-dot(V1,V2)
-V:norm2()
+====================
+for Dummy:
 
-S = M:solver*()                       -- create a solver. What are arguments?
-S.grid
-S.matrix
+type(M)                     -- string of the type, e.g. "hypre.matrix.Laplacian(d)"
+M.lattice                   -- lattice of M
+V = M:vector(f)             -- inject L:Real() into hypre
+V = M * V                   -- apply matrix to a vector
+V = M(V)                    -- ditto
+V = V * a                   -- scale vector
+V = a * V                   -- ditto
+V = V / a                   -- ditto
+V = -V                      -- opposite vector
+V = V + V                   -- add two vectors
+V = V - V                   -- substract two vectors
+s = type(V)                 -- "hypre.vector.real(d)"
+M = V.matrix                -- matrix of the vector
+f = V:value()               -- convert vector back to the Qlua land
+a = V:norm2()               -- norm of the vector
+a = dot(V,V)                -- dot product of two vectors
 
-W,d = S(V)                             -- apply the solver to a vector, return the solution
-                                          and statistics table
+=====================
+for Wilson etc:
 
-what other operations on solvers are permitted?
+M.colors
+type(M)
+M.lattice
+V = M:vector(psi)
+V = M * V
+V = M(V)
+V = V * a
+V = a * V
+V = V / a
+V = -V
+V = V + V
+V = V - V
+s = V.type
+psi = V:value()
+a = V:norm2()
+a = dot(V,V)
 
+====================== TODO
+======================
+======================
+======================
+Compositions of solvers and preconditioners
+======================
+Applying solvers to matrices and rhss
 
+======================
 Things that should be done differently in the long run:
 * access to the MPI communicator of a lattice.
 * access to gamma-matrix prepresentation.
 * complex arithmetics.
 
-
 ====
-Should the dictionary be used throughout? E.g.,
-G.matrixClover({U0,U1,U2,U3}, {kappa=0.123, c_sw = 1})
-** pro: concise, simple to handle multiple parameters, e.g., for Moebius and solvers
-** CONTRA: implies there are defaults for parameters
-
-====
-* Should there be set of set calls for inverters?
 * Access to solver parameters
 
