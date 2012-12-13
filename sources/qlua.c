@@ -66,7 +66,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version 0.32.00 $Id$"},
+    {"qlua",  "QLUA version XXX-0.32-hypre"},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
