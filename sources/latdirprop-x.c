@@ -602,7 +602,7 @@ Qs(q_P_neg)(lua_State *L)
     Qs(mLatDirProp) *r = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qx(QDP_D,_P_meq_P)(r->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_P_eqm_P)(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }

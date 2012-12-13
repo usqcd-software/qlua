@@ -686,7 +686,7 @@ Qs(q_M_neg)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qx(QDP_D,_M_meq_M)(r->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_M_eqm_M)(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
