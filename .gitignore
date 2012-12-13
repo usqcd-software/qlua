@@ -1,0 +1,8 @@
+Makefile
+deps
+config.log
+libqlua.a
+qlua
+qlua-config
+modules.h
+*.o
