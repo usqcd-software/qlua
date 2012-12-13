@@ -573,7 +573,8 @@ eoh:
     qlua_free(L, site_buf);
     qlua_free(L, CM);
         
-    fclose(f);
+    if (f)
+      fclose(f);
 
     /* check the checksum */
     if ((status == NULL) && (f_checksum != d_checksum))

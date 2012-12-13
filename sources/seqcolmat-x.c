@@ -452,7 +452,7 @@ Qs(q_m_neg)(lua_State *L)
     Qs(mSeqColMat) *a = Qs(qlua_checkSeqColMat)(L, 1, -1);
     Qs(mSeqColMat) *r = Qs(qlua_newSeqColMat)(L, QC(a));
 
-    Qx(QLA_D,_M_meq_M)(QNC(QC(a))r->ptr, a->ptr);
+    Qx(QLA_D,_M_eqm_M)(QNC(QC(a))r->ptr, a->ptr);
 
     return 1;
 }
@@ -629,9 +629,9 @@ Qs(qlua_newSeqColMat)(lua_State *L, int nc)
 Qs(mSeqColMat) *
 Qs(qlua_newZeroSeqColMat)(lua_State *L, int nc)
 {
-	Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
-	Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
-	return v;
+        Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
+        Qx(QLA_D,_M_eq_zero)(QNC(nc) v->ptr);
+        return v;
 }
 Qs(mSeqColMat) *
 Qs(qlua_checkSeqColMat)(lua_State *L, int idx, int nc)

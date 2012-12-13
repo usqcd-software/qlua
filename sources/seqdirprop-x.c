@@ -192,7 +192,7 @@ Qs(q_p_neg)(lua_State *L)
     Qs(mSeqDirProp) *a = Qs(qlua_checkSeqDirProp)(L, 1, -1);
     Qs(mSeqDirProp) *r = Qs(qlua_newSeqDirProp)(L, QC(a));
 
-    Qx(QLA_D,_P_meq_P)(QNC(QC(a)) r->ptr, a->ptr);
+    Qx(QLA_D,_P_eqm_P)(QNC(QC(a)) r->ptr, a->ptr);
     return 1;
 }
 
@@ -401,9 +401,9 @@ Qs(qlua_newSeqDirProp)(lua_State *L, int nc)
 Qs(mSeqDirProp) *
 Qs(qlua_newZeroSeqDirProp)(lua_State *L, int nc)
 {
-	Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
-	Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
-	return v;
+        Qs(mSeqDirProp) *v = Qs(qlua_newSeqDirProp)(L, nc);
+        Qx(QLA_D,_P_eq_zero)(QNC(nc) v->ptr);
+        return v;
 }
 
 Qs(mSeqDirProp) *
