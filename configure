@@ -29,6 +29,7 @@ show_help() {
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
+     hypre                    Use HYPRE
 
    Environment variables:
      CC                      C compiler to use
@@ -90,6 +91,7 @@ process_args() {
       --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
+      --with-hypre=*)     hypre=`echo "$1" | sed -e 's/--with-hypre=//'`  ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
       --with-nc=N)        use_ncN=1 ;;
@@ -176,6 +178,11 @@ normalize() {
       gsl_libs=`$gsl/bin/gsl-config --libs-without-cblas`
     fi
   fi
+  if [ ! -z "$hypre" ] ; then
+     hypre_cflags="-I$hypre/include"
+     hypre_ldflags="-L$hypre/lib"
+     hypre_libs="-lHYPRE"
+  fi
   ## Add other packages here
 }
 
@@ -202,6 +209,7 @@ show_config() {
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
+   [ -z "$hypre" ]   || echo "HYPRE location          $hypre"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
    [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
@@ -252,6 +260,10 @@ build() {
         -e "s|@use_nc3@|$use_nc3|g " \
         -e "s|@use_ncN@|$use_ncN|g " \
   | sed -e "s|@extras@|$extras|g" \
+  | sed -e "s|@hypre@|$hypre|g" \
+        -e "s|@hypre_cflags@|$hypre_cflags|g" \
+        -e "s|@hypre_ldflags@|$hypre_ldflags|g" \
+        -e "s|@hypre_libs@|$hypre_libs|g" \
       > $2 \
 || show_error "Could not generate $2"
 }
@@ -283,6 +295,10 @@ build_modules() {
   fi
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
+  fi
+  if [ ! -z "$hypre" ] ; then
+    echo "#define HAS_HYPRE"
+    echo "#define HYPRE_VERSION \"$hypre\""
   fi
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"

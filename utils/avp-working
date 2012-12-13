@@ -15,6 +15,7 @@ COPTS=-'O2' \
    --with-lhpc-aff=$PACKTOP/aff               \
    --with-clover=$PACKTOP/clover              \
    --with-mdwf=$PACKTOP/mdwf                  \
+   --with-hypre=$HOME/Local/packages/hypre-2.9.0b \
    --with-extras                              \
    --prefix=$TARGET                           \
    $*
