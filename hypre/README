@@ -65,3 +65,35 @@ Things that should be done differently in the long run:
 ====
 * Access to solver parameters
 
+=====
+Source file ogranization:
+qhp.c            -- main file /init
+qhp.h            -- interface header
+qhp-i.h          -- library header
+qhpm.c           -- matrix collection file
+qhpm-laplace.c   -- laplace matrix 
+qhpm-laplace.h   -- laplace matrix header
+qhpv-laplace.c   -- laplace matrix
+qphs-cg.c        -- CG solver
+... in general:
+.... vectors may be shared between matrices
+.... headers do not include each other
+.... qhpm-*     are various matrices
+.... qhpv-*     are various vectors
+.... qhps-*     are solvers
+
+===== Questions:
+* are parts maps in the manifold language?
+* does one have to break torus into pieces?
+* timetable for D>3?
+
+=====
+   HYPRE errors are sticky, there is a possible buffer overrun in
+HYPRE_DescribeError().  To clean the error state, call
+HYPRE_ClearAllErrors(), or to clear a particular error bit,
+HYPRE_ClearError()
+
+=====
+  There is no hook to memory management -- if allocation fails, an
+error is recorded (and presumably the internal state of the library is
+not corrupted.)

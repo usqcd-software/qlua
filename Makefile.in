@@ -125,9 +125,7 @@ endif
 
 hypresrc =
 ifneq ("$(HYPRE)", "")
-  hypresrc += qhp.c \
-              qhp_mv.c \
-              qhp_solvers.c
+  include hypre/Makefile.inc
 endif
 
 ## ZZZ add other optional modules here
