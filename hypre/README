@@ -97,3 +97,24 @@ HYPRE_ClearError()
   There is no hook to memory management -- if allocation fails, an
 error is recorded (and presumably the internal state of the library is
 not corrupted.)
+
+======
+See what is used for precond_setup and precond in the originally created pcg &Co.
+
+======
+Mock-up of the interface written in qlua itself.
+
+======
+It's hard to call back a qlua closure without closure parameters in many places in hypre.
+It is also hard (if possible at all to allocate vectors without any information about
+the matrix -- e.g., a matrix may live on a different communicator, or have special layout)
+
+======
+left-precond * solver -> solver
+
+======
+Traditionally, the preconditioner is a linear operator, and as such it
+may depend on A and b, but not x.
+Sometimes it's convenient to use non-linear preconditioners, e.g.,
+solvers, but their properties are less well known. In particular,
+there are very few theorems about condition number change
