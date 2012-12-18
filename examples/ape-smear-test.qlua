@@ -19,7 +19,7 @@ do
   end
 end
 
-V = APE_smear(U, 1.324, 10, 1e-7, 150, 3, L.all)
+V = APE_smear(U, 1.324, 10, 1e-7, 150, 3)
 
 printf("------ done\n")
 
