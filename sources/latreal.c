@@ -427,9 +427,9 @@ q_R_max(lua_State *L)
 static int
 q_R_set(lua_State *L)
 {
-    mLatReal *a = qlua_checkLatReal(L, 1, NULL);
+    mLatReal *r = qlua_checkLatReal(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    mLatReal *r = qlua_newLatReal(L, lua_gettop(L));
+    mLatReal *a = qlua_checkLatReal(L, 2, S);
 
     CALL_QDP(L);
     if (S->lss.mask) {
