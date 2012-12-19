@@ -437,6 +437,7 @@ q_R_set(lua_State *L)
     } else {
         QDP_R_eq_R(r->ptr, a->ptr, *S->qss);
     }
+    lua_pop(L, 1);
 
     return 1;
 }
