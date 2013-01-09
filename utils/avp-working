@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20120801
+PACKTOP=$HOME/Local/packages/macosx-20130109
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$PACKTOP/qlua-working
@@ -7,7 +7,7 @@ TARGET=$PACKTOP/qlua-working
 
 CC='mpicc -m64 -std=c99' \
 CFLAGS='-DQDP_Nc=3' \
-COPTS=-'O2' \
+COPTS='-g' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \
    --with-lua=$PACKTOP/lua                    \
