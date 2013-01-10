@@ -1,7 +1,7 @@
 #!/bin/sh -f
 
 ## version ID.
-version='XXX-0.32.02'
+version='XXX-0.32.03'
 
 # show_help exit_code
 show_help() {

@@ -656,7 +656,7 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
     }
     case 2: {
         Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 2 + off, S, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newZeroLatColVec)(L, 1, nc);
         
         CALL_QDP(L);
         Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
@@ -666,7 +666,7 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
     case 3: {
         mLatComplex *c = qlua_checkLatComplex(L, 2 + off, S);
         int a = qlua_checkcolorindex(L, 3 + off, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newZeroLatColVec)(L, 1, nc);
 
         CALL_QDP(L);
         Qx(QDP_D,_V_eq_elem_C)(r->ptr, c->ptr, a, *S->qss);
