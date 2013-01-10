@@ -1,5 +1,8 @@
 #!/bin/sh -f
 
+## version ID.
+version='XXX-0.32.02'
+
 # show_help exit_code
 show_help() {
   cat << EOF
@@ -183,6 +186,7 @@ normalize() {
 show_config() {
    echo "QLUA configuration summary:"
    echo "====================================="
+   echo "version                 $version"
    echo "prefix                  $prefix"
    echo "binaries directory      $bindir"
    echo "libraries directory     $libdir"
@@ -215,6 +219,7 @@ show_config() {
 ## Add other packages below
 build() {
   sed < $1 \
+      -e "s|@version@|$version|g" \
       -e "s|@bindir@|$bindir|g" \
       -e "s|@libdir@|$libdir|g" \
       -e "s|@incdir@|$incdir|g" \
@@ -259,6 +264,7 @@ build() {
 # build_modules
 ## Add other packages below
 build_modules() {
+  echo "#define QLUA_VERSION \"$version\""
   echo "#define QDP_VERSION \"$qdp\""
   if [ ! -z "$aff" ] ; then
     echo "#define HAS_AFF"
