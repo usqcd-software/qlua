@@ -1074,7 +1074,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
             }
             case Qs(qLatColVec): {
                 Qs(mLatColVec) *g = Qs(qlua_checkLatColVec)(L, 3 + off, S, nc);
-                Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
+                Qs(mLatColMat) *v = Qs(qlua_newZeroLatColMat)(L, 1, nc);
 
                 CALL_QDP(L);
                 Qx(QDP_D,_M_eq_V_times_Va)(v->ptr, f->ptr, g->ptr, *S->qss);
