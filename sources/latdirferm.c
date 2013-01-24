@@ -99,7 +99,7 @@ q_D_gaussian_N(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, 1);
     int nc = luaL_checkint(L, 2);
 
-    if (nc < 2)
+    if (nc < 1)
         return luaL_error(L, "bad number of colors");
 
     return do_gaussian(L, a, S, nc);

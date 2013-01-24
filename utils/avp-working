@@ -1,13 +1,13 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20130109
+PACKTOP=$HOME/Local/packages/macosx-20130110
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-working
+TARGET=$HOME/Local/packages/qlua-working
 ## for all colors. 
 
 CC='mpicc -m64 -std=c99' \
 CFLAGS='-DQDP_Nc=3' \
-COPTS='-g' \
+COPTS='-O2' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \
    --with-lua=$PACKTOP/lua                    \

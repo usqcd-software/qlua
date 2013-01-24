@@ -44,7 +44,7 @@ q_v_gaussian_N(lua_State *L)
     mSeqRandom *a = qlua_checkSeqRandom(L, 1);
     int nc = luaL_checkint(L, 2);
 
-    if (nc < 2)
+    if (nc < 1)
         return luaL_error(L, "bad number of colors");
 
     switch (nc) {

@@ -68,7 +68,7 @@ ddpairs_readN(lua_State *L)
 {
     int nc = luaL_checkint(L, 1);
 
-    if (nc < 2)
+    if (nc < 1)
         return luaL_error(L, "bad number of colors in qcd.ddpairs.readN()");
     switch (nc) {
 #if USE_Nc2
