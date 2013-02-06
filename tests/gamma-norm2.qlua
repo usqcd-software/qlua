@@ -33,6 +33,20 @@ for i = 0, 15 do
    end
 end
 
+-- A somewhat random gamma matrix
+fx = {
+   45.1234,
+   -1,
+   complex(645.234, -534.123),
+   complex(1,-3),
+   complex(0,-6356)
+}
+gx = gamma{n=15} * 42.123
+for i = 1, #fx do
+   gx = gx + fx[i] * gamma{n=i-1}
+end
+check_gamma(12435, gx)
+
 
 if status then
    printf("DONE\n")
