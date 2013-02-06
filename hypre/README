@@ -1,0 +1,120 @@
+Interface to the HYPRE library
+
+top level table hypre contains all bindings
+
+hypre.matrix.Dummy {L=lattice, m=v } -- create a dummy matrix (real laplacian)
+hypre.matrix.Wilson { ... } -- create the Wilson matrix
+hypre.matrix.Clover { ... } -- create the Clover matrix
+
+hypre.solver.* {}           -- create a solver (just remember the parameters)
+
+====================
+for Dummy:
+
+type(M)                     -- string of the type, e.g. "hypre.matrix.Laplacian(d)"
+M.lattice                   -- lattice of M
+V = M:vector(f)             -- inject L:Real() into hypre
+V = M * V                   -- apply matrix to a vector
+V = M(V)                    -- ditto
+V = V * a                   -- scale vector
+V = a * V                   -- ditto
+V = V / a                   -- ditto
+V = -V                      -- opposite vector
+V = V + V                   -- add two vectors
+V = V - V                   -- substract two vectors
+s = type(V)                 -- "hypre.vector.real(d)"
+M = V.matrix                -- matrix of the vector
+f = V:value()               -- convert vector back to the Qlua land
+a = V:norm2()               -- norm of the vector
+a = dot(V,V)                -- dot product of two vectors
+
+=====================
+for Wilson etc:
+
+M.colors
+type(M)
+M.lattice
+V = M:vector(psi)
+V = M * V
+V = M(V)
+V = V * a
+V = a * V
+V = V / a
+V = -V
+V = V + V
+V = V - V
+s = V.type
+psi = V:value()
+a = V:norm2()
+a = dot(V,V)
+
+====================== TODO
+======================
+======================
+======================
+Compositions of solvers and preconditioners
+======================
+Applying solvers to matrices and rhss
+
+======================
+Things that should be done differently in the long run:
+* access to the MPI communicator of a lattice.
+* access to gamma-matrix prepresentation.
+* complex arithmetics.
+
+====
+* Access to solver parameters
+
+=====
+Source file ogranization:
+qhp.c            -- main file /init
+qhp.h            -- interface header
+qhp-i.h          -- library header
+qhpm.c           -- matrix collection file
+qhpm-laplace.c   -- laplace matrix 
+qhpm-laplace.h   -- laplace matrix header
+qhpv-laplace.c   -- laplace matrix
+qphs-cg.c        -- CG solver
+... in general:
+.... vectors may be shared between matrices
+.... headers do not include each other
+.... qhpm-*     are various matrices
+.... qhpv-*     are various vectors
+.... qhps-*     are solvers
+
+===== Questions:
+* are parts maps in the manifold language?
+* does one have to break torus into pieces?
+* timetable for D>3?
+
+=====
+   HYPRE errors are sticky, there is a possible buffer overrun in
+HYPRE_DescribeError().  To clean the error state, call
+HYPRE_ClearAllErrors(), or to clear a particular error bit,
+HYPRE_ClearError()
+
+=====
+  There is no hook to memory management -- if allocation fails, an
+error is recorded (and presumably the internal state of the library is
+not corrupted.)
+
+======
+See what is used for precond_setup and precond in the originally created pcg &Co.
+
+======
+Mock-up of the interface written in qlua itself.
+
+======
+It's hard to call back a qlua closure without closure parameters in many places in hypre.
+It is also hard (if possible at all to allocate vectors without any information about
+the matrix -- e.g., a matrix may live on a different communicator, or have special layout)
+
+======
+left-precond * solver -> solver
+
+======
+Traditionally, the preconditioner is a linear operator, and as such it
+may depend on A and b, but not x.
+Sometimes it's convenient to use non-linear preconditioners, e.g.,
+solvers, but their properties are less well known. In particular,
+there are very few theorems about condition number change

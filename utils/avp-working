@@ -1,13 +1,13 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20120801
+PACKTOP=$HOME/Local/packages/macosx-20130110
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-working
+TARGET=$HOME/Local/packages/qlua-working
 ## for all colors. 
 
 CC='mpicc -m64 -std=c99' \
 CFLAGS='-DQDP_Nc=3' \
-COPTS=-'O2' \
+COPTS='-O2' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \
    --with-lua=$PACKTOP/lua                    \
@@ -15,6 +15,7 @@ COPTS=-'O2' \
    --with-lhpc-aff=$PACKTOP/aff               \
    --with-clover=$PACKTOP/clover              \
    --with-mdwf=$PACKTOP/mdwf                  \
+   --with-hypre=$HOME/Local/packages/hypre-2.9.0b \
    --with-extras                              \
    --prefix=$TARGET                           \
    $*

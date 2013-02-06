@@ -1,0 +1,42 @@
+-- test of gamma:norm2()
+require "stdlib"
+
+status = true
+
+function check_gamma(n, g)
+   local r = g:norm2()
+   local m = g:matrix()
+   local i,j
+   local n2 = 0
+   for i = 0, 3 do
+      for j = 0, 3 do
+         local e = m[{i,j}]
+         n2 = n2 + (e:conj() * e):real()
+      end
+   end
+
+   if not (r == n2) then
+      printf("norm failed on n=%d, g=%s, g:norm2() = %s\n",
+             n, tostring(g), tostring(r))
+      status = false
+   end
+end
+
+for i = 0, 15 do
+   check_gamma(i, gamma{n=i})
+end
+
+for i = 0, 15 do
+   for j = 0, 15 do
+      check_gamma(i * 16 + j, gamma{n=i} + gamma{n=j})
+      check_gamma(i * 16 + j, gamma{n=i} * gamma{n=j})
+   end
+end
+
+
+if status then
+   printf("DONE\n")
+else
+   printf("gamma:norm2() test FAILED\n")
+   os.exit(1)
+end

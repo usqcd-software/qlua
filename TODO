@@ -1,9 +1,8 @@
-* qcd.physical() -- create a physical shape
-* qcd.linear() -- create a linear shape
--- in both cases multiple calls should return the same object!!!!
+* change the structure of hypre interface:
+ qhpm_*.c define metatables of matrices
+ qhps_*.c define metatables of solvers
+ qhpm-i.h collects all matrix metatables
+ qhps-i.h collects all solver metatables
 
-* Improve tutorials
-
-* When creating lattice objects, the lattice index should be positive!
-
-* Consider how to allocate small lattices across the machine.
+* Start with a laplacian and cg.
+* Write tutorials about their use.

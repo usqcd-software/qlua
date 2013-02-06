@@ -51,22 +51,22 @@ static const char gm[16][16] = {
  * 3: i, s
  */
 static const signed char gmv[4][4][4][2] = {
-	{{{ 3, -1}, {12,  1}, { 0,  1}, {15,  1}},
-	 {{ 6, -1}, { 9,  1}, { 5,  1}, {10,  1}},
-	 {{ 4, -1}, {11, -1}, { 7, -1}, { 8,  1}},
-	 {{ 1, -1}, {14, -1}, { 2, -1}, {13,  1}}},
-	{{{ 6, -1}, { 9,  1}, { 5, -1}, {10, -1}},
-	 {{ 3,  1}, {12, -1}, { 0,  1}, {15,  1}},
-	 {{ 1, -1}, {14, -1}, { 2,  1}, {13, -1}},
-	 {{ 4,  1}, {11,  1}, { 7, -1}, { 8,  1}}},
-	{{{ 4,  1}, {11, -1}, { 7,  1}, { 8,  1}},
-	 {{ 1,  1}, {14, -1}, { 2,  1}, {13,  1}},
-	 {{ 3, -1}, {12, -1}, { 0,  1}, {15, -1}},
-	 {{ 6, -1}, { 9, -1}, { 5,  1}, {10, -1}}},
-	{{{ 1,  1}, {14, -1}, { 2, -1}, {13, -1}},
-	 {{ 4, -1}, {11,  1}, { 7,  1}, { 8,  1}},
-	 {{ 6, -1}, { 9, -1}, { 5, -1}, {10,  1}},
-	 {{ 3,  1}, {12,  1}, { 0,  1}, {15, -1}}}};
+        {{{ 3, -1}, {12,  1}, { 0,  1}, {15,  1}},
+         {{ 6, -1}, { 9,  1}, { 5,  1}, {10,  1}},
+         {{ 4, -1}, {11, -1}, { 7, -1}, { 8,  1}},
+         {{ 1, -1}, {14, -1}, { 2, -1}, {13,  1}}},
+        {{{ 6, -1}, { 9,  1}, { 5, -1}, {10, -1}},
+         {{ 3,  1}, {12, -1}, { 0,  1}, {15,  1}},
+         {{ 1, -1}, {14, -1}, { 2,  1}, {13, -1}},
+         {{ 4,  1}, {11,  1}, { 7, -1}, { 8,  1}}},
+        {{{ 4,  1}, {11, -1}, { 7,  1}, { 8,  1}},
+         {{ 1,  1}, {14, -1}, { 2,  1}, {13,  1}},
+         {{ 3, -1}, {12, -1}, { 0,  1}, {15, -1}},
+         {{ 6, -1}, { 9, -1}, { 5,  1}, {10, -1}}},
+        {{{ 1,  1}, {14, -1}, { 2, -1}, {13, -1}},
+         {{ 4, -1}, {11,  1}, { 7,  1}, { 8,  1}},
+         {{ 6, -1}, { 9, -1}, { 5, -1}, {10,  1}},
+         {{ 3,  1}, {12,  1}, { 0,  1}, {15, -1}}}};
 #endif
 
 #define add_r(x,y,z) \
@@ -248,7 +248,7 @@ q_g_fmt(lua_State *L)
 }
 
 static void
-g_norm(mGamma *r)
+g_normalize(mGamma *r)
 {
     switch (r->t) {
     case qG_z: case qG_p: case qG_m: break;
@@ -269,12 +269,12 @@ g_norm(mGamma *r)
 }
 
 static int
-c_norm(lua_State *L, mClifford *x)
+c_normalize(lua_State *L, mClifford *x)
 {
     int i;
 
     for (i = 0; i < 16; i++) {
-        g_norm(&x->g[i]);
+        g_normalize(&x->g[i]);
     }
 
     return 1;
@@ -291,7 +291,7 @@ q_g_add_g(lua_State *L)
     for (i = 0; i < 16; i++)
         g_add(&r->g[i], &x->g[i], &y->g[i]);
 
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -306,7 +306,7 @@ q_r_add_g(lua_State *L)
     v.t = qG_r;
     v.r = b;
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -325,7 +325,7 @@ q_g_add_r(lua_State *L)
     v.t = qG_r;
     v.r = b;
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -344,7 +344,7 @@ q_c_add_g(lua_State *L)
     v.t = qG_c;
     QLA_c_eq_c(v.c, *b);
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -363,7 +363,7 @@ q_g_add_c(lua_State *L)
     v.t = qG_c;
     QLA_c_eq_c(v.c, *b);
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -400,7 +400,7 @@ q_g_sub_g(lua_State *L)
         g_add(&r->g[i], &x->g[i], &t);
     }
 
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -416,7 +416,7 @@ q_r_sub_g(lua_State *L)
     v.r = b;
     g_neg(&t, &x->g[0]);
     g_add(&r->g[0], &t, &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         g_neg(&r->g[i], &x->g[i]);
 
@@ -435,7 +435,7 @@ q_g_sub_r(lua_State *L)
     v.t = qG_r;
     v.r = -b;
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -455,7 +455,7 @@ q_c_sub_g(lua_State *L)
     QLA_c_eq_c(v.c, *b);
     g_neg(&t, &x->g[0]);
     g_add(&r->g[0], &t, &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         g_neg(&r->g[i], &x->g[i]);
 
@@ -473,7 +473,7 @@ static int q_g_sub_c(lua_State *L)
     v.t = qG_c;
     QLA_c_eqm_c(v.c, *b);
     g_add(&r->g[0], &x->g[0], &v);
-    g_norm(&r->g[0]);
+    g_normalize(&r->g[0]);
     for (i = 1; i < 16; i++)
         r->g[i] = x->g[i];
 
@@ -501,7 +501,7 @@ q_g_mul_g(lua_State *L)
         }
     }
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -520,7 +520,7 @@ q_r_mul_g(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &v, &b->g[i]);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int q_g_mul_r(lua_State *L)
@@ -538,7 +538,7 @@ static int q_g_mul_r(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int q_c_mul_g(lua_State *L)
@@ -555,7 +555,7 @@ static int q_c_mul_g(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &v, &b->g[i]);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -573,7 +573,7 @@ q_g_mul_c(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -592,7 +592,7 @@ q_g_div_r(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -612,7 +612,7 @@ q_g_div_c(lua_State *L)
     for (i = 0; i < 16; i++)
         g_mul(&r->g[i], &b->g[i], &v);
     
-    return c_norm(L, r);
+    return c_normalize(L, r);
 }
 
 static int
@@ -684,65 +684,111 @@ q_g_transpose(lua_State *L)
     return 1;
 }
 
+static int
+q_g_trace(lua_State *L)
+{
+  mClifford *x = qlua_checkClifford(L, 1);
+
+  switch (x->g[0].t) {
+  case qG_z: lua_pushinteger(L, 0); break;
+  case qG_p: lua_pushinteger(L, 4); break;
+  case qG_m: lua_pushinteger(L, -4); break;
+  case qG_r: lua_pushnumber(L, 4 * x->g[0].r); break;
+  case qG_c: {
+    QLA_D_Complex *tr = qlua_newComplex(L);
+    
+    QLA_real(*tr) = 4 * QLA_real(x->g[0].c);
+    QLA_imag(*tr) = 4 * QLA_imag(x->g[0].c);
+  } break;
+  }
+  return 1;
+}
+
+static int
+q_g_norm2(lua_State *L)
+{
+  mClifford *x = qlua_checkClifford(L, 1);
+  int i;
+  double n2 = 0;
+
+  for (i = 0; i < 16; i++) {
+    QLA_D_Real r2 = 0;
+    switch (x->g[i].t) {
+    case qG_z: break;
+    case qG_p: r2 = 1.0; break;
+    case qG_m: r2 = 1.0; break;
+    case qG_r: r2 = x->g[i].r * x->g[i].r; break;
+    case qG_c: {
+      double re = QLA_real(x->g[i].c);
+      double im = QLA_imag(x->g[i].c);
+      r2 = re * re + im * im;
+    } break;
+    }
+    n2 += 4 * r2;
+  }
+  lua_pushnumber(L, n2);
+  return 1;
+}
+
 #ifdef HAS_GSL
 static gsl_complex
 get_gmv(int i, int j, const mClifford *g, int k)
 {
-	int g_i = gmv[i][j][k][0];
-	int g_s = gmv[i][j][k][1];
-	gsl_complex r;
-	GSL_REAL(r) = 0;
-	GSL_IMAG(r) = 0;
-	switch (g->g[g_i].t) {
-	case qG_z:
-		break;
-	case qG_p:
-		GSL_REAL(r) = g_s;
-		GSL_IMAG(r) = 0;
-		break;
-	case qG_m:
-		GSL_REAL(r) = -g_s;
-		GSL_IMAG(r) = 0;
-		break;
-	case qG_r:
-		GSL_REAL(r) = g_s * g->g[g_i].r;
-		GSL_IMAG(r) = 0;
-		break;
-	case qG_c:
-		GSL_REAL(r) = QLA_real(g->g[g_i].c) * g_s;
-		GSL_IMAG(r) = QLA_imag(g->g[g_i].c) * g_s;
-		break;
-	}
-	return r;
+        int g_i = gmv[i][j][k][0];
+        int g_s = gmv[i][j][k][1];
+        gsl_complex r;
+        GSL_REAL(r) = 0;
+        GSL_IMAG(r) = 0;
+        switch (g->g[g_i].t) {
+        case qG_z:
+                break;
+        case qG_p:
+                GSL_REAL(r) = g_s;
+                GSL_IMAG(r) = 0;
+                break;
+        case qG_m:
+                GSL_REAL(r) = -g_s;
+                GSL_IMAG(r) = 0;
+                break;
+        case qG_r:
+                GSL_REAL(r) = g_s * g->g[g_i].r;
+                GSL_IMAG(r) = 0;
+                break;
+        case qG_c:
+                GSL_REAL(r) = QLA_real(g->g[g_i].c) * g_s;
+                GSL_IMAG(r) = QLA_imag(g->g[g_i].c) * g_s;
+                break;
+        }
+        return r;
 }
 
 mMatComplex *
 gamma2matrix(lua_State *L, int idx)
 {
-	mClifford *g = qlua_checkClifford(L, idx);
-	mMatComplex *m = qlua_newMatComplex(L, 4, 4);
-	int i, j;
+        mClifford *g = qlua_checkClifford(L, idx);
+        mMatComplex *m = qlua_newMatComplex(L, 4, 4);
+        int i, j;
 
-	for (i = 0; i < 4; i++) {
-		for (j = 0; j < 4; j++) {
-			gsl_complex xi0 = get_gmv(i, j, g, 0);
-			gsl_complex xi1 = get_gmv(i, j, g, 1);
-			gsl_complex xr0 = get_gmv(i, j, g, 2);
-			gsl_complex xr1 = get_gmv(i, j, g, 3);
-			gsl_complex v;
-			GSL_REAL(v) = GSL_REAL(xr0) + GSL_REAL(xr1) - GSL_IMAG(xi0) - GSL_IMAG(xi1);
-			GSL_IMAG(v) = GSL_IMAG(xr0) + GSL_IMAG(xr1) + GSL_REAL(xi0) + GSL_REAL(xi1);
-			gsl_matrix_complex_set(m->m, j, i, v);
-		}
-	}
-	return m;
+        for (i = 0; i < 4; i++) {
+                for (j = 0; j < 4; j++) {
+                        gsl_complex xi0 = get_gmv(i, j, g, 0);
+                        gsl_complex xi1 = get_gmv(i, j, g, 1);
+                        gsl_complex xr0 = get_gmv(i, j, g, 2);
+                        gsl_complex xr1 = get_gmv(i, j, g, 3);
+                        gsl_complex v;
+                        GSL_REAL(v) = GSL_REAL(xr0) + GSL_REAL(xr1) - GSL_IMAG(xi0) - GSL_IMAG(xi1);
+                        GSL_IMAG(v) = GSL_IMAG(xr0) + GSL_IMAG(xr1) + GSL_REAL(xi0) + GSL_REAL(xi1);
+                        gsl_matrix_complex_set(m->m, j, i, v);
+                }
+        }
+        return m;
 }
 
 static int
 q_g_matrix(lua_State *L)
 {
-	gamma2matrix(L, 1);
-	return 1;
+        gamma2matrix(L, 1);
+        return 1;
 }
 #endif
 
@@ -896,8 +942,10 @@ static struct luaL_Reg mtGamma[] = {
     { "adjoin",            q_g_adjoin },
     { "conj",              q_g_conj },
     { "transpose",         q_g_transpose },
+    { "trace",             q_g_trace },
+    { "norm2",             q_g_norm2 },
 #ifdef HAS_GSL
-	{ "matrix",            q_g_matrix },
+        { "matrix",            q_g_matrix },
 #endif
     { NULL,                NULL }
 };

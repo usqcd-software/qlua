@@ -1,0 +1,25 @@
+-- test of gamma:trace()
+require "stdlib"
+
+status = true
+
+function check_gamma(n, g, v)
+   local r = g:trace()
+   if not (r == v) then
+      printf("trace failed on n=%d, g=%s, g:trace() = %s, not %g\n",
+             n, tostring(g), tostring(r), v)
+      status = false
+   end
+end
+
+check_gamma(0, gamma{n=0}, 4)
+for i = 1, 15 do
+   check_gamma(i, gamma{n=i}, 0)
+end
+
+if status then
+   printf("DONE\n")
+else
+   printf("gamma:trace() test FAILED\n")
+   os.exit(1)
+end

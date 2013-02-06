@@ -1,6 +1,6 @@
 #!/bin/sh -f
 
-version='version 0.21.00 $Id$'
+version='version @version@'
 
 cc="@cc@"
 copts="@copts@"

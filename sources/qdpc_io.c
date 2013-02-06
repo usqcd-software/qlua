@@ -53,6 +53,21 @@ static mWriter *q_checkWriter(lua_State *L, int idx, mLattice *S);
 static void check_reader(lua_State *L, mReader *b);
 static void check_writer(lua_State *L, mWriter *b);
 
+/* get QIO record precision */
+static int
+get_prec(QDP_Reader *qr)
+{
+  QIO_RecordInfo *ri = QIO_create_record_info(0, NULL, NULL, 0, "", "", 0, 0, 0, 0);
+  QDP_String *md = QDP_string_create();
+  int prec;
+
+  QDP_read_qio_record_info(qr, ri, md);
+  prec = *QIO_get_precision(ri);
+  QIO_destroy_record_info(ri);
+  QDP_string_destroy(md);
+
+  return prec;
+}
 
 /* plain lattice types */
 #define T_QTYPE       QDP_Int
@@ -668,10 +683,10 @@ qdpc_w_cm(lua_State *L)
         goto error;
     QDP_string_destroy(xml);
     lua_pushboolean(L, 1);
-	qlua_free(L, d);
+        qlua_free(L, d);
     return 1;
 error:
-	qlua_free(L, d);
+        qlua_free(L, d);
     QDP_string_destroy(xml);
     return luaL_error(L, "qdpc write error");
 }

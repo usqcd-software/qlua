@@ -37,7 +37,7 @@ end
 F = L:DiracFermion()
 F[{0,0,0,0,c=0,d=0}] = complex(1,0)
 
-G = wuppertal_smear(U, 1.324, 1, F, 3, L.all)
+G = wuppertal_smear(U, 1.324, 1, F, 3)
 
 show_F("G{0,0,0,0}", G, {0,0,0,0})
 show_F("G{1,0,0,0}", G, {1,0,0,0})
