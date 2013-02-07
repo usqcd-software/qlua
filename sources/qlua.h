@@ -45,43 +45,43 @@ typedef enum {
     qGamma,                   /*  2 */
     qMatReal,                 /*  3 */
     qMatComplex,              /*  4 */
-    qSeqColVec2,              /*  5 */
-    qSeqColVec3,              /*  6 */
-    qSeqColVecN,              /*  7 */
-    qSeqColMat2,              /*  8 */
-    qSeqColMat3,              /*  9 */
-    qSeqColMatN,              /* 10 */
-    qSeqDirFerm2,             /* 11 */
-    qSeqDirFerm3,             /* 12 */
-    qSeqDirFermN,             /* 13 */
-    qSeqDirProp2,             /* 14 */
-    qSeqDirProp3,             /* 15 */
-    qSeqDirPropN,             /* 16 */
-    qLatInt,                  /* 17 */
-    qLatReal,                 /* 18 */
-    qLatComplex,              /* 19 */
-    qLatColVec2,              /* 20 */
-    qLatColVec3,              /* 21 */
-    qLatColVecN,              /* 22 */
-    qLatColMat2,              /* 23 */
-    qLatColMat3,              /* 24 */
-    qLatColMatN,              /* 25 */
-    qLatDirFerm2,             /* 26 */
-    qLatDirFerm3,             /* 27 */
-    qLatDirFermN,             /* 28 */
-    qLatDirProp2,             /* 29 */
-    qLatDirProp3,             /* 30 */
-    qLatDirPropN,             /* 31 */
-    qOther,                   /* 32  no operations for this type */
-    qArithTypeCount,          /* 33  number of types in arith dispatch tables */
-    qLattice,                 /* 34 */
-    qLatMulti,                /* 35 */
-    qLatSubset,               /* 36 */
-    qString,                  /* 37 */
-    qTable,                   /* 38 */
-    qVecInt,                  /* 39 */
-    qVecReal,                 /* 40 */
-    qVecComplex,              /* 41 */
+    qVecReal,                 /*  5 */
+    qVecComplex,              /*  6 */
+    qSeqColVec2,              /*  7 */
+    qSeqColVec3,              /*  8 */
+    qSeqColVecN,              /*  9 */
+    qSeqColMat2,              /* 10 */
+    qSeqColMat3,              /* 11 */
+    qSeqColMatN,              /* 12 */
+    qSeqDirFerm2,             /* 13 */
+    qSeqDirFerm3,             /* 14 */
+    qSeqDirFermN,             /* 15 */
+    qSeqDirProp2,             /* 16 */
+    qSeqDirProp3,             /* 17 */
+    qSeqDirPropN,             /* 18 */
+    qLatInt,                  /* 19 */
+    qLatReal,                 /* 20 */
+    qLatComplex,              /* 21 */
+    qLatColVec2,              /* 22 */
+    qLatColVec3,              /* 23 */
+    qLatColVecN,              /* 24 */
+    qLatColMat2,              /* 25 */
+    qLatColMat3,              /* 26 */
+    qLatColMatN,              /* 27 */
+    qLatDirFerm2,             /* 28 */
+    qLatDirFerm3,             /* 29 */
+    qLatDirFermN,             /* 30 */
+    qLatDirProp2,             /* 31 */
+    qLatDirProp3,             /* 32 */
+    qLatDirPropN,             /* 33 */
+    qOther,                   /* 34  no operations for this type */
+    qArithTypeCount,          /* 35  number of types in arith dispatch tables */
+    qLattice,                 /* 36 */
+    qLatMulti,                /* 37 */
+    qLatSubset,               /* 38 */
+    qString,                  /* 39 */
+    qTable,                   /* 40 */
+    qVecInt,                  /* 41 */
     qSeqRandom,               /* 42 */
     qLatRandom,               /* 43 */
     qScatter,                 /* 44 */

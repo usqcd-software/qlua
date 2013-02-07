@@ -435,6 +435,22 @@ rm_mul_rm(lua_State *L)
 }
 
 static int
+rm_mul_rv(lua_State *L)
+{
+  mMatReal *m = qlua_checkMatReal(L, 1);
+  mVecReal *v = qlua_checkVecReal(L, 2);
+  mVecReal *r = qlua_newVecReal(L, m->l_size);
+  gsl_vector_view vv = gsl_vector_view_array(v->val, v->size);
+  gsl_vector_view vr = gsl_vector_view_array(r->val, r->size);
+
+  if (m->r_size != v->size)
+    return luaL_error(L, "matrix size mismatch in m * v");
+
+  gsl_blas_dgemv(CblasNoTrans, 1.0, m->m, &vv.vector, 0.0, &vr.vector);
+  return 1;
+}
+
+static int
 do_rrmul(lua_State *L, mMatReal *a, double b)
 {
     mMatReal *r = qlua_newMatReal(L, a->l_size, a->r_size);
@@ -1022,6 +1038,24 @@ cm_mul_cm(lua_State *L)
 }
 
 static int
+cm_mul_cv(lua_State *L)
+{
+  mMatComplex *m = qlua_checkMatComplex(L, 1);
+  mVecComplex *v = qlua_checkVecComplex(L, 2);
+  mVecComplex *r = qlua_newVecComplex(L, m->l_size);
+  /* XXX assume GSL and QLA_D_Complex use compatible layout */
+  gsl_vector_complex_view vv = gsl_vector_complex_view_array((void *)&v->val[0], v->size);
+  gsl_vector_complex_view vr = gsl_vector_complex_view_array((void *)&r->val[0], r->size);
+
+  if (m->r_size != v->size)
+    return luaL_error(L, "matrix size mismatch in m * v");
+
+  gsl_blas_zgemv(CblasNoTrans, GSL_COMPLEX_ONE, m->m, &vv.vector,
+                 GSL_COMPLEX_ZERO, &vr.vector);
+  return 1;
+}
+
+static int
 m_complex(lua_State *L)
 {
     int sl, sr;
@@ -1074,9 +1108,11 @@ init_matrix(lua_State *L)
         {qlua_sub_table, qMatReal,    qMatReal,    rm_sub_rm },
         {qlua_sub_table, qMatComplex, qMatComplex, cm_sub_cm },
         {qlua_mul_table, qMatReal,    qMatReal,    rm_mul_rm },
+        {qlua_mul_table, qMatReal,    qVecReal,    rm_mul_rv },
         {qlua_mul_table, qReal,       qMatReal,    r_mul_rm  },
         {qlua_mul_table, qMatReal,    qReal,       rm_mul_r  },
         {qlua_mul_table, qMatComplex, qMatComplex, cm_mul_cm },
+        {qlua_mul_table, qMatComplex, qVecComplex, cm_mul_cv },
         {qlua_mul_table, qReal,       qMatComplex, r_mul_cm  },
         {qlua_mul_table, qComplex,    qMatComplex, c_mul_cm  },
         {qlua_mul_table, qMatComplex, qComplex,    cm_mul_c  },
