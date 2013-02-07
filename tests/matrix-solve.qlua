@@ -1,0 +1,58 @@
+require "stdlib"
+
+-- real test
+rdim = 8
+m = matrix.real{rdim,rdim}
+v = vector.real(rdim)
+for i = 0, rdim - 1 do
+   for j = 0, rdim - 1 do
+      m[{i,j}] = math.cos(j * 2.4134) + math.sin(5.346 - i * j)
+   end
+   v[i] = i
+end
+
+x = m:solve(v)
+has_failed = false
+for i = 0, rdim - 1 do
+   local z = v[i]
+   for j = 0, rdim - 1 do
+      z = z - m[{i,j}] * x[j]
+   end
+   if math.abs(z) > 1e-14 then
+      printf("real failed at %4d %20.10e\n", i, z)
+      has_failed = true
+   end
+end
+
+if not has_failed then
+   printf("real DONE\n")
+end
+
+-- complex text
+cdim = 7
+cm = matrix.complex{cdim,cdim}
+cv = vector.complex(cdim)
+for i = 0, cdim - 1 do
+   for j = 0, cdim - 1 do
+      cm[{i,j}] = complex(math.cos(j * 2.4134), math.sin(5.346 - i * j))
+   end
+   cv[i] = complex(i, (i + 2 / i + 1))
+end
+
+cx = cm:solve(cv)
+has_failed = false
+for i = 0, cdim - 1 do
+   local z = cv[i]
+   for j = 0, cdim - 1 do
+      z = z - cm[{i,j}] * cx[j]
+   end
+   if z:abs() > 1e-14 then
+      printf("real failed at %4d %s\n", i, tostring(z))
+      has_failed = true
+   end
+end
+
+if not has_failed then
+   printf("complex DONE\n")
+end
+

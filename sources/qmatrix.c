@@ -15,6 +15,21 @@ static const char opMatComplex[]  = "matrix.mtComplex.ops";
 
 static char matrix_ns[] = "matrix";
 
+static gsl_permutation *
+new_permutation(lua_State *L, int m)
+{
+    gsl_permutation *p;
+
+    p = gsl_permutation_alloc(m);
+    if (p == 0) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        p = gsl_permutation_alloc(m);
+        if (p == 0)
+          luaL_error(L, "not enough memory");
+    }
+    return p;
+}
+
 static void *
 qlua_checkMatrix(lua_State *L, int idx, const char *mt, const char *name)
 {
@@ -100,22 +115,47 @@ md_inverse(lua_State *L)
     if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
+    p = new_permutation(L, m->l_size);
     lu = qlua_newMatReal(L, m->l_size, m->l_size);
     r = qlua_newMatReal(L, m->l_size, m->l_size);
     gsl_matrix_memcpy(lu->m, m->m);
-    p = gsl_permutation_alloc(m->l_size);
-    if (p == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        p = gsl_permutation_alloc(m->l_size);
-        if (p == 0)
-            luaL_error(L, "not enough memory");
-    }
     gsl_linalg_LU_decomp(lu->m, p, &signum);
     if (gsl_linalg_LU_invert(lu->m, p, r->m))
         luaL_error(L, "matrix:inverse() failed");
     
     gsl_permutation_free(p);
     return 1;
+}
+
+/* solve M x = V: x = M:solve(V) */
+static int
+md_solve(lua_State *L)
+{
+  mMatReal *m = qlua_checkMatReal(L, 1);
+  mVecReal *v = qlua_checkVecReal(L, 2);
+  mMatReal *lu;
+  mVecReal *x;
+  gsl_permutation *p;
+  gsl_vector_view vb = gsl_vector_view_array(v->val, v->size);
+  gsl_vector_view vx;
+  int signum;
+
+  if (m->l_size != m->r_size)
+    return luaL_error(L, "square matrix expected");
+  if (m->l_size != v->size)
+    return luaL_error(L, "vector dim mismatch matrix size");
+  
+  p = new_permutation(L, m->l_size);
+  lu = qlua_newMatReal(L, m->l_size, m->l_size);
+  x = qlua_newVecReal(L, m->l_size);
+  vx = gsl_vector_view_array(x->val, x->size);
+  gsl_matrix_memcpy(lu->m, m->m);
+  gsl_linalg_LU_decomp(lu->m, p, &signum);
+  if (gsl_linalg_LU_solve(lu->m, p, &vb.vector, &vx.vector))
+    luaL_error(L, "matrix:solve() failed");
+  gsl_permutation_free(p);
+
+  return 1;
 }
 
 static int
@@ -130,15 +170,9 @@ md_det(lua_State *L)                                            /* (-1,+1,e) */
     if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
+    p = new_permutation(L, m->l_size);
     lu = qlua_newMatReal(L, m->l_size, m->l_size);
     gsl_matrix_memcpy(lu->m, m->m);
-    p = gsl_permutation_alloc(m->l_size);
-    if (p == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        p = gsl_permutation_alloc(m->l_size);
-        if (p == 0)
-            luaL_error(L, "not enough memory");
-    }
     gsl_linalg_LU_decomp(lu->m, p, &signum);
     d = gsl_linalg_LU_det(lu->m, signum);
     gsl_permutation_free(p);
@@ -455,6 +489,7 @@ static const luaL_Reg MatRealMethods[] = {
     { "transpose",            md_transpose  },
     { "trace",                md_trace      },
     { "inverse",              md_inverse    },
+    { "solve",                md_solve      },
     { "symmetric_eigen",      md_eigen      },
     { "qr",                   md_qr         },
     { "det",                  md_det        },
@@ -680,22 +715,48 @@ mc_inverse(lua_State *L)
     if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
+    p = new_permutation(L, m->l_size);
     lu = qlua_newMatComplex(L, m->l_size, m->l_size);
     r = qlua_newMatComplex(L, m->l_size, m->l_size);
     gsl_matrix_complex_memcpy(lu->m, m->m);
-    p = gsl_permutation_alloc(m->l_size);
-    if (p == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        p = gsl_permutation_alloc(m->l_size);
-        if (p == 0)
-            luaL_error(L, "not enough memory");
-    }
     gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
     if (gsl_linalg_complex_LU_invert(lu->m, p, r->m))
         luaL_error(L, "matrix:inverse() failed");
     
     gsl_permutation_free(p);
     return 1;
+}
+
+static int
+mc_solve(lua_State *L)
+{
+  mMatComplex *m = qlua_checkMatComplex(L, 1);
+  mVecComplex *v = qlua_checkVecComplex(L, 2);
+  mMatComplex *lu;
+  mVecComplex *x;
+  gsl_permutation *p;
+  /* XXX assume GSL and QLA_D_Complex use compatible layout */
+  gsl_vector_complex_view vb = gsl_vector_complex_view_array((void *)&v->val[0], v->size);
+  gsl_vector_complex_view vx;
+  int signum;
+
+  if (m->l_size != m->r_size)
+    return luaL_error(L, "square matrix expected");
+  if (m->l_size != v->size)
+    return luaL_error(L, "vector dim mismatch matrix size");
+  
+  p = new_permutation(L, m->l_size);
+  lu = qlua_newMatComplex(L, m->l_size, m->l_size);
+  x = qlua_newVecComplex(L, m->l_size);
+  /* XXX assume GSL and QLA_D_Complex use compatible layout */
+  vx = gsl_vector_complex_view_array((void *)&x->val[0], x->size);
+  gsl_matrix_complex_memcpy(lu->m, m->m);
+  gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
+  if (gsl_linalg_complex_LU_solve(lu->m, p, &vb.vector, &vx.vector))
+    luaL_error(L, "matrix:solve() failed");
+  gsl_permutation_free(p);
+
+  return 1;
 }
 
 static int
@@ -712,16 +773,10 @@ mc_det(lua_State *L)
     if (m->l_size != m->r_size)
         return luaL_error(L, "square matrix expected");
     
+    p = new_permutation(L, m->l_size);
     lu = qlua_newMatComplex(L, m->l_size, m->l_size);
     r = qlua_newMatComplex(L, m->l_size, m->l_size);
     gsl_matrix_complex_memcpy(lu->m, m->m);
-    p = gsl_permutation_alloc(m->l_size);
-    if (p == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        p = gsl_permutation_alloc(m->l_size);
-        if (p == 0)
-            luaL_error(L, "not enough memory");
-    }
     gsl_linalg_complex_LU_decomp(lu->m, p, &signum);
     d = gsl_linalg_complex_LU_det(lu->m, signum);
     gsl_permutation_free(p);
@@ -984,6 +1039,7 @@ static const luaL_Reg MatComplexMethods[] = {
     { "conj",                 mc_conj       },
     { "adjoin",               mc_adjoin     },
     { "inverse",              mc_inverse    },
+    { "solve",                mc_solve      },
     { "hermitian_eigen",      mc_eigen      },
     { "qr",                   mc_qr         },
     { "det",                  mc_det        },
