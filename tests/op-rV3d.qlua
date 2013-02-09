@@ -1,0 +1,53 @@
+-- Random 3-d potential
+
+function makeOprV3d(t)
+   local dims = t.Dims
+   local a_shift = t.AShift
+   local b_scale = t.BScale
+   local alpha = t.Alpha
+   local steps = t.Steps
+   local seed = t.Seed
+
+   local L = qcd.lattice(dims)
+   local rnd = L:RandomState(seed, L:pcoord(0) + L[0] * (L:pcoord(1) + L[1] * L:pcoord(2)))
+
+   local op = {}
+
+   local aa = rnd:random_Real()
+   local i, d
+   for i = 0, steps do
+      local b = (1 - 6 * alpha) * aa
+      for d = 0, 2 do
+         b = b + alpha * (aa:shift(d, "from_forward") + aa:shift(d, "from_backward"))
+      end
+      aa = b
+   end
+   aa = b_scale * aa + 6 + a_shift
+
+   local function f(x)
+      local y = aa * x
+      local d
+      for d = 0, 2 do
+         y = y - x:shift(d, "from_forward") - x:shift(d, "from_backward")
+      end
+      return y
+   end
+
+   -- methods
+   function op:lattice() return L end
+   function op:dim() return L[0] * L[1] * L[2] end
+   function op:rnd() return rnd end
+   function op:V() return aa - 6 end
+   function op:zeroVector() return L:Real(0.0) end
+   function op:randomVector() return rnd:gaussian_Real() end
+   function op:axpy(a,x,y) return a * x + y end
+   function op:scale(a,x) return a * x end
+   function op:dot(a,b) return (a*b):sum() end
+   function op:apply(v) return f(v) end
+   function op:applyT(v) return f(v) end
+   function op:residue(x,b) return b - op:apply(x) end
+   function op:error(x,b) return math.sqrt((b - op:apply(x)):norm2()) end
+   function op:norm(v) return math.sqrt(v:norm2()) end
+
+   return op
+end
