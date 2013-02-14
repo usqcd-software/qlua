@@ -30,6 +30,19 @@ new_permutation(lua_State *L, int m)
     return p;
 }
 
+gsl_vector *
+new_gsl_vector(lua_State *L, int n)
+{
+  gsl_vector *ev = gsl_vector_alloc(n);
+  if (ev == 0) {
+    lua_gc(L, LUA_GCCOLLECT, 0);
+    ev = gsl_vector_alloc(n);
+    if (ev == 0)
+      luaL_error(L, "not enough memory");
+  }
+  return ev;
+}
+
 static void *
 qlua_checkMatrix(lua_State *L, int idx, const char *mt, const char *name)
 {
@@ -192,13 +205,7 @@ md_qr(lua_State *L)                                            /* (-1,+2,e) */
     gsl_vector *tau;
 
     gsl_matrix_memcpy(qr->m, m->m);
-    tau = gsl_vector_alloc(nm);
-    if (tau == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        tau = gsl_vector_alloc(nm);
-        if (tau == 0)
-            luaL_error(L, "not enough memory");
-    }
+    tau = new_gsl_vector(L, nm);
     if (gsl_linalg_QR_decomp(qr->m, tau))
         luaL_error(L, "matrix:qr() failed");
     
@@ -261,14 +268,7 @@ md_eigen(lua_State *L)                                         /* (-1,+2,e) */
     lambda = qlua_newVecReal(L, n);
     trans = qlua_newMatReal(L, n, n);
 
-    ev = gsl_vector_alloc(n);
-    if (ev == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        ev = gsl_vector_alloc(n);
-        if (ev == 0)
-            luaL_error(L, "not enough memory");
-    }
-
+    ev = new_gsl_vector(L, n);
     w = gsl_eigen_symmv_alloc(n);
     if (w == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);
@@ -877,14 +877,7 @@ mc_eigen(lua_State *L)                                         /* (-1,+2,e) */
     lambda = qlua_newVecReal(L, n);
     trans = qlua_newMatComplex(L, n, n);
 
-    ev = gsl_vector_alloc(n);
-    if (ev == 0) {
-        lua_gc(L, LUA_GCCOLLECT, 0);
-        ev = gsl_vector_alloc(n);
-        if (ev == 0)
-            luaL_error(L, "not enough memory");
-    }
-
+    ev = new_gsl_vector(L, n);
     w = gsl_eigen_hermv_alloc(n);
     if (w == 0) {
         lua_gc(L, LUA_GCCOLLECT, 0);

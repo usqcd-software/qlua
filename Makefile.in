@@ -107,7 +107,9 @@ endif
 endif
 
 ifneq ("$(GSL)", "")
-  libsrc += qmatrix.c
+  libsrc += qmatrix.c \
+            qroot.c \
+            qmin.c
 endif
 
 extrascr =

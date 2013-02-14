@@ -18,6 +18,8 @@
 #include "qxml.h"                                                    /* DEPS */
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
+#include "qroot.h"                                                   /* DEPS */
+#include "qmin.h"                                                    /* DEPS */
 #endif
 #include "lattice.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
@@ -59,6 +61,9 @@
 const static char *lattice_key = "lattice";
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
+#ifdef HAS_GSL
+const char *gsllib = "gsl";
+#endif
 const char *a_type_key = "a-type";
 int qlua_master_node = -1;
 
@@ -777,6 +782,8 @@ static struct luaL_Reg fQCD[] = {
     { NULL,       NULL}
 };
 
+static struct luaL_Reg fEmpty[] = { { NULL, NULL } };
+
 /* gemeric error report on illegal write operations */
 int
 qlua_nowrite(lua_State *L)
@@ -821,6 +828,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_vector,
 #ifdef HAS_GSL
         init_matrix,
+        init_root,
+        init_min,
 #endif
         init_lattice,
         init_latint,
@@ -863,6 +872,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     qlua_openlibs(L);  /* open libraries */
 
+#ifdef HAS_GSL
+    luaL_register(L, gsllib, fEmpty);
+#endif
     luaL_register(L, qcdlib, fQCD);
     for (i = 0; qcd_inits[i]; i++) {
         lua_pushcfunction(L, qcd_inits[i]);
@@ -944,6 +956,8 @@ qlua_fini(lua_State *L)
         fini_latint,
         fini_lattice,
 #ifdef HAS_GSL
+        fini_min,
+        fini_root,
         fini_matrix,
 #endif
         fini_vector,
