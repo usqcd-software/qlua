@@ -3,7 +3,7 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <libgen.h>
+#include <libgen.h> /* for dirname() and basename() */
 #include "qmp.h"
 #include "qdp.h"
 

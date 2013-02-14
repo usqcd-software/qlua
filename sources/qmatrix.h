@@ -3,14 +3,14 @@
 
 #define GSL_RANGE_CHECK_OFF
 #define HAVE_INLINE
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_blas.h>
-#include <gsl/gsl_eigen.h>
-#include <gsl/gsl_matrix_double.h>
-#include <gsl/gsl_vector_double.h>
-#include <gsl/gsl_permutation.h>
-#include <gsl/gsl_linalg.h>
-#include <gsl/gsl_complex_math.h>
+#include "gsl/gsl_errno.h"
+#include "gsl/gsl_blas.h"
+#include "gsl/gsl_eigen.h"
+#include "gsl/gsl_matrix_double.h"
+#include "gsl/gsl_vector_double.h"
+#include "gsl/gsl_permutation.h"
+#include "gsl/gsl_linalg.h"
+#include "gsl/gsl_complex_math.h"
 
 typedef struct {
     int l_size;

@@ -41,8 +41,8 @@ enum {
   QM_param_count
 };
 
-static double
-vnorm2(gsl_vector *v, int dim)
+double
+vnorm2_gsl(gsl_vector *v, int dim)
 {
   double n = 0;
   int i;
@@ -116,7 +116,7 @@ fminN(lua_State *L, int idx_x)
     break;
   case QMIN_nmsimplex2rand:
     T = gsl_multimin_fminimizer_nmsimplex2rand;
-    name = "nmsimplex2randx";
+    name = "nmsimplex2rand";
     break;
   default:
     luaL_error(L, "internal error: unexpected minimizer");
@@ -188,7 +188,7 @@ fminN(lua_State *L, int idx_x)
       }
       lua_rawseti(L, -4, iter);
     }
-    if (fabs(size) < abs_err + rel_err * vnorm2(s->x, ndim)) {
+    if (fabs(size) < abs_err + rel_err * vnorm2_gsl(s->x, ndim)) {
       status = 0;
       break;
     }
