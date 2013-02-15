@@ -39,6 +39,19 @@ function s2(x,y)
    return math.sin(math.pi*x) + math.cos(math.pi*y)
 end
 
+function mk_quad(a,b,c,d,e)
+   return function (x,y)
+             return (a*x*x + b*x*y + c*y*y + d*x + e*y)
+          end
+end
+
+local f1 = mk_quad(10,21,33,41,15)
+local f2 = mk_quad(1,0,1,0,0)
+function ff(x,y,t)
+   local v2 = (f2(x,y) - 230)
+   return f1(x,y) + v2*v2 * (t * t + 20)
+end
+
 x,st = gsl.min.nmsimplex{MaxIterations = 1234,
                          RelativeError = 1e-5,
                          AbsoluteError = 1e-200,
@@ -49,3 +62,16 @@ show_table("abs, nmsimplex2", x, st)
 
 x, st = gsl.min.nmsimplex2rand{AbsoluteError = 1e-8}(s2,{0.3,0.4})
 show_table("abs, nmsimplex2rand", x, st)
+
+x,st = gsl.min.nmsimplex2{AbsoluteError = 1e-8,
+                         RelativeError = 1e-6,
+                         MaxIterations = 1000,
+                         -- Logging = true,
+                         StepSize = 0.5 }(ff,{0,0,0})
+show_table("form on form", x, st)
+
+x,st = gsl.min.nmsimplex2{AbsoluteError = 1e-8,
+                         RelativeError = 1e-6,
+                         MaxIterations = 1000,
+                         StepSize = 0.5 }(f1,{0,0})
+show_table("form f1", x, st)

@@ -1,0 +1,49 @@
+require "stdlib"
+
+function a0(x,y,z)
+   return x * x + y * y + z * z - 1;
+end
+
+function a1(x,y,z)
+   return x + y
+end
+
+function a2(x,y,z)
+   return x + z
+end
+
+
+function show_table(n, x0, t)
+   local i, j, x, v
+   printf("result(%s)\n", n)
+   if x0 then
+      for i = 1, #x0 do
+         printf("  x[%2d] = %g\n", i, x0[i])
+      end
+   end
+   for i, v in pairs(t) do
+      printf("  .%-20s: %s\n", i, tostring(v))
+   end
+   local log = t.Logs
+   if log then
+      for i, v in pairs(log) do
+         printf("  .Log.%-20s: %s\n", i, tostring(v))
+      end
+      for i = 1, t.Iterations do
+         printf("   %5d %20.10e %12.4e :", i, log.f[i], log.size[i])
+         x = log.x[i]
+         for j = 1, #x do
+            printf(" %15.8e", x[j])
+         end
+         printf("\n")
+      end
+   end
+end
+
+
+x, st = gsl.root.dnewton{MaxIterations = 1000,
+                         RelativeError = 1e-5,
+                         AbsoluteError = 1e-6,
+                         Logging = true}({a0,a1,a2},{1,2,3})
+
+show_table("dnewton", x, st)

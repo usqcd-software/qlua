@@ -23,7 +23,6 @@ static const char *min_params[] = {
   "RelativeError",  /* stop if the relative error is below this number */
   "AbsoluteError",  /* stop if the absolute error is below this number */
   "StepSize",       /* step size (n-d for df minimizers, 1-d for f-minimizers */
-  "Tolerance",      /* tolerance parameter for Nd minimizers */
   NULL
 };
 
@@ -37,7 +36,6 @@ enum {
   QM_rel_err,
   QM_abs_err,
   QM_step_size,
-  QM_tol,
   QM_param_count
 };
 
@@ -257,10 +255,13 @@ fminimizer(lua_State *L)
   int narg = lua_gettop(L);
 
   switch (narg) {
-  case 2: return fminN(L, 2);
-  case 3: return fdfminN(L);
+  case 2:
+    return fminN(L, 2);
+  case 3:
+    return fdfminN(L);
   default:
     luaL_error(L, "bad number of arguments");
+    break;
   }
   return 0;
 }
