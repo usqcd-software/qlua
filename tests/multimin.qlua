@@ -27,29 +27,33 @@ function show_table(n, x0, t)
    end
 end
 
-function h2(x,y)
+function h2(v)
+   local x,y = v[1], v[2]
    -- printf("...........h2(%g,%g)\n", x, y)
    local xz = x + 4.5
    local yz = y + 1.2
    return xz * xz + 636 * yz * yz * yz * yz
 end
 
-function s2(x,y)
+function s2(v)
+   local x,y = v[1], v[2]
    -- printf("...........s2(%g,%g)\n", x, y)
    return math.sin(math.pi*x) + math.cos(math.pi*y)
 end
 
 function mk_quad(a,b,c,d,e)
-   return function (x,y)
+   return function (v)
+             local x,y = v[1], v[2]
              return (a*x*x + b*x*y + c*y*y + d*x + e*y)
           end
 end
 
 local f1 = mk_quad(10,21,33,41,15)
 local f2 = mk_quad(1,0,1,0,0)
-function ff(x,y,t)
-   local v2 = (f2(x,y) - 230)
-   return f1(x,y) + v2*v2 * (t * t + 20)
+function ff(v)
+   local x,y,t = v[1],v[2],v[3]
+   local v2 = (f2({x,y}) - 230)
+   return f1({x,y}) + v2*v2 * (t * t + 20)
 end
 
 x,st = gsl.min.nmsimplex{MaxIterations = 1234,

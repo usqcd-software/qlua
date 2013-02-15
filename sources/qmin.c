@@ -68,11 +68,13 @@ fminN_func(const gsl_vector *x, void *params_v)
 
   lua_pushlightuserdata(L, params);
   lua_gettable(L, LUA_REGISTRYINDEX);
+  lua_createtable(L, ndim, 0);
   for (i = 0; i < ndim; i++) {
     double xi = gsl_vector_get(x, i);
     lua_pushnumber(L, xi);
+    lua_rawseti(L, -2, i+1);
   }
-  lua_call(L, ndim, 1);
+  lua_call(L, 1, 1);
   r = luaL_checknumber(L, -1);
   lua_pop(L, 1);
 

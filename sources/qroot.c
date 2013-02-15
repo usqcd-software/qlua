@@ -47,16 +47,20 @@ frootN_func(const gsl_vector *x, void *p, gsl_vector *f)
 
   lua_pushlightuserdata(L, params);
   lua_gettable(L, LUA_REGISTRYINDEX);
+  lua_createtable(L, ndim, 0);
   for (i = 0; i < ndim; i++) {
+    double xi = gsl_vector_get(x, i);
+    lua_pushnumber(L, xi);
+    lua_rawseti(L, -2, i+1);
+  }
+  lua_call(L, 1, 1);
+  for (i = 0; i < ndim; i++) {
+    double fi;
     lua_pushinteger(L, i+1);
     lua_gettable(L, -2);
-    for (j = 0; j < ndim; j++) {
-      double xj = gsl_vector_get(x, j);
-      lua_pushnumber(L, xj);
-    }
-    lua_call(L, ndim, 1);
-    gsl_vector_set(f, i, luaL_checknumber(L, -1));
+    fi = luaL_checknumber(L, -1);
     lua_pop(L, 1);
+    gsl_vector_set(f, i, fi);
   }
   lua_pop(L, 1);
 
@@ -71,7 +75,7 @@ frootN(lua_State *L, int idx_x)
   char *name = NULL;
   struct frootN_params params;
   gsl_multiroot_function func;
-  int ndim = lua_objlen(L, 1);
+  int ndim = lua_objlen(L, idx_x);
   int max_iter;
   int logging;
   double rel_err;
@@ -83,9 +87,6 @@ frootN(lua_State *L, int idx_x)
 
   if (ndim < 1)
     luaL_error(L, "Dimension too small in solver");
-
-  if (lua_objlen(L, idx_x) != ndim)
-    luaL_error(L, "wrong number of variables in solver");
 
   switch (luaL_checkint(L, lua_upvalueindex(QS_kind))) {
   case QROOT_dnewton:
