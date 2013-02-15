@@ -45,7 +45,6 @@ frootN_func(const gsl_vector *x, void *p, gsl_vector *f)
   int ndim = params->ndim;
   int i, j;
 
-  printf("XXX func <: top = %d\n", lua_gettop(L));
   lua_pushlightuserdata(L, params);
   lua_gettable(L, LUA_REGISTRYINDEX);
   for (i = 0; i < ndim; i++) {
@@ -60,7 +59,6 @@ frootN_func(const gsl_vector *x, void *p, gsl_vector *f)
     lua_pop(L, 1);
   }
   lua_pop(L, 1);
-  printf("XXX func >: top = %d\n", lua_gettop(L));
 
   return GSL_SUCCESS;
 }
@@ -154,46 +152,29 @@ frootN(lua_State *L, int idx_x)
     lua_createtable(L, max_iter, 0); /* f */
   }
 
-  { /* XXX */
-    gsl_vector *f = new_gsl_vector(L, ndim);
-    int i;
-
-    printf("XXXX calling the functions\n");
-    frootN_func(x, &params, f);
-    for (i = 0; i < ndim; i++) {
-      printf("XXX f(x) [%d] x = %g, f=%g\n", i,
-             gsl_vector_get(x, i),
-             gsl_vector_get(f, i));
-    }
-
-    gsl_vector_free(f);
-  }
-#if 0 /* XXX */
-  
   for (iter = 1; iter < max_iter; iter++) {
-    if (gsl_multimin_fminimizer_iterate(s) != 0) {
+    if (gsl_multiroot_fsolver_iterate(s) != 0) {
+      iter --;
       status = 2;
       break;
     }
-    size = gsl_multimin_fminimizer_size(s);
     if (logging) {
-      lua_pushnumber(L, fabs(size));
-      lua_rawseti(L, -2, iter);
-      lua_pushnumber(L, s->fval);
-      lua_rawseti(L, -3, iter);
-      lua_createtable(L, ndim, 0);
+      lua_createtable(L, ndim, 0); /* x */
+      lua_createtable(L, ndim, 0); /* f */
       for (i = 0; i < ndim; i++) {
         lua_pushnumber(L, gsl_vector_get(s->x, i));
+        lua_rawseti(L, -3, i+1);
+        lua_pushnumber(L, gsl_vector_get(s->f, i));
         lua_rawseti(L, -2, i+1);
       }
-      lua_rawseti(L, -4, iter);
+      lua_rawseti(L, -3, iter);
+      lua_rawseti(L, -3, iter);
     }
-    if (fabs(size) < abs_err + rel_err * vnorm2_gsl(s->x, ndim)) {
+    if (gsl_multiroot_test_delta(s->dx, s->x, abs_err, rel_err) == GSL_SUCCESS) {
       status = 0;
       break;
     }
   }
-#endif /* XXX */
 
   if (logging) {
     lua_setfield(L, -3, "f");
