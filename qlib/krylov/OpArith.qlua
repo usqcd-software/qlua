@@ -64,8 +64,10 @@ OpArith = {
                  function op:randomVector() return q(A:randomVector()) end
                  function op:apply(x) return q(A:apply(q(x))) end
                  function op:applyT(x) return q(A:applyT(q(x))) end
-                 function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
-                 function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+                 function op:scale(a,v) return q(A:scale(a,v)) end
+                 function op:axpy(a,v,w) return q(A:axpy(a,v,w)) end
+                 function op:residue(x,b) return q(A:axpy(-1,op:apply(x), b)) end
+                 function op:error(x,b) return A:norm(op:residue(x,b)) end
                  local function idx(q,i) return rawget(op,i) or A[i] end
                  setmetatable(op, { __index = idx })
                  return op
