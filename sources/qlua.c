@@ -43,6 +43,9 @@
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
 #endif
+#ifdef HAS_HDF5
+#include "hdf5_io.h"                                                 /* DEPS */
+#endif
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
@@ -76,6 +79,9 @@ static struct {
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
     {"aff",    LHPC_AFF_VERSION },
+#endif
+#ifdef HAS_HDF5
+    {"hdf5",    HDF5_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
@@ -791,6 +797,17 @@ qlua_nowrite(lua_State *L)
     return luaL_error(L, "assignment is not permitted");
 }
 
+/* make a fresh copy of a string which be deleted with free()*/
+char *
+qlua_strdup(lua_State *L, const char *str)
+{
+  char *p = strdup(str);
+  if (p == 0)
+    luaL_error(L, "not enough memory");
+
+  return p;
+}
+
 /* environment setup */
 static void
 qlua_openlibs (lua_State *L) {
@@ -847,6 +864,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_gamma,
 #ifdef HAS_AFF
         init_aff_io,
+#endif
+#ifdef HAS_AFF
+        init_hdf5_io,
 #endif
 #ifdef HAS_HYPRE
         init_qhp,
@@ -937,6 +957,9 @@ qlua_fini(lua_State *L)
         fini_nersc_io,
 #ifdef HAS_HYPRE
         fini_qhp,
+#endif
+#ifdef HAS_AFF
+        fini_hdf5_io,
 #endif
 #ifdef HAS_AFF
         fini_aff_io,

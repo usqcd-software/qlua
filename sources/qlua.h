@@ -90,14 +90,16 @@ typedef enum {
     qWriter,                  /* 47 */
     qAffReader,               /* 48 */
     qAffWriter,               /* 49 */
-    qClover,                  /* 50 */
-    qCloverDeflator,          /* 51 */
-    qCloverDeflatorState,     /* 52 */
-    qMDWF,                    /* 53 */
-    qMDWFDeflator,            /* 54 */
-    qMDWFDeflatorState,       /* 55 */
+    qHdf5Reader,              /* 50 */
+    qHdf5Writer,              /* 51 */
+    qClover,                  /* 52 */
+    qCloverDeflator,          /* 53 */
+    qCloverDeflatorState,     /* 54 */
+    qMDWF,                    /* 55 */
+    qMDWFDeflator,            /* 56 */
+    qMDWFDeflatorState,       /* 57 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 56 */
+    qNoType                   /* 58 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -221,6 +223,8 @@ void XMP_dist_double_array(int src_node, int count, double *value);
 
 #define QLUA_ASSERT(x) do qlua_assert(x, #x); while (0)
 void qlua_assert(int, const char *);
+
+char *qlua_strdup(lua_State *L, const char *str);
 
 /* strict memory management: collect garbage befor any QDP operation */
 #define CALL_QDP(L) do lua_gc(L, LUA_GCCOLLECT, 0); while (0)
