@@ -138,7 +138,6 @@ eo_setup(QDP_Lattice *lat, void *args)
         }
     } /* not QMP_GRID */
 
-    int numsites = 1;
     int mc[QLUA_MAX_LATTICE_RANK];
     int i;
 
@@ -191,7 +190,7 @@ eo_node_number(QDP_Lattice *lat, const int x[])
 {
     params *p = QDP_get_lattice_params(lat);
     mLattice *S = p->S;
-    int n, m[QLUA_MAX_LATTICE_RANK];
+    int m[QLUA_MAX_LATTICE_RANK];
     int i, node;
 
     for (i = 0; i < S->rank; i++) {

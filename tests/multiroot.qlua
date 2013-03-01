@@ -1,0 +1,105 @@
+require "stdlib"
+
+function av(v)
+   local x,y,z = v[1],v[2],v[3]
+   return {x * x + y * y + z * z - 1,
+           x + y,
+           x + z}
+end
+
+
+
+function show_table(n, x0, t)
+   local i, j, x, v
+   printf("result(%s)\n", n)
+   if x0 then
+      for i = 1, #x0 do
+         printf("  x[%2d] = %g\n", i, x0[i])
+      end
+   end
+   for i, v in pairs(t) do
+      printf("  .%-20s: %s\n", i, tostring(v))
+   end
+   local log = t.Logs
+   if log then
+      for i, v in pairs(log) do
+         printf("  .Log.%-20s: %s\n", i, tostring(v))
+      end
+      for i = 1, t.Iterations do
+         printf("   %5d ::", i)
+         f = log.f[i]
+         for j = 1, #f do
+            printf(" %20.10e", f[j])
+         end
+         printf(" : ")
+         x = log.x[i]
+         for j = 1, #x do
+            printf(" %15.8e", x[j])
+         end
+         printf("\n")
+      end
+   end
+   printf("\n")
+end
+
+
+x, st = gsl.root.dnewton{MaxIterations = 1000,
+                         RelativeError = 1e-5,
+                         AbsoluteError = 1e-6,
+                         Logging = true}(av,{1,2,3})
+
+show_table("x=y=z dnewton", x, st)
+
+function make_s(a1,b1,c1,d1,e1,f)
+   return function(v)
+             local x, y = v[1],v[2]
+             return { 2*a1*x + 2*b1*y + d1,
+                      2*b1*x + 2*c1*y + e1,
+                      a1*x*x + 2*b1*x*y + c1*y*y + d1*x + e1*y - f }
+          end
+end
+
+fx = make_s(1,2,3,4,5, 0)
+x, st = gsl.root.dnewton{MaxIterations = 1000,
+                         RelativeError = 1e-7,
+                         AbsoluteError = 0,
+                         Logging = true}(fx, {0,0})
+local xf = fx(x)
+for i = 1, #xf do
+   printf(" s-1: f[%d](x) = %g\n", i, xf[i])
+end
+show_table("s-1 broyden", x, st)
+
+fx = make_s(7,6,5,4,8, 1)
+x, st = gsl.root.dnewton{MaxIterations = 1000,
+                         RelativeError = 1e-7,
+                         AbsoluteError = 0,
+                         Logging = true}(fx, {0,0})
+local xf = fx(x)
+for i = 1, #xf do
+   printf(" s-1: f[%d](x) = %g\n", i, xf[i])
+end
+show_table("s-2 broyden", x, st)
+
+
+function make_s2(a1,b1,c1,d1,e1, a2,b2,c2,d2,e2, f)
+   return function(v)
+             local x,y,z = v[1],v[2],v[3]
+             return { 2*a1*x + 2*b1*y + d1 + z * (2*a2*x + 2*b2*y + d2),
+                      2*b1*x + 2*c1*y + e1 + z * (2*b2*x + 2*c2*y + e2),
+                      a2*x*x + 2*b2*x*y + c2*y*y + d2*x + e2*y - f,
+                      a1*x*x + 2*b1*x*y + c1*y*y + d1*x + e1*y,
+                      a2*x*x + 2*b2*x*y + c2*y*y + d2*x + e2*y - f }
+          end
+end
+
+fx = make_s2(1,2,3,4,5, 7,6,5,4,8, 1)
+x, st = gsl.root.broyden{MaxIterations = 1000,
+                         RelativeError = 1e-7,
+                         AbsoluteError = 0,
+                         Logging = true}(fx, {0,0,0})
+xf = fx(x)
+for i = 1, #xf do
+   printf(" s-c: f[%d](x) = %g\n", i, xf[i])
+end
+show_table("sample broyden", x, st)

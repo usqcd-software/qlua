@@ -1,0 +1,40 @@
+-- test of Lanczos eigen value finder
+require "stdlib"
+require "krylov/Lanczos"
+require "tests/op-rV3d"
+
+-- Operator
+op = {
+   Dims   = {32, 32, 32},        -- lattice size
+   AShift = -0.495,
+   BScale  =  1.0,               -- depth of the potential
+   Alpha = 1/15.,                -- smearing (make the potential somewhat pink)
+   Steps = 20,                   -- smearing
+   Seed  = 6345                  -- random seed
+};
+
+A = makeOprV3d(op)
+
+
+fl = makeLanczos {Dim = 100,
+                  Scan = true}
+
+res = fl:distill(A)
+
+s = res.Scan
+for i = 1, #s do
+   if #s[i] > 3 then
+      printf("EVx %5d %20.15f %20.15f  %20.15f %20.15f\n",
+             i, s[i][0], s[i][1], s[i][#s[i]-2], s[i][#s[i]-1])
+   end
+end
+
+if false then
+   for k = 0, FineOp.lanczos.Dim - 1 do
+      ll,v = res.Eigen(k)
+      w = A:apply(v)
+      printf("e %5d   %20.15f %20.12e\n", k, ll, A:norm(A:axpy(-ll, v, w)))
+   end
+end
+
+printf("DONE\n")

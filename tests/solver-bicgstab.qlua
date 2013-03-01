@@ -1,0 +1,49 @@
+-- Test the BiCGStab solver.
+require "stdlib"
+require "krylov/BiCGStab"
+require "tests/op-rV3d"
+
+-- Operator
+op = {
+   Dims   = {32, 32, 32},        -- lattice size
+   AShift = -0.495,
+   BScale  =  1.0,               -- depth of the potential
+   Alpha = 1/15.,                -- smearing (make the potential somewhat pink)
+   Steps = 20,                   -- smearing
+   Seed  = 6345                  -- random seed
+};
+
+A = makeOprV3d(op)
+b = A:randomVector()
+
+-- Solver
+function test_run(n, t)
+   local i, v
+   printf("BiCGStab test run \"%s\"\n", n)
+   for i, v in pairs(t) do
+      printf("   Param: %-20s %s\n", i, tostring(v))
+   end
+   local sgen = makeBiCGStab(t)
+   local sA = sgen:setup(A)
+   local x,status = sA:solve(b, A)
+   printf("Solver status:\n")
+   for i, v in pairs(status) do
+      printf("  %-20s: %s\n", i, tostring(v))
+   end
+   if t.Logging then
+      for i = 1, #status.Norms do
+         printf(" Residue: %5d %20.10e\n", i, status.Norms[i])
+      end
+   end
+   printf("=======\n\n")
+end
+
+-- Test runs
+test_run("all defaults", {})
+test_run("high precision, absolute", {AbsoluteError = 1e-10})
+test_run("low precision, true, logged",
+         {RelativeError = 1e-1,
+          MaxIterations = 10000,
+          TrueResidual = true,
+          Logging = true})
+printf("DONE\n")

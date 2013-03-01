@@ -15,6 +15,13 @@ ldflags="$ldflags -L$lua/lib"
 libs="$libs -llua"
 
 ## Add other packages here. Mind the order
+hdf5="@hdf5@"
+if [ ! -z "$hdf5" ] ; then
+  cflags="$cflags @hdf5_cflags@"
+  ldflags="$ldflags @hdf5_ldflags@"
+  libs="$libs @hdf5_libs@"
+fi
+
 aff="@aff@"
 if [ ! -z "$aff" ] ; then
   cflags="$cflags @aff_cflags@"
@@ -59,6 +66,7 @@ EOF
    [ -z "$clover" ] || echo "       --clover"
    [ -z "$mdwf" ]   || echo "       --mdwf"
    [ -z "$aff" ]    || echo "       --aff"
+   [ -z "$hdf5" ]   || echo "       --hdf5"
    ## Add other packages here
 }
 
@@ -76,6 +84,7 @@ case "$1" in
    --clover)   echo "$clover" ;;
    --mdwf)     echo "$mdwf" ;;
    --aff)      echo "$aff" ;;
+   --hdf5)     echo "$hdf5" ;;
    ## add other modules here
    *) usage 1 1>&2 ;;
 esac

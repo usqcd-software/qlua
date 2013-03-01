@@ -6,13 +6,14 @@ TARGET=$HOME/Local/packages/qlua-working
 ## for all colors. 
 
 CC='mpicc -m64 -std=c99' \
-CFLAGS='-DQDP_Nc=3' \
+CFLAGS='-Wall -DQDP_Nc=3' \
 COPTS='-O2' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \
    --with-lua=$PACKTOP/lua                    \
    --with-gsl=$PACKTOP/gsl                    \
    --with-lhpc-aff=$PACKTOP/aff               \
+   --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1 \
    --with-clover=$PACKTOP/clover              \
    --with-mdwf=$PACKTOP/mdwf                  \
    --with-hypre=$HOME/Local/packages/hypre-2.9.0b \

@@ -3,7 +3,7 @@
 
 #include <string.h>
 #include <stdarg.h>
-#include <libgen.h>
+#include <libgen.h> /* for dirname() and basename() */
 #include "qmp.h"
 #include "qdp.h"
 
@@ -18,6 +18,8 @@
 #include "qxml.h"                                                    /* DEPS */
 #ifdef HAS_GSL
 #include "qmatrix.h"                                                 /* DEPS */
+#include "qroot.h"                                                   /* DEPS */
+#include "qmin.h"                                                    /* DEPS */
 #endif
 #include "lattice.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
@@ -41,6 +43,9 @@
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
 #endif
+#ifdef HAS_HDF5
+#include "hdf5_io.h"                                                 /* DEPS */
+#endif
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
@@ -59,6 +64,9 @@
 const static char *lattice_key = "lattice";
 const char *progname = "qlua";
 const char *qcdlib = "qcd";
+#ifdef HAS_GSL
+const char *gsllib = "gsl";
+#endif
 const char *a_type_key = "a-type";
 int qlua_master_node = -1;
 
@@ -71,6 +79,9 @@ static struct {
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
     {"aff",    LHPC_AFF_VERSION },
+#endif
+#ifdef HAS_HDF5
+    {"hdf5",    HDF5_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
@@ -777,11 +788,24 @@ static struct luaL_Reg fQCD[] = {
     { NULL,       NULL}
 };
 
+static struct luaL_Reg fEmpty[] = { { NULL, NULL } };
+
 /* gemeric error report on illegal write operations */
 int
 qlua_nowrite(lua_State *L)
 {
     return luaL_error(L, "assignment is not permitted");
+}
+
+/* make a fresh copy of a string which be deleted with free()*/
+char *
+qlua_strdup(lua_State *L, const char *str)
+{
+  char *p = strdup(str);
+  if (p == 0)
+    luaL_error(L, "not enough memory");
+
+  return p;
 }
 
 /* environment setup */
@@ -821,6 +845,8 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_vector,
 #ifdef HAS_GSL
         init_matrix,
+        init_root,
+        init_min,
 #endif
         init_lattice,
         init_latint,
@@ -838,6 +864,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_gamma,
 #ifdef HAS_AFF
         init_aff_io,
+#endif
+#ifdef HAS_AFF
+        init_hdf5_io,
 #endif
 #ifdef HAS_HYPRE
         init_qhp,
@@ -863,6 +892,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
     lua_gc(L, LUA_GCSTOP, 0);  /* stop collector during initialization */
     qlua_openlibs(L);  /* open libraries */
 
+#ifdef HAS_GSL
+    luaL_register(L, gsllib, fEmpty);
+#endif
     luaL_register(L, qcdlib, fQCD);
     for (i = 0; qcd_inits[i]; i++) {
         lua_pushcfunction(L, qcd_inits[i]);
@@ -927,6 +959,9 @@ qlua_fini(lua_State *L)
         fini_qhp,
 #endif
 #ifdef HAS_AFF
+        fini_hdf5_io,
+#endif
+#ifdef HAS_AFF
         fini_aff_io,
 #endif
         fini_gamma,
@@ -944,6 +979,8 @@ qlua_fini(lua_State *L)
         fini_latint,
         fini_lattice,
 #ifdef HAS_GSL
+        fini_min,
+        fini_root,
         fini_matrix,
 #endif
         fini_vector,
