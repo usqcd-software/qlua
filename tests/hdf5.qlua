@@ -2,6 +2,8 @@ require "stdlib"
 
 fname = "sample.h5"
 
+-- BEGIN helper routines
+
 function create_dir(f, path)
    local st = x:mkpath(path)
    printf("create_dir(%s, %s) : %s\n",
@@ -185,6 +187,20 @@ function read_complex2(x, path, expected)
    printf("OK:: read/matrix.complex(%s) :: %s\n", path, tostring(v))
 end
 
+function full_scan(f, path, prefix)
+   local ls = f:list(path)
+   for el = 1, #ls do
+      local fn = prefix .. "/" .. ls[el]
+      local k = f:kind(fn)
+      printf("%-15s %s\n", k, fn)
+      if k == 'hdf5.group' then
+         full_scan(f, fn, fn)
+      end
+   end
+end
+
+-- END helper routines
+
 -- remove the file to start from the known state
 os.remove(fname)
 
@@ -239,6 +255,11 @@ read_complex2(x, "/dir-top/another-dir/data2/c-matrix", cm)
 --list_dir(x, "/data/string-data")
 ch_dir(x, "/")
 list_dir(x, ".")
+
+-- h5ls -lR
+printf("\n\nFull list:\n----------------\n")
+full_scan(x, "/", "")
+printf("----------------\n\n")
 
 x:close()
 printf("hdf5.Reader/closed = %s\n", tostring(x))

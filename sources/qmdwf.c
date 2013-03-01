@@ -1071,9 +1071,9 @@ static MDWFSolver std_solver = { q_DW_std_solver, "CG" };
 static int
 q_DW_make_solver(lua_State *L)
 {
-    qlua_checkMDWF(L, 1, NULL, 1);   /* mClover */
+    qlua_checkMDWF(L, 1, NULL, 1);     /* mClover */
     luaL_checknumber(L, 2);            /* double epsilon */
-    luaL_checkint(L, 3);               /* int max_iter */
+    (void)luaL_checkint(L, 3);         /* int max_iter */
 
     lua_pushlightuserdata(L, &std_solver);  /* cl[1]: solver */
     lua_pushvalue(L, 1);                    /* cl[2]: mClover */
@@ -1111,11 +1111,11 @@ static MDWFSolver mixed_solver = { q_DW_mixed_solver, "mixedCG" };
 static int
 q_DW_make_mixed_solver(lua_State *L)
 {
-    qlua_checkMDWF(L, 1, NULL, 1);   /* mClover */
+    qlua_checkMDWF(L, 1, NULL, 1);     /* mClover */
     luaL_checknumber(L, 2);            /* double inner_epsilon */
-    luaL_checkint(L, 3);               /* int inner_iter */
+    (void)luaL_checkint(L, 3);         /* int inner_iter */
     luaL_checknumber(L, 4);            /* double epsilon */
-    luaL_checkint(L, 5);               /* int max_iter */
+    (void)luaL_checkint(L, 5);         /* int max_iter */
 
     lua_pushlightuserdata(L, &mixed_solver);  /* cl[1]: solver */
     lua_pushvalue(L, 1);                      /* cl[2]: mMDWF */

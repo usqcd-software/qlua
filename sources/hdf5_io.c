@@ -57,9 +57,9 @@ get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
   case qhComplexType:
     v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
     if (v < 0) luaL_error(L, "HDF5: complex create failed");
-    H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_NATIVE_DOUBLE);    
+    ec = H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_NATIVE_DOUBLE);    
     if (ec < 0) luaL_error(L, "HDF5: complex.re insert failed");
-    H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_NATIVE_DOUBLE);    
+    ec = H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_NATIVE_DOUBLE);    
     if (ec < 0) luaL_error(L, "HDF5: complex.im insert failed");
     break;
   default:
@@ -369,22 +369,71 @@ qhdf5_w_close(lua_State *L)
   return 1;
 }
 
-static int
-qhdf5_r_status(lua_State *L)
+static const char *
+hdf5_vm(hid_t dh, const char *vname, const char *mname, const char *unknown)
 {
-  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-  
-  lua_pushnil(L);
+  hid_t ds = H5Dget_space(dh);
+  const char *result = unknown;
+  switch (H5Sget_simple_extent_ndims(ds)) {
+  case 1: result = vname; break;
+  case 2: result = mname; break;
+  default: break;
+  }
+  H5Sclose(ds);
+  return result;
+}
+
+static int
+qhdf5_kind(lua_State *L, hid_t file, hid_t cwd, const char *path)
+{
+  hid_t obj = H5Oopen(path[0] == '/'? file: cwd, path, H5P_DEFAULT);
+  const char *kind = "unknown";
+
+  switch (H5Iget_type(obj)) {
+  case H5I_FILE: kind = "hdf5.file"; break;
+  case H5I_GROUP: kind = "hdf5.group"; break;
+  case H5I_DATATYPE: kind = "hdf5.type"; break;
+  case H5I_DATASPACE: kind = "hdf5.space"; break;
+  case H5I_ATTR: kind = "hdf5.attr"; break;
+  case H5I_DATASET: {
+    hid_t dh = H5Dopen2(path[0] == '/'? file: cwd, path, H5P_DEFAULT);
+    hid_t dt = H5Dget_type(dh);
+    switch (H5Tget_class(dt)) {
+    case H5T_STRING: kind = hdf5_vm(dh, "string", kind, kind); break;
+    case H5T_INTEGER: kind = hdf5_vm(dh, "vector.int", kind, kind); break;
+    case H5T_FLOAT: kind = hdf5_vm(dh, "vector.real", "matrix.real", kind); break;
+      /* all compounds are considered complex below */
+    case H5T_COMPOUND: kind = hdf5_vm(dh, "vector.complex", "matrix.complex", kind); break;
+    default: kind = "hdf5.data"; break;
+    }
+    H5Tclose(dt);
+    H5Dclose(dh);
+  } break;
+  default: break;
+  }
+  H5Oclose(obj);
+  lua_pushstring(L, kind);
   return 1;
 }
 
 static int
-qhdf5_w_status(lua_State *L)
+qhdf5_r_kind(lua_State *L)
+{
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+  const char *p = luaL_checkstring(L, 2);
+  
+  check_reader(L, b);
+  return qhdf5_kind(L, b->file, b->cwd, p);
+}
+
+static int
+qhdf5_w_kind(lua_State *L)
 {
   mHdf5Writer *b = qlua_checkHdf5Writer(L, 1);
-
-  lua_pushnil(L);
-  return 1;
+  const char *p = luaL_checkstring(L, 2);
+  
+  check_writer(L, b);
+  return qhdf5_kind(L, b->file, b->cwd, p);
 }
 
 static herr_t
@@ -409,7 +458,6 @@ qhdf5_r_list(lua_State *L)
   hid_t dh;
   herr_t ec;
   H5G_info_t gi;
-  H5O_info_t oi;
 
   check_reader(L, b);
   qlua_Hdf5_enter(L);
@@ -443,6 +491,7 @@ qhdf5_r_read(lua_State *L)
   switch (H5Tget_class(dt)) {
   case H5T_STRING: {
     hid_t ds = H5Dget_space(dh);
+    hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhCharType);
     hsize_t len;
     char *data;
     
@@ -451,7 +500,7 @@ qhdf5_r_read(lua_State *L)
     ec = H5Sget_simple_extent_dims(ds, &len, NULL);
     if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
     data = qlua_malloc(L, len + 1);
-    ec = H5Dread(dh, H5T_C_S1, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (ec < 0) luaL_error(L, "read() failed");
     data[len] = 0;
     lua_pushstring(L, data);
@@ -460,6 +509,7 @@ qhdf5_r_read(lua_State *L)
   } break;
   case H5T_INTEGER: {
     hid_t ds = H5Dget_space(dh);
+    hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhIntType);
     hsize_t len;
     mVecInt *v = NULL;
     int *data;
@@ -471,7 +521,7 @@ qhdf5_r_read(lua_State *L)
     if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
     v = qlua_newVecInt(L, len);
     data = qlua_malloc(L, len * sizeof (int));
-    ec = H5Dread(dh, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (ec < 0) luaL_error(L, "read() failed");
     for (i = 0; i < len; i++)
       v->val[i] = data[i];
@@ -480,6 +530,7 @@ qhdf5_r_read(lua_State *L)
   } break;
   case H5T_FLOAT: {
     hid_t ds = H5Dget_space(dh);
+    hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhRealType);
     
     switch (H5Sget_simple_extent_ndims(ds)) {
     case 1: {
@@ -491,7 +542,7 @@ qhdf5_r_read(lua_State *L)
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       v = qlua_newVecReal(L, len);
       data = qlua_malloc(L, len * sizeof (double));
-      ec = H5Dread(dh, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+      ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len; i++)
         v->val[i] = data[i];
@@ -507,7 +558,7 @@ qhdf5_r_read(lua_State *L)
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       v = qlua_newMatReal(L, len[0], len[1]);
       data = qlua_malloc(L, len[0] * len[1] * sizeof (double));
-      ec = H5Dread(dh, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+      ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len[0]; i++) {
         for (j = 0; j < len[1]; j++) {
@@ -838,7 +889,7 @@ static const struct luaL_Reg mtReader[] = {
   { "close",            qhdf5_r_close },
   { "read",             qhdf5_r_read },
   { "chpath",           qhdf5_r_chpath },
-  { "status",           qhdf5_r_status },
+  { "kind",             qhdf5_r_kind },
   { "list",             qhdf5_r_list },
   { NULL,               NULL}
 };
@@ -850,7 +901,7 @@ static const struct luaL_Reg mtWriter[] = {
   { "write",            qhdf5_w_write },
   { "chpath",           qhdf5_w_chpath },
   { "mkpath",           qhdf5_w_mkpath },
-  { "status",           qhdf5_w_status },
+  { "kind",             qhdf5_w_kind },
   { NULL,               NULL}
 };
 

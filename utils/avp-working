@@ -6,7 +6,7 @@ TARGET=$HOME/Local/packages/qlua-working
 ## for all colors. 
 
 CC='mpicc -m64 -std=c99' \
-CFLAGS='-DQDP_Nc=3' \
+CFLAGS='-Wall -DQDP_Nc=3' \
 COPTS='-O2' \
 ./configure                                   \
    --with-qdp=$PACKTOP/qdp                    \

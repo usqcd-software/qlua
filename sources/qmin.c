@@ -99,7 +99,7 @@ fminN(lua_State *L, int idx_x)
   double step_size;
   int iter;
   int status = 1;
-  double size;
+  double size = 0.0;
   int i;
 
   if (ndim < 1)

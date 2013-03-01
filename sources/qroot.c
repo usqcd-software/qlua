@@ -43,7 +43,7 @@ frootN_func(const gsl_vector *x, void *p, gsl_vector *f)
   struct frootN_params *params = p;
   lua_State *L = params->L;
   int ndim = params->ndim;
-  int i, j;
+  int i;
 
   lua_pushlightuserdata(L, params);
   lua_gettable(L, LUA_REGISTRYINDEX);
