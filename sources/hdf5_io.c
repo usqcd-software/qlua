@@ -10,13 +10,10 @@
 
 #include <assert.h> /* XXX */
 #define XXX_assert(x) assert(x)
+
 const char hdf5_io[] = "hdf5";
 static const char mtnReader[] = "qcd.hdf5.mtReader";
 static const char mtnWriter[] = "qcd.hdf5.mtRriter";
-#if 0 /* XXX */
-
-struct Hdf5Reader_s {}; /* XXX */
-#endif /* XXX */
 
 /* type names for H5 types */
 enum {
@@ -38,6 +35,11 @@ struct mHdf5Writer_s {
   hid_t mt[qhTypeCount];
   hid_t ft[qhTypeCount];
   int master;
+};
+
+struct mHdf5Reader_s {
+  hid_t file;
+  hid_t cwd;
 };
 
 static hid_t
@@ -103,16 +105,13 @@ get_qh_file_type(lua_State *L, hid_t file, hid_t xf[], int tid)
   return v;
 }
 
-#if 0 /* XXX */
 /* helpers */
 static void
 check_reader(lua_State *L, mHdf5Reader *r)
 {
-  XXX_assert("check_reader" == "implemented"); /* XXX */
-    if (r->ptr == 0)
-        luaL_error(L, "closed hdf5 reader");
+  if (r->file < 0)
+    luaL_error(L, "closed hdf5 reader");
 }
-#endif /* XXX */
 
 static void
 check_writer(lua_State *L, mHdf5Writer *r)
@@ -186,58 +185,47 @@ change_hdf5_path(lua_State *L, hid_t file, hid_t cwd, const char *p)
   return dhandle;
 }
 
-#if 0 /* XXX */
 /* allocation */
 static mHdf5Reader *
-qlua_newHdf5Reader(lua_State *L, struct Hdf5Reader_s *reader)
+qlua_newHdf5Reader(lua_State *L)
 {
-  XXX_assert("qlua_newHdf5Reader" == "implemented"); /* XXX */
-  return 0;
-    mHdf5Reader *h = lua_newuserdata(L, sizeof (mHdf5Reader));
+  mHdf5Reader *h = lua_newuserdata(L, sizeof (mHdf5Reader));
 
-    h->ptr = reader;
-    h->dir = hdf5_reader_root(reader);
-    luaL_getmetatable(L, mtnReader);
-    lua_setmetatable(L, -2);
-
-    return h;
+  h->file = -1;
+  h->cwd = -1;
+  luaL_getmetatable(L, mtnReader);
+  lua_setmetatable(L, -2);
+  return h;
 }
-#endif /* XXX */
 
 static mHdf5Writer *
 qlua_newHdf5Writer(lua_State *L)
 {
-    mHdf5Writer *h = lua_newuserdata(L, sizeof (mHdf5Writer));
-    int i;
-
-    h->master = 0;
-    h->file = -1;
-    h->cwd = -1;
-    for (i = 0; i < qhTypeCount; i++) {
-      h->mt[i]= -1;
-      h->ft[i] = -1;
-    }
-    luaL_getmetatable(L, mtnWriter);
-    lua_setmetatable(L, -2);
-
-    return h;
+  mHdf5Writer *h = lua_newuserdata(L, sizeof (mHdf5Writer));
+  int i;
+  
+  h->master = 0;
+  h->file = -1;
+  h->cwd = -1;
+  for (i = 0; i < qhTypeCount; i++) {
+    h->mt[i]= -1;
+    h->ft[i] = -1;
+  }
+  luaL_getmetatable(L, mtnWriter);
+  lua_setmetatable(L, -2);
+  
+  return h;
 }
 
-#if 0 /* XXX */
 /* type checking */
 mHdf5Reader *
 qlua_checkHdf5Reader(lua_State *L, int idx)
 {
-  XXX_assert("qlua_checkHdf5Reader" == "implemented"); /* XXX */
-  return 0;
+  void *v = luaL_checkudata(L, idx, mtnReader);
 
-    void *v = luaL_checkudata(L, idx, mtnReader);
-
-    luaL_argcheck(L, v != 0, idx, "qcd.hdf5.Reader expected");
-
-    return v;
+  luaL_argcheck(L, v != 0, idx, "qcd.hdf5.Reader expected");
+  return v;
 }
-#endif /* XXX */
 
 mHdf5Writer *
 qlua_checkHdf5Writer(lua_State *L, int idx)
@@ -248,27 +236,21 @@ qlua_checkHdf5Writer(lua_State *L, int idx)
   return v;
 }
 
-#if 0 /* XXX */
 /* conversion to string */
 static int
 qhdf5_r_fmt(lua_State *L)
 {
-  XXX_assert("qhdf5_r_fmt" == "implemented"); /* XXX */
-  return 0;
-
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-    char fmt[72];
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+  char fmt[72];
     
-    if ( b->ptr )
-        sprintf(fmt, "hdf5.Reader(%p)", b->ptr);
-    else
-        sprintf(fmt, "hdf5.Reader(closed)");
+  if (b->file > 0)
+    sprintf(fmt, "hdf5.Reader(0x%llx)", (long long)b->file);
+  else
+    sprintf(fmt, "hdf5.Reader(closed)");
 
-    lua_pushstring(L, fmt);
-
-    return 1;
+  lua_pushstring(L, fmt);
+  return 1;
 }
-#endif /* XXX */
 
 static int
 qhdf5_w_fmt(lua_State *L)
@@ -289,26 +271,19 @@ qhdf5_w_fmt(lua_State *L)
     return 1;
 }
 
-#if 0 /* XXX */
 /* garbage collection */
 static int
 qhdf5_r_gc(lua_State *L)
 {
-  XXX_assert("qhdf5_r_gc" == "implemented"); /* XXX */
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+
+  qlua_Hdf5_enter(L);
+  if (b->file > 0)
+    H5Fclose(b->file);
+  b->file = -1;
+  qlua_Hdf5_leave();
   return 0;
-
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-
-
-    qlua_Hdf5_enter(L);
-    if (b->ptr)
-        hdf5_reader_close(b->ptr);
-    b->ptr = 0;
-    qlua_Hdf5_leave();
-    
-    return 0;
 }
-#endif /* XXX */
 
 static int
 qhdf5_w_gc(lua_State *L)
@@ -337,25 +312,19 @@ qhdf5_w_gc(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
 /* closing */
 static int
 qhdf5_r_close(lua_State *L)
 {
-  XXX_assert("qhdf5_r_close" == "implemented"); /* XXX */
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+
+  check_reader(L, b);
+  qlua_Hdf5_enter(L);
+  H5Fclose(b->file);
+  b->file = -1;
+  qlua_Hdf5_leave();
   return 0;
-
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-
-    check_reader(L, b);
-    qlua_Hdf5_enter(L);
-    hdf5_reader_close(b->ptr);
-    b->ptr = 0;
-    qlua_Hdf5_leave();
-    
-    return 0;
 }
-#endif /* XXX */
 
 static int
 qhdf5_w_close(lua_State *L)
@@ -391,29 +360,14 @@ qhdf5_w_close(lua_State *L)
   return 1;
 }
 
-#if 0 /* XXX */
 static int
 qhdf5_r_status(lua_State *L)
 {
-  XXX_assert("qhdf5_r_status" == "implemented"); /* XXX */
-  return 0;
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-    const char *s;
-
-    check_reader(L, b);
-
-    qlua_Hdf5_enter(L);
-    s = hdf5_reader_errstr(b->ptr);
-    qlua_Hdf5_leave();
-        
-    if (s == 0)
-        lua_pushnil(L);
-    else
-        lua_pushstring(L, s);
-
-    return 1;
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+  
+  lua_pushnil(L);
+  return 1;
 }
-#endif /* XXX */
 
 static int
 qhdf5_w_status(lua_State *L)
@@ -764,32 +718,28 @@ qhdf5_w_mkpath(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
 static int
 q_hdf5_reader(lua_State *L)
 {
-  XXX_assert("q_hdf5_reader" == "implemented"); /* XXX */
-  return 0;
-    const char *name = luaL_checkstring(L, 1);
-    struct Hdf5Reader_s *r;
-    const char *msg;
+  const char *name = luaL_checkstring(L, 1);
+  mHdf5Reader *r = qlua_newHdf5Reader(L);
+  int status;
 
-    qlua_Hdf5_enter(L);
-    r = hdf5_reader(name);
-    msg = hdf5_reader_errstr(r);
-    if (msg == NULL) {
-        qlua_newHdf5Reader(L, r);
-        qlua_Hdf5_leave();
+  qlua_Hdf5_enter(L);
+  r->file = H5Fopen(name, H5F_ACC_RDONLY, H5P_DEFAULT);
+  status = (r->file < 0);
+  if (status == 0) {
+    r->cwd = H5Gopen2(r->file, "/", H5P_DEFAULT);
+    status = (r->cwd < 0);
+  }
+  qlua_Hdf5_leave();
+  QMP_sum_int(&status);
+  
+  if (status == 0)
+    return 1;
 
-        return 1;
-    } else {
-        hdf5_reader_close(r);
-        qlua_Hdf5_leave();
-
-        return luaL_error(L, msg);
-    }
+  return luaL_error(L, "qcd.hdf5.Reader() failed");
 }
-#endif /* XXX */
 
 static int
 q_hdf5_writer(lua_State *L)
@@ -828,13 +778,15 @@ q_hdf5_writer(lua_State *L)
 
 /* metatables */
 static const struct luaL_Reg mtReader[] = {
+  { "__tostring",       qhdf5_r_fmt },
+  { "__gc",             qhdf5_r_gc },
+  { "close",            qhdf5_r_close },
 #if 0 /* XXX */
-    { "__tostring",       qhdf5_r_fmt},
-    { "__gc",             qhdf5_r_gc},
-    { "close",            qhdf5_r_close},
     { "read",             qhdf5_r_read},
     { "chpath",           qhdf5_r_chpath },
+#endif /* XXX */
     { "status",           qhdf5_r_status },
+#if 0 /* XXX */
     { "list",             qhdf5_r_list },
 #endif /* XXX */
     { NULL,               NULL}
@@ -853,10 +805,8 @@ static const struct luaL_Reg mtWriter[] = {
 
 /* names and routines for qcd.qdpc table */
 static const struct luaL_Reg fHDF5io[] = {
-#if 0  /* XXX */
-  { "Reader",   q_hdf5_reader},
-#endif /* XXX */
-  { "Writer",   q_hdf5_writer},
+  { "Reader",   q_hdf5_reader },
+  { "Writer",   q_hdf5_writer },
   { NULL,       NULL }
 };
 

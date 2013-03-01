@@ -61,7 +61,10 @@ function fill_cvec(v, rstart, istart)
    end
 end
 
+-- remove the file to start from the known state
 os.remove(fname)
+
+-- check the writer
 x = qcd.hdf5.Writer(fname)
 printf("hdf5 writer %s\n", tostring(x))
 create_dir(x, "/dir-top/another-dir/xxx")
@@ -90,5 +93,11 @@ create_dir(x, "/dir-top/baz")
 -- create_dir(x, "/////bad-group-name")
 create_dir(x, "/tmp/zzz")
 x:close()
+
+-- check the reader
+x = qcd.hdf5.Reader(fname)
+printf("hdf5.Reader = %s\n", tostring(x))
+x:close()
+printf("hdf5.Reader/closed = %s\n", tostring(x))
 
 printf("DONE\n")
