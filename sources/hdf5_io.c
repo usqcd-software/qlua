@@ -171,6 +171,8 @@ change_hdf5_path(lua_State *L, hid_t file, hid_t cwd, const char *p)
     
   while (buf) {
     strsep(&buf, "/");
+    if (dname[0] == 0)
+      break;
     dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
     if (dnext < 0)
       luaL_error(L, "chpath failed");
@@ -181,7 +183,6 @@ change_hdf5_path(lua_State *L, hid_t file, hid_t cwd, const char *p)
     dname = buf;
   }
   free(dpath);
-  H5Gclose(cwd);
   return dhandle;
 }
 
@@ -378,48 +379,47 @@ qhdf5_w_status(lua_State *L)
   return 1;
 }
 
-#if 0 /* XXX */
-typedef struct {
-    lua_State *L;
-    int        k;
-} qHdf5Dir;
-
-static void
-qar_get_list(struct Hdf5Node_s *n, void *arg)
+static herr_t
+qh_get_list(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
 {
-  XXX_assert("qar_get_list" == "implemented"); /* XXX */
-    qHdf5Dir *d = arg;
+  lua_State *L = opdata;
+  int k = luaL_checkinteger(L, -1);
 
-    lua_pushstring(d->L, hdf5_symbol_name(hdf5_node_name(n)));
-    lua_rawseti(d->L, -2, d->k);
-    d->k++;
+  lua_pushstring(L, name);
+  lua_rawseti(L, -3, k);
+  lua_pop(L, 1);
+  lua_pushinteger(L, k + 1);
+
+  return 0;
 }
 
 static int
 qhdf5_r_list(lua_State *L)
 {
-  XXX_assert("qhdf5_r_list" == "implemented"); /* XXX */
-  return 0;
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-    struct Hdf5Node_s *r;
-    const char *p = luaL_checkstring(L, 2);
-    qHdf5Dir dir;
-    
-    check_reader(L, b);
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+  const char *p = luaL_checkstring(L, 2);
+  hid_t dh;
+  herr_t ec;
+  H5G_info_t gi;
+  H5O_info_t oi;
 
-    qlua_Hdf5_enter(L);
-    r = qlua_Hdf5ReaderChPath(b, p);
-    if (r == 0)
-        return luaL_error(L, hdf5_reader_errstr(b->ptr));
-    lua_newtable(L);
-    dir.L = L;
-    dir.k = 1;
-    hdf5_node_foreach(r, qar_get_list, &dir);
-    qlua_Hdf5_leave();
+  check_reader(L, b);
+  qlua_Hdf5_enter(L);
+  dh = change_hdf5_path(L, b->file, b->cwd, p); /* will report an error if p is not a group */
+  ec = H5Gget_info(dh, &gi);
+  if (ec < 0) luaL_error(L, "HDF5: Gget_info failed");
+  lua_createtable(L, gi.nlinks, 0);
+  lua_pushinteger(L, 1);
+  ec = H5Literate(dh, H5_INDEX_NAME, H5_ITER_INC, NULL, qh_get_list, L);
+  if (ec < 0) luaL_error(L, "HDF5: Literate failed");
 
-    return 1;
+  if (dh != b->cwd)
+    H5Gclose(dh);
+  lua_pop(L, 1);
+  return 1;
 }
 
+#if 0 /* XXX */
 static int
 qhdf5_r_read(lua_State *L)
 {
@@ -657,29 +657,23 @@ qhdf5_w_write(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
 static int
 qhdf5_r_chpath(lua_State *L)
 {
-  XXX_assert("qhdf5_r_chpath" == "implemented"); /* XXX */
+  mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
+  const char *p = luaL_checkstring(L, 2);
+  hid_t dh;
+
+  check_reader(L, b);
+
+  qlua_Hdf5_enter(L);
+  dh = change_hdf5_path(L, b->file, b->cwd, p);
+  if (dh != b->cwd)
+      H5Gclose(b->cwd);
+  b->cwd = dh;
+  qlua_Hdf5_leave();
   return 0;
-    mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
-    const char *p = luaL_checkstring(L, 2);
-    struct Hdf5Node_s *r;
-
-    check_reader(L, b);
-
-    qlua_Hdf5_enter(L);
-    r = qlua_Hdf5ReaderChPath(b, p);
-    b->dir = r;
-    qlua_Hdf5_leave();
-
-    if (r != NULL)
-        return 0;
-    else
-        return luaL_error(L, hdf5_reader_errstr(b->ptr));
 }
-#endif /* XXX */
 
 static int
 qhdf5_w_chpath(lua_State *L)
@@ -692,6 +686,8 @@ qhdf5_w_chpath(lua_State *L)
   qlua_Hdf5_enter(L);
   if (b->master) {
     hid_t dir = change_hdf5_path(L, b->file, b->cwd, p);
+    if (dir != b->cwd)
+      H5Gclose(b->cwd);
     b->cwd = dir;
   }
   qlua_Hdf5_leave();
@@ -782,14 +778,12 @@ static const struct luaL_Reg mtReader[] = {
   { "__gc",             qhdf5_r_gc },
   { "close",            qhdf5_r_close },
 #if 0 /* XXX */
-    { "read",             qhdf5_r_read},
-    { "chpath",           qhdf5_r_chpath },
+  { "read",             qhdf5_r_read},
 #endif /* XXX */
-    { "status",           qhdf5_r_status },
-#if 0 /* XXX */
-    { "list",             qhdf5_r_list },
-#endif /* XXX */
-    { NULL,               NULL}
+  { "chpath",           qhdf5_r_chpath },
+  { "status",           qhdf5_r_status },
+  { "list",             qhdf5_r_list },
+  { NULL,               NULL}
 };
 
 static const struct luaL_Reg mtWriter[] = {

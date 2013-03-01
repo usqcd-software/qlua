@@ -26,6 +26,18 @@ function write_h(f, path, data)
           tostring(st))
 end
 
+function list_dir(f, path)
+   local st = f:list(path)
+   printf("list(%s, %s) = { // %d\n",
+          tostring(f),
+          path,
+          #st);
+   for i, v in pairs(st) do
+      printf("  %s\n", v)
+   end
+   printf("}\n")
+end
+
 function fill_vec(v, start)
    local i
    for i = 0, #v - 1 do
@@ -71,6 +83,7 @@ create_dir(x, "/dir-top/another-dir/xxx")
 create_dir(x, "/dir-top/foo")
 create_dir(x, "top/foo")
 ch_dir(x, "dir-top/another-dir")
+--ch_dir(x, "no-such-dir") 
 create_dir(x, "top/foo")
 write_h(x, "/data/string-data", "hello")
 write_h(x, "/data/another/string", "thanks for all the fish")
@@ -83,7 +96,7 @@ write_h(x, "/data/complex-vector", cv)
 dm = matrix.real{3,7}; fill_matrix(dm, 9000)
 write_h(x, "/data2/real-matrix", dm)
 cm = matrix.complex{9,5}; fill_cmatrix(cm, 9000, 100000)
-write_h(x, "/data2/c-matrix", cm)
+write_h(x, "data2/c-matrix", cm)
 
 x:close()
 printf("hdf5 closed writer %s\n", tostring(x))
@@ -97,6 +110,15 @@ x:close()
 -- check the reader
 x = qcd.hdf5.Reader(fname)
 printf("hdf5.Reader = %s\n", tostring(x))
+ch_dir(x, "data")
+list_dir(x, "/")
+list_dir(x, "/data")
+list_dir(x, "another")
+list_dir(x, "/dir-top/another-dir/xxx")
+--list_dir(x, "/data/string-data")
+ch_dir(x, "/")
+list_dir(x, ".")
+
 x:close()
 printf("hdf5.Reader/closed = %s\n", tostring(x))
 
