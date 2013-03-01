@@ -18,12 +18,90 @@ static const char mtnWriter[] = "qcd.hdf5.mtRriter";
 struct Hdf5Reader_s {}; /* XXX */
 #endif /* XXX */
 
+/* type names for H5 types */
+enum {
+  qhCharType,
+  qhIntType,
+  qhRealType,
+  qhComplexType,
+  qhTypeCount
+};
+
+typedef struct {
+  double re;
+  double im;
+} qlua_machine_complex;
 
 struct mHdf5Writer_s {
   hid_t file;
   hid_t cwd;
+  hid_t mt[qhTypeCount];
+  hid_t ft[qhTypeCount];
   int master;
 };
+
+static hid_t
+get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
+{
+  hid_t v = xf[tid];
+  herr_t ec;
+
+  if (v > 0)
+    return v;
+  if (xf[tid] > 0)
+    return xf[tid];
+  switch (tid) {
+  case qhCharType: v = H5Tcopy(H5T_C_S1); break;
+  case qhIntType: v = H5Tcopy(H5T_NATIVE_INT); break;
+  case qhRealType: v = H5Tcopy(H5T_NATIVE_DOUBLE); break;
+  case qhComplexType:
+    v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
+    if (v < 0) luaL_error(L, "HDF5: complex create failed");
+    H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_NATIVE_DOUBLE);    
+    if (ec < 0) luaL_error(L, "HDF5: complex.re insert failed");
+    H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_NATIVE_DOUBLE);    
+    if (ec < 0) luaL_error(L, "HDF5: complex.im insert failed");
+    break;
+  default:
+    luaL_error(L, "HDF5: qh Type Name out of range");
+  }
+  if (v < 0)
+    luaL_error(L, "HDF5: qh Type creation failed");
+  xf[tid] = v;
+  return v;
+}
+
+static hid_t
+get_qh_file_type(lua_State *L, hid_t file, hid_t xf[], int tid)
+{
+  hid_t v = xf[tid];
+  herr_t ec;
+
+  if (v > 0)
+    return v;
+  switch (tid) {
+  case qhCharType: v = H5Tcopy(H5T_C_S1); break;
+  case qhIntType: v = H5Tcopy(H5T_STD_I64BE); break;
+  case qhRealType: v = H5Tcopy(H5T_IEEE_F64BE); break;
+  case qhComplexType:
+    v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
+    if (v < 0) luaL_error(L, "HDF5: complex create failed");
+    ec = H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_IEEE_F64BE);
+    if (ec < 0) luaL_error(L, "HDF5: complex.re insert failed");
+    ec = H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_IEEE_F64BE);    
+    if (ec < 0) luaL_error(L, "HDF5: complex.im insert failed");
+    ec = H5Tcommit(file, ".complex", v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT);
+    if (ec < 0) luaL_error(L, "HDF5: complex commit failed");
+    break;
+  default:
+    luaL_error(L, "HDF5: qh Type Name out of range");
+    break;
+  }
+  if (v < 0)
+    luaL_error(L, "HDF5: qh Type creation failed");
+  xf[tid] = v;
+  return v;
+}
 
 #if 0 /* XXX */
 /* helpers */
@@ -31,10 +109,8 @@ static void
 check_reader(lua_State *L, mHdf5Reader *r)
 {
   XXX_assert("check_reader" == "implemented"); /* XXX */
-#if 0 /* XXX */
     if (r->ptr == 0)
         luaL_error(L, "closed hdf5 reader");
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -117,7 +193,6 @@ qlua_newHdf5Reader(lua_State *L, struct Hdf5Reader_s *reader)
 {
   XXX_assert("qlua_newHdf5Reader" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     mHdf5Reader *h = lua_newuserdata(L, sizeof (mHdf5Reader));
 
     h->ptr = reader;
@@ -126,7 +201,6 @@ qlua_newHdf5Reader(lua_State *L, struct Hdf5Reader_s *reader)
     lua_setmetatable(L, -2);
 
     return h;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -134,8 +208,15 @@ static mHdf5Writer *
 qlua_newHdf5Writer(lua_State *L)
 {
     mHdf5Writer *h = lua_newuserdata(L, sizeof (mHdf5Writer));
-    memset(h, 0, sizeof (mHdf5Writer));
-    
+    int i;
+
+    h->master = 0;
+    h->file = -1;
+    h->cwd = -1;
+    for (i = 0; i < qhTypeCount; i++) {
+      h->mt[i]= -1;
+      h->ft[i] = -1;
+    }
     luaL_getmetatable(L, mtnWriter);
     lua_setmetatable(L, -2);
 
@@ -149,13 +230,12 @@ qlua_checkHdf5Reader(lua_State *L, int idx)
 {
   XXX_assert("qlua_checkHdf5Reader" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
+
     void *v = luaL_checkudata(L, idx, mtnReader);
 
     luaL_argcheck(L, v != 0, idx, "qcd.hdf5.Reader expected");
 
     return v;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -175,7 +255,7 @@ qhdf5_r_fmt(lua_State *L)
 {
   XXX_assert("qhdf5_r_fmt" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
+
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
     char fmt[72];
     
@@ -187,7 +267,6 @@ qhdf5_r_fmt(lua_State *L)
     lua_pushstring(L, fmt);
 
     return 1;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -217,7 +296,7 @@ qhdf5_r_gc(lua_State *L)
 {
   XXX_assert("qhdf5_r_gc" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
+
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
 
 
@@ -228,7 +307,6 @@ qhdf5_r_gc(lua_State *L)
     qlua_Hdf5_leave();
     
     return 0;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -239,10 +317,19 @@ qhdf5_w_gc(lua_State *L)
 
   qlua_Hdf5_enter(L);
   if (b->master) {
-    if (b->file > 0) {
-      H5Gclose(b->cwd);
-      H5Fclose(b->file);
+    int i;
+
+    for (i = 0; i < qhTypeCount; i++) {
+      if (b->mt[i] > 0)
+        H5Tclose(b->mt[i]);
+      b->mt[i] = -1;
+      if (b->ft[i] > 0)
+        H5Tclose(b->ft[i]);
+      b->ft[i] = -1;
     }
+    b->cwd = -1;
+    if (b->file > 0)
+      H5Fclose(b->file);
     b->file = -1;
   }
   qlua_Hdf5_leave();
@@ -257,7 +344,7 @@ qhdf5_r_close(lua_State *L)
 {
   XXX_assert("qhdf5_r_close" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
+
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
 
     check_reader(L, b);
@@ -267,7 +354,6 @@ qhdf5_r_close(lua_State *L)
     qlua_Hdf5_leave();
     
     return 0;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -281,7 +367,19 @@ qhdf5_w_close(lua_State *L)
 
   qlua_Hdf5_enter(L);
   if (b->master) {
-    H5Gclose(b->cwd);
+    int i;
+
+    for (i = 0; i < qhTypeCount; i++) {
+      if (b->mt[i] > 0)
+        H5Tclose(b->mt[i]);
+      b->mt[i] = -1;
+      if (b->ft[i] > 0)
+        H5Tclose(b->ft[i]);
+      b->ft[i] = -1;
+    }
+    if (b->cwd > 0)
+      H5Gclose(b->cwd);
+    b->cwd = -1;
     st = H5Fclose(b->file);
     b->file = -1;
     if (st < 0)
@@ -299,7 +397,6 @@ qhdf5_r_status(lua_State *L)
 {
   XXX_assert("qhdf5_r_status" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
     const char *s;
 
@@ -315,7 +412,6 @@ qhdf5_r_status(lua_State *L)
         lua_pushstring(L, s);
 
     return 1;
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -338,13 +434,11 @@ static void
 qar_get_list(struct Hdf5Node_s *n, void *arg)
 {
   XXX_assert("qar_get_list" == "implemented"); /* XXX */
-#if 0 /* XXX */
     qHdf5Dir *d = arg;
 
     lua_pushstring(d->L, hdf5_symbol_name(hdf5_node_name(n)));
     lua_rawseti(d->L, -2, d->k);
     d->k++;
-#endif /* XXX */
 }
 
 static int
@@ -352,7 +446,6 @@ qhdf5_r_list(lua_State *L)
 {
   XXX_assert("qhdf5_r_list" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
     struct Hdf5Node_s *r;
     const char *p = luaL_checkstring(L, 2);
@@ -371,7 +464,6 @@ qhdf5_r_list(lua_State *L)
     qlua_Hdf5_leave();
 
     return 1;
-#endif /* XXX */
 }
 
 static int
@@ -379,7 +471,6 @@ qhdf5_r_read(lua_State *L)
 {
   XXX_assert("qhdf5_r_read" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
     const char *p = luaL_checkstring(L, 2);
     struct Hdf5Node_s *n;
@@ -474,7 +565,6 @@ qhdf5_r_read(lua_State *L)
 end:
     qlua_Hdf5_leave();
     return luaL_error(L, "bad arguments for HDF5 read");
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -491,12 +581,11 @@ qhdf5_w_write(lua_State *L)
     char *dpath = qlua_strdup(L, p);
     hid_t wdir = b->cwd;
     hid_t dataset = -1;
-    hid_t datatype = -1;
-    hid_t dtype_native = -1;
+    hid_t dtype_file = -1;
+    hid_t dtype_machine = -1;
     hid_t dataspace = -1;
     void *data = NULL;
     char *ename = strrchr(dpath, '/');
-    const char *attr_val = NULL;
     herr_t status;
 
     if (ename == NULL) {
@@ -511,9 +600,9 @@ qhdf5_w_write(lua_State *L)
       const char *str = luaL_checkstring(L, 3);
       hsize_t len = strlen(str);
       data = qlua_strdup(L, str);
-      datatype = H5Tcreate(H5T_STRING, len);
-      dtype_native = H5Tcreate(H5T_STRING, len);
-      dataspace = H5Screate(H5S_SCALAR);
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhCharType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhCharType);
+      dataspace = H5Screate_simple(1, &len, NULL);
     } break;
     case qVecInt: {
       mVecInt *v = qlua_checkVecInt(L, 3);
@@ -522,8 +611,8 @@ qhdf5_w_write(lua_State *L)
       int i;
       ptr = qlua_malloc(L, len * sizeof (int));
       data = ptr;
-      datatype = H5Tcopy(H5T_STD_I64BE);
-      dtype_native = H5Tcopy(H5T_NATIVE_INT);
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhIntType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhIntType);
       dataspace = H5Screate_simple(1, &len, NULL);
       for (i = 0; i < len; i++)
         ptr[i] = v->val[i];
@@ -535,29 +624,25 @@ qhdf5_w_write(lua_State *L)
       int i;
       ptr = qlua_malloc(L, len * sizeof (double));
       data = ptr;
-      datatype = H5Tcopy(H5T_IEEE_F64BE);
-      dtype_native = H5Tcopy(H5T_NATIVE_DOUBLE);
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhRealType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhRealType);
       dataspace = H5Screate_simple(1, &len, NULL);
-      attr_val = "real";
       for (i = 0; i < len; i++)
         ptr[i] = v->val[i];
     } break;
     case qVecComplex: {
       mVecComplex *v = qlua_checkVecComplex(L, 3);
-      hsize_t len[2];
-      double *ptr;
+      hsize_t len = v->size;
+      qlua_machine_complex *ptr;
       int i;
-      ptr = qlua_malloc(L, v->size * 2 * sizeof (double));
-      len[0] = v->size;
-      len[1] = 2;
+      ptr = qlua_malloc(L, v->size * sizeof (qlua_machine_complex));
       data = ptr;
-      datatype = H5Tcopy(H5T_IEEE_F64BE);
-      dtype_native = H5Tcopy(H5T_NATIVE_DOUBLE);
-      dataspace = H5Screate_simple(2, len, NULL);
-      attr_val = "complex";
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhComplexType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhComplexType);
+      dataspace = H5Screate_simple(1, &len, NULL);
       for (i = 0; i < v->size; i++) {
-        ptr[2 * i] = QLA_real(v->val[i]);
-        ptr[2 * i + 1] = QLA_imag(v->val[i]);
+        ptr[i].re = QLA_real(v->val[i]);
+        ptr[i].im = QLA_imag(v->val[i]);
       }
     } break;
     case qMatReal: {
@@ -569,33 +654,32 @@ qhdf5_w_write(lua_State *L)
       len[0] = v->l_size;
       len[1] = v->r_size;
       data = ptr;
-      datatype = H5Tcopy(H5T_IEEE_F64BE);
-      dtype_native = H5Tcopy(H5T_NATIVE_DOUBLE);
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhRealType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhRealType);
       dataspace = H5Screate_simple(2, len, NULL);
-      attr_val = "real";
       for (i = 0; i < v->l_size; i++)
         for (j = 0; j < v->r_size; j++)
           *ptr++ = gsl_matrix_get(v->m, i, j);
     } break;
     case qMatComplex: {
       mMatComplex *v = qlua_checkMatComplex(L, 3);
-      hsize_t len[3];
-      double *ptr;
+      hsize_t len[2];
+      qlua_machine_complex *ptr;
       int i, j;
-      ptr = qlua_malloc(L, v->l_size * v->r_size * 2 * sizeof (double));
+      ptr = qlua_malloc(L, v->l_size * v->r_size * sizeof (qlua_machine_complex));
       len[0] = v->l_size;
       len[1] = v->r_size;
-      len[2] = 2;
       data = ptr;
-      datatype = H5Tcopy(H5T_IEEE_F64BE);
-      dtype_native = H5Tcopy(H5T_NATIVE_DOUBLE);
-      dataspace = H5Screate_simple(3, len, NULL);
-      attr_val = "complex";
+      dtype_file = get_qh_file_type(L, b->file, b->ft, qhComplexType);
+      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhComplexType);
+      dataspace = H5Screate_simple(2, len, NULL);
       for (i = 0; i < v->l_size; i++) {
         for (j = 0; j < v->r_size; j++) {
           gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
-          *ptr++ = GSL_REAL(zz);
-          *ptr++ = GSL_IMAG(zz);
+          qlua_machine_complex zv;
+          zv.re = GSL_REAL(zz);
+          zv.im = GSL_IMAG(zz);
+          *ptr++ = zv;
         }
       }
     } break;
@@ -603,22 +687,13 @@ qhdf5_w_write(lua_State *L)
       luaL_error(L, "Unsupported data type");
       break;
     }
-    dataset = H5Dcreate2(wdir, ename, datatype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-    if (attr_val) {
-      hid_t at = H5Tcreate(H5T_STRING, strlen(attr_val));
-      hid_t as = H5Screate(H5S_SCALAR);
-      hid_t aid = H5Acreate(dataset, "type", at, as, H5P_DEFAULT, H5P_DEFAULT);
-      status = H5Awrite(aid, at, attr_val);
-      if (status < 0)
-        luaL_error(L, "write error (attr)");
-    }
-    status = H5Dwrite(dataset, dtype_native, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    dataset = H5Dcreate2(wdir, ename, dtype_file, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    status = H5Dwrite(dataset, dtype_machine, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (status < 0)
       luaL_error(L, "write error");
 
     H5Dclose(dataset);
     H5Sclose(dataspace);
-    H5Tclose(datatype);
     free(data);
     free(dpath);
     if (wdir != b->cwd)
@@ -634,7 +709,6 @@ qhdf5_r_chpath(lua_State *L)
 {
   XXX_assert("qhdf5_r_chpath" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     mHdf5Reader *b = qlua_checkHdf5Reader(L, 1);
     const char *p = luaL_checkstring(L, 2);
     struct Hdf5Node_s *r;
@@ -650,7 +724,6 @@ qhdf5_r_chpath(lua_State *L)
         return 0;
     else
         return luaL_error(L, hdf5_reader_errstr(b->ptr));
-#endif /* XXX */
 }
 #endif /* XXX */
 
@@ -697,7 +770,6 @@ q_hdf5_reader(lua_State *L)
 {
   XXX_assert("q_hdf5_reader" == "implemented"); /* XXX */
   return 0;
-#if 0 /* XXX */
     const char *name = luaL_checkstring(L, 1);
     struct Hdf5Reader_s *r;
     const char *msg;
@@ -716,7 +788,6 @@ q_hdf5_reader(lua_State *L)
 
         return luaL_error(L, msg);
     }
-#endif /* XXX */
 }
 #endif /* XXX */
 
