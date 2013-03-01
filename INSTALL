@@ -1,1 +1,9 @@
-WRITE ME.
+There is ./configure, what else do you need?
+
+Seriously, the easiest approach for a casual user is probably to use a build script, for example, one at
+
+https://usqcd.lns.mit.edu/redmine/projects/build/files
+
+For adventurous, take a look how I set up my development environment at utils/avp-setup
+
+If all else fails, read the source.
