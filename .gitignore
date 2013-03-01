@@ -5,4 +5,5 @@ libqlua.a
 qlua
 qlua-config
 modules.h
+*.h5
 *.o
