@@ -1,0 +1,94 @@
+require "stdlib"
+
+fname = "sample.h5"
+
+function create_dir(f, path)
+   local st = x:mkpath(path)
+   printf("create_dir(%s, %s) : %s\n",
+          tostring(f),
+          path,
+          tostring(st))
+end
+
+function ch_dir(f, path)
+   local st = x:chpath(path)
+   printf("ch_dir(%s, %s) : %s\n",
+          tostring(f),
+          path,
+          tostring(st))
+end
+
+function write_h(f, path, data)
+   local st = x:write(path, data)
+   printf("write(%s, %s) = %s\n",
+          path,
+          tostring(data),
+          tostring(st))
+end
+
+function fill_vec(v, start)
+   local i
+   for i = 0, #v - 1 do
+      v[i] = start + i
+   end
+end
+
+function fill_matrix(m, start)
+   local i, j
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         m[{i,j}] = start + i * 10 + j
+      end
+   end
+end
+
+function fill_cmatrix(m, rstart, istart)
+   local i, j
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         m[{i,j}] = complex(rstart + i * 10 + j, istart + j * 10 + i)
+      end
+   end
+end
+
+
+function fill_cvec(v, rstart, istart)
+   local i
+   for i = 0, #v - 1 do
+      v[i] = complex(rstart + i, istart - i)
+   end
+end
+
+os.remove(fname)
+x = qcd.hdf5.Writer(fname)
+printf("hdf5 writer %s\n", tostring(x))
+create_dir(x, "/dir-top/another-dir/xxx")
+create_dir(x, "/dir-top/foo")
+create_dir(x, "top/foo")
+ch_dir(x, "dir-top/another-dir")
+create_dir(x, "top/foo")
+write_h(x, "/data/string-data", "hello")
+write_h(x, "/data/another/string", "thanks for all the fish")
+iv = vector.int(13); fill_vec(iv, 1024)
+write_h(x, "/data/int-vector", iv)
+dv = vector.real(7); fill_vec(dv, 10.12454)
+write_h(x, "/data/real-vector", dv)
+cv = vector.complex(4); fill_cvec(cv, 2.22, 1.1111)
+write_h(x, "/data/complex-vector", cv)
+dm = matrix.real{3,7}; fill_matrix(dm, 9000)
+write_h(x, "/data2/real-matrix", dm)
+cm = matrix.complex{9,5}; fill_cmatrix(cm, 9000, 100000)
+write_h(x, "/data2/c-matrix", cm)
+
+x:close()
+printf("hdf5 closed writer %s\n", tostring(x))
+
+x = qcd.hdf5.Writer(fname)
+create_dir(x, "/dir-top/baz")
+-- create_dir(x, "/////bad-group-name")
+create_dir(x, "/tmp/zzz")
+x:close()
+
+printf("DONE\n")
