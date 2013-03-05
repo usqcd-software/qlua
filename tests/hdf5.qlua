@@ -76,7 +76,11 @@ end
 
 -- The reader builds proper Qlua object, here we check that it read what was written
 function read_string(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/string(%s): sha error: %s\n", path, tostring(st))
+      error("read/string")
+   end
    if not ((type(v) == "string") and (v == expected)) then
       printf("XXX read/string(%s) failed\n", path)
       error("read/string")
@@ -85,7 +89,11 @@ function read_string(x, path, expected)
 end
 
 function read_int1(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/vector.int(%s): sha error: %s\n", path, tostring(st))
+      error("read/vector.int")
+   end
    if not ((type(v) == type(expected)) and (#v == #expected)) then
       printf("XXX read/vector.int(%s) failed\n", path)
       error("read/vector.int")
@@ -101,7 +109,11 @@ function read_int1(x, path, expected)
 end
 
 function read_real1(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/vector.real(%s): sha error: %s\n", path, tostring(st))
+      error("read/vector.real")
+   end
    if not ((type(v) == type(expected)) and (#v == #expected)) then
       printf("XXX read/vector.real(%s) failed\n", path)
       error("read/vector.real")
@@ -117,7 +129,11 @@ function read_real1(x, path, expected)
 end
 
 function read_complex1(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/vector.complex(%s): sha error: %s\n", path, tostring(st))
+      error("read/vector.complex")
+   end
    if not ((type(v) == type(expected)) and (#v == #expected)) then
       printf("XXX read/complex1(%s) failed\n", path)
       error("read/complex1")
@@ -136,7 +152,11 @@ function read_complex1(x, path, expected)
 end
 
 function read_real2(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/matrix.real(%s): sha error: %s\n", path, tostring(st))
+      error("read/matrix.real")
+   end
    if not (type(v) == type(expected)) then
       printf("XXX read/matrix.real(%s) failed\n", path)
       error("read/matrix.real")
@@ -161,7 +181,11 @@ function read_real2(x, path, expected)
 end
 
 function read_complex2(x, path, expected)
-   local v = x:read(path)
+   local v, st = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/matrix.complex(%s): sha error: %s\n", path, tostring(st))
+      error("read/matrix.complex")
+   end
    if not (type(v) == type(expected)) then
       printf("XXX read/matrix.complex(%s) failed\n", path)
       error("read/matrix.complex")

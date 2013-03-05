@@ -102,7 +102,8 @@ ifneq ("$(AFF)", "")
 endif
 
 ifneq ("$(HDF5)", "")
-  libsrc += hdf5_io.c
+  libsrc += hdf5_io.c \
+            sha256.c
 endif
 
 ifeq ("@use_nc3@", "1")
