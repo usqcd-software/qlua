@@ -1,10 +1,3 @@
-* hdf5 implementation
-
-* change the structure of hypre interface:
- qhpm_*.c define metatables of matrices
- qhps_*.c define metatables of solvers
- qhpm-i.h collects all matrix metatables
- qhps-i.h collects all solver metatables
-
-* Start with a laplacian and cg.
-* Write tutorials about their use.
+* Currently, hdf5_io.c computes the checksum values by reading the
+  dataset back. This could lead to problems if the filesystem is
+  bad. Implement in-memory sha1 computation instead.

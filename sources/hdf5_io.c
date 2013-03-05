@@ -46,6 +46,7 @@ struct mHdf5Reader_s {
   hid_t ft[qhTypeCount];
 };
 
+/* XXX all native H5 types should be replaced with fixed size */
 static hid_t
 get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
 {
@@ -188,7 +189,7 @@ change_hdf5_path(lua_State *L, hid_t file, hid_t cwd, const char *p)
     isused = 0;
     dname = buf;
   }
-  free(dpath);
+  qlua_free(L, dpath);
   return dhandle;
 }
 
@@ -495,6 +496,7 @@ qhdf5_r_list(lua_State *L)
   return 1;
 }
 
+/* XXX rewrite it */
 static void
 verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
 {
@@ -556,6 +558,7 @@ qhdf5_r_read(lua_State *L)
   herr_t ec;
   int qhtype = 0;
   hsize_t total_len = 0;
+  void *data_ptr = NULL;
 
   check_reader(L, b);
   qlua_Hdf5_enter(L);
@@ -575,12 +578,12 @@ qhdf5_r_read(lua_State *L)
     total_len = len;
     qhtype = qhCharType;
     if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
-    data = qlua_malloc(L, len + 1);
+    data_ptr = qlua_malloc(L, len + 1);
+    data = (char *)data_ptr;
     ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (ec < 0) luaL_error(L, "read() failed");
     data[len] = 0;
     lua_pushstring(L, data);
-    qlua_free(L, data);
   } break;
   case H5T_INTEGER: {
     hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhIntType);
@@ -596,45 +599,47 @@ qhdf5_r_read(lua_State *L)
     total_len = len;
     qhtype = qhIntType;
     v = qlua_newVecInt(L, len);
-    data = qlua_malloc(L, len * sizeof (int));
+    data_ptr = qlua_malloc(L, len * sizeof (int));
+    data = (int *)data_ptr;
     ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (ec < 0) luaL_error(L, "read() failed");
     for (i = 0; i < len; i++)
       v->val[i] = data[i];
-    qlua_free(L, data);
   } break;
   case H5T_FLOAT: {
     hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhRealType);
+    double *data;
     
     switch (H5Sget_simple_extent_ndims(ds)) {
     case 1: {
       hsize_t len;
       mVecReal *v = NULL;
-      double *data;
       int i;
+
       ec = H5Sget_simple_extent_dims(ds, &len, NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len;
       qhtype = qhRealType;
       v = qlua_newVecReal(L, len);
-      data = qlua_malloc(L, len * sizeof (double));
+      data_ptr = qlua_malloc(L, len * sizeof (double));
+      data = (double *)data_ptr;
       ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len; i++)
         v->val[i] = data[i];
-      qlua_free(L, data);
     } break;
     case 2: {
       hsize_t len[2];
       mMatReal *v = NULL;
-      double *data;
       int i, j;
+
       ec = H5Sget_simple_extent_dims(ds, &len[0], NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len[0] * len[1];
       qhtype = qhRealType;
       v = qlua_newMatReal(L, len[0], len[1]);
-      data = qlua_malloc(L, len[0] * len[1] * sizeof (double));
+      data_ptr = qlua_malloc(L, len[0] * len[1] * sizeof (double));
+      data = (double *)data_ptr;
       ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len[0]; i++) {
@@ -642,7 +647,6 @@ qhdf5_r_read(lua_State *L)
           gsl_matrix_set(v->m, i, j, data[i * len[1] + j]);
         }
       }
-      qlua_free(L, data);
     } break;
     default:
       luaL_error(L, "read(): float, but not VecReal nor MatReal");
@@ -650,38 +654,40 @@ qhdf5_r_read(lua_State *L)
   } break;
   case H5T_COMPOUND: {
     hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhComplexType);
+    qlua_machine_complex *data;
     
     switch (H5Sget_simple_extent_ndims(ds)) {
     case 1: {
       hsize_t len;
       mVecComplex *v = NULL;
-      qlua_machine_complex *data;
       int i;
+
       ec = H5Sget_simple_extent_dims(ds, &len, NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len;
       qhtype = qhComplexType;
       v = qlua_newVecComplex(L, len);
-      data = qlua_malloc(L, len * sizeof (qlua_machine_complex));
+      data_ptr = qlua_malloc(L, len * sizeof (qlua_machine_complex));
+      data = (qlua_machine_complex *)data_ptr;
       ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len; i++) {
         QLA_real(v->val[i]) = data[i].re;
         QLA_imag(v->val[i]) = data[i].im;
       }
-      qlua_free(L, data);
     } break;
     case 2: {
       hsize_t len[2];
       mMatComplex *v = NULL;
-      qlua_machine_complex *data;
       int i, j;
+
       ec = H5Sget_simple_extent_dims(ds, &len[0], NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len[0] * len[1];
       qhtype = qhComplexType;
       v = qlua_newMatComplex(L, len[0], len[1]);
-      data = qlua_malloc(L, len[0] * len[1] * sizeof (qlua_machine_complex));
+      data_ptr = qlua_malloc(L, len[0] * len[1] * sizeof (qlua_machine_complex));
+      data = (qlua_machine_complex *)data_ptr;
       ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
       if (ec < 0) luaL_error(L, "read() failed");
       for (i = 0; i < len[0]; i++) {
@@ -692,7 +698,6 @@ qhdf5_r_read(lua_State *L)
           gsl_matrix_complex_set(v->m, i, j, zz);
         }
       }
-      qlua_free(L, data);
     } break;
     default:
       luaL_error(L, "read(): float, but not VecReal nor MatReal");
@@ -702,7 +707,9 @@ qhdf5_r_read(lua_State *L)
   default:
     luaL_error(L, "read(): unsupported data type");
   }
+  /* XXX compute sha256 on data_ptr, total_len, qhtype. Data may be reshuffled now */
   verify_checksum(L, b->ft, dh, total_len, qhtype);
+  qlua_free(L, data_ptr);
   H5Sclose(ds);
   H5Tclose(dt);
   H5Gclose(dh);
@@ -710,6 +717,7 @@ qhdf5_r_read(lua_State *L)
 }
 
 /* SHA256 checksum using HDF5 conversions */
+/* XXX make it completely in-memory */
 static void
 create_checksum(lua_State *L, hid_t vh, hid_t ft, hsize_t flen, int qhtype)
 {
@@ -775,7 +783,7 @@ qhdf5_w_write(lua_State *L)
     case qVecInt: {
       mVecInt *v = qlua_checkVecInt(L, 3);
       hsize_t len = v->size;
-      int *ptr;
+      int *ptr; /* XXX should be fixed size */
       int i;
       ptr = qlua_malloc(L, len * sizeof (int));
       data = ptr;
@@ -860,10 +868,12 @@ qhdf5_w_write(lua_State *L)
     dataset = H5Dcreate2(wdir, ename, dtype_file, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     status = H5Dwrite(dataset, dtype_machine, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (status < 0) luaL_error(L, "write error");
+
+    /* XXX compute and write sha256 on data, full_len, qh_type. May reorder data */
     create_checksum(L, dataset, dtype_file, full_len, qh_type);
     H5Dclose(dataset);
-    free(data);
-    free(dpath);
+    qlua_free(L, data);
+    qlua_free(L, dpath);
     if (wdir != b->cwd)
       H5Gclose(wdir);
   }
@@ -920,7 +930,7 @@ qhdf5_w_mkpath(lua_State *L)
   if (b->master) {
     char *dpath = qlua_strdup(L, p);
     hid_t dh = make_hdf5_path(L, b->file, b->cwd, dpath);
-    free(dpath);
+    qlua_free(L, dpath);
     if (dh != b->cwd)
       H5Gclose(dh);
   }
