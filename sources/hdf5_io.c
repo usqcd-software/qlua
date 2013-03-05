@@ -2,6 +2,7 @@
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
 #include "hdf5_io.h"                                                 /* DEPS */
+#include "sha256.h"                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
 #include <sys/stat.h>
@@ -20,6 +21,10 @@ enum {
   qhComplexType,
   qhTypeCount
 };
+
+/* sizes of disk images for qh*Type */
+const int melem_size[] = { 1, 8, 8, 16, 0};
+const char cs_attr_name[] = "sha256";
 
 typedef struct {
   double re;
@@ -632,6 +637,31 @@ qhdf5_r_read(lua_State *L)
   return 1;
 }
 
+/* SHA256 checksum using HDF5 conversions */
+static void
+create_checksum(lua_State *L, hid_t vh, hid_t mt, hsize_t flen, int qhtype)
+{
+  int size = flen * melem_size[qhtype];
+  unsigned char *data = qlua_malloc(L, size);
+  SHA256_Context *c = sha256_create(L);
+  SHA256_Sum sum;
+  hid_t tp = H5Tcopy(H5T_STD_U8BE);
+  hsize_t alen = sizeof(sum.v);
+  hid_t ds = H5Screate_simple(1, &alen, NULL);
+  hid_t ah = H5Acreate2(vh, cs_attr_name, tp, ds, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t ec = H5Dread(vh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+
+  if (ec < 0) luaL_error(L, "write error (readback)");
+  sha256_update(c, data, size);
+  sha256_sum(&sum, c);
+  sha256_destroy(c);
+  ec = H5Awrite(ah, tp, sum.v);
+  if (ec < 0) luaL_error(L, "write error (sha256)");
+  H5Aclose(ah);
+  H5Sclose(ds);
+  H5Tclose(tp);
+}
+
 static int
 qhdf5_w_write(lua_State *L)
 {
@@ -650,6 +680,8 @@ qhdf5_w_write(lua_State *L)
     hid_t dataspace = -1;
     void *data = NULL;
     char *ename = strrchr(dpath, '/');
+    hsize_t full_len = 0;
+    int qh_type = 0;
     herr_t status;
 
     if (ename == NULL) {
@@ -664,8 +696,8 @@ qhdf5_w_write(lua_State *L)
       const char *str = luaL_checkstring(L, 3);
       hsize_t len = strlen(str);
       data = qlua_strdup(L, str);
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhCharType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhCharType);
+      full_len = len;
+      qh_type = qhCharType;
       dataspace = H5Screate_simple(1, &len, NULL);
     } break;
     case qVecInt: {
@@ -675,8 +707,8 @@ qhdf5_w_write(lua_State *L)
       int i;
       ptr = qlua_malloc(L, len * sizeof (int));
       data = ptr;
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhIntType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhIntType);
+      full_len = len;
+      qh_type = qhIntType;
       dataspace = H5Screate_simple(1, &len, NULL);
       for (i = 0; i < len; i++)
         ptr[i] = v->val[i];
@@ -688,8 +720,8 @@ qhdf5_w_write(lua_State *L)
       int i;
       ptr = qlua_malloc(L, len * sizeof (double));
       data = ptr;
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhRealType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhRealType);
+      full_len = len;
+      qh_type = qhRealType;
       dataspace = H5Screate_simple(1, &len, NULL);
       for (i = 0; i < len; i++)
         ptr[i] = v->val[i];
@@ -701,8 +733,8 @@ qhdf5_w_write(lua_State *L)
       int i;
       ptr = qlua_malloc(L, v->size * sizeof (qlua_machine_complex));
       data = ptr;
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhComplexType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhComplexType);
+      full_len = len;
+      qh_type = qhComplexType;
       dataspace = H5Screate_simple(1, &len, NULL);
       for (i = 0; i < v->size; i++) {
         ptr[i].re = QLA_real(v->val[i]);
@@ -718,8 +750,8 @@ qhdf5_w_write(lua_State *L)
       len[0] = v->l_size;
       len[1] = v->r_size;
       data = ptr;
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhRealType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhRealType);
+      full_len = len[0] * len[1];
+      qh_type = qhRealType;
       dataspace = H5Screate_simple(2, len, NULL);
       for (i = 0; i < v->l_size; i++)
         for (j = 0; j < v->r_size; j++)
@@ -734,8 +766,8 @@ qhdf5_w_write(lua_State *L)
       len[0] = v->l_size;
       len[1] = v->r_size;
       data = ptr;
-      dtype_file = get_qh_file_type(L, b->file, b->ft, qhComplexType);
-      dtype_machine = get_qh_machine_type(L, b->file, b->mt, qhComplexType);
+      full_len = len[0] * len[1];
+      qh_type = qhComplexType;
       dataspace = H5Screate_simple(2, len, NULL);
       for (i = 0; i < v->l_size; i++) {
         for (j = 0; j < v->r_size; j++) {
@@ -751,13 +783,13 @@ qhdf5_w_write(lua_State *L)
       luaL_error(L, "Unsupported data type");
       break;
     }
+    dtype_file = get_qh_file_type(L, b->file, b->ft, qh_type);
+    dtype_machine = get_qh_machine_type(L, b->file, b->mt, qh_type);
     dataset = H5Dcreate2(wdir, ename, dtype_file, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
     status = H5Dwrite(dataset, dtype_machine, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-    if (status < 0)
-      luaL_error(L, "write error");
-
+    if (status < 0) luaL_error(L, "write error");
+    create_checksum(L, dataset, dtype_file, full_len, qh_type);
     H5Dclose(dataset);
-    H5Sclose(dataspace);
     free(data);
     free(dpath);
     if (wdir != b->cwd)
