@@ -259,33 +259,4 @@ create_dir(x, "/dir-top/baz")
 create_dir(x, "/tmp/zzz")
 x:close()
 
--- check the reader
-x = qcd.hdf5.Reader(fname)
-printf("hdf5.Reader = %s\n", tostring(x))
-ch_dir(x, "data")
-list_dir(x, "/")
-list_dir(x, "/data")
-list_dir(x, "another")
-list_dir(x, "/dir-top/another-dir/xxx")
-ch_dir(x, "/data")
-read_string(x, "/data/string-data", "hello")
-read_string(x, "string-data", "hello")
-read_string(x, "another/string", "thanks for all the fish")
-read_int1(x, "int-vector", iv)
-read_real1(x, "real-vector", dv)
-read_complex1(x, "complex-vector", cv)
-read_real2(x, "/data2/real-matrix", dm)
-read_complex2(x, "/dir-top/another-dir/data2/c-matrix", cm)
---list_dir(x, "/data/string-data")
-ch_dir(x, "/")
-list_dir(x, ".")
-
--- h5ls -lR
-printf("\n\nFull list:\n----------------\n")
-full_scan(x, "/", "")
-printf("----------------\n\n")
-
-x:close()
-printf("hdf5.Reader/closed = %s\n", tostring(x))
-
 printf("DONE\n")

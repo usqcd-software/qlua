@@ -561,25 +561,89 @@ qhdf5_r_list(lua_State *L)
   return 1;
 }
 
-#if 0 /* XXX */
 static void
-compute_checksum(lua_state *L, SHA256_Sum *sum, ...)
+checksum_int(lua_State *L, SHA256_Context *c, int64_t *data, hsize_t len)
 {
-  /* XXX */
+  switch (get_int_endian(L)) {
+  case nativeEndian: sha256_update(c, data, len * sizeof (int64_t)); break;
+  case inverseEndian: {
+    int i, j;
+    unsigned char b[sizeof (int64_t)];
+    for (i = 0; i < len; i++) {
+      unsigned char *p = (unsigned char *)&data[i];
+      for (j = 0; j < sizeof (int64_t); j++)
+        b[j] = p[sizeof (int64_t) - 1 - j];
+      sha256_update(c, b, sizeof (int64_t));
+    }
+  } break;
+  default: luaL_error(L, "QLUA ICE: unsupported value of get_int_endian()");
+  }
 }
-#endif /* XXX */
 
-/* XXX rewrite it */
 static void
-verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
+checksum_real(lua_State *L, SHA256_Context *c, double *data, hsize_t len)
+{
+  switch (get_double_endian(L)) {
+  case nativeEndian: sha256_update(c, data, len * sizeof (double)); break;
+  case inverseEndian: {
+    int i, j;
+    unsigned char b[sizeof (double)];
+    for (i = 0; i < len; i++) {
+      unsigned char *p = (unsigned char *)&data[i];
+      for (j = 0; j < sizeof (double); j++)
+        b[j] = p[sizeof (double) - 1 - j];
+      sha256_update(c, b, sizeof (double));
+    }
+  } break;
+  default: luaL_error(L, "QLUA ICE: unsupported value of get_double_endian()");
+  }
+}
+
+static void
+checksum_complex(lua_State *L, SHA256_Context *c, qlua_machine_complex *data, hsize_t len)
+{
+  switch (get_double_endian(L)) {
+  case nativeEndian: sha256_update(c, data, len * sizeof (qlua_machine_complex)); break;
+  case inverseEndian: {
+    int i, j;
+    unsigned char b[sizeof (double)];
+    for (i = 0; i < len; i++) {
+      unsigned char *p = (unsigned char *)&data[i].re;
+      for (j = 0; j < sizeof (double); j++)
+        b[j] = p[sizeof (double) - 1 - j];
+      sha256_update(c, b, sizeof (double));
+      p = (unsigned char *)&data[i].im;
+      for (j = 0; j < sizeof (double); j++)
+        b[j] = p[sizeof (double) - 1 - j];
+      sha256_update(c, b, sizeof (double));
+    }
+  } break;
+  default: luaL_error(L, "QLUA ICE: unsupported value of get_double_endian()");
+  }
+}
+
+static void
+compute_checksum(lua_State *L, SHA256_Sum *sum, void *data, hsize_t flen, int qh_type)
+{
+  SHA256_Context *c = sha256_create(L);
+
+  switch (qh_type) {
+  case qhCharType: sha256_update(c, data, flen); break;
+  case qhIntType: checksum_int(L, c, data, flen); break;
+  case qhRealType: checksum_real(L, c, data, flen); break;
+  case qhComplexType: checksum_complex(L, c, data, flen); break;
+  default: luaL_error(L, "QLUA ICE: unexpected qh_type");
+  }
+  sha256_sum(sum, c);
+  sha256_destroy(c);
+}
+
+static void
+verify_checksum(lua_State *L, hid_t vh, void *data, hsize_t flen, int qh_type)
 {
   if (H5Aexists(vh, cs_attr_name) >= 0) {
-    int size = flen * felem_size[qhtype];
-    unsigned char *data = qlua_malloc(L, size);
-    SHA256_Context *c = sha256_create(L);
     SHA256_Sum r_sum;
     SHA256_Sum f_sum;
-    hid_t ft = get_qh_file_type(L, -1, xf, qhtype);
     hid_t ah = H5Aopen(vh, cs_attr_name, H5P_DEFAULT);
     hid_t at = H5Aget_type(ah);
     herr_t ec = H5Aread(ah, at, f_sum.v);
@@ -590,19 +654,12 @@ verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
       lua_pushnil(L);
       lua_insert(L, -3);
       qlua_free(L, data);
-      sha256_destroy(c);
       return;
     }
 
     H5Tclose(at);
     H5Aclose(ah);
-    ec = H5Dread(vh, ft, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-    if (ec < 0) luaL_error(L, "read error (sha256)");
-    sha256_update(c, data, size);
-    sha256_sum(&r_sum, c);
-    sha256_destroy(c);
-    qlua_free(L, data);
-
+    compute_checksum(L, &r_sum, data, flen, qh_type);
     if (sha256_cmp(&f_sum, &r_sum) == 0) {
       lua_pushstring(L, "OK");
       lua_pushnil(L);
@@ -620,25 +677,17 @@ verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
   }
 }
 
-/* SHA256 checksum using HDF5 conversions */
-/* XXX make it completely in-memory */
 static void
-create_checksum(lua_State *L, hid_t vh, hid_t ft, hsize_t flen, int qhtype)
+create_checksum(lua_State *L, hid_t vh, void *data, hsize_t flen, int qh_type)
 {
-  int size = flen * felem_size[qhtype];
-  unsigned char *data = qlua_malloc(L, size);
-  SHA256_Context *c = sha256_create(L);
   SHA256_Sum sum;
   hid_t tp = H5Tcopy(H5T_STD_U8BE);
   hsize_t alen = sizeof(sum.v);
   hid_t ds = H5Screate_simple(1, &alen, NULL);
   hid_t ah = H5Acreate2(vh, cs_attr_name, tp, ds, H5P_DEFAULT, H5P_DEFAULT);
-  herr_t ec = H5Dread(vh, ft, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+  herr_t ec;
 
-  if (ec < 0) luaL_error(L, "write error (readback)");
-  sha256_update(c, data, size);
-  sha256_sum(&sum, c);
-  sha256_destroy(c);
+  compute_checksum(L, &sum, data, flen, qh_type);
   ec = H5Awrite(ah, tp, sum.v);
   if (ec < 0) luaL_error(L, "write error (sha256)");
   H5Aclose(ah);
@@ -655,7 +704,7 @@ qhdf5_r_read(lua_State *L)
   hid_t dt;
   hid_t ds;
   herr_t ec;
-  int qhtype = 0;
+  int qh_type = 0;
   hsize_t total_len = 0;
   void *data_ptr = NULL;
 
@@ -675,7 +724,7 @@ qhdf5_r_read(lua_State *L)
       luaL_error(L, "read(): string is not 1d");
     ec = H5Sget_simple_extent_dims(ds, &len, NULL);
     total_len = len;
-    qhtype = qhCharType;
+    qh_type = qhCharType;
     if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
     data_ptr = qlua_malloc(L, len + 1);
     data = (char *)data_ptr;
@@ -696,7 +745,7 @@ qhdf5_r_read(lua_State *L)
     ec = H5Sget_simple_extent_dims(ds, &len, NULL);
     if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
     total_len = len;
-    qhtype = qhIntType;
+    qh_type = qhIntType;
     v = qlua_newVecInt(L, len);
     data_ptr = qlua_malloc(L, len * sizeof (int64_t));
     data = (int64_t *)data_ptr;
@@ -718,7 +767,7 @@ qhdf5_r_read(lua_State *L)
       ec = H5Sget_simple_extent_dims(ds, &len, NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len;
-      qhtype = qhRealType;
+      qh_type = qhRealType;
       v = qlua_newVecReal(L, len);
       data_ptr = qlua_malloc(L, len * sizeof (double));
       data = (double *)data_ptr;
@@ -735,7 +784,7 @@ qhdf5_r_read(lua_State *L)
       ec = H5Sget_simple_extent_dims(ds, &len[0], NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len[0] * len[1];
-      qhtype = qhRealType;
+      qh_type = qhRealType;
       v = qlua_newMatReal(L, len[0], len[1]);
       data_ptr = qlua_malloc(L, len[0] * len[1] * sizeof (double));
       data = (double *)data_ptr;
@@ -764,7 +813,7 @@ qhdf5_r_read(lua_State *L)
       ec = H5Sget_simple_extent_dims(ds, &len, NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len;
-      qhtype = qhComplexType;
+      qh_type = qhComplexType;
       v = qlua_newVecComplex(L, len);
       data_ptr = qlua_malloc(L, len * sizeof (qlua_machine_complex));
       data = (qlua_machine_complex *)data_ptr;
@@ -783,7 +832,7 @@ qhdf5_r_read(lua_State *L)
       ec = H5Sget_simple_extent_dims(ds, &len[0], NULL);
       if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
       total_len = len[0] * len[1];
-      qhtype = qhComplexType;
+      qh_type = qhComplexType;
       v = qlua_newMatComplex(L, len[0], len[1]);
       data_ptr = qlua_malloc(L, len[0] * len[1] * sizeof (qlua_machine_complex));
       data = (qlua_machine_complex *)data_ptr;
@@ -806,8 +855,8 @@ qhdf5_r_read(lua_State *L)
   default:
     luaL_error(L, "read(): unsupported data type");
   }
-  /* XXX compute sha256 on data_ptr, total_len, qhtype. Data may be reshuffled now */
-  verify_checksum(L, b->ft, dh, total_len, qhtype);
+
+  verify_checksum(L, dh, data_ptr, total_len, qh_type);
   qlua_free(L, data_ptr);
   H5Sclose(ds);
   H5Tclose(dt);
@@ -942,8 +991,7 @@ qhdf5_w_write(lua_State *L)
     status = H5Dwrite(dataset, dtype_machine, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (status < 0) luaL_error(L, "write error");
 
-    /* XXX compute and write sha256 on data, full_len, qh_type. May reorder data */
-    create_checksum(L, dataset, dtype_file, full_len, qh_type);
+    create_checksum(L, dataset, data, full_len, qh_type);
     H5Dclose(dataset);
     qlua_free(L, data);
     qlua_free(L, dpath);
