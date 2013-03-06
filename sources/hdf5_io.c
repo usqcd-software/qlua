@@ -59,7 +59,7 @@ get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
     return xf[tid];
   switch (tid) {
   case qhCharType: v = H5Tcopy(H5T_C_S1); break;
-  case qhIntType: v = H5Tcopy(H5T_NATIVE_INT); break;
+  case qhIntType: v = H5Tcopy(H5T_NATIVE_INT64); break;
   case qhRealType: v = H5Tcopy(H5T_NATIVE_DOUBLE); break;
   case qhComplexType:
     v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
@@ -76,6 +76,71 @@ get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
     luaL_error(L, "HDF5: qh Type creation failed");
   xf[tid] = v;
   return v;
+}
+
+enum {
+  nativeEndian,
+  inverseEndian
+};
+
+typedef union {
+  double d;
+  int64_t l;
+  unsigned char b[8];
+} endian_block;
+
+static int
+get_int_endian(lua_State *L)
+{
+  static int known = 0;
+  static int endianness = 0;
+
+  if (!known) {
+    int i;
+    endian_block v;
+    const static unsigned char be[8] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07 };
+    const static unsigned char le[8] = { 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00 };
+
+    if (sizeof (uint64_t) != 8)
+      luaL_error(L, "sizeof (uint64_t) != 8");
+    memset(&v, 0, sizeof v);
+    for (i = 0; i < 8; i++)
+      v.l = (v.l << 8) + i;
+    if (memcmp(v.b, be, 8) == 0)
+      endianness = nativeEndian;
+    else if (memcmp(v.b, le, 8) == 0)
+      endianness = inverseEndian;
+    else
+      luaL_error(L, "unknown int endianness");
+    known = 1;
+  }
+  return endianness;
+}
+
+static int
+get_double_endian(lua_State *L)
+{
+  static int known = 0;
+  static int endianness = 0;
+
+  if (!known) {
+    endian_block v;
+    const static unsigned char be[8] = { 0x43, 0x26, 0x52, 0x86, 0x14, 0x4a, 0xda, 0x42 };
+    const static unsigned char le[8] = { 0x42, 0xda, 0x4a, 0x14, 0x86, 0x52, 0x26, 0x43 };
+
+    if (sizeof (double) != 8)
+      luaL_error(L, "sizeof (double) != 8");
+    memset(&v, 0, sizeof v);
+    v.d = 3141592653589793.; /* magic: it should correspond to be[] or le[] above */
+    if (memcmp(v.b, be, 8) == 0)
+      endianness = nativeEndian;
+    else if (memcmp(v.b, le, 8) == 0)
+      endianness = inverseEndian;
+    else
+      luaL_error(L, "unknown double endianness");
+    known = 1;
+  }
+  return endianness;
 }
 
 static hid_t
@@ -496,6 +561,14 @@ qhdf5_r_list(lua_State *L)
   return 1;
 }
 
+#if 0 /* XXX */
+static void
+compute_checksum(lua_state *L, SHA256_Sum *sum, ...)
+{
+  /* XXX */
+}
+#endif /* XXX */
+
 /* XXX rewrite it */
 static void
 verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
@@ -547,6 +620,32 @@ verify_checksum(lua_State *L, hid_t xf[], hid_t vh, hsize_t flen, int qhtype)
   }
 }
 
+/* SHA256 checksum using HDF5 conversions */
+/* XXX make it completely in-memory */
+static void
+create_checksum(lua_State *L, hid_t vh, hid_t ft, hsize_t flen, int qhtype)
+{
+  int size = flen * felem_size[qhtype];
+  unsigned char *data = qlua_malloc(L, size);
+  SHA256_Context *c = sha256_create(L);
+  SHA256_Sum sum;
+  hid_t tp = H5Tcopy(H5T_STD_U8BE);
+  hsize_t alen = sizeof(sum.v);
+  hid_t ds = H5Screate_simple(1, &alen, NULL);
+  hid_t ah = H5Acreate2(vh, cs_attr_name, tp, ds, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t ec = H5Dread(vh, ft, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+
+  if (ec < 0) luaL_error(L, "write error (readback)");
+  sha256_update(c, data, size);
+  sha256_sum(&sum, c);
+  sha256_destroy(c);
+  ec = H5Awrite(ah, tp, sum.v);
+  if (ec < 0) luaL_error(L, "write error (sha256)");
+  H5Aclose(ah);
+  H5Sclose(ds);
+  H5Tclose(tp);
+}
+
 static int
 qhdf5_r_read(lua_State *L)
 {
@@ -589,7 +688,7 @@ qhdf5_r_read(lua_State *L)
     hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhIntType);
     hsize_t len;
     mVecInt *v = NULL;
-    int *data;
+    int64_t *data;
     int i;
     
     if (H5Sget_simple_extent_ndims(ds) != 1)
@@ -599,8 +698,8 @@ qhdf5_r_read(lua_State *L)
     total_len = len;
     qhtype = qhIntType;
     v = qlua_newVecInt(L, len);
-    data_ptr = qlua_malloc(L, len * sizeof (int));
-    data = (int *)data_ptr;
+    data_ptr = qlua_malloc(L, len * sizeof (int64_t));
+    data = (int64_t *)data_ptr;
     ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
     if (ec < 0) luaL_error(L, "read() failed");
     for (i = 0; i < len; i++)
@@ -716,32 +815,6 @@ qhdf5_r_read(lua_State *L)
   return 3; /* data, "OK", nil | nil, syndrome, data */
 }
 
-/* SHA256 checksum using HDF5 conversions */
-/* XXX make it completely in-memory */
-static void
-create_checksum(lua_State *L, hid_t vh, hid_t ft, hsize_t flen, int qhtype)
-{
-  int size = flen * felem_size[qhtype];
-  unsigned char *data = qlua_malloc(L, size);
-  SHA256_Context *c = sha256_create(L);
-  SHA256_Sum sum;
-  hid_t tp = H5Tcopy(H5T_STD_U8BE);
-  hsize_t alen = sizeof(sum.v);
-  hid_t ds = H5Screate_simple(1, &alen, NULL);
-  hid_t ah = H5Acreate2(vh, cs_attr_name, tp, ds, H5P_DEFAULT, H5P_DEFAULT);
-  herr_t ec = H5Dread(vh, ft, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
-
-  if (ec < 0) luaL_error(L, "write error (readback)");
-  sha256_update(c, data, size);
-  sha256_sum(&sum, c);
-  sha256_destroy(c);
-  ec = H5Awrite(ah, tp, sum.v);
-  if (ec < 0) luaL_error(L, "write error (sha256)");
-  H5Aclose(ah);
-  H5Sclose(ds);
-  H5Tclose(tp);
-}
-
 static int
 qhdf5_w_write(lua_State *L)
 {
@@ -783,9 +856,9 @@ qhdf5_w_write(lua_State *L)
     case qVecInt: {
       mVecInt *v = qlua_checkVecInt(L, 3);
       hsize_t len = v->size;
-      int *ptr; /* XXX should be fixed size */
+      int64_t *ptr; /* XXX should be fixed size */
       int i;
-      ptr = qlua_malloc(L, len * sizeof (int));
+      ptr = qlua_malloc(L, len * sizeof (int64_t));
       data = ptr;
       full_len = len;
       qh_type = qhIntType;
