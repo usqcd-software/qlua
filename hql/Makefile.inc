@@ -1,0 +1,2 @@
+hqlsrc += qhp.c \
+

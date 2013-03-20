@@ -16,7 +16,7 @@ COPTS='-O2' \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1 \
    --with-clover=$PACKTOP/clover              \
    --with-mdwf=$PACKTOP/mdwf                  \
-   --with-hypre=$HOME/Local/packages/hypre-2.9.0b \
+   --with-hql=$HOME/Local/packages/hql-dummy \
    --with-extras                              \
    --prefix=$TARGET                           \
    $*

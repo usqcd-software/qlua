@@ -48,6 +48,15 @@ cflags="$cflags @qdp_cflags@"
 ldflags="$ldflags @qdp_ldflags@"
 libs="$libs @qdp_libs@"
 
+hql="@hql@"
+if [ ! -z "$hql" ] ; then
+  cflags="$cflags @hql_cflags@"
+  ldflags="$ldflags @hql_ldflags@"
+  libs="$libs @hql_libs@"
+fi
+
+
+
 # usage status
 usage() {
   cat << EOF
@@ -67,6 +76,7 @@ EOF
    [ -z "$mdwf" ]   || echo "       --mdwf"
    [ -z "$aff" ]    || echo "       --aff"
    [ -z "$hdf5" ]   || echo "       --hdf5"
+   [ -z "$hql" ]    || echo "       --hql"
    ## Add other packages here
 }
 
@@ -85,6 +95,7 @@ case "$1" in
    --mdwf)     echo "$mdwf" ;;
    --aff)      echo "$aff" ;;
    --hdf5)     echo "$hdf5" ;;
+   --hql)      echo "$hql" ;;
    ## add other modules here
    *) usage 1 1>&2 ;;
 esac

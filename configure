@@ -33,7 +33,7 @@ show_help() {
      hdf5                     Hierarchical Data Format library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
-     hypre                    Use HYPRE
+     hql                      Use HQL
 
    Environment variables:
      CC                      C compiler to use
@@ -96,7 +96,7 @@ process_args() {
       --with-hdf5=*)      hdf5=`echo "$1" | sed -e 's/--with-hdf5=//'`  ;;
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
-      --with-hypre=*)     hypre=`echo "$1" | sed -e 's/--with-hypre=//'`  ;;
+      --with-hql=*)       hql=`echo "$1" | sed -e 's/--with-hql=//'`  ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
       --with-nc=N)        use_ncN=1 ;;
@@ -189,10 +189,12 @@ normalize() {
       gsl_libs=`$gsl/bin/gsl-config --libs-without-cblas`
     fi
   fi
-  if [ ! -z "$hypre" ] ; then
-     hypre_cflags="-I$hypre/include"
-     hypre_ldflags="-L$hypre/lib"
-     hypre_libs="-lHYPRE"
+  if [ ! -z "$hql" ] ; then
+     [ -x "$hql/bin/hql-config" ] \
+        || show_error "No hql-config under $hql"
+     hql_cflags=`$hql/bin/hql-config --cflags`
+     hql_ldflags=`$hql/bin/hql-config --ldflags`
+     hql_libs=`$hql/bin/hql-config --libs`
   fi
   ## Add other packages here
 }
@@ -222,7 +224,7 @@ show_config() {
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$hdf5" ]    || echo "HDF5 location           $hdf5"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
-   [ -z "$hypre" ]   || echo "HYPRE location          $hypre"
+   [ -z "$hql" ]     || echo "HQL location            $hql"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
    [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
@@ -278,10 +280,10 @@ build() {
         -e "s|@use_nc3@|$use_nc3|g " \
         -e "s|@use_ncN@|$use_ncN|g " \
   | sed -e "s|@extras@|$extras|g" \
-  | sed -e "s|@hypre@|$hypre|g" \
-        -e "s|@hypre_cflags@|$hypre_cflags|g" \
-        -e "s|@hypre_ldflags@|$hypre_ldflags|g" \
-        -e "s|@hypre_libs@|$hypre_libs|g" \
+  | sed -e "s|@hql@|$hql|g" \
+        -e "s|@hql_cflags@|$hql_cflags|g" \
+        -e "s|@hql_ldflags@|$hql_ldflags|g" \
+        -e "s|@hql_libs@|$hql_libs|g" \
       > $2 \
 || show_error "Could not generate $2"
 }
@@ -319,9 +321,9 @@ build_modules() {
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
-  if [ ! -z "$hypre" ] ; then
-    echo "#define HAS_HYPRE"
-    echo "#define HYPRE_VERSION \"$hypre\""
+  if [ ! -z "$hql" ] ; then
+    echo "#define HAS_HQL"
+    echo "#define HQL_VERSION \"$hql\""
   fi
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"

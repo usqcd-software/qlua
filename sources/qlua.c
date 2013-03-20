@@ -55,7 +55,7 @@
 #ifdef HAS_EXTRAS
 #include "extras.h"                                                  /* DEPS */
 #endif
-#ifdef HAS_HYPRE
+#ifdef HAS_HQL
 #include "qhp.h"                                                     /* DEPS */
 #endif
 
@@ -98,8 +98,8 @@ static struct {
 #ifdef HAS_CBLAS
     {"cblas",     CBLAS_VERSION },
 #endif
-#ifdef HAS_HYPRE
-    {"hypre",    HYPRE_VERSION },
+#ifdef HAS_HQL
+    {"hql",    HQL_VERSION },
 #endif
     {"colors",   (
 #if USE_Nc2
@@ -868,7 +868,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_AFF
         init_hdf5_io,
 #endif
-#ifdef HAS_HYPRE
+#ifdef HAS_HQL
         init_qhp,
 #endif
         init_nersc_io,
@@ -955,7 +955,7 @@ qlua_fini(lua_State *L)
         fini_ddpairs_io,
         fini_qdpc_io,
         fini_nersc_io,
-#ifdef HAS_HYPRE
+#ifdef HAS_HQL
         fini_qhp,
 #endif
 #ifdef HAS_AFF

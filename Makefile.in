@@ -53,10 +53,10 @@ GSL_LIBS     = @gsl_libs@
 
 CBLAS_LIBS   = @cblas_libs@
 
-HYPRE        = @hypre@
-HYPRE_CF     = @hypre_cflags@
-HYPRE_LF     = @hypre_ldflags@
-HYPRE_LIBS   = @hypre_libs@
+HQL        = @hql@
+HQL_CF     = @hql_cflags@
+HQL_LF     = @hql_ldflags@
+HQL_LIBS   = @hql_libs@
 
 ## ZZZ add other modules here
 
@@ -135,9 +135,9 @@ endif
 endif
 endif
 
-hypresrc =
-ifneq ("$(HYPRE)", "")
-  include hypre/Makefile.inc
+hqlsrc =
+ifneq ("$(HQL)", "")
+  include hql/Makefile.inc
 endif
 
 ## ZZZ add other optional modules here
@@ -145,7 +145,7 @@ endif
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
 extraobj = $(extrasrc:%.c=%.o)
-hypreobj = $(hypresrc:%.c=%.o)
+hqlobj = $(hqlsrc:%.c=%.o)
 program = $(driver:%.c=%)
 
 #############################################################################
@@ -159,11 +159,11 @@ endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
               $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(CLOVER_CF) $(MDWF_CF)\
-              $(GSL_CF) $(HYPRE_CF)
+              $(GSL_CF) $(HQL_CF)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(MDWF_LF) $(HYPRE_LF)
+              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(MDWF_LF) $(HQL_LF)
 LLIBS = $(CLOVER_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
-        $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) \
+        $(GSL_LIBS) $(CBLAS_LIBS) $(HQL_LIBS) \
         -llua $(LIBS)
 
 ###############################################################################
@@ -175,7 +175,7 @@ lib: $(library)
 
 clean:
 	$ECLEAN objects
-	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(hypreobj) $(library)
+	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(hqlobj) $(library)
 
 realclean: clean
 	$ECLEAN executables
@@ -199,19 +199,19 @@ $(program): $(drvobj) $(library)
 
 $(drvobj) $(libobj): %.o: sources/%.c
 	$ECC $@
-	$C$(CCMD) -Isources -Iextras -Ihypre -o $@ $<
+	$C$(CCMD) -Isources -Iextras -Ihql -o $@ $<
 
 $(extraobj): %.o: extras/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Iextras -o $@ $<
 
-$(hypreobj): %.o: hypre/%.c
+$(hqlobj): %.o: hql/%.c
 	$ECC $@
-	$C$(CCMD) -Isources -Ihypre -o $@ $<
+	$C$(CCMD) -Isources -Ihql -o $@ $<
 
-$(library): $(libobj) $(extraobj) $(hypreobj)
+$(library): $(libobj) $(extraobj) $(hqlobj)
 	$EAR $(library)
-	$C$(AR) cr $(library) $(libobj) $(extraobj) $(hypreobj)
+	$C$(AR) cr $(library) $(libobj) $(extraobj) $(hqlobj)
 	$C$(RANLIB) $(library)
 
 $(drvobj) $(libobj): Makefile deps
