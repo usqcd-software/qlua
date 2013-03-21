@@ -1,7 +1,6 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
-#include "qmp.h"
 #include <string.h>
 #include <sys/time.h>
 #include <stdio.h>
@@ -387,6 +386,9 @@ q_qtypename(lua_State *L, int idx, char *def)
     case qMDWF: t = "mdwf"; break;
     case qMDWFDeflator: t = "mdwf.deflator"; break;
     case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
+    case qHQLGrid: t = "hql.grid"; break;
+    case qHQLVector: t = "hql.vector"; break;
+    case qHQLMatrix: t = "hql.matrix"; break;
     default: break;
     }
     return t;

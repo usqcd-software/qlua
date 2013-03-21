@@ -1,4 +1,5 @@
 /* GSL minimizers */
+#include "modules.h"                                                        /* DEPS */
 #include "qlua.h"                                                           /* DEPS */
 #include "qmin.h"                                                           /* DEPS */
 #include "qmatrix.h"                                                        /* DEPS */

@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
@@ -6,7 +7,6 @@
 #include "latsubset.h"                                               /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
-#include "qmp.h"
 #include "qla_types.h"
 #include <string.h>
 
@@ -265,6 +265,14 @@ subset_none(QDP_Lattice *S, int *coord, void *arg)
     return 2;
 }
 
+#ifdef HAS_HQL
+MPI_Comm
+qlua_latticeMPI(mLattice *S)
+{
+  return QMP_comm_get_MPI(QMP_comm_get_default());
+}
+#endif /* defined(HAS_HQL) */
+
 static int
 q_lattice(lua_State *L)
 {
@@ -292,6 +300,8 @@ q_lattice(lua_State *L)
     S->neighbor_down = qlua_malloc(L, r * sizeof (int));
     S->net = qlua_malloc(L, r * sizeof (int));
     S->dim = qlua_malloc(L, r * sizeof (int));
+    S->box_low = qlua_malloc(L, r * sizeof (int));
+    S->box_high = qlua_malloc(L, r * sizeof (int));
     for (i = 0; i < r; i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 1);
@@ -302,6 +312,7 @@ q_lattice(lua_State *L)
     S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
     if (S->lat == 0)
         return luaL_error(L, "can not create lattice");
+    qlua_sublattice(S->box_low, S->box_high, QDP_this_node, S);
     S->all = QDP_all_L(S->lat);
     S->even = QDP_even_L(S->lat);
     S->odd = QDP_odd_L(S->lat);

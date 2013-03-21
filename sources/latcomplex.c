@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
@@ -8,7 +9,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
-#include "qmp.h"
 
 static const char LatComplexName[] = "lattice.Complex";
 
@@ -778,7 +778,7 @@ q_C_project(lua_State *L)
         QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
     }
 
-	qlua_free(L, rr);
+        qlua_free(L, rr);
     return 1;
 }
 
@@ -1118,10 +1118,10 @@ qlua_newLatComplex(lua_State *L, int Sidx)
 mLatComplex *
 qlua_newZeroLatComplex(lua_State *L, int Sidx)
 {
-	mLatComplex *v = qlua_newLatComplex(L, Sidx);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	QDP_C_eq_zero(v->ptr, S->all);
-	return v;
+        mLatComplex *v = qlua_newLatComplex(L, Sidx);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        QDP_C_eq_zero(v->ptr, S->all);
+        return v;
 }
 
 mLatComplex *

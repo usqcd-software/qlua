@@ -10,7 +10,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "qgather.h"                                                 /* DEPS */
-#include "qdp.h"
 
 static const char GatherName[] = "qlua.gather";
 static const char src_lattice_key[]  = "gather.src.lattice";

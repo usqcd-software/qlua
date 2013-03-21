@@ -1,6 +1,5 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
-#include "qdp.h"
-#include "qmp.h"
 #include "lattice.h"                                                 /* DEPS */
 #include "qlayout.h"                                                 /* DEPS */
 

@@ -10,7 +10,6 @@
 #include "latdirprop.h"                                              /* DEPS */
 #define QOP_CLOVER_DEFAULT_PRECISION QDP_Precision
 #include "qop-clover.h"
-#include "qmp.h"
 
 #include <math.h>
 

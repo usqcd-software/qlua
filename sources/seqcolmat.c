@@ -4,7 +4,6 @@
 #include "seqcolmat.h"                                               /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
 #include "seqcolvec.h"                                               /* DEPS */
-#include "qla.h"
 
 #define COLOR_EPS 1e-10
 

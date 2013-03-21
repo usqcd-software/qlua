@@ -12,7 +12,6 @@
 #include "latdirprop.h"                                              /* DEPS */
 #define QOP_MDWF_DEFAULT_PRECISION QDP_Precision
 #include "qop-mdwf3.h"
-#include "qmp.h"
 
 /* NB: Code in this file relies on \gamma_5 = diag(1,1,-1,-1) */
 #include <math.h>

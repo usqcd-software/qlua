@@ -1,4 +1,5 @@
 /* GSL root finders */
+#include "modules.h"                                                        /* DEPS */
 #include "qlua.h"                                                           /* DEPS */
 #include "qroot.h"                                                          /* DEPS */
 #include "qmatrix.h"                                                        /* DEPS */

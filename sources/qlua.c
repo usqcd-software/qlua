@@ -4,8 +4,6 @@
 #include <string.h>
 #include <stdarg.h>
 #include <libgen.h> /* for dirname() and basename() */
-#include "qmp.h"
-#include "qdp.h"
 
 #include "fix.h"                                                     /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
@@ -56,7 +54,7 @@
 #include "extras.h"                                                  /* DEPS */
 #endif
 #ifdef HAS_HQL
-#include "qhp.h"                                                     /* DEPS */
+#include "qhql.h"                                                    /* DEPS */
 #endif
 
 /* ZZZ include other package headers here */
@@ -869,7 +867,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_hdf5_io,
 #endif
 #ifdef HAS_HQL
-        init_qhp,
+        init_hql,
 #endif
         init_nersc_io,
         init_qdpc_io,
@@ -956,7 +954,7 @@ qlua_fini(lua_State *L)
         fini_qdpc_io,
         fini_nersc_io,
 #ifdef HAS_HQL
-        fini_qhp,
+        fini_hql,
 #endif
 #ifdef HAS_AFF
         fini_hdf5_io,

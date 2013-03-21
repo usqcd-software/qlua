@@ -2,7 +2,6 @@
 #include <complex.h>
 #include <string.h>
 
-#include "qmp.h"
 #include "lhpc-aff.h"
 
 #include "modules.h"                                                /* DEPS */

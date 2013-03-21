@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latsubset.h"                                               /* DEPS */
@@ -127,7 +128,7 @@ qlua_newLatRandom(lua_State *L, int Sidx)
 mLatRandom *
 qlua_newZeroLatRandom(lua_State *L, int Sidx)
 {
-	return qlua_newLatRandom(L, Sidx);
+        return qlua_newLatRandom(L, Sidx);
 }
 
 mLatRandom *

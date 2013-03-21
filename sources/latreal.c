@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
@@ -7,7 +8,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latrandom.h"                                               /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
-#include "qmp.h"
 
 const char LatRealName[] = "lattice.Real";
 

@@ -1,0 +1,127 @@
+-- An example of simple Wilson Dirac operator with periodic BC.
+require "stdlib"
+require "gauge"
+
+-- parameters, they do not correspond to any physics
+Lattice = qcd.lattice{4,4,4,8}
+Kappa = 0.1043
+
+-- reference Wilson operator
+function wilson_std(U, kappa)
+   local op = {}
+   local L = U[1].lattice
+   local function f(v)
+      local x = v
+      local i
+      for i = 0, #L - 1 do
+         x = x - kappa *
+            ((1-gamma{mu=i}) * (U[i+1] * v:shift(i, "from_forward")) +
+             (1+gamma{mu=i}) * (U[i+1]:adjoin() * v):shift(i, "from_backward"))
+      end
+      return x
+   end
+   function op:vector(v) return v end
+   function op:apply(v) return f(v) end
+   function op:dot(a,b) return qcd.dot(a,b):sum() end
+   return op
+end
+
+function wilson_hql(U, kappa)
+   local op = {}
+   local L = U[1].lattice
+   local hg = qcd.hql{Lattice=L
+                      -- default: Flavor = 1
+                      -- default: Spin = 4
+                   }
+   local i, j
+   local stencil = {}
+   local offset = {}
+   for j = 1, #L do
+      offset[j] = 0
+   end
+   stencil[#stencil+1] = {offset = offset}
+   for i = 0, #L - 1 do
+      offset[i+1] = 1
+      stencil[#stencil+1] = {offset = offset,
+                             gamma = -kappa * (1 - gamma{mu=i}),
+                             U = U[i+1]}
+      offset[i+1] = -1
+      stencil[#stencil+1] = {offset = offset,
+                             gamma = -kappa * (1 + gamma{mu=i}),
+                             U = U[i+1]:adjoin():shift(i, "from_backward")}
+      offset[i+1] = 0
+   end
+   local WM = hg:matrix(stencil)
+   printf("XXX hg = %s // %s\n", tostring(hg), type(hg))
+   printf("XXX hg.lattice = %s // %s\n", tostring(hg.lattice), type(hg.lattice))
+   printf("XXX WM = %s // %s\n", tostring(WM), type(WM))
+
+   -- XXX put the real thing here
+   return wilson_std(U, kappa) 
+end
+
+-- run the tests
+function run_tests(op, v0, w0)
+   local v = op:vector(v0)
+   local w = op:vector(w0)
+   local x = op:apply(v)
+   local z = x * 0.123 + w - v * complex(1.5243,0.63)
+   return { v_norm = op:dot(v,v),
+            w_norm = op:dot(w,w),
+            x_norm = op:dot(x,x),
+            v_dot_w = op:dot(v,w),
+            v_dot_x = op:dot(v,x)}
+end
+
+-- create the random generator for Lattice
+do
+   local ix = Lattice:Int()
+   local i
+   for i = 0, #Lattice - 1 do
+      ix = ix * Lattice[i] + Lattice:pcoord(i)
+   end
+   S = Lattice:RandomState(56723, ix)
+end
+
+-- create random gauge fields
+U = {}
+for i = 1, #Lattice do
+   U[i] = toSUn(S:gaussian_ColorMatrix())
+end
+
+-- create a random fermion field
+V = S:gaussian_DiracFermion()
+W = S:gaussian_DiracFermion()
+
+-- create the reference op
+std_op = wilson_std(U, Kappa)
+
+-- create the HQL op
+hql_op = wilson_hql(U, Kappa)
+
+-- run the tests on the standard operator for reference values
+x_std = run_tests(std_op, V, W)
+
+-- run the tests on the hql operator
+x_hql = run_tests(hql_op, V, W)
+
+-- compare results
+test_ok = true
+for i, v in pairs(x_std) do
+   local a = x_std[i]
+   local b = x_hql[i]
+   local d = (a - b):abs()
+   local n = (a:abs() + b:abs())
+   local err = d / n
+   if err > 1e-7 then
+      printf("FAILED: %-10s: %g\n", i, err)
+      test_ok = false
+   else
+      printf("%-10s: %g\n", i, err)
+   end
+end
+if test_ok then
+   printf("DONE OK\n")
+else
+   printf("XXX tests failed\n")
+end

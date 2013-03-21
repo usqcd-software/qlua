@@ -10,7 +10,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "qscatter.h"                                                /* DEPS */
-#include "qdp.h"
 
 static const char ScatterName[] = "qlua.scatter";
 static const char src_lattice_key[]  = "scatter.src.lattice";

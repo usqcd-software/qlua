@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
@@ -5,7 +6,6 @@
 #include "latint.h"                                                  /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
 #include <stdlib.h>  
-#include "qmp.h"
 #include <string.h>
 
 /* lattice integers */

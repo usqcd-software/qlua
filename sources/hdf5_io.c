@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
@@ -7,7 +8,6 @@
 #include <complex.h>
 #include <sys/stat.h>
 #include "hdf5.h"
-#include "qmp.h"
 
 const char hdf5_io[] = "hdf5";
 static const char mtnReader[] = "qcd.hdf5.mtReader";

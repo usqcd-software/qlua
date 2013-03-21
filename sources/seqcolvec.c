@@ -3,7 +3,6 @@
 #include "seqcolvec.h"                                               /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
-#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'

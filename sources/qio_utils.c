@@ -1,7 +1,7 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "qio_utils.h"                                               /* DEPS */
-#include "qmp.h"
 
 #include <string.h>
 

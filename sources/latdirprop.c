@@ -11,8 +11,6 @@
 #include "seqdirprop.h"                                              /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
-#include "qmp.h"
-#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'

@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20130110
+PACKTOP=$HOME/Local/packages/macosx-hql
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$HOME/Local/packages/qlua-working

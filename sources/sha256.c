@@ -1,3 +1,4 @@
+#include "modules.h"                                             /* DEPS */
 #include "qlua.h"                                                /* DEPS */
 #include "sha256.h"                                              /* DEPS */
 

@@ -1,10 +1,10 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "lhpc-aff.h"
 #include "aff_io.h"                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
-#include "qmp.h"
 
 const char aff_io[] = "aff";
 static const char mtnReader[] = "qcd.aff.mtReader";
@@ -240,8 +240,8 @@ qaff_w_close(lua_State *L)
 
     if (status == 1)
         lua_pushnil(L);
-	else
-		lua_pushstring(L, s);
+        else
+                lua_pushstring(L, s);
 
     return 1;
 }
@@ -288,8 +288,8 @@ qaff_w_status(lua_State *L)
 
     if (status)
         lua_pushnil(L);
-	else
-		lua_pushstring(L, s);
+        else
+                lua_pushstring(L, s);
 
     return 1;
 }
@@ -354,21 +354,21 @@ qaff_r_read(lua_State *L)
         qlua_Aff_leave();
         return 1;
     case affNodeChar: {
-		char *d = qlua_malloc(L, size + 1);
+                char *d = qlua_malloc(L, size + 1);
 
         if (aff_node_get_char(b->ptr, n, d, size) == 0) {
             d[size] = 0;
             lua_pushstring(L, d);
             qlua_Aff_leave();
-			qlua_free(L, d);
+                        qlua_free(L, d);
 
             return 1;
         }
-		qlua_free(L, d);
+                qlua_free(L, d);
         break;
     }
     case affNodeInt: {
-		uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
+                uint32_t *d = qlua_malloc(L, size * sizeof (uint32_t));
 
         if (aff_node_get_int(b->ptr, n, d, size) == 0) {
             mVecInt *v = qlua_newVecInt(L, size);
@@ -377,15 +377,15 @@ qaff_r_read(lua_State *L)
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
             qlua_Aff_leave();
-			qlua_free(L, d);
+                        qlua_free(L, d);
 
             return 1;
         }
-		qlua_free(L, d);
+                qlua_free(L, d);
         break;
     }
     case affNodeDouble: {
-		double *d = qlua_malloc(L, size * sizeof (double));
+                double *d = qlua_malloc(L, size * sizeof (double));
 
         if (aff_node_get_double(b->ptr, n, d, size) == 0) {
             mVecReal *v = qlua_newVecReal(L, size);
@@ -394,15 +394,15 @@ qaff_r_read(lua_State *L)
             for (i = 0; i < size; i++)
                 v->val[i] = d[i];
             qlua_Aff_leave();
-			qlua_free(L, d);
-			
+                        qlua_free(L, d);
+                        
             return 1;
         }
-		qlua_free(L, d);
+                qlua_free(L, d);
         break;
     }
     case affNodeComplex: {
-		double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
+                double _Complex *d = qlua_malloc(L, size * sizeof (double _Complex));
 
         if (aff_node_get_complex(b->ptr, n, d, size) == 0) {
             mVecComplex *v = qlua_newVecComplex(L, size);
@@ -413,11 +413,11 @@ qaff_r_read(lua_State *L)
                 QLA_imag(v->val[i]) = cimag(d[i]);
             }
             qlua_Aff_leave();
-			qlua_free(L, d);
+                        qlua_free(L, d);
 
             return 1;
         }
-		qlua_free(L, d);
+                qlua_free(L, d);
         break;
     }
     default:
@@ -473,7 +473,7 @@ qaff_w_write(lua_State *L)
             if (aff_node_put_int(b->ptr, n, d, size) == 0)
                 status = 1;
 
-			qlua_free(L, d);
+                        qlua_free(L, d);
             break;
 
         }
@@ -488,7 +488,7 @@ qaff_w_write(lua_State *L)
             if (aff_node_put_double(b->ptr, n, d, size) == 0)
                 status = 1;
 
-			qlua_free(L, d);
+                        qlua_free(L, d);
             break;
         }
         case qVecComplex: {
@@ -503,7 +503,7 @@ qaff_w_write(lua_State *L)
             if (aff_node_put_complex(b->ptr, n, d, size) == 0)
                 status = 1;
 
-			qlua_free(L, d);
+                        qlua_free(L, d);
             break;
         }
         default:

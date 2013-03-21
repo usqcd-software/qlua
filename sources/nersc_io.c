@@ -3,7 +3,6 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
-#include "qmp.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>

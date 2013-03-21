@@ -4,8 +4,8 @@ See tests/hql-*.qlua for examples and correctness checks.
 
 -- HQL grid
 hg = qcd.hql{lattice = L,
-              spin = 4,
-              flavor = 1}
+             spin = 4,
+             flavor = 1}
 
 -- Plain wilson op (periodic BC)
 op = hg:matrix{{ offset = { 0, 0, 0, 0}
@@ -36,7 +36,7 @@ op = hg:matrix{{ offset = { 0, 0, 0, 0}
                  U      = U[4]}}}
 
 -- HQL vector import
-v = hg:vector{vector = DF}
+v = op:vector(DF) -- because op is on fermions
 
 w = op:apply(v)
 

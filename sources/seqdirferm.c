@@ -5,7 +5,6 @@
 #include "seqcolvec.h"                                               /* DEPS */
 #include "seqcolmat.h"                                               /* DEPS */
 #include "seqdirferm.h"                                              /* DEPS */
-#include "qla.h"
 
 #if USE_Nc2
 #define QNc  '2'

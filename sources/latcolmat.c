@@ -11,9 +11,6 @@
 #include "latcolvec.h"                                               /* DEPS */
 #include "latmulti.h"                                                /* DEPS */
 
-#include "qmp.h"
-#include "qla.h"
-
 #define COLOR_EPS 1e-10
 
 #if USE_Nc2
