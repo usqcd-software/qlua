@@ -865,7 +865,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_AFF
         init_aff_io,
 #endif
-#ifdef HAS_AFF
+#ifdef HAS_HDF5
         init_hdf5_io,
 #endif
 #ifdef HAS_HYPRE
@@ -958,7 +958,7 @@ qlua_fini(lua_State *L)
 #ifdef HAS_HYPRE
         fini_qhp,
 #endif
-#ifdef HAS_AFF
+#ifdef HAS_HDF5
         fini_hdf5_io,
 #endif
 #ifdef HAS_AFF
