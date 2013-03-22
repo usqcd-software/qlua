@@ -1,0 +1,20 @@
+#!/bin/sh
+PACKTOP=$HOME/Local/packages/macosx-hql
+
+#TARGET=`(cd ..; pwd)`/install
+TARGET=$PACKTOP/qlua-hql
+## for all colors. 
+
+CC='mpicc -m64 -std=c99' \
+CFLAGS='-Wall -DQDP_Nc=3' \
+COPTS='-O2' \
+./configure                                   \
+   --with-qdp=$PACKTOP/qdp                    \
+   --with-lua=$PACKTOP/lua                    \
+   --with-gsl=$PACKTOP/gsl                    \
+   --with-lhpc-aff=$PACKTOP/aff               \
+   --with-clover=$PACKTOP/clover              \
+   --with-mdwf=$PACKTOP/mdwf                  \
+   --with-hql=$PACKTOP/hql-dummy              \
+   --prefix=$TARGET                           \
+   $*
