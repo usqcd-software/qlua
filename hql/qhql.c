@@ -1,6 +1,7 @@
 #include "modules.h"                        /* DEPS */
 #include "qlua.h"                           /* DEPS */
 #include "lattice.h"                        /* DEPS */
+#include "latcolmat.h"                      /* DEPS */
 #include "qhql.h"                           /* DEPS */
 
 static const char *HQLGridName = "hql";
@@ -109,9 +110,8 @@ qlua_createHQLTable(lua_State *L,
     goto end;
   lua_getmetatable(L, Gidx);
   qlua_latticetable(L, ft, t_id, Sidx);
-  lua_pushstring(L, grid_key);
   lua_pushvalue(L, Gidx);
-  lua_settable(L, -3);
+  lua_setfield(L, -2, grid_key);
   lua_setfield(L, -2, name);
   lua_pop(L, 1);
   luaL_getmetafield(L, Gidx, name);
@@ -130,8 +130,7 @@ qlua_ObjGrid(lua_State *L, int idx)
 static int
 q_get_intopt(lua_State *L, int tidx, const char *name, int def)
 {
-  lua_pushstring(L, name);
-  lua_gettable(L, tidx);
+  lua_getfield(L, tidx, name);
   return luaL_optint(L, -1, def);
 }
 
@@ -145,23 +144,21 @@ q_hql(lua_State *L)
 
   if (lua_istable(L, 1) == 0)
     luaL_error(L, "qcd.hql expects table");
-  lua_pushstring(L, "Lattice");
-  lua_gettable(L, 1);
+  lua_getfield(L, 1, "Lattice");
   Sidx = lua_gettop(L);
   if (qlua_qtype(L, Sidx) != qLattice)
     luaL_error(L, "qcd.hql expects .Lattice");
-  lua_pushstring(L, "Colors");
-  lua_gettable(L, 1);
+  lua_getfield(L, 1, "Colors");
   colors = luaL_checkint(L, -1);
   lua_pop(L, 1);
   if (colors < 1)
     luaL_error(L, "qcd.hql expects .Colors >= 1");
   flavor_dim = q_get_intopt(L, 1, "Flavor", 1);
-  spin_dim = q_get_intopt(L, 1, "Spin", 4);
+  spin_dim = q_get_intopt(L, 1, "Spin", QDP_Ns);
   if (flavor_dim < 1)
     luaL_error(L, "qcd.hql expects .Flavor >= 1");
-  if ((spin_dim != 1) && (spin_dim != 4))
-    luaL_error(L, "qcd.hql expects .Spin to be 1 or 4");
+  if ((spin_dim != 1) && (spin_dim != QDP_Ns))
+    luaL_error(L, "qcd.hql expects .Spin to be 1 or %d", QDP_Ns);
 
   qlua_newHQLGrid(L, Sidx, flavor_dim, spin_dim, colors);
   return 1;

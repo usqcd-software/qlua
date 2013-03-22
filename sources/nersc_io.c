@@ -269,8 +269,7 @@ default_double(lua_State *L, const char *key, double def)
 {
     double v = def;
 
-    lua_pushstring(L, key);
-    lua_gettable(L, 3);
+    lua_getfield(L, 3, key);
     if (lua_isnil(L, -1)) {
         v = def;
     } else {
@@ -285,8 +284,7 @@ default_enum(lua_State *L, const char *key, int def, const NERSC_Value *tr)
 {
     int v = def;
 
-    lua_pushstring(L, key);
-    lua_gettable(L, 3);
+    lua_getfield(L, 3, key);
     if (lua_isnil(L, -1)) {
         v = def;
     } else {

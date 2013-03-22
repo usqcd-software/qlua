@@ -17,8 +17,8 @@ typedef struct {
 } mHQLMatrix;
 
 typedef struct {
-  mHQLGrid        *grid; /* duplicate of the .Grid from the metatable */
-  HQL_Operator_t  *op;
+  mHQLGrid      *grid; /* duplicate of the .Grid from the metatable */
+  HQL_Vector_t  *vec;
   /* Lattice and Grid are in the metatable */
 } mHQLVector;
 
@@ -85,6 +85,9 @@ int qhql_v_sub_v(lua_State *L);
 int qhql_v_dot_v(lua_State *L);
 int qhql_v_norm2(lua_State *L);
 int qhql_v_neg(lua_State *L);
+int qhql_v_export(lua_State *L);
+
+void qhql_check_status(HQL_err_t ec, lua_State *L, const char *msg);
 
 int init_hql(lua_State *L);
 int fini_hql(lua_State *L);

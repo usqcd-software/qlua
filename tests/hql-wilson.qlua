@@ -21,6 +21,7 @@ function wilson_std(U, kappa)
       return x
    end
    function op:vector(v) return v end
+   function op:export(v) return v end
    function op:apply(v) return f(v) end
    function op:dot(a,b) return qcd.dot(a,b):sum() end
    return op
@@ -36,45 +37,55 @@ function wilson_hql(U, kappa)
                    }
    local i, j
    local stencil = {}
-   local offset = {}
-   for j = 1, #L do
-      offset[j] = 0
+   local function make_offset()
+      local offset = {}
+      for j = 1, #L do
+         offset[j] = 0
+      end
+      return offset
    end
-   stencil[#stencil+1] = {offset = offset}
+   local offset = make_offset()
+   local dummy_flavor = matrix.complex{1,1}
+   dummy_flavor[{0,0}] = 1.0
+   stencil[#stencil+1] = {offset = offset,
+                          -- dummy 1x1 flavor
+                          flavor = dummy_flavor
+                       }
    for i = 0, #L - 1 do
+      offset = make_offset()
       offset[i+1] = 1
       stencil[#stencil+1] = {offset = offset,
                              gamma = -kappa * (1 - gamma{mu=i}),
                              U = U[i+1]}
+      offset = make_offset()
       offset[i+1] = -1
       stencil[#stencil+1] = {offset = offset,
                              gamma = -kappa * (1 + gamma{mu=i}),
                              U = U[i+1]:adjoin():shift(i, "from_backward")}
-      offset[i+1] = 0
    end
    local WM = hg:matrix(stencil)
-   printf("XXX hg = %s // %s\n", tostring(hg), type(hg))
-   printf("XXX hg.lattice = %s // %s\n", tostring(hg.lattice), type(hg.lattice))
-   printf("XXX WM = %s // %s\n", tostring(WM), type(WM))
-   printf("XXX WM.grid = %s\n", tostring(WM.grid))
-   printf("XXX WM.lattice = %s\n", tostring(WM.lattice))
-   printf("XXX WM.a-type = %s\n", tostring(WM["a-type"]))
 
-   -- XXX put the real thing here
-   return wilson_std(U, kappa) 
+   function op:vector(v) return WM:vector(v) end
+   function op:export(v) return v:export() end
+   function op:apply(v) return WM:apply(v) end
+   function op:dot(a,b) return qcd.dot(a,b) end
+   return op
+   --return wilson_std(U, kappa)
 end
 
 -- run the tests
 function run_tests(op, v0, w0)
-   local v = op:vector(v0)
    local w = op:vector(w0)
+   local v = op:vector(v0)
    local x = op:apply(v)
-   local z = x * 0.123 + w - v * complex(1.5243,0.63)
+   local z = w - v * complex(1.5243,0.63) + x * 0.123
+   local dv = op:export(v) - v0
    return { v_norm = op:dot(v,v),
             w_norm = op:dot(w,w),
             x_norm = op:dot(x,x),
             v_dot_w = op:dot(v,w),
-            v_dot_x = op:dot(v,x)}
+            v_dot_x = op:dot(v,x),
+            z_round = qcd.dot(dv,dv):sum() + 1e-10 }
 end
 
 -- create the random generator for Lattice
@@ -91,6 +102,7 @@ end
 U = {}
 for i = 1, #Lattice do
    U[i] = toSUn(S:gaussian_ColorMatrix())
+   -- U[i] = S:gaussian_ColorMatrixN(5)
 end
 
 -- create a random fermion field
@@ -107,7 +119,7 @@ hql_op = wilson_hql(U, Kappa)
 x_std = run_tests(std_op, V, W)
 
 -- run the tests on the hql operator
-x_hql = run_tests(hql_op, V, W)
+x_hql = run_tests(hql_op, V, {W})
 
 -- compare results
 test_ok = true
@@ -117,11 +129,12 @@ for i, v in pairs(x_std) do
    local d = (a - b):abs()
    local n = (a:abs() + b:abs())
    local err = d / n
-   if err > 1e-7 then
-      printf("FAILED: %-10s: %g\n", i, err)
-      test_ok = false
-   else
+   if err < 1e-7 then
       printf("%-10s: %g\n", i, err)
+   else
+      printf("FAILED: %-10s: %g (a=%s b=%s)\n",
+             i, err, tostring(a), tostring(b))
+      test_ok = false
    end
 end
 if test_ok then

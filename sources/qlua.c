@@ -231,14 +231,12 @@ qlua_fillmeta(lua_State *L, const luaL_Reg *table, QLUA_Type t_id)
     lua_setfield(L, -2, "__index");
     
     if (t_id != qNoType) {
-        lua_pushstring(L, a_type_key);
         lua_pushnumber(L, t_id);
-        lua_settable(L, -3);
+        lua_setfield(L, -2, a_type_key);
     }
     for (i = 0; table[i].func; i++) {
-        lua_pushstring(L, table[i].name);
         lua_pushcfunction(L, table[i].func);
-        lua_settable(L, -3);
+        lua_setfield(L, -2, table[i].name);
     }
 }
 
@@ -264,9 +262,8 @@ qlua_latticetable(lua_State *L, const luaL_Reg *table, QLUA_Type t_id, int lidx)
 {
     lua_createtable(L, 0, 0);
     qlua_fillmeta(L, table, t_id);
-    lua_pushstring(L, lattice_key);
     lua_pushvalue(L, lidx);
-    lua_settable(L, -3);
+    lua_setfield(L, -2, lattice_key);
 }
 
 void
