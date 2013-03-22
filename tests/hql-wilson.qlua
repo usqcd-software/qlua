@@ -29,7 +29,8 @@ end
 function wilson_hql(U, kappa)
    local op = {}
    local L = U[1].lattice
-   local hg = qcd.hql{Lattice=L
+   local hg = qcd.hql{Lattice = L,
+                      Colors = 3
                       -- default: Flavor = 1
                       -- default: Spin = 4
                    }
@@ -55,6 +56,9 @@ function wilson_hql(U, kappa)
    printf("XXX hg = %s // %s\n", tostring(hg), type(hg))
    printf("XXX hg.lattice = %s // %s\n", tostring(hg.lattice), type(hg.lattice))
    printf("XXX WM = %s // %s\n", tostring(WM), type(WM))
+   printf("XXX WM.grid = %s\n", tostring(WM.grid))
+   printf("XXX WM.lattice = %s\n", tostring(WM.lattice))
+   printf("XXX WM.a-type = %s\n", tostring(WM["a-type"]))
 
    -- XXX put the real thing here
    return wilson_std(U, kappa) 
