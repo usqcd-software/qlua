@@ -226,23 +226,35 @@ static int
 q_file(lua_State *L)
 {
     mFile *f = qlua_newFile(L);
-    int v;
+    const char *n = luaL_checkstring(L, 1);
+    const char *m = luaL_checkstring(L, 2);
 
-    if (QDP_this_node == qlua_master_node) {
-        const char *n = luaL_checkstring(L, 1);
-        const char *m = luaL_checkstring(L, 2);
+    if (!strcmp(m, "r") || !strcmp(m, "rb") || !strcmp(m, "rt")) {
+      double v;
+      /* read files are open everywhere */
+      f->file = fopen(n, m);
+      f->kind = qf_other;
+      v = (f->file != 0);
+      /* make sure all nodes manage to open the file */
+      QMP_min_double(&v);
+      if (v < 1)
+        if (v == 0)
+          return luaL_error(L, "file open failed");
+    } else {
+      /* other modes are write, open the file on the master node only */
+      int v;
+      if (QDP_this_node == qlua_master_node) {
         f->file = fopen(n, m);
         f->kind = qf_other;
-
         v = (f->file != 0);
-    } else {
-        f->file = (FILE *)1;
+      } else {
+        f->file = NULL;
         f->kind = qf_dummy;
-    }
-    XMP_dist_int_array(qlua_master_node, 1, &v);
-
-    if (v == 0)
+      }
+      XMP_dist_int_array(qlua_master_node, 1, &v);
+      if (v == 0)
         return luaL_error(L, "file open failed");
+    }
 
     return 1;
 }
