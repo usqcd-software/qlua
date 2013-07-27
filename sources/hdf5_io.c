@@ -24,7 +24,7 @@ enum {
 
 /* sizes of disk images for qh*Type */
 const int felem_size[] = { 1, 8, 8, 16, 0};
-const char cs_attr_name[] = "sha256";
+const char cs_attr_name[] = ".sha256";
 
 typedef struct {
   double re;
@@ -64,10 +64,10 @@ get_qh_machine_type(lua_State *L, hid_t file, hid_t xf[], int tid)
   case qhComplexType:
     v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
     if (v < 0) luaL_error(L, "HDF5: complex create failed");
-    ec = H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_NATIVE_DOUBLE);    
-    if (ec < 0) luaL_error(L, "HDF5: complex.re insert failed");
-    ec = H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_NATIVE_DOUBLE);    
-    if (ec < 0) luaL_error(L, "HDF5: complex.im insert failed");
+    ec = H5Tinsert(v, "r", HOFFSET(qlua_machine_complex, re), H5T_NATIVE_DOUBLE);
+    if (ec < 0) luaL_error(L, "HDF5: complex.r insert failed");
+    ec = H5Tinsert(v, "i", HOFFSET(qlua_machine_complex, im), H5T_NATIVE_DOUBLE);
+    if (ec < 0) luaL_error(L, "HDF5: complex.i insert failed");
     break;
   default:
     luaL_error(L, "HDF5: qh Type Name out of range");
@@ -158,10 +158,10 @@ get_qh_file_type(lua_State *L, hid_t file, hid_t xf[], int tid)
   case qhComplexType:
     v = H5Tcreate(H5T_COMPOUND, sizeof(qlua_machine_complex));
     if (v < 0) luaL_error(L, "HDF5: complex create failed");
-    ec = H5Tinsert(v, "re", HOFFSET(qlua_machine_complex, re), H5T_IEEE_F64BE);
-    if (ec < 0) luaL_error(L, "HDF5: complex.re insert failed");
-    ec = H5Tinsert(v, "im", HOFFSET(qlua_machine_complex, im), H5T_IEEE_F64BE);    
-    if (ec < 0) luaL_error(L, "HDF5: complex.im insert failed");
+    ec = H5Tinsert(v, "r", HOFFSET(qlua_machine_complex, re), H5T_IEEE_F64BE);
+    if (ec < 0) luaL_error(L, "HDF5: complex.r insert failed");
+    ec = H5Tinsert(v, "i", HOFFSET(qlua_machine_complex, im), H5T_IEEE_F64BE);
+    if (ec < 0) luaL_error(L, "HDF5: complex.i insert failed");
     if (file > 0) {
       ec = H5Tcommit(file, ".complex", v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT);
       if (ec < 0) luaL_error(L, "HDF5: complex commit failed");
@@ -648,17 +648,16 @@ verify_checksum(lua_State *L, hid_t vh, void *data, hsize_t flen, int qh_type)
     hid_t at = H5Aget_type(ah);
     herr_t ec = H5Aread(ah, at, f_sum.v);
 
+    H5Tclose(at);
+    H5Aclose(ah);
     if (ec < 0) {
-      lua_pushstring(L, "ill-formed sha256");
+      lua_pushstring(L, "no sha256");
       lua_insert(L, -2);
       lua_pushnil(L);
       lua_insert(L, -3);
-      qlua_free(L, data);
       return;
     }
 
-    H5Tclose(at);
-    H5Aclose(ah);
     compute_checksum(L, &r_sum, data, flen, qh_type);
     if (sha256_cmp(&f_sum, &r_sum) == 0) {
       lua_pushstring(L, "OK");
@@ -716,21 +715,21 @@ qhdf5_r_read(lua_State *L)
   ds = H5Dget_space(dh);
   switch (H5Tget_class(dt)) {
   case H5T_STRING: {
-    hid_t mt = get_qh_machine_type(L, b->file, b->mt, qhCharType);
-    hsize_t len;
+    hid_t mt = H5Tcopy(get_qh_machine_type(L, b->file, b->mt, qhCharType));
     char *data;
     
-    if (H5Sget_simple_extent_ndims(ds) != 1)
-      luaL_error(L, "read(): string is not 1d");
-    ec = H5Sget_simple_extent_dims(ds, &len, NULL);
-    total_len = len;
+    if (H5Sget_simple_extent_ndims(ds) != 0)
+      luaL_error(L, "read(): improper string");
+    total_len = H5Tget_size(dt);
+    ec = H5Tset_size(mt, total_len);
+    if (ec < 0) luaL_error(L, "read() faile on H5T_set_size(%d)", (int)total_len);
     qh_type = qhCharType;
-    if (ec < 0) luaL_error(L, "HDF5: read() get_dims failed");
-    data_ptr = qlua_malloc(L, len + 1);
+    data_ptr = qlua_malloc(L, total_len + 1);
     data = (char *)data_ptr;
     ec = H5Dread(dh, mt, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    H5Tclose(mt);
     if (ec < 0) luaL_error(L, "read() failed");
-    data[len] = 0;
+    data[total_len] = 0;
     lua_pushstring(L, data);
   } break;
   case H5T_INTEGER: {
@@ -883,6 +882,7 @@ qhdf5_w_write(lua_State *L)
     void *data = NULL;
     char *ename = strrchr(dpath, '/');
     hsize_t full_len = 0;
+    hsize_t mtype_len = 0;
     int qh_type = 0;
     herr_t status;
 
@@ -898,9 +898,10 @@ qhdf5_w_write(lua_State *L)
       const char *str = luaL_checkstring(L, 3);
       hsize_t len = strlen(str);
       data = qlua_strdup(L, str);
-      full_len = len;
+      full_len = len + 1;
+      mtype_len = len + 1;
       qh_type = qhCharType;
-      dataspace = H5Screate_simple(1, &len, NULL);
+      dataspace = H5Screate(H5S_SCALAR);
     } break;
     case qVecInt: {
       mVecInt *v = qlua_checkVecInt(L, 3);
@@ -987,8 +988,21 @@ qhdf5_w_write(lua_State *L)
     }
     dtype_file = get_qh_file_type(L, b->file, b->ft, qh_type);
     dtype_machine = get_qh_machine_type(L, b->file, b->mt, qh_type);
-    dataset = H5Dcreate2(wdir, ename, dtype_file, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    if (mtype_len > 0) {
+      dtype_file = H5Tcopy(dtype_file);
+      status = H5Tset_size(dtype_file, mtype_len);
+      if (status < 0) luaL_error(L, "H5Tset_size() error on dtype_file");
+      dtype_machine = H5Tcopy(dtype_machine);
+      status = H5Tset_size(dtype_machine, mtype_len);
+      if (status < 0) luaL_error(L, "H5Tset_size() error on dtype_machine");
+    }
+    dataset = H5Dcreate2(wdir, ename, dtype_file, dataspace, H5P_DEFAULT,
+                         H5P_DEFAULT, H5P_DEFAULT);
     status = H5Dwrite(dataset, dtype_machine, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    if (mtype_len > 0) {
+      H5Tclose(dtype_machine);
+      H5Tclose(dtype_file);
+    }
     if (status < 0) luaL_error(L, "write error");
 
     create_checksum(L, dataset, data, full_len, qh_type);

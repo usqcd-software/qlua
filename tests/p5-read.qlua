@@ -1,0 +1,168 @@
+require "stdlib"
+
+fname = "from-p.h5"
+
+-- BEGIN helper routines
+function list_dir(f, path)
+   local st = f:list(path)
+   printf("list(%s, %s) = { // %d\n",
+          tostring(f),
+          path,
+          #st);
+   for i, v in pairs(st) do
+      printf("  %s\n", v)
+   end
+   printf("}\n")
+end
+
+-- The reader builds proper Qlua object, here we check that it read what was written
+function read_complex1(x, path, expected)
+   local v, st, vx = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/vector.complex(%s): sha error: %s\n", path, tostring(st))
+      -- error("read/vector.complex")
+      v = vx
+   end
+   if not (type(v) == type(expected)) then
+      printf("XXX read/complex1(%s) failed: type %s vs %s\n",
+             path, type(v), type(expected))
+      -- error("read/complex1")
+      return
+   end
+   if not (#v == #expected) then
+      printf("XXX read/complex1(%s) failed: |v|=%d (vs %d)\n",
+             path, #v, #expected)
+      error("read/complex1")
+   end
+   local i
+   for i = 0, #v - 1 do
+      if not ((v[i]:real() == expected[i]:real()) and
+              (v[i]:imag() == expected[i]:imag())) then
+         printf("XXX read/vector.complex(%s) failed at [%d]: %s %s\n",
+                path, i,
+                tostring(v[i]),
+                tostring(expected[i]))
+         error("read/vector.complex")
+      end
+   end
+   printf("OK:: read/vector.complex(%s) :: %s\n", path, tostring(v))
+end
+
+-- The reader builds proper Qlua object, here we check that it read what was written
+function read_string(x, path, expected)
+   local v, st, vx = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/string(%s): sha error: %s\n", path, tostring(st))
+      -- error("read/string")
+      v = vx
+   end
+   if not (type(v) == type(expected)) then
+      printf("XXX read/string(%s) failed: type %s vs %s\n",
+             path, type(v), type(expected))
+      error("read/string")
+      return
+   end
+   if not (#v == #expected) then
+      printf("XXX read/string(%s) failed %q vs %q\n", path, v, expected)
+      error("read/string")
+   end
+   printf("OK:: read/string(%s) = %s\n", path, v)
+end
+
+function read_int1(x, path, expected)
+   local v, st, vx = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/vector.int(%s): sha error: %s\n", path, tostring(st))
+      -- error("read/vector.int")
+      v = vx
+   end
+   if not (type(v) == type(expected)) then
+      printf("XXX read/int1(%s) failed: type %s vs %s\n",
+             path, type(v), type(expected))
+      error("read/int1")
+      return
+   end
+   if not (#v == #expected) then
+      printf("XXX read/vector.int(%s) failed\n |v|=%d (vs %d)\n",
+             path, #v, #expected)
+      -- error("read/vector.int")
+   end
+   local i
+   for i = 0, #v - 1 do
+      if not (v[i] == expected[i]) then
+         printf("XXX read/vector.int(%s) failed at [%d]: %d %d\n", path, i, v[i], expected[i])
+         error("read/vector.int")
+      end
+   end
+   printf("OK:: read/vector.int(%s) :: %s\n", path, tostring(v))
+end
+
+function read_real2(x, path, expected)
+   local v, st, vx = x:read(path)
+   if not (st == "OK") then
+      printf("XXX read/matrix.real(%s): sha error: %s\n", path, tostring(st))
+      -- error("read/matrix.real")
+      v = vx
+   end
+   if not (type(v) == type(expected)) then
+      printf("XXX read/matrix.real(%s) failed %s (vs %s)\n",
+             path, type(v), type(expected))
+      error("read/matrix.real")
+   end
+   local x,y = expected:dims()
+   local a,b = v:dims()
+   if not ((x == a) and (y == b)) then
+      printf("XXX read/matrix.real(%s) failed [%d,%d] (vs [%d,%d])\n",
+             path, a, b, x, y)
+      error("read/matrix.real")
+   end
+   local i, j
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         if not (v[{i,j}] == expected[{i,j}]) then
+            printf("XXX read/matrix.real(%s) failed at [%d,%d]: %g %g\n",
+                   path, i, j, v[{i,j}], expected[{i,j}])
+            error("read/matrix.real")
+         end
+      end
+   end
+   printf("OK:: read/matrix.real(%s) :: %s\n", path, tostring(v))
+end
+
+-- END helper routines
+
+-- setup reference data
+c1 = vector.complex(3)
+c1[0] = complex(1,2)
+c1[1] = complex(4,3)
+c1[2] = complex(6.25,-9.5)
+c2 = vector.complex(3)
+c2[0] = complex(1,2)
+c2[1] = complex(0,6)
+c2[2] = complex(-5,0)
+r1 = vector.int(4)
+r1[0] = 1
+r1[1] = 2
+r1[2] = 6
+r1[3] = 5
+r2 = matrix.real{3,2}
+r2[{0,0}] = -1.126
+r2[{0,1}] = 5.375
+r2[{1,0}] = 1
+r2[{1,1}] = 2
+r2[{2,0}] = 3.5
+r2[{2,1}] = 7
+
+-- check the reader
+x = qcd.hdf5.Reader(fname)
+printf("hdf5.Reader = %s\n", tostring(x))
+list_dir(x, "/")
+read_complex1(x, "/c1", c1)
+read_string(x, "/s1", "The quick brown fox")
+read_complex1(x, "/subdirA/c2", c2)
+read_int1(x, "/subdirA/r1", r1)
+read_real2(x, "/subdirA/r2", r2)
+x:close()
+printf("hdf5.Reader/closed = %s\n", tostring(x))
+
+printf("DONE\n")
