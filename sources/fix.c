@@ -4,6 +4,7 @@
 #include "qmp.h"
 #include <string.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <stdio.h>
 
 static char self[72];
@@ -260,6 +261,36 @@ q_file(lua_State *L)
 }
 
 static int
+q_fexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+
+  if ((stat(fname, &st) == 0) &&
+      S_ISREG(st.st_mode))
+    lua_pushboolean(L, 1);
+  else
+    lua_pushboolean(L, 0);
+
+  return 1;
+}
+
+static int
+q_dexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+
+  if ((stat(fname, &st) == 0) &&
+      S_ISDIR(st.st_mode))
+    lua_pushboolean(L, 1);
+  else
+    lua_pushboolean(L, 0);
+
+  return 1;
+}
+
+static int
 qlua_print(lua_State *L)
 {
     int n = lua_gettop(L);
@@ -452,6 +483,10 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "stderr");
     lua_pushcfunction(L, q_file);
     lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, q_fexists);
+    lua_setfield(L, -2, "fexists");
+    lua_pushcfunction(L, q_dexists);
+    lua_setfield(L, -2, "dexists");
     lua_pushcfunction(L, q_lines);
     lua_setfield(L, -2, "lines");
     lua_setglobal(L, "io");

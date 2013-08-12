@@ -541,7 +541,7 @@ qlua_qtype(lua_State *L, int idx)
         lua_pushstring(L, a_type_key);
         lua_rawget(L, -2);
         if (lua_isnumber(L, -1))
-            tv = luaL_checkint(L, -1);
+          tv = (QLUA_Type)luaL_checkint(L, -1);
         lua_pop(L, 2);
         return tv;
     }
