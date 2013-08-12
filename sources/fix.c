@@ -265,13 +265,15 @@ q_fexists(lua_State *L)
 {
   const char *fname = luaL_checkstring(L, 1);
   struct stat st;
+  int status = 0;
 
-  if ((stat(fname, &st) == 0) &&
-      S_ISREG(st.st_mode))
-    lua_pushboolean(L, 1);
-  else
-    lua_pushboolean(L, 0);
-
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISREG(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
   return 1;
 }
 
@@ -280,13 +282,15 @@ q_dexists(lua_State *L)
 {
   const char *fname = luaL_checkstring(L, 1);
   struct stat st;
+  int status = 0;
 
-  if ((stat(fname, &st) == 0) &&
-      S_ISDIR(st.st_mode))
-    lua_pushboolean(L, 1);
-  else
-    lua_pushboolean(L, 0);
-
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISDIR(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
   return 1;
 }
 
