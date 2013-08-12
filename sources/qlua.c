@@ -801,9 +801,10 @@ qlua_nowrite(lua_State *L)
 char *
 qlua_strdup(lua_State *L, const char *str)
 {
-  char *p = strdup(str);
+  char *p = qlua_malloc(L, strlen(str) + 1);
   if (p == 0)
     luaL_error(L, "not enough memory");
+  strcpy(p, str);
 
   return p;
 }
