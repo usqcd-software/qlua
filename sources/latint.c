@@ -994,6 +994,32 @@ qlua_checkLatInt(lua_State *L, int idx, mLattice *S)
     return (mLatInt *)v;
 }
 
+mLatInt *
+qlua_tabkey_LatInt(lua_State *L, int idx, const char *key, mLattice *S)
+{
+  mLatInt *v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting LatInt in { %s = ...}", key);
+  v = qlua_checkLatInt(L, -1, S);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+mLatInt *
+qlua_tabidx_LatInt(lua_State *L, int idx, int subidx, mLattice *S)
+{
+  mLatInt *v;
+
+  if (!qlua_tabpushopt_idx(L, idx, subidx))
+    luaL_error(L, "expecting LatInt in { [%d] = ...}", subidx);
+  v = qlua_checkLatInt(L, -1, S);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
 static struct luaL_Reg fLatInt[] = {
     { "Int",     q_latint },
     { NULL, NULL}

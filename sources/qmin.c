@@ -226,29 +226,23 @@ fminN(lua_State *L, int idx_x)
 static int
 fdfminN(lua_State *L)
 {
-  switch (luaL_checkint(L, lua_upvalueindex(QM_kind))) {
+  int minimizer = luaL_checkint(L, lua_upvalueindex(QM_kind));
+  switch (minimizer) {
+  case QMIN_nmsimplex:
+  case QMIN_nmsimplex2:
+  case QMIN_nmsimplex2rand:
+    return fminN(L, 3);
 #if 0
   case QMIN_steepest_descent:
   case QMIN_conjugate_fr:
   case QMIN_conjugate_pr:
   case QMIN_vector_bfgs:
   case QMIN_vector_bfgs2:
-    /* ... */
-    break;
 #endif
-  case QMIN_nmsimplex:
-  case QMIN_nmsimplex2:
-  case QMIN_nmsimplex2rand:
-    return fminN(L, 3);
   default:
-    luaL_error(L, "internal error: unexpected minimizer\n");
+    luaL_error(L, "internal error: unexpected minimizer (%d)\n", minimizer);
     return 0;
   }
-#if 0
-  luaL_error(L, "f/df min N not implemented XXX");
-  /* ... */
-  return 0;
-#endif
 }
 
 static int

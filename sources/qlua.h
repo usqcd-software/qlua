@@ -170,6 +170,10 @@ int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
 double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
 void qlua_checktable(lua_State *L, int idx, const char *fmt, ...);
 
+int qlua_checkopt_table(lua_State *L, int idx);
+int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
+int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);
+
 typedef int (*q_op)(lua_State *L);
 
 typedef struct {

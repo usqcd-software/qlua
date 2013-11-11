@@ -376,6 +376,43 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 }
 
 int
+qlua_checkopt_table(lua_State *L, int idx)
+{
+  if (lua_gettop(L) < idx)
+    return 0;
+  qlua_checktable(L, idx, "optional argument");
+  return 1;
+}
+
+int
+qlua_tabpushopt_key(lua_State *L, int idx, const char *key)
+{
+  if (idx < 0)
+    idx--;
+  lua_pushstring(L, key);
+  lua_gettable(L, idx);
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  return 1;
+}
+
+int
+qlua_tabpushopt_idx(lua_State *L, int idx, int subindex)
+{
+  if (idx < 0)
+    idx--;
+  lua_pushnumber(L, subindex);
+  lua_gettable(L, idx);
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  return 1;
+}
+
+int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
     int v = -1;
