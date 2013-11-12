@@ -323,10 +323,12 @@ nersc_read_master(lua_State *L,
         {NULL, ntNONE}
     };
     static const NERSC_Value nFPs[] = {
-        {"IEEE32",    4},
-        {"IEEE32BIG", 4},
-        {"IEEE64BIG", 8},
-        {NULL,        0}
+        {"IEEE32",           4},
+        {"IEEE32BIG",        4},
+        {"IEEE64BIG",        8},
+        {"IEEE32LITTLE",    16},
+        {"IEEE64LITTLE",    32},
+        {NULL,               0}
     };
 
     FILE *f = fopen(name, "rb");
@@ -436,17 +438,33 @@ eoh:
         if (status == NULL)
             status = "unsupported data format";
     }
+    int big_endian_data = 1;    /* default value */
     switch (f_fp) {
     case 4:
         read_real = read_float;
         site_size *= 4;
+        big_endian_data = 1;
         if (uni_eps == 0) uni_eps = 1e-6;
         break;
     case 8:
         read_real = read_double;
         site_size *= 8;
+        big_endian_data = 1;
         if (uni_eps == 0) uni_eps = 1e-12;
         break;
+    case 16:
+        read_real = read_float;
+        site_size *= 4;
+        big_endian_data = 0;
+        if (uni_eps == 0) uni_eps = 1e-6;
+        break;
+    case 32:
+        read_real = read_double;
+        site_size *= 8;
+        big_endian_data = 0;
+        if (uni_eps == 0) uni_eps = 1e-12;
+        break;
+
     default:
         if (status == NULL)
             status = "bad floating point size";
@@ -493,7 +511,8 @@ eoh:
             status = "file read error";
 
         /* swap bytes if necessary */
-        if (big_endian == 0) {
+        if ((big_endian && !big_endian_data) 
+                || (!big_endian && big_endian_data)) {
             char *p;
             switch (f_fp) {
             case 4:
