@@ -413,6 +413,84 @@ qlua_tabpushopt_idx(lua_State *L, int idx, int subindex)
 }
 
 int
+qlua_tabkey_int(lua_State *L, int idx, const char *key)
+{
+  int v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting integer in { %s = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
+qlua_tabidx_int(lua_State *L, int idx, int key)
+{
+  int v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting integer in { %s = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+double
+qlua_tabkey_double(lua_State *L, int idx, const char *key)
+{
+  double v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting double in { %s = ...}", key);
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+double
+qlua_tabidx_double(lua_State *L, int idx, int key)
+{
+  double v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting double in { %s = ...}", key);
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+const char *
+qlua_tabkey_string(lua_State *L, int idx, const char *key)
+{
+  const char *v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting string in { %s = ...}", key);
+  v = luaL_checkstring(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+const char *
+qlua_tabidx_string(lua_State *L, int idx, int key)
+{
+  const char *v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting string in { %s = ...}", key);
+  v = luaL_checkstring(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
     int v = -1;
