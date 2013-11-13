@@ -1,3 +1,0 @@
-* Currently, hdf5_io.c computes the checksum values by reading the
-  dataset back. This could lead to problems if the filesystem is
-  bad. Implement in-memory sha1 computation instead.

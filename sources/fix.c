@@ -4,6 +4,7 @@
 #include "qmp.h"
 #include <string.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <stdio.h>
 
 static char self[72];
@@ -226,25 +227,71 @@ static int
 q_file(lua_State *L)
 {
     mFile *f = qlua_newFile(L);
-    int v;
+    const char *n = luaL_checkstring(L, 1);
+    const char *m = luaL_checkstring(L, 2);
 
-    if (QDP_this_node == qlua_master_node) {
-        const char *n = luaL_checkstring(L, 1);
-        const char *m = luaL_checkstring(L, 2);
+    if (!strcmp(m, "r") || !strcmp(m, "rb") || !strcmp(m, "rt")) {
+      double v;
+      /* read files are open everywhere */
+      f->file = fopen(n, m);
+      f->kind = qf_other;
+      v = (f->file != 0);
+      /* make sure all nodes manage to open the file */
+      QMP_min_double(&v);
+      if (v < 1)
+        if (v == 0)
+          return luaL_error(L, "file open failed");
+    } else {
+      /* other modes are write, open the file on the master node only */
+      int v;
+      if (QDP_this_node == qlua_master_node) {
         f->file = fopen(n, m);
         f->kind = qf_other;
-
         v = (f->file != 0);
-    } else {
-        f->file = (FILE *)1;
+      } else {
+        f->file = NULL;
         f->kind = qf_dummy;
-    }
-    XMP_dist_int_array(qlua_master_node, 1, &v);
-
-    if (v == 0)
+      }
+      XMP_dist_int_array(qlua_master_node, 1, &v);
+      if (v == 0)
         return luaL_error(L, "file open failed");
+    }
 
     return 1;
+}
+
+static int
+q_fexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+  int status = 0;
+
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISREG(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
+  return 1;
+}
+
+static int
+q_dexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+  int status = 0;
+
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISDIR(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
+  return 1;
 }
 
 static int
@@ -440,6 +487,10 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "stderr");
     lua_pushcfunction(L, q_file);
     lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, q_fexists);
+    lua_setfield(L, -2, "fexists");
+    lua_pushcfunction(L, q_dexists);
+    lua_setfield(L, -2, "dexists");
     lua_pushcfunction(L, q_lines);
     lua_setfield(L, -2, "lines");
     lua_setglobal(L, "io");

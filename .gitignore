@@ -7,3 +7,4 @@ qlua-config
 modules.h
 *.h5
 *.o
+.DS_Store

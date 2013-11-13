@@ -376,6 +376,121 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 }
 
 int
+qlua_checkopt_table(lua_State *L, int idx)
+{
+  if (lua_gettop(L) < idx)
+    return 0;
+  qlua_checktable(L, idx, "optional argument");
+  return 1;
+}
+
+int
+qlua_tabpushopt_key(lua_State *L, int idx, const char *key)
+{
+  if (idx < 0)
+    idx--;
+  lua_pushstring(L, key);
+  lua_gettable(L, idx);
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  return 1;
+}
+
+int
+qlua_tabpushopt_idx(lua_State *L, int idx, int subindex)
+{
+  if (idx < 0)
+    idx--;
+  lua_pushnumber(L, subindex);
+  lua_gettable(L, idx);
+  if (lua_isnil(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  return 1;
+}
+
+int
+qlua_tabkey_int(lua_State *L, int idx, const char *key)
+{
+  int v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting integer in { %s = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
+qlua_tabidx_int(lua_State *L, int idx, int key)
+{
+  int v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting integer in { %s = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+double
+qlua_tabkey_double(lua_State *L, int idx, const char *key)
+{
+  double v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting double in { %s = ...}", key);
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+double
+qlua_tabidx_double(lua_State *L, int idx, int key)
+{
+  double v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting double in { %s = ...}", key);
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+const char *
+qlua_tabkey_string(lua_State *L, int idx, const char *key)
+{
+  const char *v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting string in { %s = ...}", key);
+  v = luaL_checkstring(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+const char *
+qlua_tabidx_string(lua_State *L, int idx, int key)
+{
+  const char *v;
+
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting string in { %s = ...}", key);
+  v = luaL_checkstring(L, -1);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {
     int v = -1;
@@ -541,7 +656,7 @@ qlua_qtype(lua_State *L, int idx)
         lua_pushstring(L, a_type_key);
         lua_rawget(L, -2);
         if (lua_isnumber(L, -1))
-            tv = luaL_checkint(L, -1);
+          tv = (QLUA_Type)luaL_checkint(L, -1);
         lua_pop(L, 2);
         return tv;
     }
@@ -801,9 +916,10 @@ qlua_nowrite(lua_State *L)
 char *
 qlua_strdup(lua_State *L, const char *str)
 {
-  char *p = strdup(str);
+  char *p = qlua_malloc(L, strlen(str) + 1);
   if (p == 0)
     luaL_error(L, "not enough memory");
+  strcpy(p, str);
 
   return p;
 }
