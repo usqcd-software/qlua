@@ -23,6 +23,7 @@ show_help() {
      --with[out]-nc=2         include [exclude] Nc=2 special case
      --with[out]-nc=3         include [exclude] Nc=3 special case
      --with[out]-nc=N         include [exclude] Nc=N special case
+     --with-arpack            build ARPACK-dependent code (libs in \$ARPACK var)
      --with-nc=all            include all special Nc cases
      --without-nc=any         exclude all special Nc cases
 
@@ -97,6 +98,9 @@ process_args() {
       --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
       --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
       --with-hypre=*)     hypre=`echo "$1" | sed -e 's/--with-hypre=//'`  ;;
+      --with-arpack)      arpack=1 ;;
+      --with-arpack=*)    arpack=1
+                          arpack_libs=`echo "$1" | sed -e 's/--with-arpack=//'` ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
       --with-nc=N)        use_ncN=1 ;;
@@ -194,6 +198,13 @@ normalize() {
      hypre_ldflags="-L$hypre/lib"
      hypre_libs="-lHYPRE"
   fi
+  if [ ! -z "$arpack" ] ; then
+     arpack_cflags=""
+     arpack_ldflags=""
+     if [ -z "$arpack_libs" ] ; then 
+        arpack_libs=$ARPACK # use env vars
+     fi
+  fi
   ## Add other packages here
 }
 
@@ -224,6 +235,7 @@ show_config() {
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$hypre" ]   || echo "HYPRE location          $hypre"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
+   [ -z "$arpack" ]  || echo "ARPACK libraries        $arpack_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
    [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
    [ "$use_ncN" == 0 ] || echo "Nc=N included"
@@ -282,6 +294,10 @@ build() {
         -e "s|@hypre_cflags@|$hypre_cflags|g" \
         -e "s|@hypre_ldflags@|$hypre_ldflags|g" \
         -e "s|@hypre_libs@|$hypre_libs|g" \
+  | sed -e "s|@arpack@|$arpack|g" \
+        -e "s|@arpack_cflags@|$arpack_cflags|g" \
+        -e "s|@arpack_ldflags@|$arpack_ldflags|g" \
+        -e "s|@arpack_libs@|$arpack_libs|g" \
       > $2 \
 || show_error "Could not generate $2"
 }
@@ -326,6 +342,9 @@ build_modules() {
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"
   echo "#define USE_NcN $use_ncN"
+  if [ ! -z "$arpack" ] ; then
+    echo "#define HAS_ARPACK"
+  fi
 }
 
 ######
@@ -334,7 +353,7 @@ if [ $# -eq 0 ]; then
   show_help 1
 fi
 
-process_args $*
+process_args "$@"   # quotes are necessary for handling args with spaces
 normalize
 build qlua-config.in qlua-config
 chmod +x qlua-config

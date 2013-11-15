@@ -4,44 +4,15 @@
 #include "lattice.h"                                                 /* DEPS */ 
 #include "latdirferm.h"                                              /* DEPS */
 #include "qop-mdwf3.h"
+#include "qlanczos.h"                                                /* DEPS */
+
+#include <string.h>
+#include <assert.h>
+#include <mpi.h>
 
 
 /* use aliases to avoid FORTRAN symbol renaming */
-
-typedef struct {
-    struct QOP_MDWF_State       *mdwf_state;
-    struct QOP_MDWF_Parameters  *mdwf_param;
-    struct QOP_F3_MDWF_Gauge    *mdwf_gauge;
-    QOP_F3_MDWF_HalfFermion     *x, y; /* must be allocated before 
-                                          calling mdwf_eoprec_op */
-
-    /* polynomial acc parameters */
-    /* TODO switch between Chebyshev/etc polynomials? */
-    int                         poly_n;
-    double                      poly_a, poly_b;
-} op_MDWF_F3_eoprec_MdagM_arg_s;
-
-void
-op_MDWF_F3_eoprec_MdagM_op(
-        int loc_dim,
-        float complex *x, 
-        float complex *y, 
-        void *op_arg) /* x<-op(y) */
-{
-    op_MDWF_F3_eoprec_MdagM_arg_s *a = (op_MDWF_F3_eoprec_MdagM_arg_s *)op_arg;
-    assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
-
-    QOP_F3_MDWF_half_fermion_from_blas(a->y, (float *)y, 2 * loc_dim);
-    if (0 < a->poly_n) {
-        /* TODO polynomial acc */
-    } else {
-        QOP_F3_MDWF_M_operator(
-                a->x, a->mdwf_param, a->mdwf_gauge, a->y);
-        QOP_F3_MDWF_M_operator_conjugated(
-                a->y, a->mdwf_param, a->mdwf_gauge, a->x);
-    }
-    QOP_F3_MDWF_blas_from_half_fermion((float *)x, 2 * loc_dim, a->y);
-}
+#ifdef HAS_ARPACK
 extern int 
 pcnaupd(int             *COMM,
         int             *IDO, 
@@ -99,7 +70,7 @@ pcneupd(int             *COMM,
 int 
 lanczos_internal_float(
         lua_State *L,
-        MPI_Comm *mpi_comm,
+        MPI_Comm mpi_comm,
         void (*op)(int loc_dim, 
                    float complex *x,
                    float complex *y,
@@ -119,8 +90,11 @@ lanczos_internal_float(
     MPI_Fint mpi_comm_f = MPI_Comm_c2f(mpi_comm);
     CALL_QDP(L);
 
+    int i;
+
     /* all FORTRAN communication uses underscored variables */
-    int ido_info_[2];
+    int ido_; 
+    int info_;
     int iparam_[11];
     int ipntr_[14];
     int n_      = loc_dim,
@@ -141,6 +115,8 @@ lanczos_internal_float(
     float complex sigma_ = 0;
     float complex *w_workev_ = malloc(sizeof(float complex) * 2 * ncv_);
     int *select_ = malloc(sizeof(int) * ncv_);
+    float tol_ = tol;
+
 #define lanczosC_free_workspace do {\
     free(resid_);\
     free(w_v_);\
@@ -159,7 +135,7 @@ lanczos_internal_float(
            NULL == w_rwork_ ||
            NULL == w_d_ ||
            NULL == w_workev_ ||
-           NULL == select_) {
+           NULL == select_) 
         return luaL_error(L, "cannot allocate workspace for CN*UPD");
         
     /* cnaupd cycle */
@@ -193,10 +169,10 @@ lanczos_internal_float(
     } while (99 != ido_ && iter_cnt < max_iter);
 
     if (0 == info_) {
-        assert(iparam[4] == nev);
-        *nconv = iparam[4];
+        assert(iparam_[4] == nev);
+        *nconv = iparam_[4];
     } else if (1 == info_) {
-        *nconv = iparam[4];
+        *nconv = iparam_[4];
     } else {
         lanczosC_free_workspace;
         return luaL_error(L, "CNAUPD returned INFO=%d", info_);
@@ -239,99 +215,6 @@ lanczos_internal_float(
 }
 
 
-/* TODO move to qmdwf.c ? */
-/* MDWF:eig_deflator_lanczos(nev, ncv, max_iter, tol, [param])
-   param = {
-     [cheb_accel]={n, a, b}, 
-     [precision] = "single"|"double",
-     ... } */
-
-static int 
-q_DW_make_deflator_lanczos(lua_State *L)
-{
-    mMDWF *c = qlua_checkMDWF(L, 1, NULL, 1);
-    /* TODO parse nev, ncv, max_iter, tol */
-    int nev, ncv, max_iter;
-    double tol;
-    nev     = lua_checkint(L, 2);
-    ncv     = lua_checkint(L, 3);
-    max_iter= lua_checkint(L, 4);
-    tol     = luaL_checknumber(L, 5);
-    int cheb_n = -1;
-    double cheb_a = 0,
-           cheb_b = 0;
-    int eigcg_vmax  = 0,
-        eigcg_umax  = 0,
-        eigcg_nev   = 0;
-    double eigcg_eps= 0.;
-
-    if (qlua_checkopt_table(L, 6)) {
-        if (qlua_tabpushopt_key(L, 6, "cheb_accel")) {
-            cheb_n  = qlua_tabidx_int(L, -1, 1);
-            cheb_a  = qlua_tabidx_double(L, -1, 2);
-            cheb_b  = qlua_tabidx_double(L, -1, 3);
-            lua_pop(L, 1);
-        }
-        if (qlua_tabpushopt_key(L, 6, "eigcg")) {
-            eigcg_vmax  = qlua_tabidx_int(L, -1, 1);
-            eigcg_nev   = qlua_tabidx_int(L, -1, 2);
-            eigcg_eps   = qlua_tabidx_double(L, -1, 3);
-            eigcg_umax  = qlua_tabidx_int(L, -1, 4);
-            lua_pop(L, 1);
-        }
-    }
-
-    /* single precision for lanczos */
-    op_MDWF_F3_eoprec_MdagM_arg_s op_arg;
-    op_arg.mdwf_state   = c->state;
-    op_arg.mdwf_params  = c->params;
-    op_arg.mdwf_gauge   = c->gauge;
-    if (QOP_F3_MDWF_allocate_half_fermion(&op_arg.x, c->state))
-        return luaL_error(L, "cannot allocate HalfFermion");
-    if (QOP_F3_MDWF_allocate_half_fermion(&op_arg.y, c->state))
-        return luaL_error(L, "cannot allocate HalfFermion");
-
-    if (0 < cheb_n) {
-        op_arg.poly_n   = cheb_n;
-        op_arg.poly_a   = cheb_a;
-        op_arg.poly_b   = cheb_b;
-    } else
-        op_arg.poly_n = -1;
-    
-    /* TODO get MPI_Comm; use WORLD for now? */
-    MPI_Comm mpi_comm = ;
-    
-    int loc_dim = QOP_MDWF_half_fermion_size(c->state) / 2;
-    assert(0 == QOP_MDWF_half_fermion_size(c->state) % 2);
-
-    float complex *evec,
-                  *eval;
-    int n_iters, nconv;
-    int status = lanczos_internal_float(
-            L, &mpi_comm, op_MDWF_F3_eoprec_MdagM_op, &op_arg, 
-            loc_dim, nev, ncv, max_iter, 
-            tol, &evec, &eval, &n_iters
-            &nconv);
-    if (0 != status)
-        return luaL_error(L, "lanczos_internal_float returned %d", status);
-
-    /* TODO create empty deflator */
-    /* mDeflatorState *d = q_newDeflatorState(L, Sidx); */
-
-    for (int i = 0 ; i < nconv ; i++) {
-        QOP_F3_MDWF_half_fermion_from_blas(&op_arg.x, 
-                (float *)(evec + i * loc_dim), 2 * loc_dim);
-        QOP_F3_MDWF_deflator_add_vector(d->deflator, &op_arg.x);
-    }
-
-    /* cleanup */
-    QOP_F3_MDWF_allocate_half_fermion(&op_arg.x);
-    QOP_F3_MDWF_allocate_half_fermion(&op_arg.y);
-    free(evec);
-    free(eval);
-    
-    /* TODO return something Lua-meaningful */
-}
 
 
 #if 0
@@ -533,7 +416,7 @@ lanczos_internal_double(
 
 typedef struct {
     struct QOP_MDWF_State       *mdwf_state;
-    struct QOP_MDWF_Parameters  *mdwf_param;
+    struct QOP_MDWF_Parameters  *mdwf_params;
     struct QOP_D3_MDWF_Gauge    *mdwf_gauge;
     QOP_D3_MDWF_HalfFermion     *x, y; /* must be allocated before 
                                           calling mdwf_eoprec_op */
@@ -551,11 +434,14 @@ op_MDWF_D3_eoprec_MdagM_op(
 
     QOP_D3_MDWF_half_fermion_from_blas(a->y, (double *)y, 2 * loc_dim);
     QOP_D3_MDWF_M_operator(
-            a->x, a->mdwf_param, a->mdwf_gauge, a->y);
+            a->x, a->mdwf_params, a->mdwf_gauge, a->y);
     QOP_D3_MDWF_M_operator_conjugated(
-            a->y, a->mdwf_param, a->mdwf_gauge, a->x);
+            a->y, a->mdwf_params, a->mdwf_gauge, a->x);
     QOP_D3_MDWF_blas_from_half_fermion((double *)x, 2 * loc_dim, a->y);
 }
 
 
 #endif
+
+
+#endif /* HAS_ARPACK */

@@ -13,9 +13,11 @@
 #define QOP_MDWF_DEFAULT_PRECISION QDP_Precision
 #include "qop-mdwf3.h"
 #include "qmp.h"
+#include "qlanczos.h"
 
 /* NB: Code in this file relies on \gamma_5 = diag(1,1,-1,-1) */
 #include <math.h>
+#include <assert.h>
 
 #if USE_Nc3
 static const char mdwf_name[] = "MDWF";
@@ -23,6 +25,7 @@ static const char mdwf_name[] = "MDWF";
 static const char MDWFName[]         = "lattice.MDWF";
 static const char MDWFDeflatorName[]       = "lattice.MDWF.Deflator";
 static const char MDWFDeflatorStateName[]  = "lattice.MDWF.DeflatorState";
+
 
 typedef enum {
     DW_Shamir,
@@ -47,7 +50,7 @@ typedef struct {
 typedef struct {
     struct QOP_MDWF_State        *state;
     struct QOP_MDWF_Parameters   *params;
-    struct QOP_MDWF_Gauge        *gauge;
+    struct QOP_D3_MDWF_Gauge     *gauge;
     int                           Ls;
     const char                   *name;
     DW_type                       type;
@@ -59,6 +62,7 @@ typedef struct {
     int vmax;
     struct QOP_MDWF_Deflator *deflator;
 } mDeflatorState;
+
 
 static mMDWF *qlua_newMDWF(lua_State *L, int Sidx);
 static mMDWF *qlua_checkMDWF(lua_State *L,
@@ -760,6 +764,200 @@ q_DF_eigenvalues(lua_State *L)
         return 0;
 }
 
+/* return: current number of vectors in deflator space */
+static int 
+q_DF_current_dim(lua_State *L)
+{
+    mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
+    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    return 1;
+}
+/* return: current number of vectors in deflator space */
+static int 
+q_DF_start_load(lua_State *L)
+{
+    mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
+    if (QOP_MDWF_deflator_start_load(d->deflator))
+        return luaL_error(L, "QOP_MDWF_deflator_start_load() failed");
+    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    return 1;
+}
+/* return: current number of vectors in deflator space */
+static int 
+q_DF_stop_load(lua_State *L)
+{
+    mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
+    if (QOP_MDWF_deflator_stop_load(d->deflator))
+        return luaL_error(L, "QOP_MDWF_deflator_start_load() failed");
+    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    return 1;
+}
+
+/* call: 
+   * DeflatorObj 
+   * {DiracFermion, ...} (Ls total)
+   return current number of vectors */
+static int
+q_DF_add_vector(lua_State *L)
+{
+    const char *err_str;
+    struct QOP_F3_MDWF_Gauge *gaugeF;
+
+    mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1); /* push1 */
+    mMDWF *c = q_Deflator_get_MDWF(L, 1, NULL, 1); /* push1 */
+    mLattice *S = qlua_ObjLattice(L, -1);
+    /*int Sidx = lua_gettop(L);*/
+
+    if (!qlua_checkopt_table(L, 2))
+        return luaL_error(L, "expect table, got %s", 
+                          lua_typename(L, lua_type(L, 2)));
+    if (lua_objlen(L, 2) != c->Ls)
+        return luaL_error(L, "expect Ls=%d DiracFermions", 
+                          c->Ls);
+
+    int n_vec = QOP_MDWF_deflator_current_dim(d->deflator);
+    if (d->umax <= n_vec)
+        return luaL_error(L, "vector space is full");
+
+    /* import table {DiracFermion, ...} into MDWF HalfFermion */
+    struct QOP_F3_MDWF_HalfFermion *c_psi;
+    mLatDirFerm3 **psi = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
+    QLA_D3_DiracFermion **e_psi = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+    double normi, norm5 = 0.;
+    int i;
+    CALL_QDP(L);
+    for (i = 0 ; i < c->Ls ; i++) {
+        lua_pushnumber(L, 1 + i); /* Lua index = 1..Ls */
+        lua_gettable(L, 2);
+        psi[i] = qlua_checkLatDirFerm3(L, -1, S, 3); /* push ; if fails, leak here? */
+        QDP_D3_r_eq_norm2_D(&normi, psi[i]->ptr, S->all);
+        norm5 += normi;
+        lua_pop(L, 1);
+    }
+    if (norm5 <= 0.) {
+        err_str = "zero-norm vector";
+        goto clearerr_1;
+    }
+    norm5 = sqrt(norm5);
+    
+    for (i = 0 ; i < c->Ls ; i++)
+        e_psi[i] = QDP_D3_expose_D(psi[i]->ptr);
+
+    DW_5_env    r_env;
+    r_env.lat   = S->lat;
+    r_env.f     = e_psi;
+    r_env.s     = 1. / norm5;
+    if (QOP_F3_MDWF_import_half_fermion(&c_psi, c->state, 
+                                   q_DW_5_reader_scaled, &r_env)) {
+        err_str = "QOP_F3_MDWF_import_fermion() failed";
+        goto clearerr_2;
+    }
+    if (QOP_MDWF_gauge_float_from_double(&gaugeF, c->gauge)) {
+        err_str = "QOP_MDWF_gauge_float_from_double() failed";
+        goto clearerr_3;
+    }
+    if (QOP_F3_MDWF_deflator_add_vector(c->params, gaugeF, 
+                                        d->deflator, c_psi)) {
+        err_str = "QOP_F3_deflator_add_vector() failed";
+        goto clearerr_4;
+    }
+    
+    /* cleanup */
+    QOP_F3_MDWF_free_gauge(&gaugeF);
+    QOP_F3_MDWF_free_half_fermion(&c_psi);
+
+    for (i = 0 ; i < c->Ls ; i++)
+        QDP_D3_reset_D(psi[i]->ptr);
+
+    qlua_free(L, psi);
+    qlua_free(L, e_psi);
+
+    /* normal return */    
+    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    return 1;
+        
+clearerr_4:
+    QOP_F3_MDWF_free_gauge(&gaugeF);
+
+clearerr_3:
+    QOP_F3_MDWF_free_half_fermion(&c_psi);
+
+clearerr_2:
+    for (i = 0 ; i < c->Ls ; i++)
+        QDP_D3_reset_D(psi[i]->ptr);
+
+clearerr_1:
+    qlua_free(L, psi);
+    qlua_free(L, e_psi);
+
+    return luaL_error(L, err_str);
+}
+
+static int
+q_DF_get_vector(lua_State *L)
+{
+    const char *err_str;
+
+    mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
+    mMDWF *c = q_Deflator_get_MDWF(L, 1, NULL, 1);
+    mLattice *S = qlua_ObjLattice(L, -1);
+    int Sidx = lua_gettop(L);
+    
+    int num_vec = QOP_MDWF_deflator_current_dim(d->deflator);
+    int idx_vec = qlua_checkint(L, 2, "expect vector index = 0 .. (dim-1)");
+    if (idx_vec < 0 || num_vec <= idx_vec)
+        return luaL_error(L, "expect vector index = 0 .. (dim-1)");
+    
+    /* resulting table */
+    lua_createtable(L, c->Ls, 0);
+    int Tidx = lua_gettop(L);
+    
+    /* export (c->Ls) DiracFermion's */
+    struct QOP_F3_MDWF_HalfFermion *c_psi;
+    mLatDirFerm3 **psi = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
+    QLA_D3_DiracFermion **e_psi = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+    int i;
+
+    CALL_QDP(L);
+    for (i = 0 ; i < c->Ls ; i++) {
+        psi[i]  = qlua_newLatDirFerm3(L, Sidx, 3);
+        QDP_D3_D_eq_zero(psi[i]->ptr, S->all);
+        e_psi[i]= QDP_D3_expose_D(psi[i]->ptr);
+    }
+
+    DW_5_env w_env;
+    w_env.lat = S->lat;
+    w_env.f   = e_psi;
+    w_env.s   = 1.;
+    if (QOP_F3_MDWF_deflator_extract_vector(c_psi, d->deflator, idx_vec)) {
+        err_str = "QOP_F3_MDWF_deflator_extract_vector() failed";
+        goto clearerr_1;
+    }
+    if (QOP_F3_MDWF_export_half_fermion(q_DW_5_writer_scaled, &w_env, c_psi)) {
+        err_str = "QOP_F3_MDWF_export_half_fermion() failed";
+        goto clearerr_1;
+    }
+
+    for (i = 0 ; i < c->Ls ; i++) {
+        QDP_D3_reset_D(psi[i]->ptr);
+        lua_rawseti(L, Tidx, c->Ls - i); /* reverse order; qlua index = 1..Ls */
+    }
+
+    /* clean up */
+    QOP_F3_MDWF_free_half_fermion(&c_psi);
+    qlua_free(L, psi);
+    qlua_free(L, e_psi);
+    /* normal return */
+    return 1;
+
+clearerr_1:
+    qlua_free(L, psi);
+    qlua_free(L, e_psi);
+
+    return luaL_error(L, err_str);
+}
+
+
 static int
 q_DF_deflated_mixed_solver(lua_State *L,
                            struct QOP_D3_MDWF_Fermion *solution,
@@ -818,6 +1016,11 @@ static struct luaL_Reg mtMDWFDeflator[] = {
     { "stop",               q_DF_stop              },
     { "resume",             q_DF_resume            },
     { "eigenvalues",        q_DF_eigenvalues       },
+    { "current_dim",        q_DF_current_dim       },
+    { "start_load",         q_DF_start_load        },
+    { "stop_load",          q_DF_stop_load         },
+    { "add_vector",         q_DF_add_vector        },
+    { "get_vector",         q_DF_get_vector        },
 #if 0 /* XXX deflator extra methods */
     { "truncate",           q_DF_truncate          },
     { "get_counter",        q_DF_get_counter       },
@@ -839,8 +1042,10 @@ q_DW_make_deflator(lua_State *L)
     double eps = luaL_checknumber(L, 4);
     int umax = luaL_checkint(L, 5);
 
-    if ((nev <= 0) || (2 * nev >= vmax))
+    if (nev <= 0 || vmax <= 0 || umax <= 0)
         return luaL_error(L, "bad eigenspace size");
+    if (2 * nev >= vmax)
+        return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
 
     if ((c->state == 0) || (c->gauge == 0))
         return luaL_error(L, "closed MDWF used");
@@ -865,6 +1070,246 @@ q_DW_make_deflator(lua_State *L)
 
     return 1;
 }
+
+#ifdef HAS_ARPACK
+/* operator for lanczos : function and oblique arg */
+typedef struct {
+    struct QOP_MDWF_State           *mdwf_state;
+    struct QOP_MDWF_Parameters      *mdwf_params;
+    struct QOP_F3_MDWF_Gauge        *mdwf_gauge;
+    struct QOP_F3_MDWF_HalfFermion  *x, 
+                                    *y; /* must be allocated before 
+                                           calling mdwf_eoprec_op */
+
+    /* polynomial acc parameters */
+    /* TODO switch between Chebyshev/etc polynomials? */
+    int                             poly_n;
+    double                          poly_a, poly_b;
+} op_MDWF_F3_eoprec_MdagM_arg_s;
+
+void
+op_MDWF_F3_eoprec_MdagM_op(
+        int loc_dim,
+        float complex *x, 
+        float complex *y, 
+        void *op_arg) /* x<-op(y) */
+{
+    op_MDWF_F3_eoprec_MdagM_arg_s *a = (op_MDWF_F3_eoprec_MdagM_arg_s *)op_arg;
+    assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
+
+    QOP_F3_MDWF_half_fermion_from_blas(a->y, (float *)y, 2 * loc_dim);
+    if (0 < a->poly_n) {
+        /* TODO polynomial acc */
+    } else {
+        QOP_F3_MDWF_M_operator(
+                a->x, a->mdwf_params, a->mdwf_gauge, a->y);
+        QOP_F3_MDWF_M_operator_conjugated(
+                a->y, a->mdwf_params, a->mdwf_gauge, a->x);
+    }
+    QOP_F3_MDWF_blas_from_half_fermion((float *)x, 2 * loc_dim, a->y);
+}
+
+/* MDWF:eig_deflator_lanczos(nev, ncv, max_iter, tol, [param])
+   param = {
+     [cheb_accel]={n, a, b}, 
+     [eigcg] = {vmax, nev, eps, umax}
+     ... } 
+   return: deflator object
+
+   notes:
+     * first, Lanczos/Arnoldi is used to compute eigenvectors;
+     * converged vectors are saved into a newly created EigCG deflator,
+       which is set to frozen state;
+     * only min(eigcg_umax, #converged) vectors will be saved;
+     * the user may specify eigcg_umax, eigcg_vmax, eigcg_nev values 
+       to continue EigCG after Lanczos (which is perhaps pointless though);
+     * if any of (eigcg_umax, eigcg_vmax, eigcg_nev) are set to invalid 
+       values, the code will figure out the best values to continue operation
+ */
+
+static int 
+q_DW_make_deflator_lanczos(lua_State *L)
+{
+    const char *err_str;
+    struct QOP_F3_MDWF_Gauge   *gaugeF;
+    static char err_str_buf[1024];
+
+    mMDWF *c = qlua_checkMDWF(L, 1, NULL, 1);
+    if (NULL == c->state || NULL == c->gauge)
+        return luaL_error(L, "closed MDWF used");
+
+    /* parse parameters */
+    int nev, ncv, max_iter;
+    double tol;
+    nev     = qlua_checkint(L, 2, "expect NEV at #2");
+    ncv     = qlua_checkint(L, 3, "expect NCV at #3");
+    max_iter= qlua_checkint(L, 4, "expect MAX_ITER at #4");
+    tol     = luaL_checknumber(L, 5);
+
+    /* parse optional parameters */
+    int cheb_n = -1;
+    double cheb_a = 0,
+           cheb_b = 0;
+    int eigcg_vmax  = 0,
+        eigcg_umax  = 0,
+        eigcg_nev   = 0;
+    double eigcg_eps= 0.;
+    if (qlua_checkopt_table(L, 6)) {
+        if (qlua_tabpushopt_key(L, 6, "cheb_accel")) {
+            cheb_n  = qlua_tabidx_int(L, -1, 1);
+            cheb_a  = qlua_tabidx_double(L, -1, 2);
+            cheb_b  = qlua_tabidx_double(L, -1, 3);
+            lua_pop(L, 1);
+        }
+        if (qlua_tabpushopt_key(L, 6, "eigcg")) {
+            eigcg_vmax  = qlua_tabidx_int(L, -1, 1);
+            eigcg_nev   = qlua_tabidx_int(L, -1, 2);
+            eigcg_eps   = qlua_tabidx_double(L, -1, 3);
+            eigcg_umax  = qlua_tabidx_int(L, -1, 4);
+            lua_pop(L, 1);
+        }
+    }
+    if (eigcg_vmax <= 0)
+        eigcg_vmax = ncv;
+    if (eigcg_nev <= 0) {
+        eigcg_nev = 2; /* quite arbitrary, honestly */
+        if (eigcg_vmax < 2 * eigcg_nev)
+            eigcg_nev = eigcg_vmax / 2;
+    } else if (eigcg_vmax < 2 * eigcg_nev)
+        return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
+    /* DEBUG print */
+    /*D*/fprintf(stderr, "nev=%d ncv=%d max_iter=%d tol=%e\n", nev, ncv, max_iter, tol);
+    /*D*/fprintf(stderr, "cheb_n=%d range=[%f : %f]\n", cheb_n, cheb_a, cheb_b);
+    /*D*/fprintf(stderr, "eigcg_vmax=%d eigcg_nev=%d eigcg_eps=%e eigcg_umax=%d", 
+    /*D*/        eigcg_vmax, eigcg_nev, eigcg_eps, eigcg_umax);
+
+
+    /* single precision for lanczos */
+    if (QOP_MDWF_gauge_float_from_double(&gaugeF, c->gauge)) {
+        err_str = "QOP_MDWF_gauge_float_from_double() failed";
+        goto clearerr_10;
+    }
+    op_MDWF_F3_eoprec_MdagM_arg_s op_arg;
+    op_arg.mdwf_state   = c->state;
+    op_arg.mdwf_params  = c->params;
+    op_arg.mdwf_gauge   = gaugeF;
+    if (QOP_F3_MDWF_allocate_half_fermion(&op_arg.x, c->state)) {
+        err_str = "cannot allocate HalfFermion";
+        goto clearerr_20;
+    }
+    if (QOP_F3_MDWF_allocate_half_fermion(&op_arg.y, c->state)) {
+        err_str = "cannot allocate HalfFermion";
+        goto clearerr_30;
+    }
+
+    if (0 < cheb_n) {
+        op_arg.poly_n   = cheb_n;
+        op_arg.poly_a   = cheb_a;
+        op_arg.poly_b   = cheb_b;
+    } else
+        op_arg.poly_n = -1;
+    
+    MPI_Comm mpi_comm = MPI_COMM_WORLD; /* FIXME more meaningful choice? */
+    
+    int loc_dim = QOP_MDWF_half_fermion_size(c->state) / 2;
+    assert(0 == QOP_MDWF_half_fermion_size(c->state) % 2);
+
+    /* allocated by lanczos_internal_float */
+    float complex *evec = NULL,
+                  *eval = NULL;
+    /* run Arnoldi/Lanczos iterations */
+    int n_iters, nconv;
+    int status = lanczos_internal_float(
+            L, mpi_comm, op_MDWF_F3_eoprec_MdagM_op, &op_arg, 
+            loc_dim, nev, ncv, max_iter, 
+            tol, &evec, &eval, &n_iters,
+            &nconv);
+    if (0 != status) {
+        snprintf(err_str_buf, sizeof(err_str_buf),
+                 "lanczos_internal_float returned %d", status);
+        err_str = err_str_buf;
+        goto clearerr_40;
+    }
+    /* figure out the best default values for EigCG;
+       if the user has frakked them up, it's pity to lose all the work */
+    if (eigcg_umax <= 0 || eigcg_umax <= nconv)
+        eigcg_umax = nconv;
+
+    /* create Qlua deflator object {MDWF, DeflatorState} and set its META */
+    /* FIXME should be refactored into a separate function; 
+       this code duplicates parts of q_DW_make_deflator(qmdwf.c) */
+    qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
+    lua_createtable(L, 2, 0);
+    lua_pushvalue(L, 1);
+    lua_rawseti(L, -2, 1);
+    mDeflatorState *d = q_newDeflatorState(L, Sidx);
+    lua_rawseti(L, -2, 2);
+    qlua_createLatticeTable(L, Sidx, mtMDWFDeflator, qMDWFDeflator,
+            MDWFDeflatorName);
+    lua_setmetatable(L, -2);
+    
+    /* initialize MDWF side of deflator */
+    d->nev  = eigcg_nev;
+    d->vmax = eigcg_vmax;
+    d->umax = eigcg_umax;
+    CALL_QDP(L);
+    if (QOP_MDWF_create_deflator(&d->deflator, c->state, 
+                eigcg_vmax, eigcg_nev, eigcg_eps, eigcg_umax)) {
+        err_str = "MDWF_create_deflator() failed";
+        goto clearerr_40;
+    }
+
+    /* fill deflator with e.vecs */
+    if (QOP_MDWF_deflator_start_load(d->deflator)) {
+        err_str = "MDWF_deflator_start_load() failed";
+        goto clearerr_40;
+    }
+    /* (have space for eigcg_umax) */
+    int n_evecs = (nconv <= eigcg_umax ? nconv : eigcg_umax);
+    int i;
+    for (i = 0 ; i < n_evecs ; i++) {
+        QOP_F3_MDWF_half_fermion_from_blas(op_arg.x,
+                (float *)(evec + i * loc_dim), 2 * loc_dim);
+        if (QOP_F3_MDWF_deflator_add_vector(c->params, gaugeF, 
+                                            d->deflator, op_arg.x)) {
+            err_str = "MDWF_deflator_add_vector() failed";
+            goto clearerr_40;
+        }
+    }
+
+    if (QOP_MDWF_deflator_stop_load(d->deflator)) {
+        err_str = "MDWF_deflator_end_load() failed";
+        goto clearerr_40;
+    }
+    
+    QOP_MDWF_deflator_stop(d->deflator);
+
+    /* cleanup */
+    QOP_F3_MDWF_free_half_fermion(&op_arg.x);
+    QOP_F3_MDWF_free_half_fermion(&op_arg.y);
+    free(evec);
+    free(eval);
+    
+    return 1; /* deflator object */
+
+clearerr_40:
+    if (NULL != evec)
+        free(evec);
+    if (NULL != eval)
+        free(eval);
+    QOP_F3_MDWF_free_half_fermion(&op_arg.y);
+clearerr_30:
+    QOP_F3_MDWF_free_half_fermion(&op_arg.x);
+clearerr_20:
+    QOP_F3_MDWF_free_gauge(&gaugeF);
+clearerr_10:
+
+    return luaL_error(L, err_str);
+}
+
+#endif /* HAS_ARPACK */
+
 
 /***** clover interface */
 static int
@@ -1399,16 +1844,20 @@ q_mdwf_Chiu(lua_State *L)
     return 1;
 }
 
+
 static struct luaL_Reg mtMDWF[] = {
-    { "__tostring",   q_DW_fmt                },
-    { "__gc",         q_DW_gc                 },
-    { "close",        q_DW_close              },
-    { "D",            q_DW_D                  },
-    { "Dx",           q_DW_Dx                 },
-    { "solver",       q_DW_make_solver        },
-    { "mixed_solver", q_DW_make_mixed_solver  },
-    { "eig_deflator", q_DW_make_deflator      },
-    { NULL,           NULL                    }
+    { "__tostring",                 q_DW_fmt                        },
+    { "__gc",                       q_DW_gc                         },
+    { "close",                      q_DW_close                      },
+    { "D",                          q_DW_D                          },
+    { "Dx",                         q_DW_Dx                         },
+    { "solver",                     q_DW_make_solver                },
+    { "mixed_solver",               q_DW_make_mixed_solver          },
+    { "eig_deflator",               q_DW_make_deflator              },
+#ifdef HAS_ARPACK
+    { "eig_deflator_lanczos",       q_DW_make_deflator_lanczos      },
+#endif /* HAS_ARPACK */
+    { NULL,                         NULL                            }
 };
 
 static mMDWF *
