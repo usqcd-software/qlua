@@ -748,16 +748,21 @@ static int
 q_DF_eigenvalues(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
-    mVecReal *v = qlua_newVecReal(L, d->nev);
-    double *t = qlua_malloc(L, d->nev * sizeof (double));
+    int df_cur_dim = QOP_MDWF_deflator_current_dim(d->deflator);
+    mVecReal *v = qlua_newVecReal(L, df_cur_dim);
+    double *t = qlua_malloc(L, df_cur_dim * sizeof (double));
+
+    CALL_QDP(L);
     int status = QOP_MDWF_deflator_eigen(t, d->deflator);
 
     if (status == 0) {
         int i;
-        for (i = 0; i < d->nev; i++)
+        for (i = 0 ; i < df_cur_dim ; i++)
             v->val[i] = t[i];
     }
-        qlua_free(L, t);
+
+    qlua_free(L, t);
+
     if (status == 0)
         return 1;
     else
@@ -858,7 +863,7 @@ q_DF_add_vector(lua_State *L)
     }
     if (QOP_F3_MDWF_deflator_add_vector(c->params, gaugeF, 
                                         d->deflator, c_psi)) {
-        err_str = "QOP_F3_deflator_add_vector() failed";
+        err_str = QOP_MDWF_error(c->state); /*"QOP_F3_deflator_add_vector() failed";*/
         goto clearerr_4;
     }
     
@@ -904,9 +909,9 @@ q_DF_get_vector(lua_State *L)
     int Sidx = lua_gettop(L);
     
     int num_vec = QOP_MDWF_deflator_current_dim(d->deflator);
-    int idx_vec = qlua_checkint(L, 2, "expect vector index = 0 .. (dim-1)");
+    int idx_vec = qlua_checkint(L, 2, "expect vector index");
     if (idx_vec < 0 || num_vec <= idx_vec)
-        return luaL_error(L, "expect vector index = 0 .. (dim-1)");
+        return luaL_error(L, "expect vector index 0 <= i < dim");
     
     /* resulting table */
     lua_createtable(L, c->Ls, 0);
@@ -929,13 +934,17 @@ q_DF_get_vector(lua_State *L)
     w_env.lat = S->lat;
     w_env.f   = e_psi;
     w_env.s   = 1.;
+    if (QOP_F3_MDWF_allocate_half_fermion(&c_psi, c->state)) {
+        err_str = "QOP_F3_MDWF_allocate_half_fermion() failed";
+        goto clearerr_10;
+    }
     if (QOP_F3_MDWF_deflator_extract_vector(c_psi, d->deflator, idx_vec)) {
-        err_str = "QOP_F3_MDWF_deflator_extract_vector() failed";
-        goto clearerr_1;
+        err_str = QOP_MDWF_error(c->state); /*"QOP_F3_MDWF_deflator_extract_vector() failed";*/
+        goto clearerr_20;
     }
     if (QOP_F3_MDWF_export_half_fermion(q_DW_5_writer_scaled, &w_env, c_psi)) {
         err_str = "QOP_F3_MDWF_export_half_fermion() failed";
-        goto clearerr_1;
+        goto clearerr_20;
     }
 
     for (i = 0 ; i < c->Ls ; i++) {
@@ -950,7 +959,9 @@ q_DF_get_vector(lua_State *L)
     /* normal return */
     return 1;
 
-clearerr_1:
+clearerr_20:
+    QOP_F3_MDWF_free_half_fermion(&c_psi);
+clearerr_10:
     qlua_free(L, psi);
     qlua_free(L, e_psi);
 
