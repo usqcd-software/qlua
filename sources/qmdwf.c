@@ -1125,7 +1125,7 @@ op_MDWF_F3_eoprec_MdagM_op(
      [cheb_accel]={n, a, b}, 
      [eigcg] = {vmax, nev, eps, umax}
      ... } 
-   return: deflator object
+   return: deflator object, n_converged, n_iter
 
    notes:
      * first, Lanczos/Arnoldi is used to compute eigenvectors;
@@ -1188,13 +1188,8 @@ q_DW_make_deflator_lanczos(lua_State *L)
             eigcg_nev = eigcg_vmax / 2;
     } else if (eigcg_vmax < 2 * eigcg_nev)
         return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
-    /* DEBUG print */
-    /*D*/fprintf(stderr, "nev=%d ncv=%d max_iter=%d tol=%e\n", nev, ncv, max_iter, tol);
-    /*D*/fprintf(stderr, "cheb_n=%d range=[%f : %f]\n", cheb_n, cheb_a, cheb_b);
-    /*D*/fprintf(stderr, "eigcg_vmax=%d eigcg_nev=%d eigcg_eps=%e eigcg_umax=%d", 
-    /*D*/        eigcg_vmax, eigcg_nev, eigcg_eps, eigcg_umax);
 
-
+    CALL_QDP(L);
     /* single precision for lanczos */
     if (QOP_MDWF_gauge_float_from_double(&gaugeF, c->gauge)) {
         err_str = "QOP_MDWF_gauge_float_from_double() failed";
@@ -1301,8 +1296,10 @@ q_DW_make_deflator_lanczos(lua_State *L)
     QOP_F3_MDWF_free_half_fermion(&op_arg.y);
     free(evec);
     free(eval);
-    
-    return 1; /* deflator object */
+
+    lua_pushnumber(L, nconv);
+    lua_pushnumber(L, n_iters);
+    return 3; /* deflator object, n_converged, n_iter */
 
 clearerr_40:
     if (NULL != evec)

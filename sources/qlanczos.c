@@ -9,6 +9,7 @@
 #include <string.h>
 #include <assert.h>
 #include <mpi.h>
+#include <stdio.h>
 
 
 /* use aliases to avoid FORTRAN symbol renaming */
@@ -151,6 +152,7 @@ lanczos_internal_float(
                        &nev_, &tol, resid_, &ncv_, w_v_,
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                        &lworkl_, w_rwork_, &info_, 1, 2);
+        /**/fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", __func__, 1 + iter_cnt, info_, ido_);
         if (info_ < 0 || 1 < info_) {
             lanczosC_free_workspace;
             return luaL_error(L, "CNAUPD returned INFO=%d", info_);
@@ -203,7 +205,7 @@ lanczos_internal_float(
     *evec = realloc(w_v_, sizeof(float complex) * ldv_ * nev_);
 
     /* copy real part of eigenvalues */
-    *eval = malloc(sizeof(float) * nev_);
+    *eval = malloc(sizeof(float complex) * nev_);
     for (i = 0 ; i < nev_ ; i++)
         (*eval)[i] = creal(w_d_[i]);
     free(w_d_);
@@ -376,6 +378,7 @@ lanczos_internal_double(
         }
 
         iter_cnt++;
+        
     } while (99 != ido_ && 0 == info_);
     /* for howmny="P", no additional space is required */
     PARPACK_ZNEUPD(&mpi_comm_f, &rvec_, "P", select_, w_d_,
