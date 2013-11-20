@@ -235,24 +235,28 @@ function latvec_op_x5(d, mf)
   return res
 end
 
--- Wilson Dslash XXX check conventions for the Mw sign
+-- Wilson Dslash 
+-- XXX check conventions for the Mw sign; 
+-- XXX agree up to a factor with qcd.Clover(..):D (== 2*kappa*latvec_op_wilson, 2*kappa=1/(4+Mw) )
 function latvec_op_wilson(d, u, Mw)
   return latvec_dscal_sum(
             4. + Mw,  d,
             -1.,      latvec_op_xwilson(d, u))
 end
 
--- DWF Dslash XXX check conventions for the Mw sign
+-- DWF Dslash 
+--- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
 --    d     5d fermion = table{DiracFermion,...}
 --    u       gauge field
 function latvec_op_dslash_dwf(d, u, M5, mf)
   return latvec_scalsum_left(
-            5 + M5,   d,
+            5 - M5,   d,
             -1.,      latvec_op_xwilson(d, u),
             -1.,      latvec_op_x5(d, mf))
 end
 
 -- Moebius Dslash
+--- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
 --    d     5d fermion = table{DiracFermion,...}
 --    u       gauge field
 function latvec_op_dslash_moebius(d, u, M5, mf, b5, c5)
@@ -260,7 +264,7 @@ function latvec_op_dslash_moebius(d, u, M5, mf, b5, c5)
   local xw_bpcx5_d = latvec_op_xwilson(
           latvec_scalsum_left(b5, d, c5, x5_d), u)
   return latvec_scalsum_left(
-            b5 * (4 + M5) + 1.,   d,
-            c5 * (4 + M5) - 1.,   x5_d,
+            b5 * (4 - M5) + 1.,   d,
+            c5 * (4 - M5) - 1.,   x5_d,
             -1.,                  xw_bpcx5_d)
 end

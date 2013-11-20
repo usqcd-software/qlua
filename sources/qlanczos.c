@@ -19,7 +19,7 @@ pcnaupd(int             *COMM,
         int             *IDO, 
         char            *BMAT, 
         int             *N, 
-        char            *WHICH, 
+        const char      *WHICH, 
         int             *NEV, 
         float           *TOL, 
         float complex   *RESID, 
@@ -47,7 +47,7 @@ pcneupd(int             *COMM,
         float complex   *WORKEV, 
         char            *BMAT, 
         int             *N, 
-        char            *WHICH, 
+        const char      *WHICH, 
         int             *NEV, 
         float           *TOL, 
         float complex   *RESID, 
@@ -77,6 +77,7 @@ lanczos_internal_float(
                    float complex *y,
                    void *op_arg),   /* x<-Op(y) */
         void *op_arg,
+        const char *lanczos_which,  /* ARPACK which="{S,L}{R,I,M}" */
         int loc_dim, 
         int nev,
         int ncv,
@@ -138,7 +139,15 @@ lanczos_internal_float(
            NULL == w_workev_ ||
            NULL == select_) 
         return luaL_error(L, "cannot allocate workspace for CN*UPD");
-        
+
+    if (NULL == lanczos_which ||
+            (  strcmp("SR", lanczos_which)
+            && strcmp("LR", lanczos_which)
+            && strcmp("SI", lanczos_which)
+            && strcmp("LI", lanczos_which)
+            && strcmp("SM", lanczos_which)
+            && strcmp("LM", lanczos_which)))
+        return luaL_error(L, "invalid value for WHICH");
     /* cnaupd cycle */
     ido_        = 0;
     info_       = 0;
@@ -148,11 +157,10 @@ lanczos_internal_float(
     iparam_[6]  = 1;
     int iter_cnt= 0;
     do {
-        PARPACK_CNAUPD(&mpi_comm_f, &ido_, "I", &n_, "SR",
+        PARPACK_CNAUPD(&mpi_comm_f, &ido_, "I", &n_, lanczos_which,
                        &nev_, &tol, resid_, &ncv_, w_v_,
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                        &lworkl_, w_rwork_, &info_, 1, 2);
-        /**/fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", __func__, 1 + iter_cnt, info_, ido_);
         if (info_ < 0 || 1 < info_) {
             lanczosC_free_workspace;
             return luaL_error(L, "CNAUPD returned INFO=%d", info_);
@@ -164,6 +172,7 @@ lanczos_internal_float(
                op_arg);
         else {
             lanczosC_free_workspace;
+            /**/fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", __func__, 1 + iter_cnt, info_, ido_);
             return luaL_error(L, "CNAUPD returned IDO=%d", ido_);
         }
 
@@ -182,7 +191,7 @@ lanczos_internal_float(
 
     /* for howmny="P", no additional space is required */
     PARPACK_CNEUPD(&mpi_comm_f, &rvec_, "P", select_, w_d_,
-                   w_v_, &ldv_, &sigma_, w_workev_, "I", &n_, "SR",
+                   w_v_, &ldv_, &sigma_, w_workev_, "I", &n_, lanczos_which,
                    &nev_, &tol_, resid_, &ncv_, w_v_,
                    &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                    &lworkl_, w_rwork_, &info_, 1, 1, 2);
@@ -357,7 +366,7 @@ lanczos_internal_double(
     iparam_[6]  = 1;
     int iter_cnt= 0;
     do {
-        PARPACK_ZNAUPD(&mpi_comm_f, &ido_, "I", &n_, "SR",
+        PARPACK_ZNAUPD(&mpi_comm_f, &ido_, "I", &n_, lanczos_which,
                        &nev_, &tol, resid_, &ncv_, w_v_,
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                        &lworkl_, w_rwork_, &info_, 1, 2);
@@ -382,7 +391,7 @@ lanczos_internal_double(
     } while (99 != ido_ && 0 == info_);
     /* for howmny="P", no additional space is required */
     PARPACK_ZNEUPD(&mpi_comm_f, &rvec_, "P", select_, w_d_,
-                   w_v_, &ldv_, &sigma_, w_workev_, "I", &n_, "SR",
+                   w_v_, &ldv_, &sigma_, w_workev_, "I", &n_, lanczos_which,
                    &nev_, &tol_, resid_, &ncv_, w_v_,
                    &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                    &lworkl_, w_rwork_, &info_, 1, 1, 2);

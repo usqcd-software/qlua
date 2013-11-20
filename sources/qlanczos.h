@@ -12,6 +12,7 @@ lanczos_internal_float(
                    float complex *y,
                    void *op_arg),   /* x<-Op(y) */
         void *op_arg,
+        const char *lanczos_which,  /* ARPACK which="{S,L}{R,I,M}" */
         int loc_dim,
         int nev,
         int ncv,
