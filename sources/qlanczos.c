@@ -172,12 +172,19 @@ lanczos_internal_float(
                op_arg);
         else {
             lanczosC_free_workspace;
-            /**/fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", __func__, 1 + iter_cnt, info_, ido_);
+            if (QDP_this_node == qlua_master_node) {
+                fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", 
+                        __func__, iter_cnt, info_, ido_);
+            }
             return luaL_error(L, "CNAUPD returned IDO=%d", ido_);
         }
 
         iter_cnt++;
     } while (99 != ido_ && iter_cnt < max_iter);
+    if (QDP_this_node == qlua_master_node) {
+        printf("%s: iter=%04d  info=%d  ido=%d\n", 
+                __func__, iter_cnt, info_, ido_);
+    }
 
     if (0 == info_) {
         assert(iparam_[4] == nev);

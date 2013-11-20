@@ -1247,7 +1247,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
                 QOP_MDWF_poly_normalize(cheb_n, 
                         a->poly_a, a->poly_b, a->poly_c, 
                         cheb_x0, 1e-8);
-            /**/if (do_norm) { 
+            /**/if (0/*do_norm*/) { /* keep it for debug so far */
             /**/    int i; 
             /**/    double p0 = a->poly_c[0], 
             /**/           p1 = a->poly_a[0] + a->poly_b[0]*cheb_x0, 
