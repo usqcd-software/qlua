@@ -65,6 +65,14 @@ pcneupd(int             *COMM,
         short           bmat_len, 
         short           which_len);
 
+/* Fortran `COMMON /DEBUG/' */
+extern struct {
+    long int logfil, ndigit, mgetv0,
+             msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,
+             mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,
+             mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd;
+} debug;
+
 #define PARPACK_CNAUPD  pcnaupd
 #define PARPACK_CNEUPD  pcneupd
 
@@ -148,6 +156,20 @@ lanczos_internal_float(
             && strcmp("SM", lanczos_which)
             && strcmp("LM", lanczos_which)))
         return luaL_error(L, "invalid value for WHICH");
+
+    /* print ALL from ARPACK */
+    if (1) {
+        /* correctness of this code depends on alignment in Fortran and C 
+           being the same ; if you observe crashes, disable this part */
+        debug.mcaup2    = 3;
+        debug.mcaupd    = 3;
+//        debug.mceupd    = 3;
+        if (QDP_this_node == qlua_master_node) 
+            printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3;\n"
+                   "*** if you don't see excessive output, your memory is likely corrupted;\n"
+                   "*** have a nice day\n");
+    }
+
     /* cnaupd cycle */
     ido_        = 0;
     info_       = 0;
@@ -165,11 +187,14 @@ lanczos_internal_float(
             lanczosC_free_workspace;
             return luaL_error(L, "CNAUPD returned INFO=%d", info_);
         }
+        iter_cnt++;
+
         if (99 == ido_ || 1 == info_)
             break;
+
         if (-1 == ido_ || 1 == ido_)
-            op(n_, w_workd_ + ipntr_[1] - 1, w_workd_ + ipntr_[0] - 1,
-               op_arg);
+            op(n_, w_workd_ + ipntr_[1] - 1, w_workd_ + ipntr_[0] - 1, op_arg);
+
         else {
             lanczosC_free_workspace;
             if (QDP_this_node == qlua_master_node) {
@@ -179,7 +204,6 @@ lanczos_internal_float(
             return luaL_error(L, "CNAUPD returned IDO=%d", ido_);
         }
 
-        iter_cnt++;
     } while (99 != ido_ && iter_cnt < max_iter);
     if (QDP_this_node == qlua_master_node) {
         printf("%s: iter=%04d  info=%d  ido=%d\n", 
