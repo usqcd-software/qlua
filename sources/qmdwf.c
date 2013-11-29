@@ -1114,23 +1114,41 @@ op_MDWF_F3_eoprec_MdagM_op(
         float complex *y, 
         void *op_arg) /* x<-op(y) */
 {
+    long long fl1, fl2;
+    double t1, t2;
+
     op_MDWF_F3_eoprec_MdagM_arg_s *a = (op_MDWF_F3_eoprec_MdagM_arg_s *)op_arg;
     assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
 
     QOP_F3_MDWF_half_fermion_from_blas(a->y, (float *)y, 2 * loc_dim);
     if (0 < a->poly_n) {
-        /* TODO polynomial acc */
         QOP_F3_MDWF_MxM_poly(
                 a->x, NULL, a->mdwf_params, a->mdwf_gauge, a->y, 
                 a->poly_n, a->poly_a, a->poly_b, a->poly_c);
+        QOP_MDWF_performance(&t1, &fl1, NULL, NULL, a->mdwf_state);
+        
         QOP_F3_MDWF_blas_from_half_fermion((float *)x, 2 * loc_dim, a->x);
     } else {
         QOP_F3_MDWF_M_operator(
                 a->x, a->mdwf_params, a->mdwf_gauge, a->y);
+        QOP_MDWF_performance(&t1, &fl1, NULL, NULL, a->mdwf_state);
+        
         QOP_F3_MDWF_M_operator_conjugated(
                 a->y, a->mdwf_params, a->mdwf_gauge, a->x);
+        QOP_MDWF_performance(&t2, &fl2, NULL, NULL, a->mdwf_state);
+        t1  += t2;
+        fl1 += fl2;
+        
         QOP_F3_MDWF_blas_from_half_fermion((float *)x, 2 * loc_dim, a->y);
     }
+    
+    if (t1 == 0)
+        t1 = -1;
+    if (QDP_this_node == qlua_master_node)
+        printf("MDWF MdagM(poly_n=%d): time = %.3f sec,"
+               " perf = %.2f MFlops/sec\n",
+               (0 < a->poly_n ? a->poly_n : 1),
+               t1, fl1 * 1e-6 / t1);
 }
 
 /* MDWF:eig_deflator_lanczos(nev, ncv, max_iter, tol, [param])

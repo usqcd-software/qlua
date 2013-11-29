@@ -163,9 +163,9 @@ lanczos_internal_float(
            being the same ; if you observe crashes, disable this part */
         debug.mcaup2    = 3;
         debug.mcaupd    = 3;
-//        debug.mceupd    = 3;
+        debug.mceupd    = 3;
         if (QDP_this_node == qlua_master_node) 
-            printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3;\n"
+            printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3 mceupd=3; \n"
                    "*** if you don't see excessive output, your memory is likely corrupted;\n"
                    "*** have a nice day\n");
     }
