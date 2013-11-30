@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <mpi.h>
 #include <stdio.h>
+#include <sys/time.h>
 
 
 /* use aliases to avoid FORTRAN symbol renaming */
@@ -192,7 +193,12 @@ lanczos_internal_float(
     iparam_[3]  = 1;
     iparam_[6]  = 1;
     int iter_cnt= 0;
+#define DECL_TIMING(cur_t) struct { struct timeval t0, t1; } cur_t
+#define START_TIMING(cur_t) do {gettimeofday(&((cur_t).t0), NULL);} while(0)
+#define CHECK_TIMING(cur_t) (gettimeofday(&((cur_t).t1), NULL), (cur_t).t1.tv_sec - (cur_t).t0.tv_sec + 1e-6*((cur_t).t1.tv_usec - (cur_t).t0.tv_usec)) 
     do {
+        DECL_TIMING(cur_t);
+        START_TIMING(cur_t);
         PARPACK_CNAUPD(&mpi_comm_f, &ido_, "I", &n_, lanczos_which,
                        &nev_, &tol, resid_, &ncv_, w_v_,
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
@@ -202,12 +208,23 @@ lanczos_internal_float(
             return luaL_error(L, "CNAUPD returned INFO=%d", info_);
         }
         iter_cnt++;
+        
+        if (QDP_this_node == qlua_master_node) {
+            printf("PARPACK_CNAUPD: iter=%d time=%.3f sec\n",
+                    iter_cnt, CHECK_TIMING(cur_t));
+        }
 
         if (99 == ido_ || 1 == info_)
             break;
 
-        if (-1 == ido_ || 1 == ido_)
+        if (-1 == ido_ || 1 == ido_) {
+            START_TIMING(cur_t);
             op(n_, w_workd_ + ipntr_[1] - 1, w_workd_ + ipntr_[0] - 1, op_arg);
+            if (QDP_this_node == qlua_master_node) {
+                printf("OP: iter=%d time=%.3f sec\n",
+                        iter_cnt, CHECK_TIMING(cur_t));
+            }
+        }
 
         else {
             lanczosC_free_workspace;
