@@ -65,6 +65,14 @@ pcneupd(int             *COMM,
         short           bmat_len, 
         short           which_len);
 
+extern int
+initlog(int *lf, const char *fname, int lfname);
+
+extern int
+finilog(int *lf);
+
+
+
 /* Fortran `COMMON /DEBUG/' */
 extern struct {
     long int logfil, ndigit, mgetv0,
@@ -91,6 +99,7 @@ lanczos_internal_float(
         int ncv,
         int max_iter,
         float tol,
+        const char *arpack_logfile,/* file for ARPACK log output, if not NULL */
         float complex **evec,   /* return buffer for evectors, [nev, n] */
         float complex **eval,   /* return buffer for evalues,  [nev] */
         int *n_iters,           /* return the iteration count */
@@ -126,6 +135,7 @@ lanczos_internal_float(
     float complex *w_workev_ = malloc(sizeof(float complex) * 2 * ncv_);
     int *select_ = malloc(sizeof(int) * ncv_);
     float tol_ = tol;
+    int arpack_log_u = 1380; /* must be unique, otherwise arbitrary */
 
 #define lanczosC_free_workspace do {\
     free(resid_);\
@@ -158,16 +168,20 @@ lanczos_internal_float(
         return luaL_error(L, "invalid value for WHICH");
 
     /* print ALL from ARPACK */
-    if (1) {
+    if (NULL != arpack_logfile 
+            && QDP_this_node == qlua_master_node) {
         /* correctness of this code depends on alignment in Fortran and C 
            being the same ; if you observe crashes, disable this part */
+        initlog(&arpack_log_u, arpack_logfile, strlen(arpack_logfile));
         debug.mcaup2    = 3;
         debug.mcaupd    = 3;
         debug.mceupd    = 3;
-        if (QDP_this_node == qlua_master_node) 
-            printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3 mceupd=3; \n"
-                   "*** if you don't see excessive output, your memory is likely corrupted;\n"
-                   "*** have a nice day\n");
+        debug.logfil    = arpack_log_u;
+
+        printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3 mceupd=3; \n"
+               "*** output directed to '%s'\n"
+               "*** if you don't see excessive output, your memory may be corrupted;\n",
+               arpack_logfile);
     }
 
     /* cnaupd cycle */
@@ -226,6 +240,9 @@ lanczos_internal_float(
                    &nev_, &tol_, resid_, &ncv_, w_v_,
                    &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                    &lworkl_, w_rwork_, &info_, 1, 1, 2);
+    
+    if (NULL != arpack_logfile)
+        finilog(&arpack_log_u);
 
     if (0 != info_) {
         lanczosC_free_workspace;

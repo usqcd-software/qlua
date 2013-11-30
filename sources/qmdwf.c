@@ -1176,6 +1176,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
     const char *err_str;
     /* by default, search for ev with smallest real part */ 
     const char *lanczos_which= "SR";    
+    const char *arpack_logfile = NULL;
     struct QOP_F3_MDWF_Gauge *gaugeF = NULL;
     static char err_str_buf[1024];
     /* operator parameters, init to empty */
@@ -1306,6 +1307,11 @@ q_DW_make_deflator_lanczos(lua_State *L)
             eigcg_umax  = qlua_tabidx_int(L, -1, 4);
             lua_pop(L, 1);
         }
+
+        if (qlua_tabpushopt_key(L, 6, "arpack_logfile")) {
+            arpack_logfile = luaL_checkstring(L, -1);
+            lua_pop(L, 1);
+        }
     }
 
     if (eigcg_vmax <= 0)
@@ -1344,7 +1350,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
     if (0 != (status = lanczos_internal_float(
             L, mpi_comm, op_MDWF_F3_eoprec_MdagM_op, &op_arg, 
             lanczos_which, loc_dim, nev, ncv, max_iter, 
-            tol, &evec, &eval, &n_iters,
+            tol, arpack_logfile, &evec, &eval, &n_iters,
             &nconv))) {
         snprintf(err_str_buf, sizeof(err_str_buf),
                  "lanczos_internal_float returned %d", status);

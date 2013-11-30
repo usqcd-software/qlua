@@ -18,6 +18,7 @@ lanczos_internal_float(
         int ncv,
         int max_iter,
         float tol,
+        const char *arpack_logf,/* file for ARPACK log output, if not NULL */
         float complex **evec,   /* return buffer for evectors, [nev, n] */
         float complex **eval,   /* return buffer for evalues,  [nev] */
         int *n_iters,           /* return the iteration count */
