@@ -72,15 +72,24 @@ initlog(int *lf, const char *fname, int lfname);
 extern int
 finilog(int *lf);
 
-
+extern int 
+pmcinitdebug(int *logfil,
+             int *mcaupd,
+             int *mcaup2,
+             int *mcaitr,
+             int *mceigh, 
+             int *mcapps, 
+             int *mcgets, 
+             int *mceupd);
 
 /* Fortran `COMMON /DEBUG/' */
-extern struct {
-    long int logfil, ndigit, mgetv0,
-             msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,
-             mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,
-             mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd;
-} debug;
+// XXX use *initdebug functions instead
+//extern struct {
+//    long int logfil, ndigit, mgetv0,
+//             msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,
+//             mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,
+//             mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd;
+//} debug;
 
 #define PARPACK_CNAUPD  pcnaupd
 #define PARPACK_CNEUPD  pcneupd
@@ -174,14 +183,21 @@ lanczos_internal_float(
         /* correctness of this code depends on alignment in Fortran and C 
            being the same ; if you observe crashes, disable this part */
         initlog(&arpack_log_u, arpack_logfile, strlen(arpack_logfile));
-        debug.mcaup2    = 3;
-        debug.mcaupd    = 3;
-        debug.mceupd    = 3;
-        debug.logfil    = arpack_log_u;
+        int msglvl0 = 0,
+            msglvl3 = 3;
+        pmcinitdebug(
+                &arpack_log_u,      /*logfil*/
+                &msglvl3,           /*mcaupd*/
+                &msglvl3,           /*mcaup2*/
+                &msglvl0,           /*mcaitr*/
+                &msglvl0,           /*mceigh*/
+                &msglvl0,           /*mcapps*/
+                &msglvl0,           /*mcgets*/
+                &msglvl3            /*mceupd*/);
 
         printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3 mceupd=3; \n"
-               "*** output directed to '%s'\n"
-               "*** if you don't see excessive output, your memory may be corrupted;\n",
+               "*** output directed to '%s';\n"
+               "*** if you don't see output, your memory may be corrupted\n",
                arpack_logfile);
     }
 
