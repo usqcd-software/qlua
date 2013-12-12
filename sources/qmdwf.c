@@ -61,7 +61,7 @@ typedef struct {
     int nev;
     int umax;
     int vmax;
-    struct QOP_MDWF_Deflator *deflator;
+    struct QOP_F3_MDWF_Deflator *deflator;
 } mDeflatorState;
 
 
@@ -619,7 +619,7 @@ q_DFS_gc(lua_State *L)
     mDeflatorState *d = q_checkDeflatorState(L, 1, NULL, 0);
 
     if (d->deflator)
-        QOP_MDWF_free_deflator(&d->deflator);
+        QOP_F3_MDWF_free_deflator(&d->deflator);
     d->deflator = 0;
 
     return 0;
@@ -710,7 +710,7 @@ q_DF_close(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_MDWF_free_deflator(&d->deflator);
+    QOP_F3_MDWF_free_deflator(&d->deflator);
 
     return 0;
 }
@@ -720,7 +720,7 @@ q_DF_reset(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_MDWF_deflator_reset(d->deflator);
+    QOP_F3_MDWF_deflator_eigcg_reset(d->deflator);
 
     return 0;
 }
@@ -730,7 +730,7 @@ q_DF_stop(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_MDWF_deflator_stop(d->deflator);
+    QOP_F3_MDWF_deflator_eigcg_stop(d->deflator);
 
     return 0;
 }
@@ -740,7 +740,7 @@ q_DF_resume(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_MDWF_deflator_resume(d->deflator);
+    QOP_F3_MDWF_deflator_eigcg_resume(d->deflator);
 
     return 0;
 }
@@ -749,12 +749,12 @@ static int
 q_DF_eigenvalues(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
-    int df_cur_dim = QOP_MDWF_deflator_current_dim(d->deflator);
+    int df_cur_dim = QOP_F3_MDWF_deflator_current_dim(d->deflator);
     mVecReal *v = qlua_newVecReal(L, df_cur_dim);
     double *t = qlua_malloc(L, df_cur_dim * sizeof (double));
 
     CALL_QDP(L);
-    int status = QOP_MDWF_deflator_eigen(t, d->deflator);
+    int status = QOP_F3_MDWF_deflator_eigen(df_cur_dim, t, d->deflator);
 
     if (status == 0) {
         int i;
@@ -775,7 +775,7 @@ static int
 q_DF_current_dim(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
-    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    lua_pushnumber(L, QOP_F3_MDWF_deflator_current_dim(d->deflator));
     return 1;
 }
 /* return: current number of vectors in deflator space */
@@ -783,9 +783,9 @@ static int
 q_DF_start_load(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
-    if (QOP_MDWF_deflator_start_load(d->deflator))
-        return luaL_error(L, "QOP_MDWF_deflator_start_load() failed");
-    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    if (QOP_F3_MDWF_deflator_start_load(d->deflator))
+        return luaL_error(L, "MDWF_deflator_start_load() failed");
+    lua_pushnumber(L, QOP_F3_MDWF_deflator_current_dim(d->deflator));
     return 1;
 }
 /* return: current number of vectors in deflator space */
@@ -793,9 +793,9 @@ static int
 q_DF_stop_load(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
-    if (QOP_MDWF_deflator_stop_load(d->deflator))
-        return luaL_error(L, "QOP_MDWF_deflator_start_load() failed");
-    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    if (QOP_F3_MDWF_deflator_stop_load(d->deflator))
+        return luaL_error(L, "MDWF_deflator_start_load() failed");
+    lua_pushnumber(L, QOP_F3_MDWF_deflator_current_dim(d->deflator));
     return 1;
 }
 
@@ -821,7 +821,7 @@ q_DF_add_vector(lua_State *L)
         return luaL_error(L, "expect Ls=%d DiracFermions", 
                           c->Ls);
 
-    int n_vec = QOP_MDWF_deflator_current_dim(d->deflator);
+    int n_vec = QOP_F3_MDWF_deflator_current_dim(d->deflator);
     if (d->umax <= n_vec)
         return luaL_error(L, "vector space is full");
 
@@ -855,16 +855,16 @@ q_DF_add_vector(lua_State *L)
     r_env.s     = 1. / norm5;
     if (QOP_F3_MDWF_import_half_fermion(&c_psi, c->state, 
                                    q_DW_5_reader_scaled, &r_env)) {
-        err_str = "QOP_F3_MDWF_import_fermion() failed";
+        err_str = "MDWF_import_fermion() failed";
         goto clearerr_2;
     }
     if (QOP_MDWF_gauge_float_from_double(&gaugeF, c->gauge)) {
-        err_str = "QOP_MDWF_gauge_float_from_double() failed";
+        err_str = "MDWF_gauge_float_from_double() failed";
         goto clearerr_3;
     }
     if (QOP_F3_MDWF_deflator_add_vector(c->params, gaugeF, 
                                         d->deflator, c_psi)) {
-        err_str = QOP_MDWF_error(c->state); /*"QOP_F3_deflator_add_vector() failed";*/
+        err_str = QOP_MDWF_error(c->state); 
         goto clearerr_4;
     }
     
@@ -879,7 +879,7 @@ q_DF_add_vector(lua_State *L)
     qlua_free(L, e_psi);
 
     /* normal return */    
-    lua_pushnumber(L, QOP_MDWF_deflator_current_dim(d->deflator));
+    lua_pushnumber(L, QOP_F3_MDWF_deflator_current_dim(d->deflator));
     return 1;
         
 clearerr_4:
@@ -909,7 +909,7 @@ q_DF_get_vector(lua_State *L)
     mLattice *S = qlua_ObjLattice(L, -1);
     int Sidx = lua_gettop(L);
     
-    int num_vec = QOP_MDWF_deflator_current_dim(d->deflator);
+    int num_vec = QOP_F3_MDWF_deflator_current_dim(d->deflator);
     int idx_vec = qlua_checkint(L, 2, "expect vector index");
     if (idx_vec < 0 || num_vec <= idx_vec)
         return luaL_error(L, "expect vector index 0 <= i < dim");
@@ -936,15 +936,15 @@ q_DF_get_vector(lua_State *L)
     w_env.f   = e_psi;
     w_env.s   = 1.;
     if (QOP_F3_MDWF_allocate_half_fermion(&c_psi, c->state)) {
-        err_str = "QOP_F3_MDWF_allocate_half_fermion() failed";
+        err_str = "MDWF_allocate_half_fermion() failed";
         goto clearerr_10;
     }
     if (QOP_F3_MDWF_deflator_extract_vector(c_psi, d->deflator, idx_vec)) {
-        err_str = QOP_MDWF_error(c->state); /*"QOP_F3_MDWF_deflator_extract_vector() failed";*/
+        err_str = QOP_MDWF_error(c->state); 
         goto clearerr_20;
     }
     if (QOP_F3_MDWF_export_half_fermion(q_DW_5_writer_scaled, &w_env, c_psi)) {
-        err_str = "QOP_F3_MDWF_export_half_fermion() failed";
+        err_str = "MDWF_export_half_fermion() failed";
         goto clearerr_20;
     }
 
@@ -1071,8 +1071,8 @@ q_DW_make_deflator(lua_State *L)
     d->umax = umax;
 
     CALL_QDP(L);
-    if (QOP_MDWF_create_deflator(&d->deflator, c->state,
-                                   vmax, nev, eps, umax))
+    if (QOP_F3_MDWF_create_deflator(&d->deflator, c->state,
+                                    vmax, nev, eps, umax))
         return luaL_error(L, "MDWF_create_deflator() failed");
 
     lua_rawseti(L, -2, 2);
@@ -1228,7 +1228,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
                 err_str = "more than one poly.accel. parameter";
 
             cheb_n  = qlua_tabidx_int(L, -1, 1);
-            if (cheb_a < 0) 
+            if (cheb_n < 0) 
                 clearerr_exit("poly.degree must be positive");
 
             cheb_a  = qlua_tabidx_double(L, -1, 2);
@@ -1328,7 +1328,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
     /* single precision gauge for lanczos */
     gaugeF = NULL;
     if (QOP_MDWF_gauge_float_from_double(&gaugeF, c->gauge)) 
-        clearerr_exit("QOP_MDWF_gauge_float_from_double() failed");
+        clearerr_exit("MDWF_gauge_float_from_double() failed");
     op_arg.mdwf_gauge   = gaugeF;
 
     op_arg.mdwf_state   = c->state;
@@ -1383,12 +1383,12 @@ q_DW_make_deflator_lanczos(lua_State *L)
 
     CALL_QDP(L);
     
-    if (QOP_MDWF_create_deflator(&d->deflator, c->state, 
+    if (QOP_F3_MDWF_create_deflator(&d->deflator, c->state, 
                 eigcg_vmax, eigcg_nev, eigcg_eps, eigcg_umax)) 
         clearerr_exit("MDWF_create_deflator() failed");
 
     /* fill deflator with e.vecs */
-    if (QOP_MDWF_deflator_start_load(d->deflator)) 
+    if (QOP_F3_MDWF_deflator_start_load(d->deflator)) 
         clearerr_exit("MDWF_deflator_start_load() failed");
     /* (have space for eigcg_umax) */
     n_evecs = (nconv <= eigcg_umax ? nconv : eigcg_umax);
@@ -1400,10 +1400,10 @@ q_DW_make_deflator_lanczos(lua_State *L)
             clearerr_exit("MDWF_deflator_add_vector() failed");
     }
 
-    if (QOP_MDWF_deflator_stop_load(d->deflator)) 
+    if (QOP_F3_MDWF_deflator_stop_load(d->deflator)) 
         clearerr_exit("MDWF_deflator_end_load() failed");
     
-    QOP_MDWF_deflator_stop(d->deflator);
+    QOP_F3_MDWF_deflator_eigcg_stop(d->deflator);
 
     /* cleanup */
     if (NULL != evec) free(evec);
