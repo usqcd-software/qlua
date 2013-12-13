@@ -94,6 +94,128 @@ pmcinitdebug(int *logfil,
 #define PARPACK_CNAUPD  pcnaupd
 #define PARPACK_CNEUPD  pcneupd
 
+
+
+/* driver to lanczos_internal_float:
+   return allocated memory with e.vectors and e.values in `eval' ,`evec' */
+int 
+lanczos_float(
+        lua_State *L,
+        MPI_Comm mpi_comm,
+        void (*op)(int loc_dim, 
+                   float complex *x,
+                   float complex *y,
+                   void *op_arg),   /* x<-Op(y) */
+        void *op_arg,
+        const char *lanczos_which,  /* ARPACK which="{S,L}{R,I,M}" */
+        int loc_dim, 
+        int nev,
+        int ncv,
+        int max_iter,
+        float tol,
+        float complex **eval,   /* return buffer for evalues,  [nev] */
+        float complex **evec,   /* return buffer for evectors, [ld_evec, ncol_evec] */
+        int *n_iters,           /* return the iteration count */
+        int *nconv,             /* number of converged evals/evecs */
+        const char *arpack_logfile/* file for ARPACK log output, if not NULL */
+        )
+{
+    if (NULL == L 
+            || NULL == op
+            || NULL == eval
+            || NULL == evec)
+        return luaL_error(L, "NULL pointer(s)");
+
+    float complex *w_v_ = NULL,
+                  *w_d_ = NULL;
+    w_d_    = malloc(sizeof(float complex) * (nev + 1));
+    w_v_    = malloc(sizeof(float complex) * loc_dim * ncv);
+
+    int status = 0;
+    if (0 != (status = lanczos_internal_float(
+                    L, mpi_comm, op, op_arg, lanczos_which, 
+                    loc_dim, nev, ncv, max_iter, tol, 
+                    w_d_, w_v_, loc_dim,
+                    n_iters, nconv, arpack_logfile))) {
+        free(w_d_);
+        free(w_v_);
+        return status;
+    }
+
+    /* free extra memory in the eigenspace buffer */
+    w_d_ = realloc(w_d_, sizeof(float complex) * nev);
+    if (NULL != eval)
+        *eval = w_d_;
+    else 
+        free(w_d_);
+
+    w_v_ = realloc(w_v_, sizeof(float complex) * loc_dim * nev);
+    if (NULL != evec)
+        *evec = w_v_;
+    else 
+        free(w_v_);
+
+    return 0;
+}
+
+/* driver to `lanczos_internal_float':
+   simply pass buffers `eval', `evec' - for inplace deflator creation */
+int lanczos_inplace_float(
+        lua_State *L,
+        MPI_Comm mpi_comm,
+        void (*op)(int loc_dim, 
+                   float complex *x,
+                   float complex *y,
+                   void *op_arg),   /* x<-Op(y) */
+        void *op_arg,
+        const char *lanczos_which,  /* ARPACK which="{S,L}{R,I,M}" */
+        int loc_dim, 
+        int nev,
+        int ncv,
+        int max_iter,
+        float tol,
+        float complex *eval,    /* (allocated) return buffer for evalues,  [nev] */
+        float complex *evec,    /* (allocated) return buffer for evectors, [ld_evec, ncol_evec] */
+        int ld_evec,            /* BLAS leading dimension, >=loc_dim */
+        int ncol_evec,          /* number of columns in evec, >=ncv */
+        int *n_iters,           /* return the iteration count */
+        int *nconv,             /* number of converged evals/evecs */
+        const char *arpack_logfile/* file for ARPACK log output, if not NULL */
+        )
+{
+    if (NULL == L 
+            || NULL == op
+            || NULL == eval
+            || NULL == evec)
+        return luaL_error(L, "NULL pointer(s)");
+    if (ld_evec < loc_dim)
+        return luaL_error(L, "insufficient workspace vector size");
+    if (ncol_evec < ncv)
+        return luaL_error(L, "insufficient number of workspace vectors");
+    
+    complex float *w_d_ = malloc(sizeof(float complex) * (nev + 1));
+    if (NULL == w_d_)
+        return luaL_error(L, "not enough memory");
+
+    int status = 0;
+    if (0 != (status = lanczos_internal_float(
+                    L, mpi_comm, op, op_arg, lanczos_which,
+                    loc_dim, nev, ncv, max_iter, tol,
+                    w_d_, evec, ld_evec, 
+                    n_iters, nconv, arpack_logfile))) {
+        free(w_d_);
+        return status;
+    }
+    
+    if (NULL != eval)
+        memcpy(eval, w_d_, sizeof(w_d_[0]) * nev);
+    free(w_d_);
+
+    return 0;
+}
+
+
+
 int 
 lanczos_internal_float(
         lua_State *L,
@@ -109,15 +231,31 @@ lanczos_internal_float(
         int ncv,
         int max_iter,
         float tol,
-        const char *arpack_logfile,/* file for ARPACK log output, if not NULL */
-        float complex **evec,   /* return buffer for evectors, [nev, n] */
-        float complex **eval,   /* return buffer for evalues,  [nev] */
+        float complex *eval,    /* return buffer for evalues,  [nev + 1] */
+        float complex *evec,    /* workspace for evectors (BLAS-matrix), [ld_evec, >=ncv] */
+        int ld_evec,            /* BLAS leading dimension */
         int *n_iters,           /* return the iteration count */
-        int *nconv              /* number of converged evals/evecs */
+        int *nconv,             /* number of converged evals/evecs */
+        const char *arpack_logfile/* file for ARPACK log output, if not NULL */
         )
 {
+    const char *err_str;
+    static char err_buf[256];
+
     MPI_Fint mpi_comm_f = MPI_Comm_c2f(mpi_comm);
     CALL_QDP(L);
+
+    if (NULL == L || NULL == op)
+        return luaL_error(L, "NULL pointer(s)");
+    
+    if (NULL == lanczos_which ||
+            (  strcmp("SR", lanczos_which)
+            && strcmp("LR", lanczos_which)
+            && strcmp("SI", lanczos_which)
+            && strcmp("LI", lanczos_which)
+            && strcmp("SM", lanczos_which)
+            && strcmp("LM", lanczos_which)))
+        return luaL_error(L, "invalid value for WHICH");
 
     int i;
 
@@ -129,53 +267,47 @@ lanczos_internal_float(
     int n_      = loc_dim,
         nev_    = nev,
         ncv_    = ncv,
-        ldv_    = loc_dim;
-    float complex *resid_      = malloc(sizeof(float complex) * n_);
-    memset(resid_, 0, sizeof(float complex) * n_);
-    float complex *w_v_        = malloc(sizeof(float complex) * ldv_ * ncv_);
-    float complex *w_workd_    = malloc(sizeof(float complex) * n_ * 3);
-    memset(w_workd_, 0, sizeof(float complex) * n_ * 3);
-    int lworkl_ = (3 * ncv_ * ncv_ + 5 * ncv_) * 2;
-    float complex *w_workl_    = malloc(sizeof(float complex) * lworkl_);
-    float *w_rwork_            = malloc(sizeof(float) *ncv_);
-    /* __neupd-only workspace */
-    float complex *w_d_ = malloc(sizeof(float complex) * (nev_ + 1));
-    int rvec_ = 1;
+        ldv_    = ld_evec,
+        lworkl_ = (3 * ncv_ * ncv_ + 5 * ncv_) * 2,
+        rvec_   = 1;
     float complex sigma_ = 0;
-    float complex *w_workev_ = malloc(sizeof(float complex) * 2 * ncv_);
-    int *select_ = malloc(sizeof(int) * ncv_);
     float tol_ = tol;
     int arpack_log_u = 1380; /* must be unique, otherwise arbitrary */
 
-#define lanczosC_free_workspace do {\
-    free(resid_);\
-    free(w_v_);\
-    free(w_workd_);\
-    free(w_workl_);\
-    free(w_rwork_);\
-    free(w_d_);\
-    free(w_workev_);\
-    free(select_);\
-} while(0)
+    float complex *w_d_         = eval;
+    float complex *w_v_         = evec;
+    if (NULL == w_d_ || NULL == w_v_)
+        return luaL_error(L, "NULL workspace");
+
+    int *select_ = NULL;
+    float *w_rwork_ = NULL;
+    float complex *resid_ = NULL,
+                  *w_workd_ = NULL,
+                  *w_workev_ = NULL,
+                  *w_workl_ = NULL;
+
+    resid_      = malloc(sizeof(float complex) * n_);
+    w_workd_    = malloc(sizeof(float complex) * n_ * 3);
+    w_workl_    = malloc(sizeof(float complex) * lworkl_);
+    w_rwork_    = malloc(sizeof(float) *ncv_);
+    
+    /* __neupd-only workspace */
+    w_workev_   = malloc(sizeof(float complex) * 2 * ncv_);
+    select_     = malloc(sizeof(int) * ncv_);
 
     if(NULL == resid_ ||
-           NULL == w_v_ ||
            NULL == w_workd_ ||
            NULL == w_workl_ ||
            NULL == w_rwork_ ||
-           NULL == w_d_ ||
            NULL == w_workev_ ||
-           NULL == select_) 
-        return luaL_error(L, "cannot allocate workspace for CN*UPD");
+           NULL == select_) {
+        err_str = "not enough memory for CN*UPD workspace";
+        goto clearerr;
+    }
+    
+    memset(resid_, 0, sizeof(float complex) * n_);
+    memset(w_workd_, 0, sizeof(float complex) * n_ * 3);
 
-    if (NULL == lanczos_which ||
-            (  strcmp("SR", lanczos_which)
-            && strcmp("LR", lanczos_which)
-            && strcmp("SI", lanczos_which)
-            && strcmp("LI", lanczos_which)
-            && strcmp("SM", lanczos_which)
-            && strcmp("LM", lanczos_which)))
-        return luaL_error(L, "invalid value for WHICH");
 
     /* print ALL from ARPACK */
     if (NULL != arpack_logfile 
@@ -190,13 +322,13 @@ lanczos_internal_float(
                 &msglvl3,           /*mcaupd*/
                 &msglvl3,           /*mcaup2*/
                 &msglvl0,           /*mcaitr*/
-                &msglvl0,           /*mceigh*/
+                &msglvl3,           /*mceigh*/
                 &msglvl0,           /*mcapps*/
                 &msglvl0,           /*mcgets*/
                 &msglvl3            /*mceupd*/);
 
         printf("*** ARPACK verbosity set to mcaup2=3 mcaupd=3 mceupd=3; \n"
-               "*** output directed to '%s';\n"
+               "*** output is directed to '%s';\n"
                "*** if you don't see output, your memory may be corrupted\n",
                arpack_logfile);
     }
@@ -220,8 +352,10 @@ lanczos_internal_float(
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                        &lworkl_, w_rwork_, &info_, 1, 2);
         if (info_ < 0 || 1 < info_) {
-            lanczosC_free_workspace;
-            return luaL_error(L, "CNAUPD returned INFO=%d", info_);
+            snprintf(err_buf, sizeof(err_buf), 
+                     "CNAUPD returned INFO=%d", info_);
+            err_str = err_buf;
+            goto clearerr;
         }
         iter_cnt++;
         
@@ -243,12 +377,14 @@ lanczos_internal_float(
         }
 
         else {
-            lanczosC_free_workspace;
             if (QDP_this_node == qlua_master_node) {
                 fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", 
                         __func__, iter_cnt, info_, ido_);
             }
-            return luaL_error(L, "CNAUPD returned IDO=%d", ido_);
+            snprintf(err_buf, sizeof(err_buf),
+                     "CNAUPD returned IDO=%d", ido_);
+            err_str = err_buf;
+            goto clearerr;
         }
 
     } while (99 != ido_ && iter_cnt < max_iter);
@@ -257,14 +393,17 @@ lanczos_internal_float(
                 __func__, iter_cnt, info_, ido_);
     }
 
+    int conv_cnt = 0;
     if (0 == info_) {
         assert(iparam_[4] == nev);
-        *nconv = iparam_[4];
+        conv_cnt = iparam_[4];
     } else if (1 == info_) {
-        *nconv = iparam_[4];
+        conv_cnt = iparam_[4];
     } else {
-        lanczosC_free_workspace;
-        return luaL_error(L, "CNAUPD returned INFO=%d", info_);
+        snprintf(err_buf, sizeof(err_buf),
+                "CNAUPD returned INFO=%d", info_);
+        err_str = err_buf;
+        goto clearerr;
     }
 
     /* for howmny="P", no additional space is required */
@@ -278,32 +417,37 @@ lanczos_internal_float(
         finilog(&arpack_log_u);
 
     if (0 != info_) {
-        lanczosC_free_workspace;
-        return luaL_error(L, "CNEUPD returned INFO=%d", info_);
+        snprintf(err_buf, sizeof(err_buf),
+                "CNEUPD returned INFO=%d", info_);
+        err_str = err_buf;
+        goto clearerr;
     }
     
     /* cleanup */
-    free(resid_);
-    free(w_workd_);
-    free(w_workl_);
-    free(w_rwork_);
-    free(w_workev_);
-    free(select_);
+    if (NULL != resid_)     free(resid_);
+    if (NULL != w_workd_)   free(w_workd_);
+    if (NULL != w_workl_)   free(w_workl_);
+    if (NULL != w_rwork_)   free(w_rwork_);
+    if (NULL != w_workev_)  free(w_workev_);
+    if (NULL != select_)    free(select_);
 
-    /* free extra memory in the eigenspace buffer */
-    assert(ldv_ == loc_dim);
-    *evec = realloc(w_v_, sizeof(float complex) * ldv_ * nev_);
-
-    /* copy real part of eigenvalues */
-    *eval = malloc(sizeof(float complex) * nev_);
-    for (i = 0 ; i < nev_ ; i++)
-        (*eval)[i] = creal(w_d_[i]);
-    free(w_d_);
-
-    *n_iters    = iter_cnt;
+    if (NULL != n_iters) 
+        *n_iters    = iter_cnt;
+    if (NULL != nconv)
+        *nconv      = conv_cnt;
 
     return 0;
-#undef lanczosC_free_workspace
+
+clearerr:
+
+    if (NULL != resid_)     free(resid_);
+    if (NULL != w_workd_)   free(w_workd_);
+    if (NULL != w_workl_)   free(w_workl_);
+    if (NULL != w_rwork_)   free(w_rwork_);
+    if (NULL != w_workev_)  free(w_workev_);
+    if (NULL != select_)    free(select_);
+
+    return luaL_error(L, err_str);
 }
 
 

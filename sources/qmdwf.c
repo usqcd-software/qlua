@@ -1266,17 +1266,6 @@ q_DW_make_deflator_lanczos(lua_State *L)
                 QOP_MDWF_poly_normalize(cheb_n, 
                         a->poly_a, a->poly_b, a->poly_c, 
                         cheb_x0, 1e-8);
-            /**/if (0/*do_norm*/) { /* keep it for debug so far */
-            /**/    int i; 
-            /**/    double p0 = a->poly_c[0], 
-            /**/           p1 = a->poly_a[0] + a->poly_b[0]*cheb_x0, 
-            /**/           p2;
-            /**/    for (i = 1 ; i < cheb_n ; i++) {
-            /**/        p2 = (a->poly_a[i] + a->poly_b[i] * cheb_x0) * p1 + a->poly_c[i] * p0;
-            /**/        fprintf(stderr, "norm(cheb)(%d, %e) = %e\n", i + 1, cheb_x0, p2);
-            /**/        p0 = p1 ; p1 = p2;
-            /**/    }
-            /**/}
 
             a->poly_n = cheb_n;
 
@@ -1347,13 +1336,12 @@ q_DW_make_deflator_lanczos(lua_State *L)
     /* run Arnoldi/Lanczos iterations */
     n_iters = nconv = 0;
     evec = eval = NULL;
-    if (0 != (status = lanczos_internal_float(
+    if (0 != (status = lanczos_float(
             L, mpi_comm, op_MDWF_F3_eoprec_MdagM_op, &op_arg, 
-            lanczos_which, loc_dim, nev, ncv, max_iter, 
-            tol, arpack_logfile, &evec, &eval, &n_iters,
-            &nconv))) {
+            lanczos_which, loc_dim, nev, ncv, max_iter, tol, 
+            &eval, &evec, &n_iters, &nconv, arpack_logfile))) {
         snprintf(err_str_buf, sizeof(err_str_buf),
-                 "lanczos_internal_float returned %d", status);
+                 "lanczos_float returned %d", status);
         clearerr_exit(err_str_buf);
     }
     /* figure out the best default values for EigCG;
