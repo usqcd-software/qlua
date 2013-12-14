@@ -9,22 +9,32 @@
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #define QOP_CLOVER_DEFAULT_PRECISION QDP_Precision
-#include "qop-clover.h"
+#include QLUA_CLOVER_HDR
 #include "qmp.h"
 
 #include <math.h>
 
-#if USE_Nc3
+#define QNc(a,b) QNc_1(a,QLUA_CLOVER_NC,b)
+#define QNc_1(a,b,c) QNc_2(a,b,c)
+#define QNc_2(a,b,c) a ## b ## c
+#define QNz(a) QNz_1(a,QLUA_CLOVER_NC)
+#define QNz_1(a,b) QNz_2(a,b)
+#define QNz_2(a,b) a ## b
+
+#if QLUA_CLOVER_NC != QNc(QOP_, _CLOVER_COLORS)
+#error "Clover Nc mismatch"
+#endif /*  QLUA_CLOVER_NC != QNc(QOP_, _CLOVER_COLORS) */
+
 
 static const char CloverName[]               = "lattice.Clover";
 static const char CloverDeflatorName[]       = "lattice.Clover.Deflator";
 static const char CloverDeflatorStateName[]  = "lattice.Clover.DeflatorState";
 
 typedef int CloverInverter(lua_State *L,
-                           struct QOP_CLOVER_Fermion *solution,
+                           struct QNc(QOP_,_CLOVER_Fermion) *solution,
                            int *out_iters,
                            double *out_epsilon,
-                           const struct QOP_CLOVER_Fermion *rhs,
+                           const struct QNc(QOP_,_CLOVER_Fermion) *rhs,
                            int log_level);
 
 typedef struct {
@@ -33,16 +43,16 @@ typedef struct {
 } CloverSolver;
 
 typedef struct {
-    struct QOP_CLOVER_State *state;
-    struct QOP_CLOVER_Gauge *gauge;
-    double kappa, c_sw;
+  struct QNc(QOP_, _CLOVER_State) *state;
+  struct QNc(QOP_, _CLOVER_Gauge) *gauge;
+  double kappa, c_sw;
 } mClover;
 
 typedef struct {
-    int nev;
-    int umax;
-    int vmax;
-    struct QOP_CLOVER_Deflator *deflator;
+  int nev;
+  int umax;
+  int vmax;
+  struct QNc(QOP_, _CLOVER_Deflator) *deflator;
 } mDeflatorState;
 
 static mClover *qlua_newClover(lua_State *L, int Sidx);
@@ -54,17 +64,17 @@ static mClover *qlua_checkClover(lua_State *L,
 
 /* The generic solver */
 typedef struct {
-    QDP_Lattice *lat;
-    int c, d;
-    QLA_D3_DiracPropagator *in;
-    QLA_D3_DiracPropagator *out;
-    double s;
+  QDP_Lattice *lat;
+  int c, d;
+  QNc(QLA_D, _DiracPropagator) *in;
+  QNc(QLA_D, _DiracPropagator) *out;
+  double s;
 } qCL_P_env;
 
 typedef struct {
-    QDP_Lattice *lat;
-    QLA_D3_DiracFermion *f;
-    double s;
+  QDP_Lattice *lat;
+  QNc(QLA_D, _DiracFermion) *f;
+  double s;
 } CL_D_env;
 
 static double
@@ -72,7 +82,7 @@ q_CL_D_reader_scaled(const int p[], int c, int d, int re_im, void *e)
 {
     CL_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
+    QNc(QLA_D, _DiracFermion) *f = env->f;
     double s = env->s;
     QLA_D_Real xx;
 
@@ -90,7 +100,7 @@ q_CL_D_writer_scaled(const int p[], int c, int d, int re_im, double v, void *e)
 {
     CL_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
+    QNc(QLA_D, _DiracFermion) *f = env->f;
     double s = env->s;
  
     v = v * s;
@@ -159,25 +169,25 @@ q_dirac_solver(lua_State *L)
     }
 
     if ((lua_type(L, 3) == LUA_TBOOLEAN) && (lua_toboolean(L, 3) != 0))
-        log_level = (QOP_CLOVER_LOG_CG_RESIDUAL |
-                     QOP_CLOVER_LOG_EIG_POSTAMBLE |
-                     QOP_CLOVER_LOG_EIG_UPDATE1);
+      log_level = (QNc(QOP_,_CLOVER_LOG_CG_RESIDUAL) |
+                   QNc(QOP_,_CLOVER_LOG_EIG_POSTAMBLE) |
+                   QNc(QOP_,_CLOVER_LOG_EIG_UPDATE1));
     else
         log_level = 0;
 
     switch (qlua_qtype(L, 1)) {
-    case qLatDirFerm3: {
-        mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 1, S, 3);
-        mLatDirFerm3 *eta = qlua_newZeroLatDirFerm3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
+    case QNz(qLatDirFerm): {
+        QNz(mLatDirFerm) *psi = QNz(qlua_checkLatDirFerm)(L, 1, S, QLUA_CLOVER_NC);
+        QNz(mLatDirFerm) *eta = QNz(qlua_newZeroLatDirFerm)(L, Sidx, QLUA_CLOVER_NC);
+        struct QNc(QOP_,_CLOVER_Fermion) *c_psi;
+        struct QNc(QOP_,_CLOVER_Fermion) *c_eta;
         CL_D_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
         int status;
 
         CALL_QDP(L);
-        QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, S->all);
+        QNc(QDP_D,_r_eq_norm2_D)(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
             lua_pushnumber(L, 0.0);
             lua_pushnumber(L, 0);
@@ -187,19 +197,19 @@ q_dirac_solver(lua_State *L)
         }
         rhs_n = sqrt(rhs_norm2);
         env.lat = S->lat;
-        env.f = QDP_D3_expose_D(psi->ptr);
+        env.f = QNc(QDP_D, _expose_D)(psi->ptr);
         env.s = 1 / rhs_n;
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader_scaled,
-                                      &env))
+        if (QNc(QOP_,_CLOVER_import_fermion)(&c_psi, c->state, q_CL_D_reader_scaled,
+                                             &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
-        QDP_D3_reset_D(psi->ptr);
+        QNc(QDP_D, _reset_D)(psi->ptr);
 
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
+        if (QNc(QOP_, _CLOVER_allocate_fermion)(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
-        QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
+        QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
         if (QDP_this_node == qlua_master_node)
@@ -210,19 +220,19 @@ q_dirac_solver(lua_State *L)
                    out_eps, out_iters, t1, fl1 * 1e-6 / t1);
 
         env.lat = S->lat;
-        env.f = QDP_D3_expose_D(eta->ptr);
+        env.f = QNc(QDP_D, _expose_D)(eta->ptr);
         env.s = rhs_n;
-        QOP_CLOVER_export_fermion(q_CL_D_writer_scaled, &env, c_eta);
-        QDP_D3_reset_D(eta->ptr);
+        QNc(QOP_, _CLOVER_export_fermion)(q_CL_D_writer_scaled, &env, c_eta);
+        QNc(QDP_D, _reset_D)(eta->ptr);
         
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
 
         if (status) {
             if (relaxed_p)
                 return 0;
             else
-                return luaL_error(L, QOP_CLOVER_error(c->state));
+                return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
         }
 
         /* eta is on the stack already */
@@ -234,44 +244,44 @@ q_dirac_solver(lua_State *L)
         return 5;
     }
 
-    case qLatDirProp3: {
-        mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 1, S, 3);
-        mLatDirProp3 *eta = qlua_newZeroLatDirProp3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
+    case QNz(qLatDirProp): {
+        QNz(mLatDirProp) *psi = QNz(qlua_checkLatDirProp)(L, 1, S, QLUA_CLOVER_NC);
+        QNz(mLatDirProp) *eta = QNz(qlua_newZeroLatDirProp)(L, Sidx, QLUA_CLOVER_NC);
+        struct QNc(QOP_, _CLOVER_Fermion) *c_psi;
+        struct QNc(QOP_, _CLOVER_Fermion) *c_eta;
         int gstatus = 0;
         int status;
         qCL_P_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
 
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* eps */
-        lua_createtable(L, QOP_CLOVER_COLORS, 0);  /* iters */
+        lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* eps */
+        lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* iters */
         CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
+        if (QNc(QOP_, _CLOVER_allocate_fermion)(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
-        QDP_D3_r_eq_norm2_P(&rhs_norm2, psi->ptr, S->all);
+        QNc(QDP_D, _r_eq_norm2_P)(&rhs_norm2, psi->ptr, S->all);
         if (rhs_norm2 == 0) {
             return 3;
         }
         rhs_n = sqrt(rhs_norm2);
         env.lat = S->lat;
-        env.in = QDP_D3_expose_P(psi->ptr);
-        env.out = QDP_D3_expose_P(eta->ptr);
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* eps.c */
-            lua_createtable(L, QOP_CLOVER_FERMION_DIM, 0); /* iters.c */
+        env.in = QNc(QDP_D, _expose_P)(psi->ptr);
+        env.out = QNc(QDP_D, _expose_P)(eta->ptr);
+        for (env.c = 0; env.c < QNc(QOP_, _CLOVER_COLORS); env.c++) {
+            lua_createtable(L, QNc(QOP_,  _CLOVER_FERMION_DIM), 0); /* eps.c */
+            lua_createtable(L, QNc(QOP_,  _CLOVER_FERMION_DIM), 0); /* iters.c */
 
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
+            for (env.d = 0; env.d < QNc(QOP_,  _CLOVER_FERMION_DIM); env.d++) {
                 env.s = 1 / rhs_n;
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
+                if (QNc(QOP_, _CLOVER_import_fermion)(&c_psi, c->state,
                                               q_CL_P_reader_scaled, &env))
                     return luaL_error(L, "CLOVER_import_fermion() failed");
                 status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
                                       log_level);
 
-                QOP_CLOVER_performance(&t1, &fl1, NULL, NULL, c->state);
+                QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
                 if (QDP_this_node == qlua_master_node)
@@ -281,16 +291,16 @@ q_dirac_solver(lua_State *L)
                            solver->name, status,
                            env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
-                QOP_CLOVER_free_fermion(&c_psi);
+                QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
                 if (status) {
                     if (relaxed_p)
                         gstatus = 1;
                     else
-                        return luaL_error(L, QOP_CLOVER_error(c->state));
+                        return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
                 }
 
                 env.s = rhs_n;
-                QOP_CLOVER_export_fermion(q_CL_P_writer_scaled, &env, c_eta);
+                QNc(QOP_, _CLOVER_export_fermion)(q_CL_P_writer_scaled, &env, c_eta);
                 lua_pushnumber(L, out_eps);
                 lua_rawseti(L, -3, env.d + 1);
                 lua_pushnumber(L, out_iters);
@@ -299,9 +309,9 @@ q_dirac_solver(lua_State *L)
             lua_rawseti(L, -3, env.c + 1);
             lua_rawseti(L, -3, env.c + 1);
         }
-        QDP_D3_reset_P(psi->ptr);
-        QDP_D3_reset_P(eta->ptr);
-        QOP_CLOVER_free_fermion(&c_eta);
+        QNc(QDP_D, _reset_P)(psi->ptr);
+        QNc(QDP_D, _reset_P)(eta->ptr);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
 
         if (gstatus)
             return 0;
@@ -326,7 +336,7 @@ q_DFS_gc(lua_State *L)
     mDeflatorState *d = q_checkDeflatorState(L, 1, NULL, 0);
 
     if (d->deflator)
-        QOP_CLOVER_free_deflator(&d->deflator);
+      QNc(QOP_, _CLOVER_free_deflator)(&d->deflator);
     d->deflator = 0;
 
     return 0;
@@ -422,7 +432,7 @@ q_DF_close(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_CLOVER_free_deflator(&d->deflator);
+    QNc(QOP_, _CLOVER_free_deflator)(&d->deflator);
 
     return 0;
 }
@@ -432,7 +442,7 @@ q_DF_reset(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_CLOVER_deflator_reset(d->deflator);
+    QNc(QOP_, _CLOVER_deflator_reset)(d->deflator);
 
     return 0;
 }
@@ -442,7 +452,7 @@ q_DF_stop(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_CLOVER_deflator_stop(d->deflator);
+    QNc(QOP_, _CLOVER_deflator_stop)(d->deflator);
 
     return 0;
 }
@@ -452,7 +462,7 @@ q_DF_resume(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QOP_CLOVER_deflator_resume(d->deflator);
+    QNc(QOP_, _CLOVER_deflator_resume)(d->deflator);
 
     return 0;
 }
@@ -463,7 +473,7 @@ q_DF_eigenvalues(lua_State *L)
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
     mVecReal *v = qlua_newVecReal(L, d->nev);
     double *t = qlua_malloc(L, d->nev * sizeof (double));
-    int status = QOP_CLOVER_deflator_eigen(t, d->deflator);
+    int status = QNc(QOP_, _CLOVER_deflator_eigen)(t, d->deflator);
 
     if (status == 0) {
         int i;
@@ -479,10 +489,10 @@ q_DF_eigenvalues(lua_State *L)
 
 static int
 q_DF_deflated_mixed_solver(lua_State *L,
-                           struct QOP_CLOVER_Fermion *solution,
+                           struct QNc(QOP_, _CLOVER_Fermion) *solution,
                            int *out_iters,
                            double *out_epsilon,
-                           const struct QOP_CLOVER_Fermion *rhs,
+                           const struct QNc(QOP_, _CLOVER_Fermion) *rhs,
                            int log_level)
 {
     mClover        *c = qlua_checkClover(L, lua_upvalueindex(2), NULL, 1);
@@ -494,7 +504,7 @@ q_DF_deflated_mixed_solver(lua_State *L,
     int     max_iters = luaL_checkint(L, lua_upvalueindex(7));
 
     lua_pop(L, 1);
-    return QOP_CLOVER_deflated_mixed_D_CG(solution, out_iters, out_epsilon,
+    return QNc(QOP_, _CLOVER_deflated_mixed_D_CG)(solution, out_iters, out_epsilon,
                                           rhs, c->gauge, rhs, d->deflator,
                                           inner_iters, f_eps,
                                           max_iters, eps,
@@ -570,7 +580,7 @@ q_CL_make_deflator(lua_State *L)
     d->umax = umax;
 
     CALL_QDP(L);
-    if (QOP_CLOVER_create_deflator(&d->deflator, c->state,
+    if (QNc(QOP_, _CLOVER_create_deflator)(&d->deflator, c->state,
                                    vmax, nev, eps, umax))
         return luaL_error(L, "CLOVER_create_deflator() failed");
 
@@ -605,11 +615,11 @@ q_CL_gc(lua_State *L)
     mClover *c = qlua_checkClover(L, 1, NULL, 0);
 
     if (c->gauge) {
-        QOP_CLOVER_free_gauge(&c->gauge);
+      QNc(QOP_, _CLOVER_free_gauge)(&c->gauge);
         c->gauge = 0;
     }
     if (c->state) {
-        QOP_CLOVER_fini(&c->state);
+      QNc(QOP_, _CLOVER_fini)(&c->state);
         c->state = 0;
     }
     
@@ -622,9 +632,9 @@ q_CL_close(lua_State *L)
     mClover *c = qlua_checkClover(L, 1, NULL, 1);
 
     if (c->gauge)
-        QOP_CLOVER_free_gauge(&c->gauge);
+      QNc(QOP_, _CLOVER_free_gauge)(&c->gauge);
     if (c->state)
-        QOP_CLOVER_fini(&c->state);
+      QNc(QOP_, _CLOVER_fini)(&c->state);
     c->gauge = 0;
     c->state = 0;
     
@@ -636,7 +646,7 @@ q_CL_D_reader(const int p[], int c, int d, int re_im, void *e)
 {
     CL_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
+    QNc(QLA_D, _DiracFermion) *f = env->f;
     QLA_D_Real xx;
 
     if (re_im == 0) {
@@ -653,7 +663,7 @@ q_CL_D_writer(const int p[], int c, int d, int re_im, double v, void *e)
 {
     CL_D_env *env = e;
     int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion *f = env->f;
+    QNc(QLA_D, _DiracFermion) *f = env->f;
  
     if (re_im == 0) {
         QLA_real(QLA_elem_D(f[i], c, d)) = v;
@@ -694,76 +704,76 @@ q_CL_P_writer(const int p[], int c, int d, int re_im, double v, void *e)
 static int
 q_CL_operator(lua_State *L,
               const char *name,
-              int (*op)(struct QOP_D3_CLOVER_Fermion *result,
-                        const struct QOP_D3_CLOVER_Gauge *gauge,
-                        const struct QOP_D3_CLOVER_Fermion *source))
+              int (*op)(struct QNc(QOP_D, _CLOVER_Fermion) *result,
+                        const struct QNc(QOP_D, _CLOVER_Gauge) *gauge,
+                        const struct QNc(QOP_D, _CLOVER_Fermion) *source))
 {
     mClover *c = qlua_checkClover(L, 1, NULL, 1);
     mLattice *S = qlua_ObjLattice(L, 1);
     int Sidx = lua_gettop(L);
 
     switch (qlua_qtype(L, 2)) {
-    case qLatDirFerm3: {
-        mLatDirFerm3 *psi = qlua_checkLatDirFerm3(L, 2, S, 3);
-        mLatDirFerm3 *eta = qlua_newLatDirFerm3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
-        QLA_D3_DiracFermion *e_psi;
-        QLA_D3_DiracFermion *e_eta;
+    case QNz(qLatDirFerm): {
+        QNz(mLatDirFerm) *psi = QNz(qlua_checkLatDirFerm)(L, 2, S, QLUA_CLOVER_NC);
+        QNz(mLatDirFerm) *eta = QNz(qlua_newLatDirFerm)(L, Sidx, QLUA_CLOVER_NC);
+        struct QNc(QOP_, _CLOVER_Fermion) *c_psi;
+        struct QNc(QOP_, _CLOVER_Fermion) *c_eta;
+        QNc(QLA_D, _DiracFermion) *e_psi;
+        QNc(QLA_D, _DiracFermion) *e_eta;
         CL_D_env env;
 
         CALL_QDP(L);
-        e_psi = QDP_D3_expose_D(psi->ptr);
+        e_psi = QNc(QDP_D, _expose_D)(psi->ptr);
         env.lat = S->lat;
         env.f = e_psi;
-        if (QOP_CLOVER_import_fermion(&c_psi, c->state, q_CL_D_reader, &env))
+        if (QNc(QOP_, _CLOVER_import_fermion)(&c_psi, c->state, q_CL_D_reader, &env))
             return luaL_error(L, "CLOVER_import_fermion() failed");
-        QDP_D3_reset_D(psi->ptr);
+        QNc(QDP_D, _reset_D)(psi->ptr);
 
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
+        if (QNc(QOP_, _CLOVER_allocate_fermion)(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
         (*op)(c_eta, c->gauge, c_psi);
         
-        e_eta = QDP_D3_expose_D(eta->ptr);
+        e_eta = QNc(QDP_D, _expose_D)(eta->ptr);
         env.f = e_eta;
-        QOP_CLOVER_export_fermion(q_CL_D_writer, &env, c_eta);
-        QDP_D3_reset_D(eta->ptr);
+        QNc(QOP_, _CLOVER_export_fermion)(q_CL_D_writer, &env, c_eta);
+        QNc(QDP_D, _reset_D)(eta->ptr);
         
-        QOP_CLOVER_free_fermion(&c_eta);
-        QOP_CLOVER_free_fermion(&c_psi);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
 
         return 1;
     }
-    case qLatDirProp3: {
-        mLatDirProp3 *psi = qlua_checkLatDirProp3(L, 2, S, 3);
-        mLatDirProp3 *eta = qlua_newLatDirProp3(L, Sidx, 3);
-        struct QOP_CLOVER_Fermion *c_psi;
-        struct QOP_CLOVER_Fermion *c_eta;
+    case QNz(qLatDirProp): {
+        QNz(mLatDirProp) *psi = QNz(qlua_checkLatDirProp)(L, 2, S, QLUA_CLOVER_NC);
+        QNz(mLatDirProp) *eta = QNz(qlua_newLatDirProp)(L, Sidx, QLUA_CLOVER_NC);
+        struct QNc(QOP_, _CLOVER_Fermion) *c_psi;
+        struct QNc(QOP_, _CLOVER_Fermion) *c_eta;
         qCL_P_env env;
 
         CALL_QDP(L);
-        if (QOP_CLOVER_allocate_fermion(&c_eta, c->state))
+        if (QNc(QOP_, _CLOVER_allocate_fermion)(&c_eta, c->state))
             return luaL_error(L, "CLOVER_allocate_fermion() failed");
 
         env.lat = S->lat;
-        env.in = QDP_D3_expose_P(psi->ptr);
-        env.out = QDP_D3_expose_P(eta->ptr);
-        for (env.c = 0; env.c < QOP_CLOVER_COLORS; env.c++) {
-            for (env.d = 0; env.d < QOP_CLOVER_FERMION_DIM; env.d++) {
-                if (QOP_CLOVER_import_fermion(&c_psi, c->state,
+        env.in = QNc(QDP_D, _expose_P)(psi->ptr);
+        env.out = QNc(QDP_D, _expose_P)(eta->ptr);
+        for (env.c = 0; env.c < QNc(QOP_, _CLOVER_COLORS); env.c++) {
+            for (env.d = 0; env.d < QNc(QOP_,  _CLOVER_FERMION_DIM); env.d++) {
+              if (QNc(QOP_, _CLOVER_import_fermion)(&c_psi, c->state,
                                               q_CL_P_reader, &env))
                     return luaL_error(L, "CLOVER_import_fermion failed");
 
                 (*op)(c_eta, c->gauge, c_psi);
                 
-                QOP_CLOVER_free_fermion(&c_psi);
-                QOP_CLOVER_export_fermion(q_CL_P_writer, &env, c_eta);
+                QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
+                QNc(QOP_, _CLOVER_export_fermion)(q_CL_P_writer, &env, c_eta);
             }
         }
-        QOP_CLOVER_free_fermion(&c_eta);
-        QDP_D3_reset_P(psi->ptr);
-        QDP_D3_reset_P(eta->ptr);
+        QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
+        QNc(QDP_D, _reset_P)(psi->ptr);
+        QNc(QDP_D, _reset_P)(eta->ptr);
 
         return 1;
     }
@@ -776,29 +786,29 @@ q_CL_operator(lua_State *L,
 static int
 q_CL_D(lua_State *L)
 {
-    return q_CL_operator(L, "D", QOP_D3_CLOVER_D_operator);
+  return q_CL_operator(L, "D", QNc(QOP_D, _CLOVER_D_operator));
 }
 
 static int
 q_CL_Dx(lua_State *L)
 {
-    return q_CL_operator(L, "Dx", QOP_D3_CLOVER_D_operator_conjugated);
+  return q_CL_operator(L, "Dx", QNc(QOP_D, _CLOVER_D_operator_conjugated));
 }
 
 /* the standard clover solver */
 static int
 q_CL_std_solver(lua_State *L,
-                struct QOP_CLOVER_Fermion *solution,
+                struct QNc(QOP_, _CLOVER_Fermion) *solution,
                 int *out_iters,
                 double *out_epsilon,
-                const struct QOP_CLOVER_Fermion *rhs,
+                const struct QNc(QOP_, _CLOVER_Fermion) *rhs,
                 int log_level)
 {
     mClover *c = qlua_checkClover(L, lua_upvalueindex(2), NULL, 1);
     double eps = luaL_checknumber(L, lua_upvalueindex(3));
     int max_iters = luaL_checkint(L, lua_upvalueindex(4));
     
-    return QOP_CLOVER_D_CG(solution, out_iters, out_epsilon,
+    return QNc(QOP_, _CLOVER_D_CG)(solution, out_iters, out_epsilon,
                            rhs, c->gauge, rhs, max_iters, eps,
                            log_level);
 }
@@ -824,10 +834,10 @@ q_CL_make_solver(lua_State *L)
 /* the mixed clover solver */
 static int
 q_CL_mixed_solver(lua_State *L,
-                  struct QOP_CLOVER_Fermion *solution,
+                  struct QNc(QOP_, _CLOVER_Fermion) *solution,
                   int *out_iters,
                   double *out_epsilon,
-                  const struct QOP_CLOVER_Fermion *rhs,
+                  const struct QNc(QOP_, _CLOVER_Fermion) *rhs,
                   int log_level)
 {
     mClover *c = qlua_checkClover(L, lua_upvalueindex(2), NULL, 1);
@@ -836,7 +846,7 @@ q_CL_mixed_solver(lua_State *L,
     double eps      = luaL_checknumber(L, lua_upvalueindex(5));
     int max_iters   = luaL_checkint(L, lua_upvalueindex(6));
     
-    return QOP_CLOVER_mixed_D_CG(solution, out_iters, out_epsilon,
+    return QNc(QOP_, _CLOVER_mixed_D_CG)(solution, out_iters, out_epsilon,
                                  rhs, c->gauge, rhs,
                                  inner_iters, f_eps,
                                  max_iters, eps,
@@ -865,16 +875,16 @@ q_CL_make_mixed_solver(lua_State *L)
     return 1;
 }
 
-#define Nu  QOP_CLOVER_DIM
-#define Nf  ((QOP_CLOVER_DIM * (QOP_CLOVER_DIM - 1)) / 2)
+#define Nu  QNc(QOP_, _CLOVER_DIM)
+#define Nf  ((QNc(QOP_, _CLOVER_DIM) * (QNc(QOP_, _CLOVER_DIM) - 1)) / 2)
 #define Nt  (Nu + Nf)
 #define Nz  (Nu + Nf + 6)
 
 typedef struct {
-    QDP_Lattice *lat;
-    int lattice[QOP_CLOVER_DIM];
-    QLA_D_Complex bf[QOP_CLOVER_DIM];
-    QLA_D3_ColorMatrix *uf[Nu + Nf];
+  QDP_Lattice *lat;
+  int lattice[QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex bf[QNc(QOP_, _CLOVER_DIM)];
+  QNc(QLA_D, _ColorMatrix) *uf[Nu + Nf];
 } QCArgs;
 
 static double
@@ -904,8 +914,8 @@ q_CL_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
     int i = QDP_index_L(args->lat, p);
     int d, xm, xn;
 
-    for (d = 0, xm = 0; xm < QOP_CLOVER_DIM; xm++) {
-        for (xn = xm + 1; xn < QOP_CLOVER_DIM; xn++, d++) {
+    for (d = 0, xm = 0; xm < QNc(QOP_, _CLOVER_DIM); xm++) {
+        for (xn = xm + 1; xn < QNc(QOP_, _CLOVER_DIM); xn++, d++) {
             if ((xn == nu) && (xm == mu))
                 goto found;
         }
@@ -939,19 +949,19 @@ q_clover(lua_State *L)
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_pushnumber(L, 1);
     lua_gettable(L, 1);
-    qlua_checkLatColMat3(L, -1, NULL, 3);
+    QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
     mLattice *S = qlua_ObjLattice(L, -1);
     int Sidx = lua_gettop(L);
     mClover *c = qlua_newClover(L, Sidx);
 
-    if (S->rank != QOP_CLOVER_DIM)
+    if (S->rank != QNc(QOP_, _CLOVER_DIM))
         return luaL_error(L, "clover is not implemented for #L=%d", S->rank);
-    if (QDP_Ns != QOP_CLOVER_FERMION_DIM)
+    if (QDP_Ns != QNc(QOP_,  _CLOVER_FERMION_DIM))
         return luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
 
     QCArgs args;
     luaL_checktype(L, 4, LUA_TTABLE);
-    for (i = 0; i < QOP_CLOVER_DIM; i++) {
+    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
         lua_pushnumber(L, i + 1);
         lua_gettable(L, 4);
         switch (qlua_qtype(L, -1)) {
@@ -972,20 +982,20 @@ q_clover(lua_State *L)
     c->kappa = kappa;
     c->c_sw = c_sw;
 
-    QDP_D3_ColorMatrix *UF[Nz];
+    QNc(QDP_D, _ColorMatrix) *UF[Nz];
 
     luaL_checktype(L, 1, LUA_TTABLE);
     CALL_QDP(L);
 
     /* create a temporary F, and temp M */
-    for (i = QOP_CLOVER_DIM; i < Nz; i++)
-        UF[i] = QDP_D3_create_M_L(S->lat);
+    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+      UF[i] = QNc(QDP_D, _create_M_L)(S->lat);
 
     /* extract U from the arguments */
-    for (i = 0; i < QOP_CLOVER_DIM; i++) {
+    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
         lua_pushnumber(L, i + 1); /* [sic] lua indexing */
         lua_gettable(L, 1);
-                UF[i] = qlua_checkLatColMat3(L, -1, S, 3)->ptr;
+        UF[i] = QNz(qlua_checkLatColMat)(L, -1, S, QLUA_CLOVER_NC)->ptr;
         lua_pop(L, 1);
     }
 
@@ -993,35 +1003,35 @@ q_clover(lua_State *L)
     QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
     CALL_QDP(L); /* just in case, because we touched LUA state above */
     /* compute 8i*F[mu,nu] in UF[Nf...] */
-    for (i = 0, mu = 0; mu < QOP_CLOVER_DIM; mu++) {
-        for (nu = mu + 1; nu < QOP_CLOVER_DIM; nu++, i++) {
+    for (i = 0, mu = 0; mu < QNc(QOP_, _CLOVER_DIM); mu++) {
+        for (nu = mu + 1; nu < QNc(QOP_, _CLOVER_DIM); nu++, i++) {
             /* clover in [mu, nu] --> UF[Nu + i] */
-            QDP_D3_M_eq_sM(UF[Nt], UF[nu], neighbor[mu], QDP_forward,
+            QNc(QDP_D, _M_eq_sM)(UF[Nt], UF[nu], neighbor[mu], QDP_forward,
                            S->all);
-            QDP_D3_M_eq_Ma_times_M(UF[Nt+1], UF[nu], UF[mu], S->all);
-            QDP_D3_M_eq_M_times_M(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
-            QDP_D3_M_eq_sM(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward,
+            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+1], UF[nu], UF[mu], S->all);
+            QNc(QDP_D, _M_eq_M_times_M)(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
+            QNc(QDP_D, _M_eq_sM)(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward,
                            S->all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
-            QDP_D3_M_eq_sM(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward,
+            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
+            QNc(QDP_D, _M_eq_sM)(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward,
                         S->all);
-            QDP_D3_M_eq_Ma_times_M(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
-            QDP_D3_M_eq_M_times_Ma(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
-            QDP_D3_M_peq_M_times_M(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
-            QDP_D3_M_peq_M_times_M(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
-            QDP_D3_M_eq_sM(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward,
+            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
+            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
+            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
+            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
+            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
+            QNc(QDP_D, _M_eq_sM)(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward,
                         S->all);
-            QDP_D3_M_peq_M(UF[Nt+4], UF[Nt+2], S->all);
-            QDP_D3_M_eq_M(UF[Nu+i], UF[Nt+4], S->all);
-            QDP_D3_M_meq_Ma(UF[Nu+i], UF[Nt+4], S->all);
+            QNc(QDP_D, _M_peq_M)(UF[Nt+4], UF[Nt+2], S->all);
+            QNc(QDP_D, _M_eq_M)(UF[Nu+i], UF[Nt+4], S->all);
+            QNc(QDP_D, _M_meq_Ma)(UF[Nu+i], UF[Nt+4], S->all);
         }
     }
 
     args.lat = S->lat;
     /* create the clover state */
     QDP_latsize_L(S->lat, args.lattice);
-    struct QOP_CLOVER_Config cc;
+    struct QNc(QOP_, _CLOVER_Config) cc;
     cc.self = S->node;
     cc.master_p = QMP_is_primary_node();
     cc.rank = S->rank;
@@ -1031,25 +1041,25 @@ q_clover(lua_State *L)
     cc.neighbor_down = S->neighbor_down;
     cc.sublattice = qlua_sublattice;
     cc.env = S;
-    if (QOP_CLOVER_init(&c->state, &cc))
+    if (QNc(QOP_, _CLOVER_init)(&c->state, &cc))
         return luaL_error(L, "CLOVER_init() failed");
     
     /* import the gauge field */
     for (i = 0; i < Nt; i++) {
-        args.uf[i] = QDP_D3_expose_M(UF[i]);
+      args.uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
     }
 
-    if (QOP_CLOVER_import_gauge(&c->gauge, c->state, kappa, c_sw,
+    if (QNc(QOP_, _CLOVER_import_gauge)(&c->gauge, c->state, kappa, c_sw,
                                 q_CL_u_reader, q_CL_f_reader, &args)) {
         return luaL_error(L, "CLOVER_import_gauge() failed");
     }
 
     for (i = 0; i < Nt; i++)
-        QDP_D3_reset_M(UF[i]);
+      QNc(QDP_D, _reset_M)(UF[i]);
 
     /* clean up temporaries */
-    for (i = QOP_CLOVER_DIM; i < Nz; i++)
-        QDP_D3_destroy_M(UF[i]);
+    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+      QNc(QDP_D, _destroy_M)(UF[i]);
 
     return 1;
 }
@@ -1108,13 +1118,6 @@ init_clover(lua_State *L)
     luaL_register(L, qcdlib, fClover);
     return 0;
 }
-#else /* USE_Nc3 */
-int
-init_clover(lua_State *L)
-{
-    return 0;
-}
-#endif /* USE_Nc3 */
 
 int
 fini_clover(lua_State *L)

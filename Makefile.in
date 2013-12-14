@@ -106,11 +106,11 @@ ifneq ("$(HDF5)", "")
             sha256.c
 endif
 
-ifeq ("@use_nc3@", "1")
 ifneq ("$(CLOVER)", "")
   libsrc += qclover.c
 endif
 
+ifeq ("@use_nc3@", "1")
 ifneq ("$(MDWF)", "")
   libsrc += qmdwf.c
 endif
