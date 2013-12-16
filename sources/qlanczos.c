@@ -184,13 +184,15 @@ lanczos_internal_float(
            being the same ; if you observe crashes, disable this part */
         initlog(&arpack_log_u, arpack_logfile, strlen(arpack_logfile));
         int msglvl0 = 0,
+            msglvl1 = 1,
+            msglvl2 = 2,
             msglvl3 = 3;
         pmcinitdebug(
                 &arpack_log_u,      /*logfil*/
                 &msglvl3,           /*mcaupd*/
                 &msglvl3,           /*mcaup2*/
                 &msglvl0,           /*mcaitr*/
-                &msglvl0,           /*mceigh*/
+                &msglvl3,           /*mceigh*/
                 &msglvl0,           /*mcapps*/
                 &msglvl0,           /*mcgets*/
                 &msglvl3            /*mceupd*/);
