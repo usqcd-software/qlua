@@ -154,7 +154,7 @@ QT(qdpc_w_)(lua_State *L)
 #endif
     case qTable: {
         lua_pushnumber(L, 1);
-        lua_gettable(L, 2);
+        lua_gettable(L, Didx);
         switch (qlua_qtype(L, -1)) {
 #if USE_Nc2
         case QN(q,2):
