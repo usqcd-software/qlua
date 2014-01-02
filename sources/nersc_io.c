@@ -621,7 +621,6 @@ nersc_read_slave(lua_State *L,
     QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
     int *coord = qlua_malloc(L, S->rank * sizeof (int));
     QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
-    QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
 
     /* get gauge element for this node */
     for (volume = 1, i = 0; i < S->rank; i++)
@@ -633,8 +632,10 @@ nersc_read_slave(lua_State *L,
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
+            QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
             QMP_start(mh);
             QMP_wait(mh);
+            QMP_free_msghandle(mh);
 
             int idx = QDP_index_L(S->lat, coord);
             int d;
@@ -643,7 +644,6 @@ nersc_read_slave(lua_State *L,
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
-    QMP_free_msghandle(mh);
     QMP_free_msgmem(mm);
     qlua_free(L, coord);
     qlua_free(L, CM);
