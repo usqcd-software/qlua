@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20130110
+PACKTOP=$HOME/Local/packages/macosx-20140108
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$HOME/Local/packages/qlua-working
@@ -16,9 +16,10 @@ COPTS='-O2' \
    --with-gsl=$PACKTOP/gsl                    \
    --with-lhpc-aff=$PACKTOP/aff               \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1 \
-   --with-clover=$PACKTOP/clover              \
    --with-mdwf=$PACKTOP/mdwf                  \
    --with-hypre=$HOME/Local/packages/hypre-2.9.0b \
    --with-extras                              \
    --prefix=$TARGET                           \
    $*
+
+#   --with-clover=$PACKTOP/clover              \
