@@ -58,6 +58,11 @@ HYPRE_CF     = @hypre_cflags@
 HYPRE_LF     = @hypre_ldflags@
 HYPRE_LIBS   = @hypre_libs@
 
+ARPACK       = @arpack@
+ARPACK_CF    = @arpack_cflags@
+ARPACK_LF    = @arpack_ldflags@
+ARPACK_LIBS  = @arpack_libs@
+
 ## ZZZ add other modules here
 
 #############################################################################
@@ -122,6 +127,10 @@ ifneq ("$(GSL)", "")
             qmin.c
 endif
 
+ifneq ("$(ARPACK)", "")
+  libsrc += qlanczos.c
+endif
+
 extrascr =
 
 ifeq ("@use_nc3@", "1")
@@ -159,11 +168,12 @@ endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
               $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(CLOVER_CF) $(MDWF_CF)\
-              $(GSL_CF) $(HYPRE_CF)
+              $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS)
 LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(MDWF_LF) $(HYPRE_LF)
+              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(MDWF_LF) $(HYPRE_LF) \
+	      $(ARPACK_LDFLAGS)
 LLIBS = $(CLOVER_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
-        $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) \
+        $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) $(ARPACK_LIBS) \
         -llua $(LIBS)
 
 ###############################################################################

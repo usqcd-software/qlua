@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20130110
+PACKTOP=$HOME/Local/packages/macosx-20140108
 Nc=2
 noNc=3
 
@@ -25,3 +25,5 @@ COPTS='-O2' \
    --without-nc=$noNc                                      \
    --with-nc=N                                             \
    $*
+
+#   --with-mdwf=$PACKTOP/mdwf                               \
