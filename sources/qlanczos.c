@@ -3,7 +3,6 @@
 #include "qmdwf.h"                                                   /* DEPS */
 #include "lattice.h"                                                 /* DEPS */ 
 #include "latdirferm.h"                                              /* DEPS */
-#include "qop-mdwf3.h"
 #include "qlanczos.h"                                                /* DEPS */
 
 #include <string.h>
@@ -257,8 +256,6 @@ lanczos_internal_float(
             && strcmp("LM", lanczos_which)))
         return luaL_error(L, "invalid value for WHICH");
 
-    int i;
-
     /* all FORTRAN communication uses underscored variables */
     int ido_; 
     int info_;
@@ -316,8 +313,10 @@ lanczos_internal_float(
            being the same ; if you observe crashes, disable this part */
         initlog(&arpack_log_u, arpack_logfile, strlen(arpack_logfile));
         int msglvl0 = 0,
+#if 0
             msglvl1 = 1,
             msglvl2 = 2,
+#endif
             msglvl3 = 3;
         pmcinitdebug(
                 &arpack_log_u,      /*logfil*/
@@ -455,7 +454,7 @@ clearerr:
 
 
 
-#if 0
+#if 0 /* double precision version? */
 
 /* TODO put double version into a separate file */
 /* TODO 'double' needs revision according to changes in 'single' */
@@ -680,7 +679,7 @@ op_MDWF_D3_eoprec_MdagM_op(
 }
 
 
-#endif
+#endif /* double precision version? */
 
 
 #endif /* HAS_ARPACK */

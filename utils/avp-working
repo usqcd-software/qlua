@@ -1,7 +1,7 @@
 #!/bin/sh
 PACKTOP=$HOME/Local/packages/macosx-20140108
-Nc=2
-noNc=3
+Nc=3
+noNc=2
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$HOME/Local/packages/qlua-su-$Nc
@@ -10,7 +10,11 @@ TARGET=$HOME/Local/packages/qlua-su-$Nc
 
 WOPTS='-Wno-unused-but-set-variable -Wno-unused-local-typedefs'
 
+ARPACK_LIBS="-L$PACKTOP/arpack/lib -lparpack -larpack"
+LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
+
 CC='mpicc -m64 -std=c99' \
+LD='mpif77 -m64 -fno-underscoring' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
 COPTS='-O2' \
 ./configure                                                \
@@ -19,11 +23,12 @@ COPTS='-O2' \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1     \
-   --with-clover=$HOME/Local/packages/clover-working       \
-   --clover-nc=$Nc                                         \
+   --with-mdwf=$PACKTOP/mdwf                               \
    --with-nc=$Nc                                           \
    --without-nc=$noNc                                      \
-   --with-nc=N                                             \
+   --without-nc=N                                          \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    $*
 
-#   --with-mdwf=$PACKTOP/mdwf                               \
+#   --with-clover=$HOME/Local/packages/clover-working       \
+#   --clover-nc=$Nc                                         \
