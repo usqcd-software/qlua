@@ -77,12 +77,14 @@ q_p_gaussian_N(lua_State *L)
 /* Sequential Dirac Propagators:
  *  qcd.DiracPropagatorN(n)              -- zero propagator in n colors
  *  qcd.DiracPropagatorN(n,M)            -- n colors, P[.,k,.,k] = M for all k
+ *  qcd.DiracPropagatorN(n,R)            -- n colors, P[i,k,i,k] = R for all k, i
+ *  qcd.DiracPropagatorN(n,C)            -- n colors, P[i,k,i,k] = C for all k, i
  *  qcd.DiracPropagatorN(n,D,{c=i,d=j})  -- n colors, P[i,j,.,.] = D
  */
 static int
 q_seqdirpropN(lua_State *L)
 {
-    int nc = luaL_checkint(L, 2);
+    int nc = luaL_checkint(L, 1);
 
     switch (nc) {
 #if USE_Nc2

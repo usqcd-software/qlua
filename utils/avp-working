@@ -1,7 +1,7 @@
 #!/bin/sh
 PACKTOP=$HOME/Local/packages/macosx-20140108
-Nc=3
-noNc=2
+Nc=2
+noNc=3
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$HOME/Local/packages/qlua-su-$Nc
@@ -16,19 +16,19 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 CC='mpicc -m64 -std=c99' \
 LD='mpif77 -m64 -fno-underscoring' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
-COPTS='-O2' \
+COPTS='-g' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1     \
-   --with-mdwf=$PACKTOP/mdwf                               \
    --with-nc=$Nc                                           \
    --without-nc=$noNc                                      \
    --without-nc=N                                          \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+   --with-clover=$HOME/Local/packages/clover-working       \
+   --clover-nc=$Nc                                         \
    $*
 
-#   --with-clover=$HOME/Local/packages/clover-working       \
-#   --clover-nc=$Nc                                         \
+#   --with-mdwf=$PACKTOP/mdwf                               \

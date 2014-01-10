@@ -426,39 +426,64 @@ static int
 Qs(q_seqdirprop_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         Qs(qlua_newZeroSeqDirProp)(L, nc);
         return 1;
     }
-    case 1: {
+    case 2: {
         Qs(mSeqDirProp) *v = Qs(qlua_newZeroSeqDirProp)(L, nc);
         
-        switch (qlua_qtype(L, 1)) {
+        switch (qlua_qtype(L, 2)) {
         case Qs(qSeqColMat): {
-            Qs(mSeqColMat) *w = Qs(qlua_checkSeqColMat)(L, 1, nc);
-            QLA_D_Complex *c = qlua_newComplex(L);
+            Qs(mSeqColMat) *w = Qs(qlua_checkSeqColMat)(L, 2, nc);
+            QLA_D_Complex c;
             int ic, jc, ks;
 
             for (ic = 0; ic < nc; ic++) {
                 for (jc = 0; jc < nc; jc++) {
-                    Qx(QLA_D,_C_eq_elem_M)(QNC(nc) c, w->ptr, ic, jc);
+                    Qx(QLA_D,_C_eq_elem_M)(QNC(nc) &c, w->ptr, ic, jc);
                     for (ks = 0; ks < QDP_Ns; ks++)
-                        Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, c,
+                        Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, &c,
                                                ic, ks, jc, ks);
                 }
             }
             lua_pop(L, 1);
 
             return 1;
+          case qReal: {
+            double r = luaL_checknumber(L, 2);
+            QLA_D_Complex c;
+            int ic, is;
+
+            QLA_real(c) = r;
+            QLA_imag(c) = 0.0;
+            for (ic = 0; ic < nc; ic++) {
+              for (is = 0; is < QDP_Ns; is++) {
+                Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, &c, ic, is, ic, is);
+              }
+            }
+            return 1;
+          }
+          case qComplex: {
+            QLA_D_Complex *c = qlua_checkComplex(L, 2);
+            int ic, is;
+
+            for (ic = 0; ic < nc; ic++) {
+              for (is = 0; is < QDP_Ns; is++) {
+                Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, c, ic, is, ic, is);
+              }
+            }
+            return 1;
+          }
         }
         default:
             break;
         }
     }
-    case 2: {
-        Qs(mSeqDirFerm) *z = Qs(qlua_checkSeqDirFerm)(L, 1, nc);
-        int d = qlua_checkdiracindex(L, 2);
-        int c = qlua_checkcolorindex(L, 2, nc);
+    case 3: {
+        Qs(mSeqDirFerm) *z = Qs(qlua_checkSeqDirFerm)(L, 2, nc);
+        int d = qlua_checkdiracindex(L, 3);
+        int c = qlua_checkcolorindex(L, 3, nc);
         Qs(mSeqDirProp) *v = Qs(qlua_newZeroSeqDirProp)(L, nc);
 
         Qx(QLA_D,_P_eq_diracvec_D)(QNC(nc) v->ptr, z->ptr, c, d);
