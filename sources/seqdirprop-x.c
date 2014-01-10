@@ -450,31 +450,31 @@ Qs(q_seqdirprop_)(lua_State *L, int nc)
             lua_pop(L, 1);
 
             return 1;
-          case qReal: {
-            double r = luaL_checknumber(L, 2);
-            QLA_D_Complex c;
-            int ic, is;
-
-            QLA_real(c) = r;
-            QLA_imag(c) = 0.0;
-            for (ic = 0; ic < nc; ic++) {
-              for (is = 0; is < QDP_Ns; is++) {
-                Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, &c, ic, is, ic, is);
+        }
+        case qReal: {
+          double r = luaL_checknumber(L, 2);
+          QLA_D_Complex c;
+          int ic, is;
+          
+          QLA_real(c) = r;
+          QLA_imag(c) = 0.0;
+          for (ic = 0; ic < nc; ic++) {
+            for (is = 0; is < QDP_Ns; is++) {
+              Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, &c, ic, is, ic, is);
               }
-            }
-            return 1;
           }
-          case qComplex: {
-            QLA_D_Complex *c = qlua_checkComplex(L, 2);
-            int ic, is;
-
-            for (ic = 0; ic < nc; ic++) {
-              for (is = 0; is < QDP_Ns; is++) {
-                Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, c, ic, is, ic, is);
-              }
+          return 1;
+        }
+        case qComplex: {
+          QLA_D_Complex *c = qlua_checkComplex(L, 2);
+          int ic, is;
+          
+          for (ic = 0; ic < nc; ic++) {
+            for (is = 0; is < QDP_Ns; is++) {
+              Qx(QLA_D,_P_eq_elem_C)(QNC(nc) v->ptr, c, ic, is, ic, is);
             }
-            return 1;
           }
+          return 1;
         }
         default:
             break;
