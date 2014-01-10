@@ -3,7 +3,6 @@
 #include "qmatrix.h"                                                 /* DEPS */
 #include "hdf5_io.h"                                                 /* DEPS */
 #include "sha256.h"                                                  /* DEPS */
-#define _BSD_SOURCE
 #include <string.h>
 #include <complex.h>
 #include <sys/stat.h>
