@@ -52,7 +52,7 @@ typedef struct {
   int nev;
   int umax;
   int vmax;
-  struct QNc(QOP_, _CLOVER_Deflator) *deflator;
+  struct QNc(QOP_F, _CLOVER_Deflator) *deflator;
 } mDeflatorState;
 
 static mClover *qlua_newClover(lua_State *L, int Sidx);
@@ -169,9 +169,9 @@ q_dirac_solver(lua_State *L)
     }
 
     if ((lua_type(L, 3) == LUA_TBOOLEAN) && (lua_toboolean(L, 3) != 0))
-      log_level = (QNc(QOP_,_CLOVER_LOG_CG_RESIDUAL) |
-                   QNc(QOP_,_CLOVER_LOG_EIG_POSTAMBLE) |
-                   QNc(QOP_,_CLOVER_LOG_EIG_UPDATE1));
+      log_level = (QOP_CLOVER_LOG_CG_RESIDUAL |
+                   QOP_CLOVER_LOG_EIG_POSTAMBLE |
+                   QOP_CLOVER_LOG_EIG_UPDATE1);
     else
         log_level = 0;
 
@@ -336,7 +336,7 @@ q_DFS_gc(lua_State *L)
     mDeflatorState *d = q_checkDeflatorState(L, 1, NULL, 0);
 
     if (d->deflator)
-      QNc(QOP_, _CLOVER_free_deflator)(&d->deflator);
+      QNc(QOP_F, _CLOVER_free_deflator)(&d->deflator);
     d->deflator = 0;
 
     return 0;
@@ -432,7 +432,7 @@ q_DF_close(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QNc(QOP_, _CLOVER_free_deflator)(&d->deflator);
+    QNc(QOP_F, _CLOVER_free_deflator)(&d->deflator);
 
     return 0;
 }
@@ -442,7 +442,7 @@ q_DF_reset(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QNc(QOP_, _CLOVER_deflator_reset)(d->deflator);
+    QNc(QOP_F, _CLOVER_deflator_eigcg_reset)(d->deflator);
 
     return 0;
 }
@@ -452,7 +452,7 @@ q_DF_stop(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QNc(QOP_, _CLOVER_deflator_stop)(d->deflator);
+    QNc(QOP_F, _CLOVER_deflator_eigcg_stop)(d->deflator);
 
     return 0;
 }
@@ -462,18 +462,19 @@ q_DF_resume(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
 
-    QNc(QOP_, _CLOVER_deflator_resume)(d->deflator);
+    QNc(QOP_F, _CLOVER_deflator_eigcg_resume)(d->deflator);
 
     return 0;
 }
 
+#if 0 /* XXX */
 static int
 q_DF_eigenvalues(lua_State *L)
 {
     mDeflatorState *d = q_Deflator_get_State(L, 1, NULL, 1);
     mVecReal *v = qlua_newVecReal(L, d->nev);
     double *t = qlua_malloc(L, d->nev * sizeof (double));
-    int status = QNc(QOP_, _CLOVER_deflator_eigen)(t, d->deflator);
+    int status = QNc(QOP_F, _CLOVER_deflator_eigen)(t, d->deflator);
 
     if (status == 0) {
         int i;
@@ -486,6 +487,7 @@ q_DF_eigenvalues(lua_State *L)
     else
         return 0;
 }
+#endif /* XXX */
 
 static int
 q_DF_deflated_mixed_solver(lua_State *L,
@@ -543,8 +545,8 @@ static struct luaL_Reg mtDeflator[] = {
     { "reset",              q_DF_reset             },
     { "stop",               q_DF_stop              },
     { "resume",             q_DF_resume            },
-    { "eigenvalues",        q_DF_eigenvalues       },
 #if 0  /* XXX deflator extra methods */
+    { "eigenvalues",        q_DF_eigenvalues       },
     { "truncate",           q_DF_truncate          },
     { "get_counter",        q_DF_get_counter       },
     { "put_counter",        q_DF_put_counter       },
@@ -580,7 +582,7 @@ q_CL_make_deflator(lua_State *L)
     d->umax = umax;
 
     CALL_QDP(L);
-    if (QNc(QOP_, _CLOVER_create_deflator)(&d->deflator, c->state,
+    if (QNc(QOP_F, _CLOVER_create_deflator)(&d->deflator, c->state,
                                    vmax, nev, eps, umax))
         return luaL_error(L, "CLOVER_create_deflator() failed");
 
