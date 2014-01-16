@@ -5,24 +5,3 @@ The goal is to make an easily extendable scripts for QCD applications.
 
 See INSTALL in this directory for build and installation instructions.
 
-Directory doc contains working documentation for this package.
-
-HOW TO ADD NEW PIECES:
-
-1. put file xxx.c and xxx.h into sources/
-
-2. add xxx.c to Makefile.in
-
-3. regenerate dependences:
-
-  $ utils/get-deps > deps 
-
-4. run configure to generate Makefile. A sample is in utils/setup-config
-
-  $ utils/setup-config
-
-5. Build qlua
-
-  $ make
-
-6. place a qlua test script into tests. Call it xxx.qlua for consistency
