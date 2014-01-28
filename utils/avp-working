@@ -17,12 +17,13 @@ CC='mpicc -m64 -std=c99' \
 LD='mpif77 -m64 -fno-underscoring' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
 COPTS='-g' \
+LIBS='-lz' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1     \
+   --with-hdf5=$HOME/Local/packages/hdf5-1.8.11-parallel   \
    --with-nc=$Nc                                           \
    --without-nc=$noNc                                      \
    --without-nc=N                                          \
