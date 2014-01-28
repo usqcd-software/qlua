@@ -32,7 +32,8 @@ q_S_gc(lua_State *L)
 
     QDP_destroy_S(b->ptr);
     b->ptr = 0;
-    
+    qlua_qdp_memuse(L, "Random", -1);
+
     return 0;
 }
 
@@ -120,6 +121,7 @@ qlua_newLatRandom(lua_State *L, int Sidx)
     hdr->ptr = v;
     qlua_createLatticeTable(L, Sidx, mtLatRandom, qLatRandom, LatRandomName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "Random", 1);
 
     return hdr;
 }
@@ -127,7 +129,7 @@ qlua_newLatRandom(lua_State *L, int Sidx)
 mLatRandom *
 qlua_newZeroLatRandom(lua_State *L, int Sidx)
 {
-	return qlua_newLatRandom(L, Sidx);
+        return qlua_newLatRandom(L, Sidx);
 }
 
 mLatRandom *

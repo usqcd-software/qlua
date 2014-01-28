@@ -16,8 +16,11 @@ Qs(q_V_fmt)(lua_State *L)
 static int
 Qs(q_V_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatColVec) *b = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "ColorVector%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_V)(b->ptr);
     b->ptr = 0;
 
@@ -572,6 +575,7 @@ static struct luaL_Reg Qs(mtLatColVec)[] = {
 Qs(mLatColVec) *
 Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
 {
+    char qdp_name[72];
     mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
     Qx(QDP_D,_ColorVector) *v = Qx(QDP_D,_create_V_L)(nc, S->lat);
@@ -598,6 +602,8 @@ Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatColVec), Qs(qLatColVec),
                             Qs(LatColVecName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "ColorVector%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }

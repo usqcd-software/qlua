@@ -30,6 +30,7 @@ q_R_gc(lua_State *L)
 
     QDP_destroy_R(b->ptr);
     b->ptr = 0;
+    qlua_qdp_memuse(L, "Real", -1);
 
     return 0;
 }
@@ -1163,6 +1164,7 @@ qlua_newLatReal(lua_State *L, int Sidx)
     hdr->ptr = v;
     qlua_createLatticeTable(L, Sidx, mtLatReal, qLatReal, LatRealName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "Real", 1);
 
     return hdr;
 }

@@ -16,8 +16,11 @@ Qs(q_P_fmt)(lua_State *L)
 static int
 Qs(q_P_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatDirProp) *b = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "DiracPropagatorn%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_P)(b->ptr);
     b->ptr = 0;
 
@@ -751,6 +754,7 @@ static struct luaL_Reg Qs(mtLatDirProp)[] = {
 Qs(mLatDirProp) *
 Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
 {
+    char qdp_name[72];
     mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
     Qx(QDP_D,_DiracPropagator) *v = Qx(QDP_D,_create_P_L)(nc, S->lat);
@@ -777,6 +781,8 @@ Qs(qlua_newLatDirProp)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatDirProp), Qs(qLatDirProp),
                             Qs(LatDirPropName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "DiracPropagatorn%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }
