@@ -615,8 +615,7 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "limit");
     lua_pushcfunction(L, qlua_node);
     lua_setfield(L, -2, "node");
-    
-    lua_pop(L, 1);
+    lua_setglobal(L, "os");
 
     /* fix package.path -- try to get QLUALIB from the environment first */
         {
@@ -640,7 +639,6 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, qcdlib);
     lua_pushcfunction(L, qlua_qcdmem);
     lua_setfield(L, -2, "memory_usage");
-    lua_pop(L, 1);
 
     return 0;
 }
