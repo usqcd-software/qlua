@@ -1,7 +1,7 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20140108
-Nc=2
-noNc=3
+PACKTOP=$HOME/Local/packages/macosx-20140122-rc1
+Nc=3
+# noNc=3
 
 #TARGET=`(cd ..; pwd)`/install
 TARGET=$HOME/Local/packages/qlua-su-$Nc
@@ -24,11 +24,11 @@ COPTS='-g' \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1     \
    --with-nc=$Nc                                           \
-   --without-nc=$noNc                                      \
-   --without-nc=N                                          \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
-   --with-clover=$HOME/Local/packages/clover-working       \
+   --with-mdwf=$PACKTOP/mdwf                               \
+   --with-clover=$PACKTOP/clover                           \
    --clover-nc=$Nc                                         \
    $*
 
-#   --with-mdwf=$PACKTOP/mdwf                               \
+#   --without-nc=$noNc                                      \
+#   --without-nc=N                                          \

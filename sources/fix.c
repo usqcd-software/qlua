@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <sys/resource.h>
 
 static char self[72];
 
@@ -361,6 +362,56 @@ qlua_random(lua_State *L)
     return 1;
 }
 
+static int
+qlua_limit(lua_State *L)
+{
+  const char *name = luaL_checkstring(L, 1);
+  int resource = 0;
+
+  if (strcmp(name, "as") == 0)
+    resource = RLIMIT_AS;
+  else if (strcmp(name, "data") == 0)
+    resource = RLIMIT_DATA;
+  else if (strcmp(name, "rss") == 0)
+    resource = RLIMIT_RSS;
+  else if (strcmp(name, "stack") == 0)
+    resource  = RLIMIT_STACK;
+  else
+    luaL_error(L, "unknown resource name %s", name);
+  switch (lua_gettop(L)) {
+  case 1: {
+    struct rlimit rl;
+    if (getrlimit(resource, &rl))
+      luaL_error(L, "getrlimit(%s) failed", name);
+    lua_pushnumber(L, rl.rlim_cur);
+    lua_pushnumber(L, rl.rlim_max);
+    return 2;
+  }
+  case 2: {
+    double s = luaL_checknumber(L, 2);
+    struct rlimit rl;
+    rl.rlim_cur = s;
+    rl.rlim_max = s;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  case 3: {
+    double s0 = luaL_checknumber(L, 2);
+    double s1 = luaL_checknumber(L, 3);
+    struct rlimit rl;
+    rl.rlim_cur = s0;
+    rl.rlim_max = s1;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  default:
+    break;
+  }
+  return luaL_error(L, "too many parameters");
+}
+
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
@@ -506,6 +557,8 @@ init_qlua_io(lua_State *L)
         lua_pushcfunction(L, qlua_random);
         lua_setfield(L, -2, "random");
     }
+    lua_pushcfunction(L, qlua_limit);
+    lua_setfield(L, -2, "limit");
     
     lua_pop(L, 1);
 
