@@ -29,6 +29,7 @@ sha256_reset(SHA256_Context *c)
   c->h[7] = 0x5BE0CD19;
   c->x_len = 0;
   c->len = 0;
+  c->L = NULL;
 }
 
 SHA256_Context *
@@ -125,7 +126,7 @@ update_block(SHA256_Context *digest, uint8_t *p, unsigned int len)
 }
 
 void
-sha256_update(SHA256_Context *c, void *p, unsigned int len)
+sha256_update(SHA256_Context *c, const void *p, unsigned int len)
 {
   uint8_t *pp = (uint8_t *)p;
   unsigned int lx;
@@ -186,4 +187,15 @@ int
 sha256_cmp(const SHA256_Sum *a, const SHA256_Sum *b)
 {
   return memcmp(a->v, b->v, 32);
+}
+
+void
+sha256_sum_string(SHA256_Sum *r, const char *ptr, unsigned int count)
+{
+  SHA256_Context ctx;
+
+  sha256_reset(&ctx);
+  sha256_update(&ctx, ptr, count);
+  sha256_sum(r, &ctx);
+  memset(&ctx, 0, sizeof (SHA256_Context));
 }
