@@ -201,6 +201,24 @@ sha256_sum_string(SHA256_Sum *r, const char *ptr, unsigned int count)
 }
 
 void
+sha256_sum_add_ints(SHA256_Context *ctx, const int *ptr, unsigned int count)
+{
+  int i;
+
+  for (i = 0; i < count; i++) {
+    unsigned long long u = ptr[i];
+    unsigned char c[sizeof (unsigned long long)];
+    int j;
+
+    for (j = 0; j < sizeof (unsigned long long); j++) {
+      c[j] = (unsigned char)u;
+      u >>= 8;
+    }
+    sha256_update(ctx, c, sizeof (unsigned long long));
+  }
+}
+
+void
 sha256_sum_add_doubles(SHA256_Context *ctx, const double *ptr, unsigned int count)
 {
   int i;

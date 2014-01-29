@@ -48,7 +48,6 @@ struct mHdf5Reader_s {
 
 typedef struct QObjTable_s {
   const char *name;
-  H5I_type_t  ftype;
   int (*writer)(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot);
   int (*reader)(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot);
 } QObjTable;
@@ -445,7 +444,7 @@ w_string(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot
   CHECK_H5(L, H5Tset_size(mtype, len), "set mtype size");
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, str, &sum);
 
-  qlua_Hdf5_enter(L);
+  qlua_Hdf5_leave();
 
   return 0;
 }
@@ -469,7 +468,7 @@ w_real(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
   hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, &val, &sum);
 
-  qlua_Hdf5_enter(L);
+  qlua_Hdf5_leave();
 
   return 0;
 }
@@ -496,7 +495,162 @@ w_complex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qo
   hid_t mtype = construct_mtype_complex(L, &b->htype);
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, &cv, &sum);
 
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+w_vecint(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  mVecInt *v = qlua_checkVecInt(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum sum;
+  hsize_t len;
+
+  sha256_sum_add_ints(ctx, v->val, v->size);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
   qlua_Hdf5_enter(L);
+  len = v->size;
+  hid_t dataspace = H5Screate_simple(1, &len, NULL);
+  hid_t ftype = H5Tcopy(H5T_STD_I64BE);
+  hid_t mtype = H5Tcopy(H5T_NATIVE_INT);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, v->val, &sum);
+
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+w_vecreal(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  mVecReal *v = qlua_checkVecReal(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum sum;
+  hsize_t len;
+
+  sha256_sum_add_doubles(ctx, v->val, v->size);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+  len = v->size;
+  hid_t dataspace = H5Screate_simple(1, &len, NULL);
+  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
+  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, v->val, &sum);
+
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+w_veccomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  mVecComplex *v = qlua_checkVecComplex(L, 3);
+  machine_complex *cv = qlua_malloc(L, v->size * sizeof (machine_complex));
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum sum;
+  hsize_t len;
+  int i;
+
+  for (i = 0; i < v->size; i++) {
+    cv[i].re = QLA_real(v->val[i]);
+    cv[i].im = QLA_imag(v->val[i]);
+  }
+
+  sha256_sum_add_doubles(ctx, (double *)cv, 2 * v->size);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+  len = v->size;
+  hid_t dataspace = H5Screate_simple(1, &len, NULL);
+  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
+  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, v->val, &sum);
+  qlua_free(L, cv);
+
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+w_matreal(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  mMatReal *v = qlua_checkMatReal(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  double *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (double));
+  SHA256_Sum sum;
+  hsize_t len[2];
+  int i, j;
+  double *ptr;
+
+  for (ptr = cv, i = 0; i < v->l_size; i++) {
+    for (j = 0; j < v->r_size; j++, ptr++) {
+      *ptr = gsl_matrix_get(v->m, i, j);
+    }
+  }
+  sha256_sum_add_doubles(ctx, cv, v->l_size * v->r_size);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+  len[0] = v->l_size;
+  len[1] = v->r_size;
+  hid_t dataspace = H5Screate_simple(2, len, NULL);
+  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
+  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, cv, &sum);
+  qlua_free(L, cv);
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+w_matcomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  mMatComplex *v = qlua_checkMatComplex(L, 3);
+  machine_complex *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex));
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum sum;
+  hsize_t len[2];
+  int i, j;
+  machine_complex *ptr;
+
+  for (ptr = cv, i = 0; i < v->l_size; i++) {
+    for (j = 0; j < v->r_size; j++, ptr++) {
+      gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
+      ptr->re = GSL_REAL(zz);
+      ptr->im = GSL_IMAG(zz);
+    }
+  }
+
+  sha256_sum_add_doubles(ctx, (double *)cv, 2 * v->l_size * v->r_size);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+  len[0] = v->l_size;
+  len[1] = v->r_size;
+  hid_t dataspace = H5Screate_simple(2, len, NULL);
+  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
+  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, cv, &sum);
+  qlua_free(L, cv);
+
+  qlua_Hdf5_leave();
 
   return 0;
 }
@@ -735,6 +889,11 @@ qhdf5_r_exists(lua_State *L)
 static int r_string(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 static int r_real(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 static int r_complex(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_vecint(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_vecreal(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_veccomplex(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_matreal(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_matcomplex(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 
 static int qhdf5_r_read(lua_State *L) { /* XXXXX */ return 0; }
 
@@ -764,28 +923,28 @@ q_hdf5_reader(lua_State *L)
 
 /* setup */
 static QObjTable qotable[] = {
-  { "String",                 H5I_DATASET,  w_string,      r_string     },
-  { "Real",                   H5I_DATASET,  w_real,        r_real       },
-  { "Complex",                H5I_DATASET,  w_complex,     r_complex    },
+  { "String",                 w_string,      r_string     },
+  { "Real",                   w_real,        r_real       },
+  { "Complex",                w_complex,     r_complex    },
+  { "VectorInt",              w_vecint,      r_vecint     },
+  { "VectorReal",             w_vecreal,     r_vecreal    },
+  { "VectorComplex",          w_veccomplex,  r_veccomplex },
+  { "MatrixReal",             w_matreal,     r_matreal    },
+  { "MatrixComplex",          w_matcomplex,  r_matcomplex },
 #if 0 /* XXXXX qlua object dispatch table */
-  { "MatrixReal",             H5I_DATASET,  w_matreal,     r_matreal    },
-  { "MatrixComplex",          H5I_DATASET,  w_matcomplex,  r_matcomplex },
-  { "VectorInt",              H5I_DATASET,  w_varint,      r_varint     },
-  { "VectorReal",             H5I_DATASET,  w_vecreal,     r_vecreal    },
-  { "VectorComplex",          H5I_DATASET,  w_veccomplex,  r_veccomplex },
-  { "ColorVector",            H5I_DATASET,  w_colvec,      r_colvec     },
-  { "ColorMatrix",            H5I_DATASET,  w_colmat,      r_colmat     },
-  { "DiracFermion",           H5I_DATASET,  w_dirferm,     r_dirferm    },
-  { "DiracPropagator",        H5I_DATASET,  w_dirprop,     r_dirprop    },
-  { "LatticeInt",             H5I_DATASET,  w_latint,      r_latint     },
-  { "LatticeReal",            H5I_DATASET,  w_latreal,     r_latreal    },
-  { "LatticeComplex",         H5I_DATASET,  w_latcomplex,  r_latcomplex },
-  { "LatticeColorVector",     H5I_DATASET,  w_latcolvec,   r_latcolvec  },
-  { "LatticeColorMatrix",     H5I_DATASET,  w_latcolmat,   r_latcolmat  },
-  { "LatticeDiracFermion",    H5I_DATASET,  w_latdirferm,  r_latdirferm },
-  { "LatticeDiracPropagator", H5I_DATASET,  w_latdirprop,  r_latdirprop },
+  { "ColorVector",            w_colvec,      r_colvec     },
+  { "ColorMatrix",            w_colmat,      r_colmat     },
+  { "DiracFermion",           w_dirferm,     r_dirferm    },
+  { "DiracPropagator",        w_dirprop,     r_dirprop    },
+  { "LatticeInt",             w_latint,      r_latint     },
+  { "LatticeReal",            w_latreal,     r_latreal    },
+  { "LatticeComplex",         w_latcomplex,  r_latcomplex },
+  { "LatticeColorVector",     w_latcolvec,   r_latcolvec  },
+  { "LatticeColorMatrix",     w_latcolmat,   r_latcolmat  },
+  { "LatticeDiracFermion",    w_latdirferm,  r_latdirferm },
+  { "LatticeDiracPropagator", w_latdirprop,  r_latdirprop },
 #endif /* XXXXX qlua object dispatch table */
-  { NULL,                     H5I_BADID,    NULL,          NULL         }
+  { NULL,                     NULL,          NULL         }
 };
 
 
