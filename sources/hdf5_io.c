@@ -375,6 +375,56 @@ w_string(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot
   return 0;
 }
 
+static int
+w_real(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  double val = luaL_checknumber(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum sum;
+
+  sha256_sum_add_doubles(ctx, &val, 1);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+
+  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
+  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
+  
+  char *dpath = qlua_strdup(L, path);
+  hid_t wdir = b->cwd;
+  char *ename = strrchr(dpath, '/');
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
+  }
+  hid_t dataspace = H5Screate(H5S_SCALAR);
+  hid_t dataset = H5Dcreate2(wdir, ename, ftype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+  if (b->master) {
+    /* Only on the master */
+    CHECK_H5(L, H5Dwrite(dataset, mtype, H5S_ALL, H5S_ALL, plist, &val), "write string");
+  }
+  /* Everyone must write attributes, which must be identical or else. */
+  write_attrs(L, b, dataset, &sum, qot->name);
+
+  CHECK_H5(L, H5Pclose(plist), "Pclose() plist");
+  CHECK_H5(L, H5Dclose(dataset), "Dclose() dataset");
+  CHECK_H5(L, H5Sclose(dataspace), "Sclose() dataspace");
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
+  CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
+  CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
+  qlua_free(L, dpath);
+  qlua_Hdf5_enter(L);
+
+  return 0;
+}
+
 static const char *
 qh5_data_kind(lua_State *L, int idx)
 {
@@ -622,6 +672,7 @@ qhdf5_r_exists(lua_State *L)
 
 /* XXXX readers */
 static int r_string(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_real(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 
 static int qhdf5_r_read(lua_State *L) { /* XXXXX */ return 0; }
 
@@ -652,8 +703,8 @@ q_hdf5_reader(lua_State *L)
 /* setup */
 static QObjTable qotable[] = {
   { "String",                 H5I_DATASET,  w_string,      r_string     },
-#if 0 /* XXXXX qlua object dispatch table */
   { "Real",                   H5I_DATASET,  w_real,        r_real       },
+#if 0 /* XXXXX qlua object dispatch table */
   { "Complex",                H5I_DATASET,  w_complex,     r_complex    },
   { "MatrixReal",             H5I_DATASET,  w_matreal,     r_matreal    },
   { "MatrixComplex",          H5I_DATASET,  w_matcomplex,  r_matcomplex },
