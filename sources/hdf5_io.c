@@ -524,21 +524,6 @@ qh5_data_kind(lua_State *L, int idx)
   case qLatColMat2: case qLatColMat3: case qLatColMatN: return "LatticeColorMatrix";
   case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: return "LatticeDiracFermion";
   case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: return "LatticeDiracPropagator";
-  case qTable: {
-    const char *kind = NULL;
-    lua_pushinteger(L, 1);
-    lua_gettable(L, idx);
-    switch (qlua_qtype(L, -1)) {
-    case qLatColMat2: case qLatColMat3: case qLatColMatN: kind = "Gauge"; break;
-    case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: kind = "DomainWallFermion"; break;
-    case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: kind = "DomainWallPropagator"; break;
-    default:
-      break;
-    }
-    lua_pop(L, 1);
-    if (kind)
-      return kind;
-  } break;
   default:
     break;
   }
@@ -799,9 +784,6 @@ static QObjTable qotable[] = {
   { "LatticeColorMatrix",     H5I_DATASET,  w_latcolmat,   r_latcolmat  },
   { "LatticeDiracFermion",    H5I_DATASET,  w_latdirferm,  r_latdirferm },
   { "LatticeDiracPropagator", H5I_DATASET,  w_latdirprop,  r_latdirprop },
-  { "Gauge",                  H5I_GROUP,    w_gauge,       r_gauge      },
-  { "DomainWallFermion",      H5I_GROUP,    w_dwferm,      r_dwferm     },
-  { "DomainWallPropagator",   H5I_GROUP,    w_dwprop,      r_dwprop     },
 #endif /* XXXXX qlua object dispatch table */
   { NULL,                     H5I_BADID,    NULL,          NULL         }
 };
