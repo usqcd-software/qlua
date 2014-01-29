@@ -1,4 +1,5 @@
 #include "qlua.h"                                                    /* DEPS */
+#include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
 #include "qmatrix.h"                                                 /* DEPS */
 #include "hdf5_io.h"                                                 /* DEPS */
@@ -14,9 +15,15 @@ static const char mtnReader[] = "qcd.hdf5.mtReader";
 static const char mtnWriter[] = "qcd.hdf5.mtRriter";
 const char csum_attr_name[] = ".sha256";
 const char kind_attr_name[] = ".kind";
+const char htype_complex_name[] = ".complex";
 
 #define FAILED_H5CALL -1
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
+
+typedef struct {
+  double re;
+  double im;
+} machine_complex;
 
 /* mappings to HDF5 types */
 typedef struct htype_s {
@@ -117,6 +124,67 @@ qh_get_list(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdat
   lua_pushinteger(L, k + 1);
 
   return 0;
+}
+
+static HType *
+lookup_htype(HType *p, const char *name)
+{
+  for (; p; p = p->next) {
+    if (strcmp(p->name, name) == 0)
+      break;
+  }
+  return p;
+}
+
+static HType *
+create_htype(lua_State *L, HType **pph, const char *name)
+{
+  HType *p = qlua_malloc(L, sizeof (HType));
+  p->name = qlua_strdup(L, name);
+  p->next = *pph;
+  p->ftype = -1;
+  p->mtype = -1;
+  *pph = p;
+
+  return p;
+}
+
+static hid_t
+construct_ftype_complex(lua_State *L, HType **pph, hid_t hf)
+{
+  const char *name = htype_complex_name;
+  HType *p = lookup_htype(*pph, name);
+  if (!p) {
+    p = create_htype(L, pph, name);
+  }
+  if (p->ftype < 0) {
+    hid_t v = H5Tcreate(H5T_COMPOUND, 2 * 8);
+    CHECK_H5(L, v, "file complex type create failed");
+    CHECK_H5(L, H5Tinsert(v, "r", 0, H5T_IEEE_F64BE), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", 8, H5T_IEEE_F64BE), "complex.i insert failed");
+    if (hf >= 0)
+      CHECK_H5(L, H5Tcommit(hf, name, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex commit failed");
+    p->ftype = v;
+  }
+  return H5Tcopy(p->ftype);
+}
+
+static hid_t
+construct_mtype_complex(lua_State *L, HType **pph)
+{
+  const char *name = htype_complex_name;
+  HType *p = lookup_htype(*pph, name);
+  if (!p) {
+    p = create_htype(L, pph, name);
+  }
+  if (p->mtype < 0) {
+    hid_t v = H5Tcreate(H5T_COMPOUND, sizeof(machine_complex));
+    CHECK_H5(L, v, "machine complex type create failed");
+    CHECK_H5(L, H5Tinsert(v, "r", HOFFSET(machine_complex, re), H5T_NATIVE_DOUBLE), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", HOFFSET(machine_complex, im), H5T_NATIVE_DOUBLE), "complex.i insert failed");
+    p->mtype = v;
+  }
+  return H5Tcopy(p->mtype);
 }
 
 static int h_kind(lua_State *L, hid_t file, hid_t cwd, const char *path) { /* XXXXX */ return 0; }
@@ -325,6 +393,39 @@ write_attrs(lua_State *L, mHdf5Writer *b, hid_t dset, const SHA256_Sum *sum, con
 }
 
 /* XXXX writers */
+static void
+w_scalar(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot,
+         hid_t ftype, hid_t mtype, hid_t dataspace, const void *data, const SHA256_Sum *sum)
+{
+  char *dpath = qlua_strdup(L, path);
+  hid_t wdir = b->cwd;
+  char *ename = strrchr(dpath, '/');
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
+  }
+  hid_t dataset = H5Dcreate2(wdir, ename, ftype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+  if (b->master) {
+    /* Only on the master */
+    CHECK_H5(L, H5Dwrite(dataset, mtype, H5S_ALL, H5S_ALL, plist, data), "write string");
+  }
+  /* Everyone must write attributes, which must be identical or else. */
+  write_attrs(L, b, dataset, sum, qot->name);
+
+  CHECK_H5(L, H5Pclose(plist), "Pclose() plist");
+  CHECK_H5(L, H5Dclose(dataset), "Dclose() dataset");
+  CHECK_H5(L, H5Sclose(dataspace), "Sclose() dataspace");
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
+  CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
+  CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
+  qlua_free(L, dpath);
+}
+
 static int
 w_string(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
 {
@@ -337,39 +438,13 @@ w_string(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot
 
   qlua_Hdf5_enter(L);
 
+  hid_t dataspace = H5Screate(H5S_SCALAR);
   hid_t ftype = H5Tcopy(H5T_C_S1);
   hid_t mtype = H5Tcopy(H5T_C_S1);
   CHECK_H5(L, H5Tset_size(ftype, len), "set ftype size");
   CHECK_H5(L, H5Tset_size(mtype, len), "set mtype size");
-  
-  char *dpath = qlua_strdup(L, path);
-  hid_t wdir = b->cwd;
-  char *ename = strrchr(dpath, '/');
-  if (ename == NULL) {
-    ename = dpath;
-  } else {
-    ename[0] = 0;
-    ename = ename + 1;
-    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
-  }
-  hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t dataset = H5Dcreate2(wdir, ename, ftype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  if (b->master) {
-    /* Only on the master */
-    CHECK_H5(L, H5Dwrite(dataset, mtype, H5S_ALL, H5S_ALL, plist, str), "write string");
-  }
-  /* Everyone must write attributes, which must be identical or else. */
-  write_attrs(L, b, dataset, &sum, qot->name);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, str, &sum);
 
-  CHECK_H5(L, H5Pclose(plist), "Pclose() plist");
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() dataset");
-  CHECK_H5(L, H5Sclose(dataspace), "Sclose() dataspace");
-  if (wdir != b->cwd)
-    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
-  CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
-  qlua_free(L, dpath);
   qlua_Hdf5_enter(L);
 
   return 0;
@@ -389,37 +464,38 @@ w_real(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
 
   qlua_Hdf5_enter(L);
 
+  hid_t dataspace = H5Screate(H5S_SCALAR);
   hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
   hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  
-  char *dpath = qlua_strdup(L, path);
-  hid_t wdir = b->cwd;
-  char *ename = strrchr(dpath, '/');
-  if (ename == NULL) {
-    ename = dpath;
-  } else {
-    ename[0] = 0;
-    ename = ename + 1;
-    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
-  }
-  hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t dataset = H5Dcreate2(wdir, ename, ftype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  if (b->master) {
-    /* Only on the master */
-    CHECK_H5(L, H5Dwrite(dataset, mtype, H5S_ALL, H5S_ALL, plist, &val), "write string");
-  }
-  /* Everyone must write attributes, which must be identical or else. */
-  write_attrs(L, b, dataset, &sum, qot->name);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, &val, &sum);
 
-  CHECK_H5(L, H5Pclose(plist), "Pclose() plist");
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() dataset");
-  CHECK_H5(L, H5Sclose(dataspace), "Sclose() dataspace");
-  if (wdir != b->cwd)
-    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
-  CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
-  qlua_free(L, dpath);
+  qlua_Hdf5_enter(L);
+
+  return 0;
+}
+
+static int
+w_complex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
+{
+  QLA_D_Complex *v = qlua_checkComplex(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  machine_complex cv;
+  SHA256_Sum sum;
+
+  cv.re = QLA_real(*v);
+  cv.im = QLA_imag(*v);
+  sha256_sum_add_doubles(ctx, (double *)&cv, 2);
+  sha256_sum(&sum, ctx);
+  sha256_destroy(ctx);
+  check_writer(L, b);
+
+  qlua_Hdf5_enter(L);
+
+  hid_t dataspace = H5Screate(H5S_SCALAR);
+  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
+  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  w_scalar(L, b, path, qot, ftype, mtype, dataspace, &cv, &sum);
+
   qlua_Hdf5_enter(L);
 
   return 0;
@@ -673,6 +749,7 @@ qhdf5_r_exists(lua_State *L)
 /* XXXX readers */
 static int r_string(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 static int r_real(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
+static int r_complex(lua_State *L, mHdf5Reader *b, const char *path, struct QObjTable_s *qot) { /* XXXX */ return 0; }
 
 static int qhdf5_r_read(lua_State *L) { /* XXXXX */ return 0; }
 
@@ -704,8 +781,8 @@ q_hdf5_reader(lua_State *L)
 static QObjTable qotable[] = {
   { "String",                 H5I_DATASET,  w_string,      r_string     },
   { "Real",                   H5I_DATASET,  w_real,        r_real       },
-#if 0 /* XXXXX qlua object dispatch table */
   { "Complex",                H5I_DATASET,  w_complex,     r_complex    },
+#if 0 /* XXXXX qlua object dispatch table */
   { "MatrixReal",             H5I_DATASET,  w_matreal,     r_matreal    },
   { "MatrixComplex",          H5I_DATASET,  w_matcomplex,  r_matcomplex },
   { "VectorInt",              H5I_DATASET,  w_varint,      r_varint     },
