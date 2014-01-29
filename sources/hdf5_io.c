@@ -369,6 +369,7 @@ w_string(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot
     CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
   CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
   CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
+  qlua_free(L, dpath);
   qlua_Hdf5_enter(L);
 
   return 0;
@@ -454,11 +455,9 @@ q_hdf5_writer(lua_State *L)
 
   qlua_Hdf5_enter(L);
 
-  // XXXXX
   acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
   CHECK_H5(L, acc_tpl1, "Pcreate() failed");
   CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
-  // acc_tpl1 = H5P_DEFAULT;
 
   /* possible fs race condition here */
   status = stat(name, &st);
@@ -472,8 +471,6 @@ q_hdf5_writer(lua_State *L)
     w->file = H5Fcreate(name, H5F_ACC_TRUNC, H5P_DEFAULT, acc_tpl1);
   }
   CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
-
-  // XXXX
   CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
   w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
   CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
