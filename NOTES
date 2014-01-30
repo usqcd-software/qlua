@@ -1,3 +1,5 @@
+* No slabs - use different lattices and attributes to save space.
+
 
 * float/double is a factor of 2 in space, we need it for lattice objects
 

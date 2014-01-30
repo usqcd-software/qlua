@@ -19,8 +19,10 @@ const char htn_complex_double[] = ".complexDouble";
 const char htn_complex_float[] = ".complexFloat";
 
 #define FAILED_H5CALL -1
-#define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
-
+/* 
+#define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s (%d messages)", message, H5Eget_num(H5Eget_current_stack())); } while (0)
+*/
+#define CHECK_H5(L,expr,message) do { check_h5(L, expr, message); } while (0)
 typedef struct {
   double re;
   double im;
@@ -61,6 +63,17 @@ typedef struct QObjTable_s {
 static QObjTable qotable[];
 
 /* common helpers */
+static void
+check_h5(lua_State *L, long long e, const char *msg)
+{
+  if (e >= 0)
+    return;
+
+  hid_t stack = H5Eget_current_stack();
+  H5Eclear2(stack);
+  H5Eclose_stack(stack);
+  luaL_error(L, "HDF5 error %s", msg);
+}
 
 void
 qlua_Hdf5_enter(lua_State *L)
