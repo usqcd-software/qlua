@@ -107,3 +107,13 @@ function print_subgrid_settings(L)
   printf("%s: network=[%s] subgrid=[%s]\n", tostring(L), ln_str, sg_str)
 end
 
+function force_gc(title)
+  if nil == title then title = '' end
+  local m0 = collectgarbage("count")
+  local t0 = os.time()
+  collectgarbage("collect")
+  local m1 = collectgarbage("count")
+  local t1 = os.time()
+  printf("GC_COLLECT('%s') %dk->%dk (%dk) ; %dsec\n", 
+         title, m0, m1, m0 - m1, t1 - t0)
+end

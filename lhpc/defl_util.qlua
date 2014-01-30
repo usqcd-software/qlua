@@ -2,6 +2,7 @@
 
 require "qdpc_io"
 require "latvec"
+require "lhpc-std"
 
 -- FIXME do I need to enforce garbage collection on local variables,
 --    e.g. ss_v1, ss_v2, ss_ below?
@@ -43,6 +44,7 @@ function deflator_read_espace_d5(
     end
   end
   df:stop_load()
+  force_gc('deflator_read_espace_d5|')
   return (df:current_dim() - df_dim)
 end
 
@@ -84,5 +86,6 @@ function deflator_save_espace_d5(
       qdp_w:DiracFermion(evec_qio_prec, mdwf_eigcg_df:get_vector(i))
     end
   end
+  force_gc('deflator_save_espace_d5|')
   return df_dim
 end
