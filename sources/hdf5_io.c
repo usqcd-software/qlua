@@ -15,7 +15,8 @@ static const char mtnReader[] = "qcd.hdf5.mtReader";
 static const char mtnWriter[] = "qcd.hdf5.mtRriter";
 const char csum_attr_name[] = ".sha256";
 const char kind_attr_name[] = ".kind";
-const char htype_complex_name[] = ".complex";
+const char htn_complex_double[] = ".complexDouble";
+const char htn_complex_float[] = ".complexFloat";
 
 #define FAILED_H5CALL -1
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
@@ -23,7 +24,12 @@ const char htype_complex_name[] = ".complex";
 typedef struct {
   double re;
   double im;
-} machine_complex;
+} machine_complex_double;
+
+typedef struct {
+  float re;
+  float im;
+} machine_complex_float;
 
 /* mappings to HDF5 types */
 typedef struct htype_s {
@@ -149,41 +155,56 @@ create_htype(lua_State *L, HType **pph, const char *name)
 }
 
 static hid_t
-construct_ftype_complex(lua_State *L, HType **pph, hid_t hf)
+construct_ftype_complex(lua_State *L, HType **pph, mHdf5Writer *b,
+                        const char *name, size_t tsize, size_t r_offset, size_t i_offset)
 {
-  const char *name = htype_complex_name;
   HType *p = lookup_htype(*pph, name);
   if (!p) {
     p = create_htype(L, pph, name);
   }
   if (p->ftype < 0) {
-    hid_t v = H5Tcreate(H5T_COMPOUND, 2 * 8);
+    hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
     CHECK_H5(L, v, "file complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", 0, H5T_IEEE_F64BE), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", 8, H5T_IEEE_F64BE), "complex.i insert failed");
-    if (hf >= 0)
-      CHECK_H5(L, H5Tcommit(hf, name, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex commit failed");
+    CHECK_H5(L, H5Tinsert(v, "r", r_offset, H5T_IEEE_F64BE), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", i_offset, H5T_IEEE_F64BE), "complex.i insert failed");
+    if (b != NULL)
+      CHECK_H5(L, H5Tcommit(b->file, name, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex commit failed");
     p->ftype = v;
   }
   return H5Tcopy(p->ftype);
 }
 
 static hid_t
-construct_mtype_complex(lua_State *L, HType **pph)
+construct_mtype_complex(lua_State *L, HType **pph,
+                        const char *name, size_t tsize, size_t r_offset, size_t i_offset)
 {
-  const char *name = htype_complex_name;
   HType *p = lookup_htype(*pph, name);
   if (!p) {
     p = create_htype(L, pph, name);
   }
   if (p->mtype < 0) {
-    hid_t v = H5Tcreate(H5T_COMPOUND, sizeof(machine_complex));
+    hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
     CHECK_H5(L, v, "machine complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", HOFFSET(machine_complex, re), H5T_NATIVE_DOUBLE), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", HOFFSET(machine_complex, im), H5T_NATIVE_DOUBLE), "complex.i insert failed");
+    CHECK_H5(L, H5Tinsert(v, "r", r_offset, H5T_NATIVE_DOUBLE), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", i_offset, H5T_NATIVE_DOUBLE), "complex.i insert failed");
     p->mtype = v;
   }
   return H5Tcopy(p->mtype);
+}
+
+static hid_t
+construct_ftype_complex_double(lua_State *L, HType **pph, mHdf5Writer *b)
+{
+  return construct_ftype_complex(L, pph, b, htn_complex_double, 2 * 8, 0, 8);
+}
+
+static hid_t
+construct_mtype_complex_double(lua_State *L, HType **pph)
+{
+  return construct_mtype_complex(L, pph, htn_complex_double,
+                                 sizeof (machine_complex_double),
+                                 HOFFSET(machine_complex_double, re),
+                                 HOFFSET(machine_complex_double, im));
 }
 
 static int h_kind(lua_State *L, hid_t file, hid_t cwd, const char *path) { /* XXXXX */ return 0; }
@@ -478,7 +499,7 @@ w_complex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qo
 {
   QLA_D_Complex *v = qlua_checkComplex(L, 3);
   SHA256_Context *ctx = sha256_create(L);
-  machine_complex cv;
+  machine_complex_double cv;
   SHA256_Sum sum;
 
   cv.re = QLA_real(*v);
@@ -491,8 +512,8 @@ w_complex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qo
   qlua_Hdf5_enter(L);
 
   hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
-  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
+  hid_t mtype = construct_mtype_complex_double(L, &b->htype);
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, &cv, &sum);
 
   qlua_Hdf5_leave();
@@ -554,7 +575,7 @@ static int
 w_veccomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
 {
   mVecComplex *v = qlua_checkVecComplex(L, 3);
-  machine_complex *cv = qlua_malloc(L, v->size * sizeof (machine_complex));
+  machine_complex_double *cv = qlua_malloc(L, v->size * sizeof (machine_complex_double));
   SHA256_Context *ctx = sha256_create(L);
   SHA256_Sum sum;
   hsize_t len;
@@ -573,8 +594,8 @@ w_veccomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s 
   qlua_Hdf5_enter(L);
   len = v->size;
   hid_t dataspace = H5Screate_simple(1, &len, NULL);
-  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
-  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
+  hid_t mtype = construct_mtype_complex_double(L, &b->htype);
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, v->val, &sum);
   qlua_free(L, cv);
 
@@ -621,12 +642,12 @@ static int
 w_matcomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s *qot)
 {
   mMatComplex *v = qlua_checkMatComplex(L, 3);
-  machine_complex *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex));
+  machine_complex_double *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_double));
   SHA256_Context *ctx = sha256_create(L);
   SHA256_Sum sum;
   hsize_t len[2];
   int i, j;
-  machine_complex *ptr;
+  machine_complex_double *ptr;
 
   for (ptr = cv, i = 0; i < v->l_size; i++) {
     for (j = 0; j < v->r_size; j++, ptr++) {
@@ -645,8 +666,8 @@ w_matcomplex(lua_State *L, mHdf5Writer *b, const char *path, struct QObjTable_s 
   len[0] = v->l_size;
   len[1] = v->r_size;
   hid_t dataspace = H5Screate_simple(2, len, NULL);
-  hid_t ftype = construct_ftype_complex(L, &b->htype, b->file);
-  hid_t mtype = construct_mtype_complex(L, &b->htype);
+  hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
+  hid_t mtype = construct_mtype_complex_double(L, &b->htype);
   w_scalar(L, b, path, qot, ftype, mtype, dataspace, cv, &sum);
   qlua_free(L, cv);
 
