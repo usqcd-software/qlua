@@ -57,8 +57,8 @@ struct mHdf5Reader_s {
 
 typedef struct QObjTable_s {
   QLUA_Type qtype;
+  int is_par;
   int (*writer)(lua_State *L, mHdf5Writer *b, const char *path);
-  int (*reader)(lua_State *L, mHdf5Reader *b, const char *path);
 } QObjTable;
 
 static QObjTable qotable[];
@@ -1008,16 +1008,6 @@ qhdf5_r_exists(lua_State *L)
 }
 
 /* XXXX readers */
-static int r_string(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_real(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_complex(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_vecint(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_vecreal(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_veccomplex(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_matreal(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_matcomplex(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-static int r_latint(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
-
 static int qhdf5_r_read(lua_State *L) { /* XXXXX */ return 0; }
 
 static int
@@ -1046,44 +1036,44 @@ q_hdf5_reader(lua_State *L)
 
 /* setup */
 static QObjTable qotable[] = {
-  { qString,                 w_string,      r_string       },
-  { qReal,                   w_real,        r_real         },
-  { qComplex,                w_complex,     r_complex      },
-  { qVecInt,                 w_vecint,      r_vecint       },
-  { qVecReal,                w_vecreal,     r_vecreal      },
-  { qVecComplex,             w_veccomplex,  r_veccomplex   },
-  { qMatReal,                w_matreal,     r_matreal      },
-  { qMatComplex,             w_matcomplex,  r_matcomplex   },
-  { qLatInt,                 w_latint,       r_latint      },
+  { qString,                 0,  w_string        },
+  { qReal,                   0,  w_real          },
+  { qComplex,                0,  w_complex       },
+  { qVecInt,                 0,  w_vecint        },
+  { qVecReal,                0,  w_vecreal       },
+  { qVecComplex,             0,  w_veccomplex    },
+  { qMatReal,                0,  w_matreal       },
+  { qMatComplex,             0,  w_matcomplex    },
+  { qLatInt,                 1,  w_latint        },
 #if 0 /* XXXXX qlua object dispatch table */
-  { qLatReal,                w_latreal,      r_latreal     },
-  { qLatComplex,             w_latcomplex,   r_latcomplex  },
-  { qSeqColVec2,             w_colvec2,      r_colvec2     },
-  { qSeqColMat2,             w_colmat2,      r_colmat2     },
-  { qSeqDirFerm2,            w_dirferm2,     r_dirferm2    },
-  { qSeqDirProp2,            w_dirprop2,     r_dirprop2    },
-  { qLatColVec2,             w_latcolvec2,   r_latcolvec2  },
-  { qLatColMat2,             w_latcolmat2,   r_latcolmat2  },
-  { qLatDirFerm2,            w_latdirferm2,  r_latdirferm2 },
-  { qLatDirProp2,            w_latdirprop2,  r_latdirprop2 },
-  { qSeqColVec3,             w_colvec3,      r_colvec3     },
-  { qSeqColMat3,             w_colmat3,      r_colmat3     },
-  { qSeqDirFerm3,            w_dirferm3,     r_dirferm3    },
-  { qSeqDirProp3,            w_dirprop3,     r_dirprop3    },
-  { qLatColVec3,             w_latcolvec3,   r_latcolvec3  },
-  { qLatColMat3,             w_latcolmat3,   r_latcolmat3  },
-  { qLatDirFerm3,            w_latdirferm3,  r_latdirferm3 },
-  { qLatDirProp3,            w_latdirprop3,  r_latdirprop3 },
-  { qSeqColVecN,             w_colvecN,      r_colvecN     },
-  { qSeqColMatN,             w_colmatN,      r_colmatN     },
-  { qSeqDirFermN,            w_dirfermN,     r_dirfermN    },
-  { qSeqDirPropN,            w_dirpropN,     r_dirpropN    },
-  { qLatColVecN,             w_latcolvecN,   r_latcolvecN  },
-  { qLatColMatN,             w_latcolmatN,   r_latcolmatN  },
-  { qLatDirFermN,            w_latdirfermN,  r_latdirfermN },
-  { qLatDirPropN,            w_latdirpropN,  r_latdirpropN },
+  { qLatReal,                1,  w_latreal       },
+  { qLatComplex,             1,  w_latcomplex    },
+  { qSeqColVec2,             0,  w_colvec2       },
+  { qSeqColMat2,             0,  w_colmat2       },
+  { qSeqDirFerm2,            0,  w_dirferm2      },
+  { qSeqDirProp2,            0,  w_dirprop2      },
+  { qLatColVec2,             1,  w_latcolvec2    },
+  { qLatColMat2,             1,  w_latcolmat2    },
+  { qLatDirFerm2,            1,  w_latdirferm2   },
+  { qLatDirProp2,            1,  w_latdirprop2   },
+  { qSeqColVec3,             0,  w_colvec3       },
+  { qSeqColMat3,             0,  w_colmat3       },
+  { qSeqDirFerm3,            0,  w_dirferm3      },
+  { qSeqDirProp3,            0,  w_dirprop3      },
+  { qLatColVec3,             1,  w_latcolvec3    },
+  { qLatColMat3,             1,  w_latcolmat3    },
+  { qLatDirFerm3,            1,  w_latdirferm3   },
+  { qLatDirProp3,            1,  w_latdirprop3   },
+  { qSeqColVecN,             0,  w_colvecN       },
+  { qSeqColMatN,             0,  w_colmatN       },
+  { qSeqDirFermN,            0,  w_dirfermN      },
+  { qSeqDirPropN,            0,  w_dirpropN      },
+  { qLatColVecN,             1,  w_latcolvecN    },
+  { qLatColMatN,             1,  w_latcolmatN    },
+  { qLatDirFermN,            1,  w_latdirfermN   },
+  { qLatDirPropN,            1,  w_latdirpropN   },
 #endif /* XXXXX qlua object dispatch table */
-  { qNoType,                 NULL,           NULL          }
+  { qNoType,                 0,  NULL            }
 };
 
 
