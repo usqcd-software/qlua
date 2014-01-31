@@ -710,7 +710,7 @@ static int
 w_latint(lua_State *L, mHdf5Writer *b, const char *path)
 {
   mLatInt *m = qlua_checkLatInt(L, 3, NULL);
-  int has_opts = qlua_checkopt_table(L, 4);
+  // int has_opts = qlua_checkopt_table(L, 4);
   mLattice *S = qlua_ObjLattice(L, 3);
   int rank = S->rank;
   int *iptr = qlua_malloc(L, 3 * rank * sizeof (int));
@@ -756,28 +756,12 @@ w_latint(lua_State *L, mHdf5Writer *b, const char *path)
     sha256_sum_add_ints(ctx, &data[i], 1);
     sha256_sum(&l_sum, ctx);
     local_combine_checksums(&g_sum, &l_sum);
-    //printf("  XXXX :%2d: data at {%5d} [%2d %2d %2d] %5d\n", QDP_this_node, i, local_x[0], local_x[1], local_x[2], data[i]);
   }
   QDP_reset_I(m->ptr);
 
-  // XXXX
-  l_sum = g_sum;
   lattice_combine_checksums(&g_sum);
-  // XXXX
-  for (i = 0; i < sizeof (SHA256_Sum); i++) {
-    printf(" SUM: {%2d} [%2d] %02x %02x\n", QDP_this_node, i, g_sum.v[i], l_sum.v[i]);
-  }
-
 
   qlua_Hdf5_enter(L);
-  // XXXXX
-  printf(" :%2d: w_latint: %p %d\n", QDP_this_node, m, has_opts);
-  printf("  :%2d: ### lo hi dim  offset stride count block latdim\n", QDP_this_node);
-  for (i = 0; i < rank; i++) {
-    printf("   :%2d: [%d]: %5d %5d  %5d  %5d %5d %5d %5d %5d\n",
-           QDP_this_node, i, local_lo[i], local_hi[i], S->dim[i],
-           (int)(offset[i]), (int)(stride[i]), (int)(count[i]), (int)(block[i]), (int)(latdim[i]));
-  }
 
   char *dpath = qlua_strdup(L, path);
   hid_t wdir = b->cwd;
@@ -818,7 +802,7 @@ w_latint(lua_State *L, mHdf5Writer *b, const char *path)
   qlua_free(L, data);
   qlua_free(L, iptr);
   qlua_free(L, hptr);
-  /* XXX w_latint */
+
   return 0;
 }
 
