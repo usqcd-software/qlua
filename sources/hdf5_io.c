@@ -49,10 +49,22 @@ struct mHdf5File_s {
   HType *htype;
 };
 
+struct laddr_s {
+  int rank;  /* lattice rank */
+  int *low;  /* local low site */
+  int *high; /* local high site */
+};
+
+struct wopts_s {
+};
+
+typedef void (*OutPacker_H5)(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+                             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, const char **kind);
+
 typedef struct QObjTable_s {
   QLUA_Type qtype;
-  int is_par;
-  int (*writer)(lua_State *L, mHdf5File *b, const char *path);
+  int is_parallel;
+  OutPacker_H5 repack;
 } QObjTable;
 
 static QObjTable qotable[];
@@ -394,22 +406,28 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 {
   hsize_t klen = strlen(kind);
   hid_t ktype = H5Tcopy(H5T_C_S1);
+  CHECK_H5(L, ktype, "Tcopy(C_S1) in write_attrs()");
   CHECK_H5(L, H5Tset_size(ktype, klen), "set kind size");
   hid_t kds = H5Screate(H5S_SCALAR);
+  CHECK_H5(L, kds, "Screate(SCALAR) in write_attrs()");
   hid_t kattr = H5Acreate2(dset, kind_attr_name, ktype, kds, H5P_DEFAULT, H5P_DEFAULT);
-  CHECK_H5(L, H5Awrite(kattr, ktype, kind), "write kind attr");
-  H5Sclose(kds);
-  H5Aclose(kattr);
-  H5Tclose(ktype);
+  CHECK_H5(L, kattr, "Acreate(kind) in write_attrs()");
+  CHECK_H5(L, H5Awrite(kattr, ktype, kind), "Awrite(kind) in write_attrs()");
+  CHECK_H5(L, H5Sclose(kds), "Sclose(kind) in write_attrs()");
+  CHECK_H5(L, H5Aclose(kattr), "Aclose(kind) in write_attrs()");
+  CHECK_H5(L, H5Tclose(ktype), "Tclose(kind) in write_attrs()");
 
   hsize_t slen = sizeof(sum->v);
   hid_t stype = H5Tcopy(H5T_STD_U8BE);
+  CHECK_H5(L, stype, "Tcopy(U8BE) in write_attrs()");
   hid_t sds = H5Screate_simple(1, &slen, NULL);
+  CHECK_H5(L, sds, "Screate(sum) in write_attrs()");
   hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, sds, H5P_DEFAULT, H5P_DEFAULT);
-  CHECK_H5(L, H5Awrite(sattr, stype, sum->v), "write sum attr");
-  H5Sclose(sds);
-  H5Aclose(sattr);
-  H5Tclose(stype);
+  CHECK_H5(L, sattr, "Acreate(sum) in write_attrs()");
+  CHECK_H5(L, H5Awrite(sattr, stype, sum->v), "Awrite(sum) in write_attrs()");
+  CHECK_H5(L, H5Sclose(sds), "Sclose(sum) in write_attrs()");
+  CHECK_H5(L, H5Aclose(sattr), "Aclose(sum) in write_attrs()");
+  CHECK_H5(L, H5Tclose(stype), "Tclose(sum) in write_attrs()");
 
 }
 
@@ -679,6 +697,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, const char *path)
 }
 #endif /* XXXXXXXXXXXXXXXXX scalar uncolored objects */
 
+#if 0 /* XXXXXXX latint writer */
 static int
 w_latint(lua_State *L, mHdf5File *b, const char *path)
 {
@@ -778,6 +797,103 @@ w_latint(lua_State *L, mHdf5File *b, const char *path)
 
   return 0;
 }
+#endif /* XXXXXXX latint writer */
+
+static void process_wopts(lua_State *L, struct wopts_s *opts) {/* XXXX */}
+
+static void w_latint(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+                     SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, const char **kind)
+{/* XXXX w_latint */ *kind = "LatticeInt"; }
+
+static int
+write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
+{
+  struct wopts_s wopts;
+  process_wopts(L, &wopts);
+  mLattice *S = qlua_ObjLattice(L, 3);
+  struct laddr_s laddr;
+  laddr.rank = S->rank;
+  laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
+  laddr.high = qlua_malloc(L, laddr.rank * sizeof (int));
+  hsize_t *offset = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *stride = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *count = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *block = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *hlatdim = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  
+  qlua_sublattice(laddr.low, laddr.high, QDP_this_node, S);
+  int volume, j;
+  for (volume = 1, j = 0; j < laddr.rank; j++) {
+    int extend_j = laddr.high[j] - laddr.low[j];
+    volume *= extend_j;
+    offset[j] = laddr.low[j];
+    stride[j] = 1;
+    count[j] = 1;
+    block[j] = extend_j;
+    hlatdim[j] = S->dim[j];
+  }
+
+  hid_t filetype, memtype;
+  void *data;
+  SHA256_Sum sum;
+  const char *kind;
+  repack(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
+  qlua_free(L, laddr.low);
+  qlua_free(L, laddr.high);
+  combine_checksums(&sum, 1);
+
+  qlua_Hdf5_enter(L);
+
+  char *dpath = qlua_strdup(L, path);
+  char *ename = strrchr(dpath, '/');
+  hid_t wdir = b->cwd;
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
+  }
+  hid_t filespace = H5Screate_simple(S->rank, hlatdim, NULL);
+  qlua_free(L, hlatdim);
+  CHECK_H5(L, filespace, "Screate_simple() file space");
+  hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  qlua_free(L, dpath);
+  CHECK_H5(L, dataset, "Dcreate() data set");
+  CHECK_H5(L, H5Tclose(filetype), "Tclose() file type");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
+  hid_t memspace = H5Screate_simple(S->rank, block, NULL);
+  CHECK_H5(L, memspace, "Screate_simple() mem space");
+  filespace =  H5Dget_space(dataset);
+  CHECK_H5(L, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block), "Sselect_hyperslab()");
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, plist, "Pcreate() xfter plist");
+  qlua_free(L, block);
+  qlua_free(L, offset);
+  qlua_free(L, stride);
+  qlua_free(L, count);
+  CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
+  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
+  CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
+
+  write_attrs(L, b, dataset, &sum, kind);
+  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
+
+  qlua_Hdf5_leave();
+
+  return 0;
+}
+
+static int
+write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
+{
+  /* XXXX */
+  return 0;
+}
 
 static int
 qhdf5_write(lua_State *L)
@@ -789,14 +905,16 @@ qhdf5_write(lua_State *L)
   int i;
 
   check_writer(L, b);
-  qlua_Hdf5_enter(L);
   for (i = 0; qotable[i].qtype != qNoType; i++) {
     if (qotable[i].qtype == kind)
       break;
   }
-  if (qotable[i].writer == NULL)
+  if (qotable[i].repack == NULL)
     luaL_error(L, "unwritable data");
-  count = qotable[i].writer(L, b, p);
+  if (qotable[i].is_parallel)
+    count = write_lat(L, b, p, qotable[i].repack);
+  else
+    count = write_seq(L, b, p, qotable[i].repack);
 
   qlua_Hdf5_leave();
   return count;
