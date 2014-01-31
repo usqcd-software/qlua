@@ -99,32 +99,6 @@ qlua_Hdf5_leave(void)
 {
 }
 
-static hid_t
-change_hdf5_path(lua_State *L, hid_t file, hid_t cwd, const char *p)
-{
-  char *dpath = qlua_strdup(L, p);
-  char *dname = p[0] == '/' ? &dpath[1] : dpath;
-  char *buf = dname;
-  hid_t dhandle = p[0] == '/' ? H5Gopen2(file, "/", H5P_DEFAULT) : cwd;
-  int isused = p[0] != '/';
-  hid_t dnext;
-    
-  while (buf) {
-    strsep(&buf, "/");
-    if (dname[0] == 0)
-      break;
-    dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
-    CHECK_H5(L, dnext, "chpath failed");
-    if (isused == 0)
-      H5Gclose(dhandle);
-    dhandle = dnext;
-    isused = 0;
-    dname = buf;
-  }
-  qlua_free(L, dpath);
-  return dhandle;
-}
-
 static void
 free_types(lua_State *L, HType *ht)
 {
@@ -220,6 +194,12 @@ construct_mtype_complex_double(lua_State *L, HType **pph)
 }
 
 /* writer */
+static void
+check_file(lua_State *L, mHdf5File *b)
+{
+  if (b->file < 0)
+    luaL_error(L, "closed hdf5 file");
+}
 
 static void
 check_writer(lua_State *L, mHdf5File *w)
@@ -293,7 +273,7 @@ qlua_checkHdf5Writer(lua_State *L, int idx)
 static int
 qhdf5_fmt(lua_State *L)
 {
-    mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+    mHdf5File *b = qlua_checkHdf5File(L, 1);
     char fmt[72];
 
     if (b->file >= 0)
@@ -328,7 +308,7 @@ do_close(lua_State *L, mHdf5File *b)
 static int
 qhdf5_gc(lua_State *L)
 {
-  mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
 
   do_close(L, b);
   return 0;
@@ -337,9 +317,9 @@ qhdf5_gc(lua_State *L)
 static int
 qhdf5_close(lua_State *L)
 {
-  mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
 
-  check_writer(L, b);
+  check_file(L, b);
   // CHECK_H5(L, do_w_close(L, b), "writer close error");
   do_close(L, b);
   lua_pushnil(L);
@@ -349,16 +329,36 @@ qhdf5_close(lua_State *L)
 static int
 qhdf5_chpath(lua_State *L)
 {
-  mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *p = luaL_checkstring(L, 2);
   
-  check_writer(L, b);
+  check_file(L, b);
   qlua_Hdf5_enter(L);
 
-  hid_t dir = change_hdf5_path(L, b->file, b->cwd, p);
-  if (dir != b->cwd)
+  char *dpath = qlua_strdup(L, p);
+  char *dname = p[0] == '/' ? &dpath[1] : dpath;
+  char *buf = dname;
+  hid_t dhandle = p[0] == '/' ? H5Gopen2(b->file, "/", H5P_DEFAULT) : b->cwd;
+  int isused = p[0] != '/';
+  hid_t dnext;
+    
+  while (buf) {
+    strsep(&buf, "/");
+    if (dname[0] == 0)
+      break;
+    dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
+    CHECK_H5(L, dnext, "chpath failed");
+    if (isused == 0)
+      H5Gclose(dhandle);
+    dhandle = dnext;
+    isused = 0;
+    dname = buf;
+  }
+  qlua_free(L, dpath);
+
+  if (dhandle!= b->cwd)
     H5Gclose(b->cwd);
-  b->cwd = dir;
+  b->cwd = dhandle;
 
   qlua_Hdf5_leave();
   return 0;
@@ -905,6 +905,12 @@ static const struct luaL_Reg mtFile[] = {
   { "mkpath",           qhdf5_mkpath  },
   { "kind",             qhdf5_kind    },
   { "exists",           qhdf5_exists  },
+#if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
+  { "read",             qhdf5_real    },
+  { "cwd",              qhdf5_cwd     },  /* XXX ? */
+  { "list",             qhdf5_list    },
+  { "dims",             qhdf5_dims    },
+#endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };
 
