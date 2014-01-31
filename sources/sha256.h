@@ -18,4 +18,6 @@ void sha256_sum_add_floats(SHA256_Context *p, const float *ptr, unsigned int cou
 
 void sha256_sum_string(SHA256_Sum *r, const char *ptr, unsigned int count);
 
+void sha256_sum_clear(SHA256_Sum *r);
+
 #endif /* !defined(MARK_7096CD73_AE49_436B_9F7E_38F2EE882AE9) */

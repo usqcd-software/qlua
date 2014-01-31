@@ -4,6 +4,9 @@
 #include "qmatrix.h"                                                 /* DEPS */
 #include "hdf5_io.h"                                                 /* DEPS */
 #include "sha256.h"                                                  /* DEPS */
+#include "qlayout.h"                                                 /* DEPS */
+#include "lattice.h"                                                 /* DEPS */
+#include "latint.h"                                                  /* DEPS */
 #include <string.h>
 #include <complex.h>
 #include <sys/stat.h>
@@ -19,10 +22,8 @@ const char htn_complex_double[] = ".complexDouble";
 const char htn_complex_float[] = ".complexFloat";
 
 #define FAILED_H5CALL -1
-/* 
-#define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s (%d messages)", message, H5Eget_num(H5Eget_current_stack())); } while (0)
-*/
-#define CHECK_H5(L,expr,message) do { check_h5(L, expr, message); } while (0)
+#define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
+
 typedef struct {
   double re;
   double im;
@@ -64,24 +65,29 @@ static QObjTable qotable[];
 
 /* common helpers */
 static void
-check_h5(lua_State *L, long long e, const char *msg)
+local_combine_checksums(void *a, /* const */ void *b)
 {
-  if (e >= 0)
-    return;
-
-  hid_t stack = H5Eget_current_stack();
-  H5Eclear2(stack);
-  H5Eclose_stack(stack);
-  luaL_error(L, "HDF5 error %s", msg);
+  SHA256_Sum *p = a;
+  SHA256_Sum *q = b;
+  int i;
+  for (i = 0; i < sizeof (SHA256_Sum); i++)
+    p->v[i] = p->v[i] ^ q->v[i];
 }
 
-void
+static void
+lattice_combine_checksums(SHA256_Sum *s)
+{
+  /* MPI: may require changes to use a communicator */
+  QMP_binary_reduction(s, sizeof (SHA256_Sum), local_combine_checksums);
+}
+
+static void
 qlua_Hdf5_enter(lua_State *L)
 {
   lua_gc(L, LUA_GCCOLLECT, 0);
 }
 
-void
+static void
 qlua_Hdf5_leave(void)
 {
 }
@@ -690,6 +696,118 @@ w_matcomplex(lua_State *L, mHdf5Writer *b, const char *path)
 }
 
 static int
+w_latint(lua_State *L, mHdf5Writer *b, const char *path)
+{
+  mLatInt *m = qlua_checkLatInt(L, 3, NULL);
+  int has_opts = qlua_checkopt_table(L, 4);
+  mLattice *S = qlua_ObjLattice(L, 3);
+  int rank = S->rank;
+  int *iptr = qlua_malloc(L, 3 * rank * sizeof (int));
+  int *local_lo = iptr;
+  int *local_hi = iptr + rank;
+  int *local_x = iptr + 2 * rank;
+  hsize_t *hptr = qlua_malloc(L, 5 * rank * sizeof (hsize_t));
+  hsize_t *offset = hptr;
+  hsize_t *stride = hptr + rank;
+  hsize_t *count = hptr + 2 * rank;
+  hsize_t *block = hptr + 3 * rank;
+  hsize_t *latdim = hptr + 4 * rank;
+  SHA256_Context *ctx = sha256_create(L);
+  SHA256_Sum g_sum, l_sum;
+  int volume, i, j, xl;
+  int *data;
+
+  qlua_sublattice(local_lo, local_hi, QDP_this_node, S);
+  
+  for (volume = 1, j = 0; j < rank; j++) {
+    volume *= local_hi[j] - local_lo[j];
+    offset[j] = local_lo[j];
+    stride[j] = 1;
+    count[j] = 1;
+    block[j] = local_hi[j] - local_lo[j];
+    latdim[j] = S->dim[j];
+  }
+  data = qlua_malloc(L, volume * sizeof (int));
+
+  CALL_QDP(L);
+  QLA_Int *locked = QDP_expose_I(m->ptr);
+  sha256_sum_clear(&g_sum);
+  for (i = 0; i < volume; i++) {
+    for (xl = i, j = rank; j--;) {
+      local_x[j] = xl % block[j] + local_lo[j];
+      xl = xl / block[j];
+    }
+    QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+    data[i] = QLA_elem_I(locked[QDP_index_L(S->lat, local_x)]);
+    sha256_reset(ctx);
+    sha256_sum_add_ints(ctx, &rank, 1);
+    sha256_sum_add_ints(ctx, local_x, rank);
+    sha256_sum_add_ints(ctx, &data[i], 1);
+    sha256_sum(&l_sum, ctx);
+    local_combine_checksums(&g_sum, &l_sum);
+    printf("  XXXX :%2d: data at {%5d} [%2d %2d %2d] %5d\n", QDP_this_node, i, local_x[0], local_x[1], local_x[2], data[i]);
+  }
+  QDP_reset_I(m->ptr);
+  lattice_combine_checksums(&g_sum);
+
+
+  qlua_Hdf5_enter(L);
+  // XXXXX
+  printf(" :%2d: w_latint: %p %d\n", QDP_this_node, m, has_opts);
+  printf("  :%2d: ### lo hi dim  offset stride count block latdim\n", QDP_this_node);
+  for (i = 0; i < rank; i++) {
+    printf("   :%2d: [%d]: %5d %5d  %5d  %5d %5d %5d %5d %5d\n",
+           QDP_this_node, i, local_lo[i], local_hi[i], S->dim[i],
+           (int)(offset[i]), (int)(stride[i]), (int)(count[i]), (int)(block[i]), (int)(latdim[i]));
+  }
+  //for (i = 0; i < sizeof (SHA256_Sum); i++) {
+  //  printf(" SUM: {%2d} [%2d] %02x %02x\n", QDP_this_node, i, g_sum.v[i], l_sum.v[i]);
+  //}
+
+  char *dpath = qlua_strdup(L, path);
+  hid_t wdir = b->cwd;
+  char *ename = strrchr(dpath, '/');
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
+  }
+
+  hid_t ftype = H5Tcopy(H5T_STD_I64BE);
+  hid_t mtype = H5Tcopy(H5T_NATIVE_INT);
+  hid_t filespace = H5Screate_simple(rank, latdim, NULL); 
+  hid_t dataset = H5Dcreate2(wdir, ename, ftype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  CHECK_H5(L, H5Tclose(ftype), "Tclose() file type");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
+  hid_t memspace = H5Screate_simple(rank, block, NULL);
+  filespace =  H5Dget_space(dataset);
+  H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block);
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+
+  CHECK_H5(L, H5Dwrite(dataset, mtype, memspace, filespace, plist, data), "Dwrite() data");
+
+  // XXXX
+  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
+  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
+  CHECK_H5(L, H5Tclose(mtype), "Tclose() mem type");
+  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
+
+  qlua_Hdf5_leave();
+
+  sha256_destroy(ctx);
+  qlua_free(L, data);
+  qlua_free(L, iptr);
+  qlua_free(L, hptr);
+  /* XXX w_latint */
+  return 0;
+}
+
+static int
 qhdf5_w_write(lua_State *L)
 {
   mHdf5Writer *b = qlua_checkHdf5Writer(L, 1);
@@ -899,6 +1017,7 @@ static int r_vecreal(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX *
 static int r_veccomplex(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
 static int r_matreal(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
 static int r_matcomplex(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
+static int r_latint(lua_State *L, mHdf5Reader *b, const char *path) { /* XXXX */ return 0; }
 
 static int qhdf5_r_read(lua_State *L) { /* XXXXX */ return 0; }
 
@@ -936,8 +1055,8 @@ static QObjTable qotable[] = {
   { qVecComplex,             w_veccomplex,  r_veccomplex   },
   { qMatReal,                w_matreal,     r_matreal      },
   { qMatComplex,             w_matcomplex,  r_matcomplex   },
-#if 0 /* XXXXX qlua object dispatch table */
   { qLatInt,                 w_latint,       r_latint      },
+#if 0 /* XXXXX qlua object dispatch table */
   { qLatReal,                w_latreal,      r_latreal     },
   { qLatComplex,             w_latcomplex,   r_latcomplex  },
   { qSeqColVec2,             w_colvec2,      r_colvec2     },
@@ -1004,6 +1123,7 @@ static const struct luaL_Reg fHDF5io[] = {
 int
 init_hdf5_io(lua_State *L)
 {
+  H5open();
   H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
   lua_getglobal(L, qcdlib);
   lua_newtable(L);
@@ -1019,5 +1139,6 @@ init_hdf5_io(lua_State *L)
 int
 fini_hdf5_io(lua_State *L)
 {
+  H5close();
   return 0;
 }

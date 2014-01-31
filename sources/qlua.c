@@ -1169,6 +1169,7 @@ main(int argc, char *argv[])
                         if (status) {
                                 fflush(stdout);
                                 fflush(stderr);
+                                qlua_fini(L);
                                 QDP_abort(1);
                                 break;
                         }

@@ -242,3 +242,9 @@ sha256_sum_add_doubles(SHA256_Context *ctx, const double *ptr, unsigned int coun
     sha256_update(ctx, c, sizeof (unsigned long long));
   }
 }
+
+void
+sha256_sum_clear(SHA256_Sum *r)
+{
+  memset(r, 0, sizeof (SHA256_Sum));
+}
