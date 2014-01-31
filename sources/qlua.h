@@ -90,16 +90,15 @@ typedef enum {
     qWriter,                  /* 47 */
     qAffReader,               /* 48 */
     qAffWriter,               /* 49 */
-    qHdf5Reader,              /* 50 */
-    qHdf5Writer,              /* 51 */
-    qClover,                  /* 52 */
-    qCloverDeflator,          /* 53 */
-    qCloverDeflatorState,     /* 54 */
-    qMDWF,                    /* 55 */
-    qMDWFDeflator,            /* 56 */
-    qMDWFDeflatorState,       /* 57 */
+    qHdf5File,                /* 50 */
+    qClover,                  /* 51 */
+    qCloverDeflator,          /* 52 */
+    qCloverDeflatorState,     /* 53 */
+    qMDWF,                    /* 54 */
+    qMDWFDeflator,            /* 55 */
+    qMDWFDeflatorState,       /* 56 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 58 */
+    qNoType                   /* 57 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
