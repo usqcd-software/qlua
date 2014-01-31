@@ -74,11 +74,24 @@ local_combine_checksums(void *a, /* const */ void *b)
     p->v[i] = p->v[i] ^ q->v[i];
 }
 
-static void
+static SHA256_Sum *
+global_combine_checksums(SHA256_Sum *s, int is_master)
+{
+  if (!is_master)
+    memset(s, 0, sizeof (SHA256_Sum));
+
+  /* MPI: may require changes to use a communicator */
+  QMP_binary_reduction(s, sizeof (SHA256_Sum), local_combine_checksums);
+  return s;
+}
+
+
+static SHA256_Sum *
 lattice_combine_checksums(SHA256_Sum *s)
 {
   /* MPI: may require changes to use a communicator */
   QMP_binary_reduction(s, sizeof (SHA256_Sum), local_combine_checksums);
+  return s;
 }
 
 static void
@@ -418,13 +431,11 @@ write_attrs(lua_State *L, mHdf5Writer *b, hid_t dset, const SHA256_Sum *sum, con
   H5Aclose(kattr);
   H5Tclose(ktype);
 
-  SHA256_Sum gsum = *sum;
-  QMP_broadcast(&gsum, sizeof (gsum));
-  hsize_t slen = sizeof(gsum.v);
+  hsize_t slen = sizeof(sum->v);
   hid_t stype = H5Tcopy(H5T_STD_U8BE);
   hid_t sds = H5Screate_simple(1, &slen, NULL);
   hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, sds, H5P_DEFAULT, H5P_DEFAULT);
-  CHECK_H5(L, H5Awrite(sattr, stype, gsum.v), "write sum attr");
+  CHECK_H5(L, H5Awrite(sattr, stype, sum->v), "write sum attr");
   H5Sclose(sds);
   H5Aclose(sattr);
   H5Tclose(stype);
@@ -482,7 +493,7 @@ w_string(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t mtype = H5Tcopy(H5T_C_S1);
   CHECK_H5(L, H5Tset_size(ftype, len), "set ftype size");
   CHECK_H5(L, H5Tset_size(mtype, len), "set mtype size");
-  w_scalar(L, b, path, "String", ftype, mtype, dataspace, str, &sum);
+  w_scalar(L, b, path, "String", ftype, mtype, dataspace, str, global_combine_checksums(&sum, b->master));
 
   qlua_Hdf5_leave();
 
@@ -506,7 +517,7 @@ w_real(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate(H5S_SCALAR);
   hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
   hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "Real", ftype, mtype, dataspace, &val, &sum);
+  w_scalar(L, b, path, "Real", ftype, mtype, dataspace, &val, global_combine_checksums(&sum, b->master));
 
   qlua_Hdf5_leave();
 
@@ -533,7 +544,7 @@ w_complex(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate(H5S_SCALAR);
   hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
   hid_t mtype = construct_mtype_complex_double(L, &b->htype);
-  w_scalar(L, b, path, "Complex", ftype, mtype, dataspace, &cv, &sum);
+  w_scalar(L, b, path, "Complex", ftype, mtype, dataspace, &cv, global_combine_checksums(&sum, b->master));
 
   qlua_Hdf5_leave();
 
@@ -558,7 +569,7 @@ w_vecint(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate_simple(1, &len, NULL);
   hid_t ftype = H5Tcopy(H5T_STD_I64BE);
   hid_t mtype = H5Tcopy(H5T_NATIVE_INT);
-  w_scalar(L, b, path, "VectorInt", ftype, mtype, dataspace, v->val, &sum);
+  w_scalar(L, b, path, "VectorInt", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
 
   qlua_Hdf5_leave();
 
@@ -583,7 +594,7 @@ w_vecreal(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate_simple(1, &len, NULL);
   hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
   hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "VectorReal", ftype, mtype, dataspace, v->val, &sum);
+  w_scalar(L, b, path, "VectorReal", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
 
   qlua_Hdf5_leave();
 
@@ -615,7 +626,7 @@ w_veccomplex(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate_simple(1, &len, NULL);
   hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
   hid_t mtype = construct_mtype_complex_double(L, &b->htype);
-  w_scalar(L, b, path, "VectorComplex", ftype, mtype, dataspace, v->val, &sum);
+  w_scalar(L, b, path, "VectorComplex", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
   qlua_free(L, cv);
 
   qlua_Hdf5_leave();
@@ -650,7 +661,7 @@ w_matreal(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate_simple(2, len, NULL);
   hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
   hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "MatrixReal", ftype, mtype, dataspace, cv, &sum);
+  w_scalar(L, b, path, "MatrixReal", ftype, mtype, dataspace, cv, global_combine_checksums(&sum, b->master));
   qlua_free(L, cv);
   qlua_Hdf5_leave();
 
@@ -687,7 +698,7 @@ w_matcomplex(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t dataspace = H5Screate_simple(2, len, NULL);
   hid_t ftype = construct_ftype_complex_double(L, &b->htype, b);
   hid_t mtype = construct_mtype_complex_double(L, &b->htype);
-  w_scalar(L, b, path, "MatrixComplex", ftype, mtype, dataspace, cv, &sum);
+  w_scalar(L, b, path, "MatrixComplex", ftype, mtype, dataspace, cv, global_combine_checksums(&sum, b->master));
   qlua_free(L, cv);
 
   qlua_Hdf5_leave();
@@ -745,10 +756,17 @@ w_latint(lua_State *L, mHdf5Writer *b, const char *path)
     sha256_sum_add_ints(ctx, &data[i], 1);
     sha256_sum(&l_sum, ctx);
     local_combine_checksums(&g_sum, &l_sum);
-    printf("  XXXX :%2d: data at {%5d} [%2d %2d %2d] %5d\n", QDP_this_node, i, local_x[0], local_x[1], local_x[2], data[i]);
+    //printf("  XXXX :%2d: data at {%5d} [%2d %2d %2d] %5d\n", QDP_this_node, i, local_x[0], local_x[1], local_x[2], data[i]);
   }
   QDP_reset_I(m->ptr);
+
+  // XXXX
+  l_sum = g_sum;
   lattice_combine_checksums(&g_sum);
+  // XXXX
+  for (i = 0; i < sizeof (SHA256_Sum); i++) {
+    printf(" SUM: {%2d} [%2d] %02x %02x\n", QDP_this_node, i, g_sum.v[i], l_sum.v[i]);
+  }
 
 
   qlua_Hdf5_enter(L);
@@ -760,9 +778,6 @@ w_latint(lua_State *L, mHdf5Writer *b, const char *path)
            QDP_this_node, i, local_lo[i], local_hi[i], S->dim[i],
            (int)(offset[i]), (int)(stride[i]), (int)(count[i]), (int)(block[i]), (int)(latdim[i]));
   }
-  //for (i = 0; i < sizeof (SHA256_Sum); i++) {
-  //  printf(" SUM: {%2d} [%2d] %02x %02x\n", QDP_this_node, i, g_sum.v[i], l_sum.v[i]);
-  //}
 
   char *dpath = qlua_strdup(L, path);
   hid_t wdir = b->cwd;
@@ -789,12 +804,12 @@ w_latint(lua_State *L, mHdf5Writer *b, const char *path)
   hid_t plist = H5Pcreate(H5P_DATASET_XFER);
 
   CHECK_H5(L, H5Dwrite(dataset, mtype, memspace, filespace, plist, data), "Dwrite() data");
-
-  // XXXX
   CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
   CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
   CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
   CHECK_H5(L, H5Tclose(mtype), "Tclose() mem type");
+
+  write_attrs(L, b, dataset, &g_sum, "LatticeInt");
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
 
   qlua_Hdf5_leave();
