@@ -60,7 +60,7 @@ struct wopts_s {
 };
 
 typedef void (*OutPacker_H5)(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
-                             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+                             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
 typedef struct QObjTable_s {
@@ -795,7 +795,7 @@ static void process_wopts(lua_State *L, struct wopts_s *opts) {/* XXXX */}
 
 static void
 w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
-         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
   const char *str = luaL_checkstring(L, 3);
@@ -803,8 +803,6 @@ w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
   sha256_sum_string(sum, str, len);
   *kind = "String";
   *data = qlua_strdup(L, str);
-  *filespace = H5Screate(H5S_SCALAR);
-  CHECK_H5(L, *filespace, "Screate(SCALAR) in w_string()");
   *filetype = H5Tcopy(H5T_C_S1);
   CHECK_H5(L, *filetype, "Tcopy(filetype) in w_string()");
   CHECK_H5(L, H5Tset_size(*filetype, len), "Sset_size(filetype) in w_string()");
@@ -815,7 +813,7 @@ w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
 
 static void
 w_latint(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
-         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
   int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
@@ -888,7 +886,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   void *data;
   SHA256_Sum sum;
   const char *kind;
-  (*repack)(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, NULL, &kind);
+  (*repack)(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   combine_checksums(&sum, 1);
@@ -946,11 +944,11 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   struct wopts_s wopts;
   process_wopts(L, &wopts);
 
-  hid_t filetype, memtype, filespace;
+  hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
   const char *kind;
-  (*repack)(L, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &filespace, &kind);
+  (*repack)(L, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &kind);
   combine_checksums(&sum, b->master);
 
   qlua_Hdf5_enter(L);
@@ -965,6 +963,8 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
     ename = ename + 1;
     wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
   }
+  hid_t filespace = H5Screate(H5S_SCALAR);
+  CHECK_H5(L, filespace, "Screate(SCALAR) in write_seq()");
   hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   qlua_free(L, dpath);
   CHECK_H5(L, dataset, "Dcreate() data set");
