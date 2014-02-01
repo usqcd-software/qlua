@@ -13,12 +13,15 @@
 #include "hdf5.h"
 #include "qmp.h"
 
-const char hdf5_io[] = "hdf5";
+static const char hdf5_io[] = "hdf5";
 static const char mtnFile[] = "qcd.hdf5.mtFile";
-const char csum_attr_name[] = ".sha256";
-const char kind_attr_name[] = ".kind";
-const char htn_complex_double[] = ".complexDouble";
-const char htn_complex_float[] = ".complexFloat";
+static const char csum_attr_name[] = ".sha256";
+static const char kind_attr_name[] = ".kind";
+static const char htn_complex_double[]     = ".complexDouble";
+static const char htn_complex_float[]      = ".complexFloat";
+static const char htn_vector_int_fmt[]     = ".vectorInt%d";
+static const char htn_vector_real_fmt[]    = ".vectorReal%s%d";
+static const char htn_vector_complex_fmt[] = ".vectorComplex%s%d";
 
 #define FAILED_H5CALL -1
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
@@ -56,10 +59,17 @@ struct laddr_s {
   int *high; /* local high site */
 };
 
+typedef enum {
+  WS_Double,
+  WS_Float
+} WriteSize;
+
 struct wopts_s {
+  WriteSize wsize;
 };
 
-typedef void (*OutPacker_H5)(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
+                             struct wopts_s *opts, struct laddr_s *laddr,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
@@ -122,7 +132,6 @@ free_types(lua_State *L, HType *ht)
   }
 }
 
-#if 0 /* XXXXXX complex hdf5 type constructors */
 static HType *
 lookup_htype(lua_State *L, mHdf5File *b, const char *name)
 {
@@ -143,17 +152,62 @@ lookup_htype(lua_State *L, mHdf5File *b, const char *name)
   return p;
 }
 
+static const char *
+wsize_name(lua_State *L, WriteSize wsize)
+{
+  switch (wsize) {
+  case WS_Double: return "Double";
+  case WS_Float: return "Float";
+  default:
+    luaL_error(L, "Unknown write size %d", (int)wsize);
+    break;
+  }
+  return NULL;
+}
+
+static hid_t
+wsize_real_mtype(lua_State *L, WriteSize wsize)
+{
+  hid_t t = -1;
+
+  switch (wsize) {
+  case WS_Double: t = H5T_NATIVE_DOUBLE; break;
+  case WS_Float: t = H5T_NATIVE_FLOAT; break;
+  default: break;
+  }
+  QLUA_ASSERT(t != -1);
+  t = H5Tcopy(t);
+  CHECK_H5(L, t, "Tcopy(real mem type)");
+  return t;
+}
+
+static hid_t
+wsize_real_ftype(lua_State *L, WriteSize wsize)
+{
+  hid_t t = -1;
+
+  switch (wsize) {
+  case WS_Double: t = H5T_IEEE_F64BE; break;
+  case WS_Float: t = H5T_IEEE_F32BE; break;
+  default: break;
+  }
+  QLUA_ASSERT(t != -1);
+  t = H5Tcopy(t);
+  CHECK_H5(L, t, "Tcopy(real file type)");
+  return t;
+}
+
 static hid_t
 construct_ftype_complex(lua_State *L, mHdf5File *b,
-                        const char *name, size_t tsize, size_t r_offset, size_t i_offset)
+                        const char *name, hid_t ftype, size_t tsize, size_t r_offset, size_t i_offset)
 {
   HType *p = lookup_htype(L, b, name);
 
   if (p->ftype < 0) {
     hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
     CHECK_H5(L, v, "file complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", r_offset, H5T_IEEE_F64BE), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", i_offset, H5T_IEEE_F64BE), "complex.i insert failed");
+    CHECK_H5(L, H5Tinsert(v, "r", r_offset, ftype), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", i_offset, ftype), "complex.i insert failed");
     if (b->writer)
       CHECK_H5(L, H5Tcommit(b->file, name, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex commit failed");
     p->ftype = v;
@@ -163,15 +217,15 @@ construct_ftype_complex(lua_State *L, mHdf5File *b,
 
 static hid_t
 construct_mtype_complex(lua_State *L, mHdf5File *b,
-                        const char *name, size_t tsize, size_t r_offset, size_t i_offset)
+                        const char *name, hid_t ftype, size_t tsize, size_t r_offset, size_t i_offset)
 {
   HType *p = lookup_htype(L, b, name);
 
   if (p->mtype < 0) {
     hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
     CHECK_H5(L, v, "machine complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", r_offset, H5T_NATIVE_DOUBLE), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", i_offset, H5T_NATIVE_DOUBLE), "complex.i insert failed");
+    CHECK_H5(L, H5Tinsert(v, "r", r_offset, ftype), "complex.r insert failed");
+    CHECK_H5(L, H5Tinsert(v, "i", i_offset, ftype), "complex.i insert failed");
     p->mtype = v;
   }
   return H5Tcopy(p->mtype);
@@ -180,18 +234,142 @@ construct_mtype_complex(lua_State *L, mHdf5File *b,
 static hid_t
 construct_ftype_complex_double(lua_State *L, mHdf5File *b)
 {
-  return construct_ftype_complex(L, b, htn_complex_double, 2 * 8, 0, 8);
+  return construct_ftype_complex(L, b, htn_complex_double, H5T_IEEE_F64BE, 2 * 8, 0, 8);
 }
 
 static hid_t
 construct_mtype_complex_double(lua_State *L, mHdf5File *b)
 {
   return construct_mtype_complex(L, b, htn_complex_double,
+                                 H5T_NATIVE_DOUBLE,
                                  sizeof (machine_complex_double),
                                  HOFFSET(machine_complex_double, re),
                                  HOFFSET(machine_complex_double, im));
 }
-#endif /* XXXXXXXX */
+
+static hid_t
+construct_ftype_complex_float(lua_State *L, mHdf5File *b)
+{
+  return construct_ftype_complex(L, b, htn_complex_float, H5T_IEEE_F32BE, 2 * 4, 0, 4);
+}
+
+static hid_t
+construct_mtype_complex_float(lua_State *L, mHdf5File *b)
+{
+  return construct_mtype_complex(L, b, htn_complex_float,
+                                 H5T_NATIVE_FLOAT,
+                                 sizeof (machine_complex_float),
+                                 HOFFSET(machine_complex_float, re),
+                                 HOFFSET(machine_complex_float, im));
+}
+
+static hid_t
+construct_ftype_vecint(lua_State *L, mHdf5File *b, int size)
+{
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->ftype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
+    CHECK_H5(L, v, "file vecint type create failed");
+    if (b->writer)
+      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
+    p->ftype = v;
+  }
+  return H5Tcopy(p->ftype);
+}
+
+static hid_t
+construct_mtype_vecint(lua_State *L, mHdf5File *b, int size)
+{
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->mtype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
+    CHECK_H5(L, v, "machine vecint type create failed");
+    p->mtype = v;
+  }
+  return H5Tcopy(p->mtype);
+}
+
+static hid_t
+construct_ftype_vecreal(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+{
+#if 0 /* XXXXXXXXXXX */
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->ftype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
+    CHECK_H5(L, v, "file vecint type create failed");
+    if (b->writer)
+      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
+    p->ftype = v;
+  }
+  return H5Tcopy(p->ftype);
+#endif /* XXXXXXXXXXX */
+  return -1;
+}
+
+static hid_t
+construct_mtype_vecreal(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+{
+#if 0 /* XXXX */
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->mtype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
+    CHECK_H5(L, v, "machine vecint type create failed");
+    p->mtype = v;
+  }
+  return H5Tcopy(p->mtype);
+#endif /* XXXX */
+  return -1;
+}
+
+static hid_t
+construct_ftype_veccomplex(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+{
+#if 0 /* XXXXXXXXXXX */
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->ftype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
+    CHECK_H5(L, v, "file vecint type create failed");
+    if (b->writer)
+      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
+    p->ftype = v;
+  }
+  return H5Tcopy(p->ftype);
+#endif /* XXXXXXXXXXX */
+  return -1;
+}
+
+static hid_t
+construct_mtype_veccomplex(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+{
+#if 0 /* XXXX */
+  char fmt[128];
+  sprintf(fmt, htn_vector_int_fmt, size);
+  HType *p = lookup_htype(L, b, fmt);
+  if (p->mtype < 0) {
+    hsize_t hsize = size;
+    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
+    CHECK_H5(L, v, "machine vecint type create failed");
+    p->mtype = v;
+  }
+  return H5Tcopy(p->mtype);
+#endif /* XXXX */
+  return -1;
+}
 
 /* writer */
 static void
@@ -382,27 +560,6 @@ qhdf5_mkpath(lua_State *L)
   return 0;
 }
 
-
-static int
-qhdf5_kind(lua_State *L)
-{
-  // mHdf5File *b = qlua_checkHdf5Writer(L, 1);
-  // const char *p = luaL_checkstring(L, 2);
-
-  /* XXX kind */
-  return 0;
-}
-
-static int
-qhdf5_exists(lua_State *L)
-{
-  // mHdf5File *b = qlua_checkHdf5Writer(L, 1);
-  // const char *p = luaL_checkstring(L, 2);
-
-  /* XXX exists */
-  return 0;
-}
-
 static void
 write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
 {
@@ -435,115 +592,6 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 
 /* XXXX writers */
 #if 0 /* XXXXXXXX scalar uncolored objects */
-static void
-w_scalar(lua_State *L, mHdf5File *b, const char *path, const char *kind,
-         hid_t ftype, hid_t mtype, hid_t dataspace, const void *data, const SHA256_Sum *sum)
-{
-  char *dpath = qlua_strdup(L, path);
-  char *ename = strrchr(dpath, '/');
-  hid_t wdir = b->cwd;
-  if (ename == NULL) {
-    ename = dpath;
-  } else {
-    ename[0] = 0;
-    ename = ename + 1;
-    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
-  }
-  hid_t dataset = H5Dcreate2(wdir, ename, ftype, dataspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  if (b->master) {
-    /* Only on the master */
-    CHECK_H5(L, H5Dwrite(dataset, mtype, H5S_ALL, H5S_ALL, plist, data), "write string");
-  }
-  /* Everyone must write attributes, which must be identical or else. */
-  write_attrs(L, b, dataset, sum, kind);
-
-  CHECK_H5(L, H5Pclose(plist), "Pclose() plist");
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() dataset");
-  CHECK_H5(L, H5Sclose(dataspace), "Sclose() dataspace");
-  if (wdir != b->cwd)
-    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  CHECK_H5(L, H5Tclose(ftype), "Tclose() ftype");
-  CHECK_H5(L, H5Tclose(mtype), "Tclose() mtype");
-  qlua_free(L, dpath);
-}
-
-
-static int
-w_real(lua_State *L, mHdf5File *b, const char *path)
-{
-  double val = luaL_checknumber(L, 3);
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum sum;
-
-  sha256_sum_add_doubles(ctx, &val, 1);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-
-  hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
-  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "Real", ftype, mtype, dataspace, &val, global_combine_checksums(&sum, b->master));
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-
-static int
-w_complex(lua_State *L, mHdf5File *b, const char *path)
-{
-  QLA_D_Complex *v = qlua_checkComplex(L, 3);
-  SHA256_Context *ctx = sha256_create(L);
-  machine_complex_double cv;
-  SHA256_Sum sum;
-
-  cv.re = QLA_real(*v);
-  cv.im = QLA_imag(*v);
-  sha256_sum_add_doubles(ctx, (double *)&cv, 2);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-
-  hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t ftype = construct_ftype_complex_double(L, b);
-  hid_t mtype = construct_mtype_complex_double(L, b);
-  w_scalar(L, b, path, "Complex", ftype, mtype, dataspace, &cv, global_combine_checksums(&sum, b->master));
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-
-static int
-w_vecint(lua_State *L, mHdf5File *b, const char *path)
-{
-  mVecInt *v = qlua_checkVecInt(L, 3);
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum sum;
-  hsize_t len;
-
-  sha256_sum_add_ints(ctx, v->val, v->size);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-  len = v->size;
-  hid_t dataspace = H5Screate_simple(1, &len, NULL);
-  hid_t ftype = H5Tcopy(H5T_STD_I64BE);
-  hid_t mtype = H5Tcopy(H5T_NATIVE_INT);
-  w_scalar(L, b, path, "VectorInt", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
 
 static int
 w_vecreal(lua_State *L, mHdf5File *b, const char *path)
@@ -676,108 +724,6 @@ w_matcomplex(lua_State *L, mHdf5File *b, const char *path)
 }
 #endif /* XXXXXXXXXXXXXXXXX scalar uncolored objects */
 
-#if 0 /* XXXXXXX latint writer */
-static int
-w_latint(lua_State *L, mHdf5File *b, const char *path)
-{
-  mLatInt *m = qlua_checkLatInt(L, 3, NULL);
-  // int has_opts = qlua_checkopt_table(L, 4);
-  mLattice *S = qlua_ObjLattice(L, 3);
-  int rank = S->rank;
-  int *iptr = qlua_malloc(L, 3 * rank * sizeof (int));
-  int *local_lo = iptr;
-  int *local_hi = iptr + rank;
-  int *local_x = iptr + 2 * rank;
-  hsize_t *hptr = qlua_malloc(L, 5 * rank * sizeof (hsize_t));
-  hsize_t *offset = hptr;
-  hsize_t *stride = hptr + rank;
-  hsize_t *count = hptr + 2 * rank;
-  hsize_t *block = hptr + 3 * rank;
-  hsize_t *latdim = hptr + 4 * rank;
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum g_sum, l_sum;
-  int volume, i, j, xl;
-  int *data;
-
-  qlua_sublattice(local_lo, local_hi, QDP_this_node, S);
-
-  for (volume = 1, j = 0; j < rank; j++) {
-    volume *= local_hi[j] - local_lo[j];
-    offset[j] = local_lo[j];
-    stride[j] = 1;
-    count[j] = 1;
-    block[j] = local_hi[j] - local_lo[j];
-    latdim[j] = S->dim[j];
-  }
-  data = qlua_malloc(L, volume * sizeof (int));
-
-  CALL_QDP(L);
-  QLA_Int *locked = QDP_expose_I(m->ptr);
-  sha256_sum_clear(&g_sum);
-  for (i = 0; i < volume; i++) {
-    for (xl = i, j = rank; j--;) {
-      local_x[j] = xl % block[j] + local_lo[j];
-      xl = xl / block[j];
-    }
-    QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
-    data[i] = QLA_elem_I(locked[QDP_index_L(S->lat, local_x)]);
-    sha256_reset(ctx);
-    sha256_sum_add_ints(ctx, &rank, 1);
-    sha256_sum_add_ints(ctx, local_x, rank);
-    sha256_sum_add_ints(ctx, &data[i], 1);
-    sha256_sum(&l_sum, ctx);
-    local_combine_checksums(&g_sum, &l_sum);
-  }
-  QDP_reset_I(m->ptr);
-
-  combine_checksums(&g_sum, 1);
-
-  qlua_Hdf5_enter(L);
-
-  char *dpath = qlua_strdup(L, path);
-  char *ename = strrchr(dpath, '/');
-  hid_t wdir = b->cwd;
-  if (ename == NULL) {
-    ename = dpath;
-  } else {
-    ename[0] = 0;
-    ename = ename + 1;
-    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
-  }
-
-  hid_t ftype = H5Tcopy(H5T_STD_I64BE);
-  hid_t mtype = H5Tcopy(H5T_NATIVE_INT);
-  hid_t filespace = H5Screate_simple(rank, latdim, NULL);
-  hid_t dataset = H5Dcreate2(wdir, ename, ftype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-  CHECK_H5(L, H5Tclose(ftype), "Tclose() file type");
-  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
-  if (wdir != b->cwd)
-    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  hid_t memspace = H5Screate_simple(rank, block, NULL);
-  filespace =  H5Dget_space(dataset);
-  H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block);
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-
-  CHECK_H5(L, H5Dwrite(dataset, mtype, memspace, filespace, plist, data), "Dwrite() data");
-  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
-  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
-  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
-  CHECK_H5(L, H5Tclose(mtype), "Tclose() mem type");
-
-  write_attrs(L, b, dataset, &g_sum, "LatticeInt");
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
-
-  qlua_Hdf5_leave();
-
-  sha256_destroy(ctx);
-  qlua_free(L, data);
-  qlua_free(L, iptr);
-  qlua_free(L, hptr);
-
-  return 0;
-}
-#endif /* XXXXXXX latint writer */
-
 static void
 qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
 {
@@ -791,10 +737,24 @@ qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
   }
 }
 
-static void process_wopts(lua_State *L, struct wopts_s *opts) {/* XXXX */}
+static void
+process_wopts(lua_State *L, struct wopts_s *opts) /* XXX */
+{
+  opts->wsize = WS_Double;
+  if (qlua_checkopt_table(L, 4)) {
+    const char *prec = qlua_tabkey_stringopt(L, 4, "precision", "double");
+    if (strcmp(prec, "double") == 0)
+      opts->wsize = WS_Double;
+    else if (strcmp(prec, "float") == 0)
+      opts->wsize = WS_Float;
+    else
+      luaL_error(L, "Unknown precision value \"%s\"", prec);
+  }
+}
 
 static void
-w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+w_string(lua_State *L, mHdf5File *b, mLattice *S,
+         struct wopts_s *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -812,7 +772,176 @@ w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
 }
 
 static void
-w_latint(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+w_real(lua_State *L, mHdf5File *b, mLattice *S,
+       struct wopts_s *opts, struct laddr_s *laddr,
+       SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+       const char **kind)
+{
+  double val = luaL_checknumber(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+
+  switch (opts->wsize) {
+  case WS_Double:
+    *data = qlua_malloc(L, sizeof (double));
+    *(double *)(*data) = val;
+    sha256_sum_add_doubles(ctx, *data, 1);
+    *filetype = H5Tcopy(H5T_IEEE_F64BE);
+    CHECK_H5(L, *filetype, "Tcopy(filetype) in w_real()");
+    *memtype = H5Tcopy(H5T_NATIVE_DOUBLE);
+    CHECK_H5(L, *memtype, "Tcopy(memtype) in w_real()");
+    break;
+  case WS_Float:
+    *data = qlua_malloc(L, sizeof (float));
+    *(float *)(*data) = val;
+    sha256_sum_add_floats(ctx, *data, 1);
+    *filetype = H5Tcopy(H5T_IEEE_F32BE);
+    CHECK_H5(L, *filetype, "Tcopy(filetype) in w_real()");
+    *memtype = H5Tcopy(H5T_NATIVE_FLOAT);
+    CHECK_H5(L, *memtype, "Tcopy(memtype) in w_real()");
+    break;
+  default:
+    luaL_error(L, "Unknown precision in w_real()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *kind = "Real";
+}
+
+static void
+w_complex(lua_State *L, mHdf5File *b, mLattice *S,
+          struct wopts_s *opts, struct laddr_s *laddr,
+          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+          const char **kind)
+{
+  QLA_D_Complex *v = qlua_checkComplex(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    machine_complex_double *cv = qlua_malloc(L, sizeof (machine_complex_double));
+    cv->re = QLA_real(*v);
+    cv->im = QLA_imag(*v);
+    *data = cv;
+    sha256_sum_add_doubles(ctx, *data, 2);
+    *filetype = construct_ftype_complex_double(L, b);
+    *memtype = construct_mtype_complex_double(L, b);
+  } break;
+  case WS_Float: {
+    machine_complex_float *cv = qlua_malloc(L, sizeof (machine_complex_float));
+    cv->re = QLA_real(*v);
+    cv->im = QLA_imag(*v);
+    *data = cv;
+    sha256_sum_add_floats(ctx, *data, 2);
+    *filetype = construct_ftype_complex_float(L, b);
+    *memtype = construct_mtype_complex_float(L, b);
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_complex()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *kind = "Complex";
+}
+
+static void
+w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
+         struct wopts_s *opts, struct laddr_s *laddr,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+         const char **kind)
+{
+  mVecInt *v = qlua_checkVecInt(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  int *vec = qlua_malloc(L, v->size * sizeof (int));
+  int i;
+
+  for (i = 0; i < v->size; i++)
+    vec[i] = v->val[i];
+  sha256_sum_add_ints(ctx, v->val, v->size);
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *data = vec;
+  *filetype = construct_ftype_vecint(L, b, v->size);
+  *memtype = construct_mtype_vecint(L, b, v->size);
+  *kind = "VectorInt";
+}
+
+static void
+w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
+          struct wopts_s *opts, struct laddr_s *laddr,
+          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+          const char **kind)
+{
+  mVecReal *v = qlua_checkVecReal(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  int i;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    double *vec= qlua_malloc(L, v->size * sizeof (double));
+    for (i = 0; i < v->size; i++)
+      vec[i] = v->val[i];
+    *data = vec;
+    sha256_sum_add_doubles(ctx, *data, v->size);
+  } break;
+  case WS_Float: {
+    float *vec= qlua_malloc(L, v->size * sizeof (float));
+    for (i = 0; i < v->size; i++)
+      vec[i] = v->val[i];
+    *data = vec;
+    sha256_sum_add_floats(ctx, *data, v->size);
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_vecreal()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *kind = "VectorReal";
+  *filetype = construct_ftype_vecreal(L, b, v->size, opts->wsize);
+  *memtype =  construct_mtype_vecreal(L, b, v->size, opts->wsize);
+}
+
+static void
+w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
+             struct wopts_s *opts, struct laddr_s *laddr,
+             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+             const char **kind)
+{
+  mVecComplex *v = qlua_checkVecComplex(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  int i;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    machine_complex_double *vec= qlua_malloc(L, v->size * sizeof (machine_complex_double));
+    for (i = 0; i < v->size; i++) {
+      vec[i].re = QLA_real(v->val[i]);
+      vec[i].im = QLA_imag(v->val[i]);
+    }
+    *data = vec;
+    sha256_sum_add_doubles(ctx, *data, 2 * v->size);
+  } break;
+  case WS_Float: {
+    machine_complex_float *vec= qlua_malloc(L, v->size * sizeof (machine_complex_float));
+    for (i = 0; i < v->size; i++) {
+      vec[i].re = QLA_real(v->val[i]);
+      vec[i].im = QLA_imag(v->val[i]);
+    }
+    *data = vec;
+    sha256_sum_add_floats(ctx, *data, 2 * v->size);
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_veccomplex()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *kind = "VectorReal";
+  *filetype = construct_ftype_veccomplex(L, b, v->size, opts->wsize);
+  *memtype =  construct_mtype_veccomplex(L, b, v->size, opts->wsize);
+}
+
+static void
+w_latint(lua_State *L, mHdf5File *b, mLattice *S,
+         struct wopts_s *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -886,7 +1015,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   void *data;
   SHA256_Sum sum;
   const char *kind;
-  (*repack)(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
+  (*repack)(L, b, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   combine_checksums(&sum, 1);
@@ -948,7 +1077,7 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   void *data;
   SHA256_Sum sum;
   const char *kind;
-  (*repack)(L, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &kind);
+  (*repack)(L, b, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &kind);
   combine_checksums(&sum, b->master);
 
   qlua_Hdf5_enter(L);
@@ -1050,12 +1179,12 @@ q_hdf5_writer(lua_State *L)
 /* setup */
 static QObjTable qotable[] = {
   { qString,                 0,  w_string        },
-#if 0 /* XXXXXX scalar uncolored objects */
   { qReal,                   0,  w_real          },
   { qComplex,                0,  w_complex       },
   { qVecInt,                 0,  w_vecint        },
   { qVecReal,                0,  w_vecreal       },
   { qVecComplex,             0,  w_veccomplex    },
+#if 0 /* XXXXXX scalar uncolored objects */
   { qMatReal,                0,  w_matreal       },
   { qMatComplex,             0,  w_matcomplex    },
 #endif /* XXXXX */
@@ -1099,13 +1228,13 @@ static const struct luaL_Reg mtFile[] = {
   { "write",            qhdf5_write   },
   { "chpath",           qhdf5_chpath  },
   { "mkpath",           qhdf5_mkpath  },
-  { "kind",             qhdf5_kind    },
-  { "exists",           qhdf5_exists  },
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
-  { "cwd",              qhdf5_cwd     },  /* XXX ? */
+  { "delete",           qhdf5_delete  },
   { "list",             qhdf5_list    },
   { "dims",             qhdf5_dims    },
+  { "kind",             qhdf5_kind    },
+  { "exists",           qhdf5_exists  },
 #endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };

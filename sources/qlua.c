@@ -478,6 +478,17 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 }
 
 const char *
+qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def)
+{
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  const char *v = luaL_checkstring(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+const char *
 qlua_tabidx_string(lua_State *L, int idx, int key)
 {
   const char *v;

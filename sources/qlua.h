@@ -179,6 +179,7 @@ double qlua_tabkey_double(lua_State *L, int idx, const char *key);
 double qlua_tabidx_double(lua_State *L, int idx, int subidx);
 const char *qlua_tabkey_string(lua_State *L, int idx, const char *key);
 const char *qlua_tabidx_string(lua_State *L, int idx, int subidx);
+const char *qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def);
 
 typedef int (*q_op)(lua_State *L);
 
