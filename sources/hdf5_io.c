@@ -51,6 +51,7 @@ struct mHdf5File_s {
 
 struct laddr_s {
   int rank;  /* lattice rank */
+  int volume; /* local volume */
   int *low;  /* local low site */
   int *high; /* local high site */
 };
@@ -59,7 +60,8 @@ struct wopts_s {
 };
 
 typedef void (*OutPacker_H5)(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
-                             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, const char **kind);
+                             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+                             const char **kind);
 
 typedef struct QObjTable_s {
   QLUA_Type qtype;
@@ -216,7 +218,7 @@ make_hdf5_path(lua_State *L, hid_t file, hid_t cwd, char *dpath)
   hid_t dhandle = dpath[0] == '/' ? H5Gopen2(file, "/", H5P_DEFAULT) : cwd;
   int isused = dpath[0] != '/';
 
-  while (buf) {
+  while (buf && buf[0]) {
     strsep(&buf, "/");
     hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
     if (dnext < 0) {
@@ -466,29 +468,6 @@ w_scalar(lua_State *L, mHdf5File *b, const char *path, const char *kind,
   qlua_free(L, dpath);
 }
 
-static int
-w_string(lua_State *L, mHdf5File *b, const char *path)
-{
-  const char *str = luaL_checkstring(L, 3);
-  size_t len = strlen(str);
-  SHA256_Sum sum;
-
-  sha256_sum_string(&sum, str, len);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-
-  hid_t dataspace = H5Screate(H5S_SCALAR);
-  hid_t ftype = H5Tcopy(H5T_C_S1);
-  hid_t mtype = H5Tcopy(H5T_C_S1);
-  CHECK_H5(L, H5Tset_size(ftype, len), "set ftype size");
-  CHECK_H5(L, H5Tset_size(mtype, len), "set mtype size");
-  w_scalar(L, b, path, "String", ftype, mtype, dataspace, str, global_combine_checksums(&sum, b->master));
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
 
 static int
 w_real(lua_State *L, mHdf5File *b, const char *path)
@@ -799,11 +778,82 @@ w_latint(lua_State *L, mHdf5File *b, const char *path)
 }
 #endif /* XXXXXXX latint writer */
 
+static void
+qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
+{
+  int j;
+  int rank = laddr->rank;
+
+  for (j = rank; j--;) {
+    int block_j = laddr->high[j] - laddr->low[j];
+    local_x[j] = xl % block_j + laddr->low[j];
+    xl = xl / block_j;
+  }
+}
+
 static void process_wopts(lua_State *L, struct wopts_s *opts) {/* XXXX */}
 
-static void w_latint(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
-                     SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, const char **kind)
-{/* XXXX w_latint */ *kind = "LatticeInt"; }
+static void
+w_string(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+         const char **kind)
+{
+  const char *str = luaL_checkstring(L, 3);
+  size_t len = strlen(str) + 1;
+  sha256_sum_string(sum, str, len);
+  *kind = "String";
+  *data = qlua_strdup(L, str);
+  *filespace = H5Screate(H5S_SCALAR);
+  CHECK_H5(L, *filespace, "Screate(SCALAR) in w_string()");
+  *filetype = H5Tcopy(H5T_C_S1);
+  CHECK_H5(L, *filetype, "Tcopy(filetype) in w_string()");
+  CHECK_H5(L, H5Tset_size(*filetype, len), "Sset_size(filetype) in w_string()");
+  *memtype = H5Tcopy(H5T_C_S1);
+  CHECK_H5(L, *memtype, "Tcopy(memtype) in w_string()");
+  CHECK_H5(L, H5Tset_size(*memtype, len), "Sset_size(memtype) in w_string()");
+}
+
+static void
+w_latint(lua_State *L, mLattice *S, struct wopts_s *opts, struct laddr_s *laddr,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype, hid_t *filespace,
+         const char **kind)
+{
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  mLatInt *m = qlua_checkLatInt(L, 3, S);
+  SHA256_Context *ctx = sha256_create(L);
+  int volume = laddr->volume;
+  int rank = laddr->rank;
+  int i;
+
+  int *ptr = qlua_malloc(L, volume * sizeof (int));
+
+  CALL_QDP(L);
+
+  *data = ptr;
+  *kind = "LatticeInt";
+  *filetype =  H5Tcopy(H5T_STD_I32BE);
+  CHECK_H5(L, *filetype, "Tcopy(i32be) in w_latint()");
+  *memtype = H5Tcopy(H5T_NATIVE_INT);
+  CHECK_H5(L, *filetype, "Tcopy(int) in w_latint()");
+  
+  QLA_Int *locked = QDP_expose_I(m->ptr);
+  for (i = 0; i < volume; i++) {
+    qdp2hdf5_addr(local_x, i, laddr);
+    QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+    ptr[i] = QLA_elem_I(locked[QDP_index_L(S->lat, local_x)]);
+    sha256_reset(ctx);
+    sha256_sum_add_ints(ctx, &rank, 1);
+    sha256_sum_add_ints(ctx, local_x, rank);
+    sha256_sum_add_ints(ctx, &ptr[i], 1);
+    SHA256_Sum l_sum;
+    sha256_sum(&l_sum, ctx);
+    local_combine_checksums(sum, &l_sum);
+  }
+  QDP_reset_I(m->ptr);
+
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+}
 
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
@@ -832,12 +882,13 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
     block[j] = extend_j;
     hlatdim[j] = S->dim[j];
   }
+  laddr.volume = volume;
 
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
   const char *kind;
-  repack(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
+  (*repack)(L, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, NULL, &kind);
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   combine_checksums(&sum, 1);
@@ -868,17 +919,18 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, memspace, "Screate_simple() mem space");
   filespace =  H5Dget_space(dataset);
   CHECK_H5(L, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block), "Sselect_hyperslab()");
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  CHECK_H5(L, plist, "Pcreate() xfter plist");
   qlua_free(L, block);
   qlua_free(L, offset);
   qlua_free(L, stride);
   qlua_free(L, count);
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, plist, "Pcreate() xfter plist");
   CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
   CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
   CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
   CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
   CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
+  qlua_free(L, data);
 
   write_attrs(L, b, dataset, &sum, kind);
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
@@ -891,7 +943,48 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 static int
 write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  /* XXXX */
+  struct wopts_s wopts;
+  process_wopts(L, &wopts);
+
+  hid_t filetype, memtype, filespace;
+  void *data;
+  SHA256_Sum sum;
+  const char *kind;
+  (*repack)(L, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &filespace, &kind);
+  combine_checksums(&sum, b->master);
+
+  qlua_Hdf5_enter(L);
+
+  char *dpath = qlua_strdup(L, path);
+  char *ename = strrchr(dpath, '/');
+  hid_t wdir = b->cwd;
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    wdir = make_hdf5_path(L, b->file, b->cwd, dpath);
+  }
+  hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  qlua_free(L, dpath);
+  CHECK_H5(L, dataset, "Dcreate() data set");
+  CHECK_H5(L, H5Tclose(filetype), "Tclose() file type");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
+  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, plist, "Pcreate() xfter plist");
+  if (b->master)
+    CHECK_H5(L, H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, plist, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
+  CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
+  qlua_free(L, data);
+
+  write_attrs(L, b, dataset, &sum, kind);
+  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
+
+  qlua_Hdf5_leave();
+
   return 0;
 }
 
@@ -911,11 +1004,7 @@ qhdf5_write(lua_State *L)
   }
   if (qotable[i].repack == NULL)
     luaL_error(L, "unwritable data");
-  if (qotable[i].is_parallel)
-    count = write_lat(L, b, p, qotable[i].repack);
-  else
-    count = write_seq(L, b, p, qotable[i].repack);
-
+  count = (qotable[i].is_parallel? write_lat: write_seq)(L, b, p, qotable[i].repack);
   qlua_Hdf5_leave();
   return count;
 }
@@ -960,8 +1049,8 @@ q_hdf5_writer(lua_State *L)
 
 /* setup */
 static QObjTable qotable[] = {
-#if 0 /* XXXXXX scalar uncolored objects */
   { qString,                 0,  w_string        },
+#if 0 /* XXXXXX scalar uncolored objects */
   { qReal,                   0,  w_real          },
   { qComplex,                0,  w_complex       },
   { qVecInt,                 0,  w_vecint        },
