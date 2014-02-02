@@ -17,11 +17,17 @@ static const char hdf5_io[] = "hdf5";
 static const char mtnFile[] = "qcd.hdf5.mtFile";
 static const char csum_attr_name[] = ".sha256";
 static const char kind_attr_name[] = ".kind";
-static const char htn_complex_double[]     = ".complexDouble";
-static const char htn_complex_float[]      = ".complexFloat";
-static const char htn_vector_int_fmt[]     = ".vectorInt%d";
-static const char htn_vector_real_fmt[]    = ".vectorReal%s%d";
-static const char htn_vector_complex_fmt[] = ".vectorComplex%s%d";
+
+static const char htn_complex_fmt[]         = ".complex%s";
+static const char htn_vector_int_fmt[]      = ".vectorInt%d";
+static const char htn_vector_real_fmt[]     = ".vectorReal%s%d";
+static const char htn_vector_complex_fmt[]  = ".vectorComlpex%s%d";
+static const char htn_matrix_real_fmt[]     = ".matrixReal%s%dx%d";
+static const char htn_matrix_complex_fmt[]  = ".matrixComlpex%s%dx%d";
+static const char htn_color_vector_fmt[]    = ".colorVector%s%d";
+static const char htn_color_matrix_fmt[]    = ".colorMatrix%s%d";
+static const char htn_dirac_fermion_fmt[]   = ".diracFermion%s%d";
+static const char htn_dirac_prop_fmt[]      = ".diracPropagator%s%d";
 
 #define FAILED_H5CALL -1
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
@@ -166,209 +172,366 @@ wsize_name(lua_State *L, WriteSize wsize)
 }
 
 static hid_t
-wsize_real_mtype(lua_State *L, WriteSize wsize)
+get_sha256_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
-  hid_t t = -1;
+  hid_t v = H5Tcopy(H5T_STD_U8BE);
+  CHECK_H5(L, v, "sha256_type(): copying sha256 type");
+  return v;
+}
 
-  switch (wsize) {
-  case WS_Double: t = H5T_NATIVE_DOUBLE; break;
-  case WS_Float: t = H5T_NATIVE_FLOAT; break;
-  default: break;
+static hid_t
+get_string_type(lua_State *L, mHdf5File *b, int size, int ftype_p)
+{
+  hid_t v = H5Tcopy(H5T_C_S1);
+  CHECK_H5(L, v, "string_type(): copying char type");
+  CHECK_H5(L, H5Tset_size(v, size), "string_type(): set size");
+  return v;
+}
+
+static hid_t
+get_int_type(lua_State *L, mHdf5File *b, int ftype_p)
+{
+  hid_t v;
+  if (ftype_p) {
+    v = H5T_STD_I32BE;
+  } else {
+    v = H5T_NATIVE_INT;
   }
-  QLUA_ASSERT(t != -1);
-  t = H5Tcopy(t);
-  CHECK_H5(L, t, "Tcopy(real mem type)");
-  return t;
+  v = H5Tcopy(v);
+  CHECK_H5(L, v, "int_type(): copying int type");
+  return v;
 }
 
 static hid_t
-wsize_real_ftype(lua_State *L, WriteSize wsize)
+get_real_type(lua_State *L, mHdf5File *b, WriteSize wsize, int ftype_p)
 {
-  hid_t t = -1;
-
-  switch (wsize) {
-  case WS_Double: t = H5T_IEEE_F64BE; break;
-  case WS_Float: t = H5T_IEEE_F32BE; break;
-  default: break;
+  hid_t v = -1;
+  if (ftype_p) {
+    switch (wsize) {
+    case WS_Double: v = H5T_IEEE_F64BE; break;
+    case WS_Float: v = H5T_IEEE_F32BE; break;
+    }
+  } else {
+    switch (wsize) {
+    case WS_Double: v = H5T_NATIVE_DOUBLE; break;
+    case WS_Float: v = H5T_NATIVE_FLOAT; break;
+    }
   }
-  QLUA_ASSERT(t != -1);
-  t = H5Tcopy(t);
-  CHECK_H5(L, t, "Tcopy(real file type)");
-  return t;
+  CHECK_H5(L, v, "real_type(): unknown wsize");
+  v = H5Tcopy(v);
+  CHECK_H5(L, v, "real_type(): copying real type");
+  return v;
 }
 
-static hid_t
-construct_ftype_complex(lua_State *L, mHdf5File *b,
-                        const char *name, hid_t ftype, size_t tsize, size_t r_offset, size_t i_offset)
+static hsize_t
+get_complex_size(lua_State *L, WriteSize wsize, int ftype_p)
 {
-  HType *p = lookup_htype(L, b, name);
-
-  if (p->ftype < 0) {
-    hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
-    CHECK_H5(L, v, "file complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", r_offset, ftype), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", i_offset, ftype), "complex.i insert failed");
-    if (b->writer)
-      CHECK_H5(L, H5Tcommit(b->file, name, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex commit failed");
-    p->ftype = v;
+  if (ftype_p) {
+    switch (wsize) {
+    case WS_Double: return 16;
+    case WS_Float: return 8;
+    default:
+      break;
+    }
+  } else {
+    switch (wsize) {
+    case WS_Double: return sizeof (machine_complex_double);
+    case WS_Float: return sizeof (machine_complex_float);
+    default:
+      break;
+    }
   }
-  return H5Tcopy(p->ftype);
+  CHECK_H5(L, -1, "complex_size(): unknown wsize");
+  return -1;
 }
 
-static hid_t
-construct_mtype_complex(lua_State *L, mHdf5File *b,
-                        const char *name, hid_t ftype, size_t tsize, size_t r_offset, size_t i_offset)
+static hsize_t
+get_real_offset(lua_State *L, WriteSize wsize, int ftype_p)
 {
-  HType *p = lookup_htype(L, b, name);
-
-  if (p->mtype < 0) {
-    hid_t v = H5Tcreate(H5T_COMPOUND, tsize);
-    CHECK_H5(L, v, "machine complex type create failed");
-    CHECK_H5(L, H5Tinsert(v, "r", r_offset, ftype), "complex.r insert failed");
-    CHECK_H5(L, H5Tinsert(v, "i", i_offset, ftype), "complex.i insert failed");
-    p->mtype = v;
+  if (ftype_p) {
+    switch (wsize) {
+    case WS_Double: return 0;
+    case WS_Float: return 0;
+    default:
+      break;
+    }
+  } else {
+    switch (wsize) {
+    case WS_Double: return HOFFSET(machine_complex_double, re);
+    case WS_Float: return HOFFSET(machine_complex_float, re);
+    default:
+      break;
+    }
   }
-  return H5Tcopy(p->mtype);
+  CHECK_H5(L, -1, "real_offset(): unknown wsize");
+  return -1;
 }
 
-static hid_t
-construct_ftype_complex_double(lua_State *L, mHdf5File *b)
+static hsize_t
+get_imag_offset(lua_State *L, WriteSize wsize, int ftype_p)
 {
-  return construct_ftype_complex(L, b, htn_complex_double, H5T_IEEE_F64BE, 2 * 8, 0, 8);
-}
-
-static hid_t
-construct_mtype_complex_double(lua_State *L, mHdf5File *b)
-{
-  return construct_mtype_complex(L, b, htn_complex_double,
-                                 H5T_NATIVE_DOUBLE,
-                                 sizeof (machine_complex_double),
-                                 HOFFSET(machine_complex_double, re),
-                                 HOFFSET(machine_complex_double, im));
-}
-
-static hid_t
-construct_ftype_complex_float(lua_State *L, mHdf5File *b)
-{
-  return construct_ftype_complex(L, b, htn_complex_float, H5T_IEEE_F32BE, 2 * 4, 0, 4);
-}
-
-static hid_t
-construct_mtype_complex_float(lua_State *L, mHdf5File *b)
-{
-  return construct_mtype_complex(L, b, htn_complex_float,
-                                 H5T_NATIVE_FLOAT,
-                                 sizeof (machine_complex_float),
-                                 HOFFSET(machine_complex_float, re),
-                                 HOFFSET(machine_complex_float, im));
-}
-
-static hid_t
-construct_ftype_vecint(lua_State *L, mHdf5File *b, int size)
-{
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->ftype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
-    CHECK_H5(L, v, "file vecint type create failed");
-    if (b->writer)
-      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
-    p->ftype = v;
+  if (ftype_p) {
+    switch (wsize) {
+    case WS_Double: return 8;
+    case WS_Float: return 4;
+    default:
+      break;
+    }
+  } else {
+    switch (wsize) {
+    case WS_Double: return HOFFSET(machine_complex_double, im);
+    case WS_Float: return HOFFSET(machine_complex_float, im);
+    default:
+      break;
+    }
   }
-  return H5Tcopy(p->ftype);
-}
-
-static hid_t
-construct_mtype_vecint(lua_State *L, mHdf5File *b, int size)
-{
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->mtype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
-    CHECK_H5(L, v, "machine vecint type create failed");
-    p->mtype = v;
-  }
-  return H5Tcopy(p->mtype);
-}
-
-static hid_t
-construct_ftype_vecreal(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
-{
-#if 0 /* XXXXXXXXXXX */
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->ftype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
-    CHECK_H5(L, v, "file vecint type create failed");
-    if (b->writer)
-      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
-    p->ftype = v;
-  }
-  return H5Tcopy(p->ftype);
-#endif /* XXXXXXXXXXX */
+  CHECK_H5(L, -1, "imag_offset(): unknown wsize");
   return -1;
 }
 
 static hid_t
-construct_mtype_vecreal(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+get_complex_type(lua_State *L, mHdf5File *hf, WriteSize wsize, int ftype_p)
 {
-#if 0 /* XXXX */
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->mtype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
-    CHECK_H5(L, v, "machine vecint type create failed");
-    p->mtype = v;
+  char tname[72];
+  sprintf(tname, htn_complex_fmt, wsize_name(L, wsize));
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_real_type(L, hf, wsize, ftype_p);
+    hid_t v = H5Tcreate(H5T_COMPOUND, get_complex_size(L, wsize, ftype_p));
+    CHECK_H5(L, v, "complex_type(): creating compound");
+    CHECK_H5(L, H5Tinsert(v, "r", get_real_offset(L, wsize, ftype_p), ct), "complex_type(): insert real");
+    CHECK_H5(L, H5Tinsert(v, "i", get_imag_offset(L, wsize, ftype_p), ct), "complex_type(): insert imag");
+    CHECK_H5(L, H5Tclose(ct), "complex_type(): close real type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
   }
-  return H5Tcopy(p->mtype);
-#endif /* XXXX */
-  return -1;
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_complex_type() copy");
+  return r;
 }
 
 static hid_t
-construct_ftype_veccomplex(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
 {
-#if 0 /* XXXXXXXXXXX */
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->ftype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_STD_I32BE, 1, &hsize);
-    CHECK_H5(L, v, "file vecint type create failed");
-    if (b->writer)
-      CHECK_H5(L, H5Tcommit(b->file, fmt, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint commit failed");
-    p->ftype = v;
+  char tname[72];
+  sprintf(tname, htn_vector_int_fmt, n);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_int_type(L, hf, ftype_p);
+    hsize_t vsize = n;
+    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    CHECK_H5(L, v, "vecint_type(): creating vecint type");
+    CHECK_H5(L, H5Tclose(ct), "vecint_type(): closing int type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
   }
-  return H5Tcopy(p->ftype);
-#endif /* XXXXXXXXXXX */
-  return -1;
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_vecint_type() copy");
+  return r;
 }
 
 static hid_t
-construct_mtype_veccomplex(lua_State *L, mHdf5File *b, int size, WriteSize wsize)
+get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
-#if 0 /* XXXX */
-  char fmt[128];
-  sprintf(fmt, htn_vector_int_fmt, size);
-  HType *p = lookup_htype(L, b, fmt);
-  if (p->mtype < 0) {
-    hsize_t hsize = size;
-    hid_t v = H5Tarray_create2(H5T_NATIVE_INT, 1, &hsize);
-    CHECK_H5(L, v, "machine vecint type create failed");
-    p->mtype = v;
+  char tname[72];
+  sprintf(tname, htn_vector_real_fmt, wsize_name(L, wsize), n);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_real_type(L, hf, wsize, ftype_p);
+    hsize_t vsize = n;
+    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    CHECK_H5(L, v, "vecreal_type(): creating vecreal type");
+    CHECK_H5(L, H5Tclose(ct), "vecreal_type(): closing real type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecreal_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
   }
-  return H5Tcopy(p->mtype);
-#endif /* XXXX */
-  return -1;
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_vecreal_type() copy");
+  return r;
+}
+
+static hid_t
+get_matreal_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_matrix_real_fmt, wsize_name(L, wsize), n, m);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_real_type(L, hf, wsize, ftype_p);
+    hsize_t msize[2];
+    msize[0] = n; msize[1] = m;
+    hid_t v = H5Tarray_create(ct, 2, msize);
+    CHECK_H5(L, v, "matreal_type(): creating matreal type");
+    CHECK_H5(L, H5Tclose(ct), "matreal_type(): closing real type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "matreal_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_matreal_type() copy");
+  return r;
+}
+
+
+static hid_t
+get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_vector_complex_fmt, wsize_name(L, wsize), n);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
+    hsize_t vsize = n;
+    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    CHECK_H5(L, v, "veccomplex_type(): creating veccomplex type");
+    CHECK_H5(L, H5Tclose(ct), "veccomplex_type(): closing complex type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "veccomplex_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_veccomplex_type() copy");
+  return r;
+}
+
+static hid_t
+get_matcomplex_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_matrix_complex_fmt, wsize_name(L, wsize), n, m);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
+    hsize_t msize[2];
+    msize[0] = n; msize[1] = m;
+    hid_t v = H5Tarray_create(ct, 2, msize);
+    CHECK_H5(L, v, "matcomplex_type(): creating matcomplex type");
+    CHECK_H5(L, H5Tclose(ct), "matcomplex_type(): closing complex type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "matcomplex_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_matcomplex_type() copy");
+  return r;
+}
+
+static hid_t
+get_colvec_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_color_vector_fmt, wsize_name(L, wsize), nc);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
+    hsize_t vsize = nc;
+    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    CHECK_H5(L, v, "colvec_type(): creating colvec type");
+    CHECK_H5(L, H5Tclose(ct), "colvec_type(): closing complex type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "colvec_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_colvec_type() copy");
+  return r;
+}
+
+static hid_t
+get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_color_matrix_fmt, wsize_name(L, wsize), nc);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
+    hsize_t msize[2];
+    msize[0] = nc; msize[1] = nc;
+    hid_t v = H5Tarray_create(ct, 2, msize);
+    CHECK_H5(L, v, "colmat_type(): creating colmat type");
+    CHECK_H5(L, H5Tclose(ct), "colmat_type(): closing complex type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "colmat_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_colmat_type() copy");
+  return r;
+}
+
+static hid_t
+get_dirferm_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_dirac_fermion_fmt, wsize_name(L, wsize), nc);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_colvec_type(L, hf, nc, wsize, ftype_p);
+    hsize_t vsize = QDP_Ns;
+    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    CHECK_H5(L, v, "dirferm_type(): creating dirferm type");
+    CHECK_H5(L, H5Tclose(ct), "dirferm_type(): closing colvec type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "dirferm_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_dirferm_type() copy");
+  return r;
+}
+
+static hid_t
+get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
+{
+  char tname[72];
+  sprintf(tname, htn_dirac_prop_fmt, wsize_name(L, wsize), nc);
+  HType *b = lookup_htype(L, hf, tname);
+  if ((ftype_p? b->ftype: b->mtype) < 0) {
+    hid_t ct = get_colmat_type(L, hf, nc, wsize, ftype_p);
+    hsize_t msize[] = {QDP_Ns, QDP_Ns};
+    hid_t v = H5Tarray_create(ct, 2, msize);
+    CHECK_H5(L, v, "dirprop_type(): creating dirprop type");
+    CHECK_H5(L, H5Tclose(ct), "dirprop_type(): closing colmat type");
+    if (hf->writer && ftype_p)
+      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "dirprop_type(): commit failed");
+    if (ftype_p)
+      b->ftype = v;
+    else
+      b->mtype = v;
+  }
+  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
+  CHECK_H5(L, r, "get_dirprop_type() copy");
+  return r;
 }
 
 /* writer */
@@ -564,9 +727,7 @@ static void
 write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
 {
   hsize_t klen = strlen(kind);
-  hid_t ktype = H5Tcopy(H5T_C_S1);
-  CHECK_H5(L, ktype, "Tcopy(C_S1) in write_attrs()");
-  CHECK_H5(L, H5Tset_size(ktype, klen), "set kind size");
+  hid_t ktype = get_string_type(L, b, klen + 1, 0);
   hid_t kds = H5Screate(H5S_SCALAR);
   CHECK_H5(L, kds, "Screate(SCALAR) in write_attrs()");
   hid_t kattr = H5Acreate2(dset, kind_attr_name, ktype, kds, H5P_DEFAULT, H5P_DEFAULT);
@@ -576,9 +737,8 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Aclose(kattr), "Aclose(kind) in write_attrs()");
   CHECK_H5(L, H5Tclose(ktype), "Tclose(kind) in write_attrs()");
 
-  hsize_t slen = sizeof(sum->v);
-  hid_t stype = H5Tcopy(H5T_STD_U8BE);
-  CHECK_H5(L, stype, "Tcopy(U8BE) in write_attrs()");
+  hsize_t slen = sizeof (sum->v);
+  hid_t stype = get_sha256_type(L, b, 1);
   hid_t sds = H5Screate_simple(1, &slen, NULL);
   CHECK_H5(L, sds, "Screate(sum) in write_attrs()");
   hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, sds, H5P_DEFAULT, H5P_DEFAULT);
@@ -763,10 +923,8 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_sum_string(sum, str, len);
   *kind = "String";
   *data = qlua_strdup(L, str);
-  *filetype = H5Tcopy(H5T_C_S1);
-  CHECK_H5(L, *filetype, "Tcopy(filetype) in w_string()");
-  CHECK_H5(L, H5Tset_size(*filetype, len), "Sset_size(filetype) in w_string()");
-  *memtype = H5Tcopy(H5T_C_S1);
+  *filetype = get_string_type(L, b, len, 1);
+  *memtype  = get_string_type(L, b, len, 0);
   CHECK_H5(L, *memtype, "Tcopy(memtype) in w_string()");
   CHECK_H5(L, H5Tset_size(*memtype, len), "Sset_size(memtype) in w_string()");
 }
@@ -785,19 +943,11 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
     *data = qlua_malloc(L, sizeof (double));
     *(double *)(*data) = val;
     sha256_sum_add_doubles(ctx, *data, 1);
-    *filetype = H5Tcopy(H5T_IEEE_F64BE);
-    CHECK_H5(L, *filetype, "Tcopy(filetype) in w_real()");
-    *memtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-    CHECK_H5(L, *memtype, "Tcopy(memtype) in w_real()");
     break;
   case WS_Float:
     *data = qlua_malloc(L, sizeof (float));
     *(float *)(*data) = val;
     sha256_sum_add_floats(ctx, *data, 1);
-    *filetype = H5Tcopy(H5T_IEEE_F32BE);
-    CHECK_H5(L, *filetype, "Tcopy(filetype) in w_real()");
-    *memtype = H5Tcopy(H5T_NATIVE_FLOAT);
-    CHECK_H5(L, *memtype, "Tcopy(memtype) in w_real()");
     break;
   default:
     luaL_error(L, "Unknown precision in w_real()");
@@ -805,6 +955,8 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
   *kind = "Real";
+  *filetype = get_real_type(L, b, opts->wsize, 1);
+  *memtype  = get_real_type(L, b, opts->wsize, 0);
 }
 
 static void
@@ -823,8 +975,6 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
     cv->im = QLA_imag(*v);
     *data = cv;
     sha256_sum_add_doubles(ctx, *data, 2);
-    *filetype = construct_ftype_complex_double(L, b);
-    *memtype = construct_mtype_complex_double(L, b);
   } break;
   case WS_Float: {
     machine_complex_float *cv = qlua_malloc(L, sizeof (machine_complex_float));
@@ -832,8 +982,6 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
     cv->im = QLA_imag(*v);
     *data = cv;
     sha256_sum_add_floats(ctx, *data, 2);
-    *filetype = construct_ftype_complex_float(L, b);
-    *memtype = construct_mtype_complex_float(L, b);
   } break;
   default:
     luaL_error(L, "Unknown precision in w_complex()");
@@ -841,6 +989,8 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
   *kind = "Complex";
+  *filetype = get_complex_type(L, b, opts->wsize, 1);
+  *memtype  = get_complex_type(L, b, opts->wsize, 0);
 }
 
 static void
@@ -860,8 +1010,8 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
   *data = vec;
-  *filetype = construct_ftype_vecint(L, b, v->size);
-  *memtype = construct_mtype_vecint(L, b, v->size);
+  *filetype = get_vecint_type(L, b, v->size, 1);
+  *memtype =  get_vecint_type(L, b, v->size, 0);
   *kind = "VectorInt";
 }
 
@@ -895,9 +1045,9 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
+  *filetype = get_vecreal_type(L, b, v->size, opts->wsize, 1);
+  *memtype  = get_vecreal_type(L, b, v->size, opts->wsize, 0);
   *kind = "VectorReal";
-  *filetype = construct_ftype_vecreal(L, b, v->size, opts->wsize);
-  *memtype =  construct_mtype_vecreal(L, b, v->size, opts->wsize);
 }
 
 static void
@@ -934,9 +1084,9 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
+  *filetype = get_veccomplex_type(L, b, v->size, opts->wsize, 1);
+  *memtype  = get_veccomplex_type(L, b, v->size, opts->wsize, 0);
   *kind = "VectorReal";
-  *filetype = construct_ftype_veccomplex(L, b, v->size, opts->wsize);
-  *memtype =  construct_mtype_veccomplex(L, b, v->size, opts->wsize);
 }
 
 static void
@@ -958,11 +1108,8 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
 
   *data = ptr;
   *kind = "LatticeInt";
-  *filetype =  H5Tcopy(H5T_STD_I32BE);
-  CHECK_H5(L, *filetype, "Tcopy(i32be) in w_latint()");
-  *memtype = H5Tcopy(H5T_NATIVE_INT);
-  CHECK_H5(L, *filetype, "Tcopy(int) in w_latint()");
-  
+  *filetype = get_int_type(L, b, 1);
+  *memtype  = get_int_type(L, b, 0);
   QLA_Int *locked = QDP_expose_I(m->ptr);
   for (i = 0; i < volume; i++) {
     qdp2hdf5_addr(local_x, i, laddr);
