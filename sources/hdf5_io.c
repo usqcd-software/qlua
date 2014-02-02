@@ -527,6 +527,22 @@ qlua_newHdf5Writer(lua_State *L)
 }
 
 static mHdf5File *
+qlua_newHdf5Reader(lua_State *L)
+{
+  mHdf5File *h = lua_newuserdata(L, sizeof (mHdf5File));
+
+  h->master = (QDP_this_node == qlua_master_node);
+  h->writer = 0;
+  h->file = -1;
+  h->cwd = -1;
+
+  luaL_getmetatable(L, mtnFile);
+  lua_setmetatable(L, -2);
+
+  return h;
+}
+
+static mHdf5File *
 qlua_checkHdf5File(lua_State *L, int idx)
 {
   void *v = luaL_checkudata(L, idx, mtnFile);
@@ -655,6 +671,52 @@ qhdf5_mkpath(lua_State *L)
   return 0;
 }
 
+static herr_t
+get_list(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
+{
+  lua_State *L = opdata;
+  int k = luaL_checkinteger(L, -1);
+
+  lua_pushstring(L, name);
+  lua_rawseti(L, -3, k);
+  lua_pop(L, 1);
+  lua_pushinteger(L, k + 1);
+
+  return 0;
+}
+
+static int
+qhdf5_list(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  const char *p = luaL_checkstring(L, 2);
+
+  check_file(L, b);
+  qlua_Hdf5_enter(L);
+  hid_t dh = H5Gopen(p[0] == '/'? b->file: b->cwd, p, H5P_DEFAULT);
+  CHECK_H5(L, dh, "qcd.hdf5.Reader:list() failed");
+  H5G_info_t gi;
+  CHECK_H5(L, H5Gget_info(dh, &gi), "Gget_info() failed");
+  lua_createtable(L, gi.nlinks, 0);
+  lua_pushinteger(L, 1);
+  CHECK_H5(L, H5Literate(dh, H5_INDEX_NAME, H5_ITER_INC, NULL, get_list, L), "Literate() failed");
+  CHECK_H5(L, H5Gclose(dh), "Gclose() failed");
+  lua_pop(L, 1);
+  qlua_Hdf5_leave();
+  return 1;
+}
+
+static int
+qhdf5_flush(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+
+  check_writer(L, b);
+  qlua_Hdf5_enter(L);
+  CHECK_H5(L, H5Fflush(b->file, H5F_SCOPE_GLOBAL), "Fflush() failed");
+  qlua_Hdf5_leave();
+  return 0;
+}
 static void
 write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
 {
@@ -1368,6 +1430,32 @@ q_hdf5_writer(lua_State *L)
   return 1;
 }
 
+static int
+q_hdf5_reader(lua_State *L)
+{
+  const char *name = luaL_checkstring(L, 1);
+  mHdf5File *w = qlua_newHdf5Reader(L);
+  MPI_Comm comm = MPI_COMM_WORLD;
+  MPI_Info info = MPI_INFO_NULL;
+  hid_t acc_tpl1;
+
+  qlua_Hdf5_enter(L);
+
+  acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
+  CHECK_H5(L, acc_tpl1, "Pcreate() failed");
+  CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
+
+  w->file = H5Fopen(name, H5F_ACC_RDONLY, acc_tpl1);
+  CHECK_H5(L, w->file, "qcd.hdf5.Reader failed");
+  CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
+  w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
+  CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
+
+  qlua_Hdf5_leave();
+
+  return 1;
+}
+
 /* setup */
 static QOWTable qotable[] = {
   { qString,                 0,  w_string        },
@@ -1422,19 +1510,19 @@ static const struct luaL_Reg mtFile[] = {
   { "write",            qhdf5_write   },
   { "chpath",           qhdf5_chpath  },
   { "mkpath",           qhdf5_mkpath  },
+  { "list",             qhdf5_list    },
+  { "flush",            qhdf5_flush   },
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
   { "remove",           qhdf5_remove  },
   { "stat",             qhdf5_stat    },
-  { "flush",            qhdf5_flush   },
-  { "list",             qhdf5_list    },
 #endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };
 
 /* names and routines for qcd.hdf5 table */
 static const struct luaL_Reg fHDF5io[] = {
-  //{ "Reader",   q_hdf5_reader },
+  { "Reader",   q_hdf5_reader },
   { "Writer",   q_hdf5_writer  },
   { NULL,       NULL           }
 };

@@ -1,0 +1,27 @@
+require "stdlib"
+
+if not fname then
+   fname = "xxx.h5"
+end
+
+function process_list(x, dir)
+   printf("ls %q:\n", dir)
+   ls = x:list(dir)
+   for i,v in pairs(ls) do
+      printf(" %s\n", v)
+   end
+   x:close()
+end
+
+printf("as a reader:\n")
+process_list(qcd.hdf5.Reader(fname), "/")
+printf("as a writer:\n")
+process_list(qcd.hdf5.Writer(fname), "/sample")
+process_list(qcd.hdf5.Writer(fname), "/sample/lattice")
+process_list(qcd.hdf5.Writer(fname), "/sample/serial")
+x = qcd.hdf5.Reader(fname)
+x:chpath("/sample/serial")
+process_list(x, ".")
+
+
+printf("DONE\n")
