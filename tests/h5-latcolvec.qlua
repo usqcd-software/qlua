@@ -1,0 +1,18 @@
+require "stdlib"
+
+fname = "xxx.h5"
+
+L = qcd.lattice{2,3,4}
+v = L:ColorVectorN(2)
+w = qcd.ColorVectorN(2)
+w[{c=0}] = complex(1,2)
+w[{c=1}] = complex(3,4)
+v[{0,1,2}] = w
+
+os.remove(fname)
+x = qcd.hdf5.Writer(fname)
+x:write("/sample/serial/colvec", w)
+x:write("/sample/lattice/colvec", v)
+x:write("/sample/lattice/colvec-F", -v, {precision = "float"})
+x:close()
+printf("DONE\n")
