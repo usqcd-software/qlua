@@ -174,8 +174,12 @@ wsize_name(lua_State *L, WriteSize wsize)
 static hid_t
 get_sha256_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
-  hid_t v = H5Tcopy(H5T_STD_U8BE);
-  CHECK_H5(L, v, "sha256_type(): copying sha256 type");
+  hid_t ct = H5Tcopy(H5T_STD_U8BE);
+  CHECK_H5(L, ct, "sha256_type(): copying u8 type");
+  hsize_t vsize = sizeof (SHA256_Sum);
+  hid_t v = H5Tarray_create(ct, 1, &vsize);
+  CHECK_H5(L, v, "sha256_type(): set size");
+  CHECK_H5(L, H5Tclose(ct), "sha256_type(): close u8 type");
   return v;
 }
 
@@ -737,9 +741,8 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Aclose(kattr), "Aclose(kind) in write_attrs()");
   CHECK_H5(L, H5Tclose(ktype), "Tclose(kind) in write_attrs()");
 
-  hsize_t slen = sizeof (sum->v);
   hid_t stype = get_sha256_type(L, b, 1);
-  hid_t sds = H5Screate_simple(1, &slen, NULL);
+  hid_t sds = H5Screate(H5S_SCALAR);
   CHECK_H5(L, sds, "Screate(sum) in write_attrs()");
   hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, sds, H5P_DEFAULT, H5P_DEFAULT);
   CHECK_H5(L, sattr, "Acreate(sum) in write_attrs()");
@@ -750,67 +753,8 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 
 }
 
-/* XXXX writers */
+/* writers */
 #if 0 /* XXXXXXXX scalar uncolored objects */
-
-static int
-w_vecreal(lua_State *L, mHdf5File *b, const char *path)
-{
-  mVecReal *v = qlua_checkVecReal(L, 3);
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum sum;
-  hsize_t len;
-
-  sha256_sum_add_doubles(ctx, v->val, v->size);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-  len = v->size;
-  hid_t dataspace = H5Screate_simple(1, &len, NULL);
-  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
-  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "VectorReal", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-
-static int
-w_veccomplex(lua_State *L, mHdf5File *b, const char *path)
-{
-  mVecComplex *v = qlua_checkVecComplex(L, 3);
-  machine_complex_double *cv = qlua_malloc(L, v->size * sizeof (machine_complex_double));
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum sum;
-  hsize_t len;
-  int i;
-
-  for (i = 0; i < v->size; i++) {
-    cv[i].re = QLA_real(v->val[i]);
-    cv[i].im = QLA_imag(v->val[i]);
-  }
-
-  sha256_sum_add_doubles(ctx, (double *)cv, 2 * v->size);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-  len = v->size;
-  hid_t dataspace = H5Screate_simple(1, &len, NULL);
-  hid_t ftype = construct_ftype_complex_double(L, b);
-  hid_t mtype = construct_mtype_complex_double(L, b);
-  w_scalar(L, b, path, "VectorComplex", ftype, mtype, dataspace, v->val, global_combine_checksums(&sum, b->master));
-  qlua_free(L, cv);
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-
 static int
 w_matreal(lua_State *L, mHdf5File *b, const char *path)
 {
