@@ -1,47 +1,19 @@
-* Need to understand types better.
+* Guard against user's writing /.* ?
+
+* time attribute for all writes?
 
 * There should be a way to query lattice size of stored data
 
-* Do we need delete?
+* Do we need delete? - yes
 
 * A single hdf5 class?
 
 * No slabs - use different lattices and attributes to save space.
 
-* float/double is a factor of 2 in space, we need it for lattice objects
-
-* Types of stored objects
-
-     .complexFloat                          COMPOSITE(r: FLOAT, i: FLOAT)
-     .complexDouble                         COMPOSITE(r: DOUBLE, i: DOUBLE)
-     .ColorVectorFloatN                     ARRAY(.complexFloat, {N})
-     .ColorVectorDoubleN                    ARRAY(.complexDouble, {N})
-     .ColorMatrixFloatNxM                   ARRAY(.complexFloat, {N,M})
-     .ColorMatrixDoubleNxM                  ARRAY(.complexDouble, {N,M})
-     .DiracFermionFloatN                    ARRAY(.ColorVectorFloatN, {4})
-     .DiracFermionDoubleN                   ARRAY(.ColorVectorDoubleN, {4})
-     .DiracPropagatorFloatNxM               ARRAY(.ColorMatrixFloatNxM, {4,4})
-     .DiracPropagatorDoubleNxM              ARRAY(.ColorMatrixDoubleNxM, {4,4})
 
 * Lattice objects are written an D-dim datasets with each node contributing data for its hyperblock.
 * Lattice: size is in S->dim, rank is S->rank
-* Local sublattice can be computed by qlua_sublattice(lo, hi, QDP_this_node, S);
-* Running over the D-dim points x, qlua_layout.index(S->lat, x) will produce the local linear address corresponding to x.
-* Default slab is ({0,...}, S->dim)
 
-* Use QMP_comm_binary_reduction() to compute the lattice checksum
-* The same reduce function may be use to combine lattice sites.
-
-* Attributes are used only to store information useful for qlua:
-** .kind is a string uniquely describing dataset
-** .sha256 is the SHA256 of all the data, including default values
-** no need to store lattice size, as it is computable from the dataset metadata
-
-[see below] * writer may specify float vs double as precision
-[see below] * reader injests both floats and doubles
-[see below] * one can overwrite .kind in the reader with an additional argument
-
-* Writer:write("/path/to/data/set", object [,{precision = ["float"|"double"]}])
 
 * Reader:read("/path/to/data/set" [, {lattice = lat, kind = "kind of data"}])
 
@@ -76,14 +48,6 @@
     "Attribute"                 H5I_ATTR
     "File"                      H5I_FILE
     "Unknown"                   default case, never happens
-    
-
-* writer:
-   ** check the first argument
-   ** create path if needed, get it's hid_t
-   ** argument three is data
-   ** argument four, if present is a table with optional parameters (only for lattice types)
-   *** precision = "float" / "double", double is default
 
 --------- rethink
 * reader
@@ -97,7 +61,3 @@
    ** dispatch on kind, call fn(L, b, h, lattice)
 
 * add exists to the reader and the writer
-[done] * rearrange sources: common, writer, reader routines.
-[done] * change machine_complex to machine_dcomplex and add machine_fcomplex, two more complex type constructors etc.
-[no need] * Q: How do we set the default value in a dataset?
-[irrel] * always construct full checksum

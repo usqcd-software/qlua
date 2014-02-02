@@ -7,10 +7,17 @@
 #include "sha256.h"                                                  /* DEPS */
 #include "qlayout.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
-#include "seqcolvec.h" /* DEPS */
+#include "seqcolvec.h"                                               /* DEPS */
+#include "seqcolmat.h"                                               /* DEPS */
+#include "seqdirferm.h"                                              /* DEPS */
+#include "seqdirprop.h"                                              /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
+#include "latcolvec.h"                                               /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+#include "latdirprop.h"                                              /* DEPS */
 #include <string.h>
 #include <complex.h>
 #include <sys/stat.h>
@@ -41,20 +48,11 @@ typedef struct {
   float im;
 } machine_complex_float;
 
-/* mappings to HDF5 types */
-typedef struct htype_s {
-  char *name;
-  hid_t mtype;
-  hid_t ftype;
-  struct htype_s *next;
-} HType;
-
 struct mHdf5File_s {
   hid_t file;
   hid_t cwd;
   int master;
   int writer;
-  HType *htype;
 };
 
 struct laddr_s {
@@ -88,6 +86,19 @@ static QOWTable qotable[];
 
 /* common helpers */
 static void
+qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
+{
+  int j;
+  int rank = laddr->rank;
+
+  for (j = rank; j--;) {
+    int block_j = laddr->high[j] - laddr->low[j];
+    local_x[j] = xl % block_j + laddr->low[j];
+    xl = xl / block_j;
+  }
+}
+
+static void
 local_combine_checksums(void *a, /* const */ void *b)
 {
   SHA256_Sum *p = a;
@@ -119,55 +130,24 @@ qlua_Hdf5_leave(void)
 {
 }
 
-static void
-free_types(lua_State *L, HType *ht)
+static hid_t
+read_htype(lua_State *L, mHdf5File *hf, const char *name, int ftype_p)
 {
-  HType *next;
-
-  for (; ht; ht = next) {
-    next = ht->next;
-    if (ht->mtype >= 0)
-      H5Tclose(ht->mtype);
-    ht->mtype = -1;
-    if (ht->ftype >= 0)
-      H5Tclose(ht->ftype);
-    ht->ftype = -1;
-    qlua_free(L, ht->name);
-    qlua_free(L, ht);
-  }
-}
-
-static HType *
-lookup_htype(lua_State *L, mHdf5File *b, const char *name)
-{
-  HType *p;
-
-  for (p = b->htype; p; p = p->next) {
-    if (strcmp(p->name, name) == 0)
-      break;
-  }
-  if (!p) {
-    p = qlua_malloc(L, sizeof (HType));
-    p->name = qlua_strdup(L, name);
-    p->next = b->htype;
-    p->ftype = H5Topen2(b->file, name, H5P_DEFAULT);
-    if (p->ftype < 0)
-      p->ftype = -1;
-    p->mtype = -1;
-    b->htype = p;
-  }
-  return p;
+  if (ftype_p)
+    return H5Topen2(hf->file, name, H5P_DEFAULT);
+  return -1;
 }
 
 static hid_t
-save_htype(lua_State *L, mHdf5File *hf, const char *name, hid_t tv, int ftype_p, const char *msg)
+write_htype(lua_State *L, mHdf5File *hf, const char *name, int ftype_p, hid_t handle)
 {
-  if (hf->writer && ftype_p) {
-    CHECK_H5(L, H5Tcommit2(hf->file, name, tv, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), msg);
-    CHECK_H5(L, H5Tclose(tv), "Tclose() in save_type");
-    tv = H5Topen2(hf->file, name, H5P_DEFAULT);
-  }
-  return tv;
+  if (!ftype_p || !hf->writer)
+    return handle;
+  CHECK_H5(L, H5Tcommit2(hf->file, name, handle, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "Tcommit() in write_type");
+  CHECK_H5(L, H5Tclose(handle), "Tclose() in write_type");
+  handle = H5Topen2(hf->file, name, H5P_DEFAULT);
+  CHECK_H5(L, handle, "Topen() in write_type");
+  return handle;
 }
 
 static const char *
@@ -310,23 +290,17 @@ get_complex_type(lua_State *L, mHdf5File *hf, WriteSize wsize, int ftype_p)
 {
   char tname[72];
   sprintf(tname, htn_complex_fmt, wsize_name(L, wsize));
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_real_type(L, hf, wsize, ftype_p);
-    hid_t v = H5Tcreate(H5T_COMPOUND, get_complex_size(L, wsize, ftype_p));
+    v = H5Tcreate(H5T_COMPOUND, get_complex_size(L, wsize, ftype_p));
     CHECK_H5(L, v, "complex_type(): creating compound");
     CHECK_H5(L, H5Tinsert(v, "r", get_real_offset(L, wsize, ftype_p), ct), "complex_type(): insert real");
     CHECK_H5(L, H5Tinsert(v, "i", get_imag_offset(L, wsize, ftype_p), ct), "complex_type(): insert imag");
     CHECK_H5(L, H5Tclose(ct), "complex_type(): close real type");
-    v = save_htype(L, hf, tname, v, ftype_p, "complex_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_complex_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -334,22 +308,16 @@ get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
 {
   char tname[72];
   sprintf(tname, htn_vector_fmt, "Int", "", n);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_int_type(L, hf, ftype_p);
     hsize_t vsize = n;
-    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "vecint_type(): creating vecint type");
     CHECK_H5(L, H5Tclose(ct), "vecint_type(): closing int type");
-    v = save_htype(L, hf, tname, v, ftype_p, "vecint_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_vecint_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -357,22 +325,16 @@ get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_
 {
   char tname[72];
   sprintf(tname, htn_vector_fmt, "Real", wsize_name(L, wsize), n);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_real_type(L, hf, wsize, ftype_p);
     hsize_t vsize = n;
-    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "vecreal_type(): creating vecreal type");
     CHECK_H5(L, H5Tclose(ct), "vecreal_type(): closing real type");
-    v = save_htype(L, hf, tname, v, ftype_p, "vecreal_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_vecreal_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -380,47 +342,34 @@ get_matreal_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int
 {
   char tname[72];
   sprintf(tname, htn_matrix_fmt, "Real", wsize_name(L, wsize), n, m);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_real_type(L, hf, wsize, ftype_p);
     hsize_t msize[2];
     msize[0] = n; msize[1] = m;
-    hid_t v = H5Tarray_create(ct, 2, msize);
+    v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "matreal_type(): creating matreal type");
     CHECK_H5(L, H5Tclose(ct), "matreal_type(): closing real type");
-    v = save_htype(L, hf, tname, v, ftype_p, "matreal_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_matreal_type() copy");
-  return r;
+  return v;
 }
-
 
 static hid_t
 get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
   char tname[72];
   sprintf(tname, htn_vector_fmt, "Complex", wsize_name(L, wsize), n);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
     hsize_t vsize = n;
-    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "veccomplex_type(): creating veccomplex type");
     CHECK_H5(L, H5Tclose(ct), "veccomplex_type(): closing complex type");
-    v = save_htype(L, hf, tname, v, ftype_p, "veccomplex_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_veccomplex_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -428,23 +377,17 @@ get_matcomplex_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, 
 {
   char tname[72];
   sprintf(tname, htn_matrix_fmt, "Complex", wsize_name(L, wsize), n, m);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
     hsize_t msize[2];
     msize[0] = n; msize[1] = m;
-    hid_t v = H5Tarray_create(ct, 2, msize);
+    v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "matcomplex_type(): creating matcomplex type");
     CHECK_H5(L, H5Tclose(ct), "matcomplex_type(): closing complex type");
-    v = save_htype(L, hf, tname, v, ftype_p, "matcomplex_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_matcomplex_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -452,22 +395,16 @@ get_colvec_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
 {
   char tname[72];
   sprintf(tname, htn_color_fmt, "Vector", wsize_name(L, wsize), nc);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
     hsize_t vsize = nc;
-    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "colvec_type(): creating colvec type");
     CHECK_H5(L, H5Tclose(ct), "colvec_type(): closing complex type");
-    v = save_htype(L, hf, tname, v, ftype_p, "colvec_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_colvec_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -475,23 +412,17 @@ get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
 {
   char tname[72];
   sprintf(tname, htn_color_fmt, "Matrix", wsize_name(L, wsize), nc);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
     hsize_t msize[2];
     msize[0] = nc; msize[1] = nc;
-    hid_t v = H5Tarray_create(ct, 2, msize);
+    v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "colmat_type(): creating colmat type");
     CHECK_H5(L, H5Tclose(ct), "colmat_type(): closing complex type");
-    v = save_htype(L, hf, tname, v, ftype_p, "colmat_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_colmat_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -499,22 +430,16 @@ get_dirferm_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
 {
   char tname[72];
   sprintf(tname, htn_dirac_fmt, "Fermion", wsize_name(L, wsize), nc);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_colvec_type(L, hf, nc, wsize, ftype_p);
     hsize_t vsize = QDP_Ns;
-    hid_t v = H5Tarray_create(ct, 1, &vsize);
+    v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "dirferm_type(): creating dirferm type");
     CHECK_H5(L, H5Tclose(ct), "dirferm_type(): closing colvec type");
-    v = save_htype(L, hf, tname, v, ftype_p, "dirferm_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_dirferm_type() copy");
-  return r;
+  return v;
 }
 
 static hid_t
@@ -522,22 +447,16 @@ get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
 {
   char tname[72];
   sprintf(tname, htn_dirac_fmt, "Propagator", wsize_name(L, wsize), nc);
-  HType *b = lookup_htype(L, hf, tname);
-  if ((ftype_p? b->ftype: b->mtype) < 0) {
+  hid_t v = read_htype(L, hf, tname, ftype_p);
+  if (v < 0) {
     hid_t ct = get_colmat_type(L, hf, nc, wsize, ftype_p);
     hsize_t msize[] = {QDP_Ns, QDP_Ns};
-    hid_t v = H5Tarray_create(ct, 2, msize);
+    v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "dirprop_type(): creating dirprop type");
     CHECK_H5(L, H5Tclose(ct), "dirprop_type(): closing colmat type");
-    v = save_htype(L, hf, tname, v, ftype_p, "dirprop_type(): commit failed");
-    if (ftype_p)
-      b->ftype = v;
-    else
-      b->mtype = v;
+    v = write_htype(L, hf, tname, ftype_p, v);
   }
-  hid_t r = H5Tcopy(ftype_p? b->ftype: b->mtype);
-  CHECK_H5(L, r, "get_dirprop_type() copy");
-  return r;
+  return v;
 }
 
 /* writer */
@@ -590,7 +509,6 @@ qlua_newHdf5Writer(lua_State *L)
   h->writer = 1;
   h->file = -1;
   h->cwd = -1;
-  h->htype = NULL;
 
   luaL_getmetatable(L, mtnFile);
   lua_setmetatable(L, -2);
@@ -640,8 +558,6 @@ do_close(lua_State *L, mHdf5File *b)
 
   qlua_Hdf5_enter(L);
 
-  free_types(L, b->htype);
-  b->htype = NULL;
   if (b->cwd >= 0)
     H5Gclose(b->cwd);
   b->cwd = -1;
@@ -786,18 +702,6 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 #endif
 
 /* writers */
-static void
-qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
-{
-  int j;
-  int rank = laddr->rank;
-
-  for (j = rank; j--;) {
-    int block_j = laddr->high[j] - laddr->low[j];
-    local_x[j] = xl % block_j + laddr->low[j];
-    xl = xl / block_j;
-  }
-}
 
 static void
 process_wopts(lua_State *L, struct wopts_s *opts) /* XXX */

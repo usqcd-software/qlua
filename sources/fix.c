@@ -333,20 +333,25 @@ qlua_exit(lua_State *L)
     return 0;
 }
 
-static int
-qlua_timeofday(lua_State *L)
+double
+qlua_timeofday(void)
 {
-    struct timeval t;
-    double v;
-    
-    if (QDP_this_node == qlua_master_node) {
-        gettimeofday(&t, NULL);
-        v = t.tv_sec + 1e-6 * t.tv_usec;
-    }
-    XMP_dist_double_array(qlua_master_node, 1, &v);
-    lua_pushnumber(L, v);
+  struct timeval t;
+  double v;
+  
+  if (QDP_this_node == qlua_master_node) {
+    gettimeofday(&t, NULL);
+    v = t.tv_sec + 1e-6 * t.tv_usec;
+  }
+  XMP_dist_double_array(qlua_master_node, 1, &v);
+  return v;
+}
 
-    return 1;
+static int
+qlua_time(lua_State *L)
+{
+  lua_pushnumber(L, qlua_timeofday());
+  return 1;
 }
 
 static int
@@ -499,7 +504,7 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, "os");
     lua_pushcfunction(L, qlua_exit);
     lua_setfield(L, -2, "exit");
-    lua_pushcfunction(L, qlua_timeofday);
+    lua_pushcfunction(L, qlua_time);
     lua_setfield(L, -2, "time");
     rf = fopen("/dev/urandom", "rb");
     if (rf) {

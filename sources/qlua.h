@@ -114,6 +114,8 @@ extern const char *qcdlib;
 extern const char *a_type_key;
 extern int qlua_master_node;
 
+double qlua_timeofday(void);
+
 void qlua_fillmeta(lua_State *L,
                    const luaL_Reg *table,
                    QLUA_Type t_id);
