@@ -26,8 +26,10 @@
 
 static const char hdf5_io[] = "hdf5";
 static const char mtnFile[] = "qcd.hdf5.mtFile";
+
 static const char csum_attr_name[] = ".sha256";
 static const char kind_attr_name[] = ".kind";
+static const char time_attr_name[] = ".time";
 
 static const char htn_complex_fmt[]         = ".Complex%s";
 static const char htn_vector_fmt[]          = ".Vector%s%s%d";
@@ -161,6 +163,14 @@ wsize_name(lua_State *L, WriteSize wsize)
     break;
   }
   return NULL;
+}
+
+static hid_t
+get_time_type(lua_State *L, mHdf5File *b, int ftype_p)
+{
+  hid_t v = ftype_p? H5Tcopy(H5T_STD_I64BE): H5Tcopy(H5T_NATIVE_LLONG);
+  CHECK_H5(L, v, "Tcopy() in time_type");
+  return v;
 }
 
 static hid_t
@@ -648,27 +658,35 @@ qhdf5_mkpath(lua_State *L)
 static void
 write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
 {
+  hid_t dspace = H5Screate(H5S_SCALAR);
+  CHECK_H5(L, dspace, "Screate() in write_attrs()");
+
   hsize_t klen = strlen(kind);
   hid_t ktype = get_string_type(L, b, klen + 1, 0);
-  hid_t kds = H5Screate(H5S_SCALAR);
-  CHECK_H5(L, kds, "Screate(SCALAR) in write_attrs()");
-  hid_t kattr = H5Acreate2(dset, kind_attr_name, ktype, kds, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t kattr = H5Acreate2(dset, kind_attr_name, ktype, dspace, H5P_DEFAULT, H5P_DEFAULT);
   CHECK_H5(L, kattr, "Acreate(kind) in write_attrs()");
   CHECK_H5(L, H5Awrite(kattr, ktype, kind), "Awrite(kind) in write_attrs()");
-  CHECK_H5(L, H5Sclose(kds), "Sclose(kind) in write_attrs()");
   CHECK_H5(L, H5Aclose(kattr), "Aclose(kind) in write_attrs()");
   CHECK_H5(L, H5Tclose(ktype), "Tclose(kind) in write_attrs()");
 
   hid_t stype = get_sha256_type(L, b, 1);
-  hid_t sds = H5Screate(H5S_SCALAR);
-  CHECK_H5(L, sds, "Screate(sum) in write_attrs()");
-  hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, sds, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, dspace, H5P_DEFAULT, H5P_DEFAULT);
   CHECK_H5(L, sattr, "Acreate(sum) in write_attrs()");
   CHECK_H5(L, H5Awrite(sattr, stype, sum->v), "Awrite(sum) in write_attrs()");
-  CHECK_H5(L, H5Sclose(sds), "Sclose(sum) in write_attrs()");
   CHECK_H5(L, H5Aclose(sattr), "Aclose(sum) in write_attrs()");
   CHECK_H5(L, H5Tclose(stype), "Tclose(sum) in write_attrs()");
 
+  hid_t tftype = get_time_type(L, b, 1);
+  hid_t tmtype = get_time_type(L, b, 0);
+  long long now = (long long)(1e6 * qlua_timeofday());
+  hid_t tattr = H5Acreate2(dset, time_attr_name, tftype, dspace, H5P_DEFAULT, H5P_DEFAULT);
+  CHECK_H5(L, tattr, "Acreate(time) in write_attrs()");
+  CHECK_H5(L, H5Awrite(tattr, tmtype, &now), "Awrite(time) in write_attrs()");
+  CHECK_H5(L, H5Aclose(tattr), "Aclose(time) in write_attrs()");
+  CHECK_H5(L, H5Tclose(tftype), "Tclose(time file type) in write_attrs()");
+  CHECK_H5(L, H5Tclose(tmtype), "Tclose(time mem type) in write_attrs()");
+
+  CHECK_H5(L, H5Sclose(dspace), "Sclose() in write_attrs()");
 }
 
 #if USE_Nc2
@@ -1406,12 +1424,10 @@ static const struct luaL_Reg mtFile[] = {
   { "mkpath",           qhdf5_mkpath  },
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
-  { "delete",           qhdf5_delete  },
+  { "remove",           qhdf5_remove  },
+  { "stat",             qhdf5_stat    },
   { "flush",            qhdf5_flush   },
   { "list",             qhdf5_list    },
-  { "dims",             qhdf5_dims    },
-  { "kind",             qhdf5_kind    },
-  { "exists",           qhdf5_exists  },
 #endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };

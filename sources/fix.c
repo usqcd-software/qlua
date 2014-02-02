@@ -355,6 +355,19 @@ qlua_time(lua_State *L)
 }
 
 static int
+qlua_ctime(lua_State *L)
+{
+  double v = luaL_checknumber(L, 1);
+  time_t tv = (time_t) v;
+  char buf[72];
+
+  ctime_r(&tv, buf);
+  buf[24] = 0;
+  lua_pushstring(L, buf);
+  return 1;
+}
+
+static int
 qlua_random(lua_State *L)
 {
     uint32_t v;
@@ -506,6 +519,8 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "exit");
     lua_pushcfunction(L, qlua_time);
     lua_setfield(L, -2, "time");
+    lua_pushcfunction(L, qlua_ctime);
+    lua_setfield(L, -2, "ctime");
     rf = fopen("/dev/urandom", "rb");
     if (rf) {
         lua_pushcfunction(L, qlua_random);
