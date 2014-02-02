@@ -18,16 +18,11 @@ static const char mtnFile[] = "qcd.hdf5.mtFile";
 static const char csum_attr_name[] = ".sha256";
 static const char kind_attr_name[] = ".kind";
 
-static const char htn_complex_fmt[]         = ".complex%s";
-static const char htn_vector_int_fmt[]      = ".vectorInt%d";
-static const char htn_vector_real_fmt[]     = ".vectorReal%s%d";
-static const char htn_vector_complex_fmt[]  = ".vectorComlpex%s%d";
-static const char htn_matrix_real_fmt[]     = ".matrixReal%s%dx%d";
-static const char htn_matrix_complex_fmt[]  = ".matrixComlpex%s%dx%d";
-static const char htn_color_vector_fmt[]    = ".colorVector%s%d";
-static const char htn_color_matrix_fmt[]    = ".colorMatrix%s%d";
-static const char htn_dirac_fermion_fmt[]   = ".diracFermion%s%d";
-static const char htn_dirac_prop_fmt[]      = ".diracPropagator%s%d";
+static const char htn_complex_fmt[]         = ".Complex%s";
+static const char htn_vector_fmt[]          = ".Vector%s%s%d";
+static const char htn_matrix_fmt[]          = ".Matrix%s%s%dx%d";
+static const char htn_color_fmt[]           = ".Color%s%s%d";
+static const char htn_dirac_fmt[]           = ".Dirac%s%s%d";
 
 #define FAILED_H5CALL -1
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
@@ -79,13 +74,13 @@ typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
-typedef struct QObjTable_s {
+typedef struct QOWTable_s {
   QLUA_Type qtype;
   int is_parallel;
   OutPacker_H5 repack;
-} QObjTable;
+} QOWTable;
 
-static QObjTable qotable[];
+static QOWTable qotable[];
 
 /* common helpers */
 static void
@@ -322,7 +317,7 @@ static hid_t
 get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_vector_int_fmt, n);
+  sprintf(tname, htn_vector_fmt, "Int", "", n);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_int_type(L, hf, ftype_p);
@@ -346,7 +341,7 @@ static hid_t
 get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_vector_real_fmt, wsize_name(L, wsize), n);
+  sprintf(tname, htn_vector_fmt, "Real", wsize_name(L, wsize), n);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_real_type(L, hf, wsize, ftype_p);
@@ -370,7 +365,7 @@ static hid_t
 get_matreal_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_matrix_real_fmt, wsize_name(L, wsize), n, m);
+  sprintf(tname, htn_matrix_fmt, "Real", wsize_name(L, wsize), n, m);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_real_type(L, hf, wsize, ftype_p);
@@ -396,7 +391,7 @@ static hid_t
 get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_vector_complex_fmt, wsize_name(L, wsize), n);
+  sprintf(tname, htn_vector_fmt, "Complex", wsize_name(L, wsize), n);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
@@ -420,7 +415,7 @@ static hid_t
 get_matcomplex_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_matrix_complex_fmt, wsize_name(L, wsize), n, m);
+  sprintf(tname, htn_matrix_fmt, "Complex", wsize_name(L, wsize), n, m);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
@@ -445,7 +440,7 @@ static hid_t
 get_colvec_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_color_vector_fmt, wsize_name(L, wsize), nc);
+  sprintf(tname, htn_color_fmt, "Vector", wsize_name(L, wsize), nc);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
@@ -469,7 +464,7 @@ static hid_t
 get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_color_matrix_fmt, wsize_name(L, wsize), nc);
+  sprintf(tname, htn_color_fmt, "Matrix", wsize_name(L, wsize), nc);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_complex_type(L, hf, wsize, ftype_p);
@@ -494,7 +489,7 @@ static hid_t
 get_dirferm_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_dirac_fermion_fmt, wsize_name(L, wsize), nc);
+  sprintf(tname, htn_dirac_fmt, "Fermion", wsize_name(L, wsize), nc);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_colvec_type(L, hf, nc, wsize, ftype_p);
@@ -518,7 +513,7 @@ static hid_t
 get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
   char tname[72];
-  sprintf(tname, htn_dirac_prop_fmt, wsize_name(L, wsize), nc);
+  sprintf(tname, htn_dirac_fmt, "Propagator", wsize_name(L, wsize), nc);
   HType *b = lookup_htype(L, hf, tname);
   if ((ftype_p? b->ftype: b->mtype) < 0) {
     hid_t ct = get_colmat_type(L, hf, nc, wsize, ftype_p);
@@ -754,80 +749,6 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 }
 
 /* writers */
-#if 0 /* XXXXXXXX scalar uncolored objects */
-static int
-w_matreal(lua_State *L, mHdf5File *b, const char *path)
-{
-  mMatReal *v = qlua_checkMatReal(L, 3);
-  SHA256_Context *ctx = sha256_create(L);
-  double *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (double));
-  SHA256_Sum sum;
-  hsize_t len[2];
-  int i, j;
-  double *ptr;
-
-  for (ptr = cv, i = 0; i < v->l_size; i++) {
-    for (j = 0; j < v->r_size; j++, ptr++) {
-      *ptr = gsl_matrix_get(v->m, i, j);
-    }
-  }
-  sha256_sum_add_doubles(ctx, cv, v->l_size * v->r_size);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-  len[0] = v->l_size;
-  len[1] = v->r_size;
-  hid_t dataspace = H5Screate_simple(2, len, NULL);
-  hid_t ftype = H5Tcopy(H5T_IEEE_F64BE);
-  hid_t mtype = H5Tcopy(H5T_NATIVE_DOUBLE);
-  w_scalar(L, b, path, "MatrixReal", ftype, mtype, dataspace, cv, global_combine_checksums(&sum, b->master));
-  qlua_free(L, cv);
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-
-static int
-w_matcomplex(lua_State *L, mHdf5File *b, const char *path)
-{
-  mMatComplex *v = qlua_checkMatComplex(L, 3);
-  machine_complex_double *cv = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_double));
-  SHA256_Context *ctx = sha256_create(L);
-  SHA256_Sum sum;
-  hsize_t len[2];
-  int i, j;
-  machine_complex_double *ptr;
-
-  for (ptr = cv, i = 0; i < v->l_size; i++) {
-    for (j = 0; j < v->r_size; j++, ptr++) {
-      gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
-      ptr->re = GSL_REAL(zz);
-      ptr->im = GSL_IMAG(zz);
-    }
-  }
-
-  sha256_sum_add_doubles(ctx, (double *)cv, 2 * v->l_size * v->r_size);
-  sha256_sum(&sum, ctx);
-  sha256_destroy(ctx);
-  check_writer(L, b);
-
-  qlua_Hdf5_enter(L);
-  len[0] = v->l_size;
-  len[1] = v->r_size;
-  hid_t dataspace = H5Screate_simple(2, len, NULL);
-  hid_t ftype = construct_ftype_complex_double(L, b);
-  hid_t mtype = construct_mtype_complex_double(L, b);
-  w_scalar(L, b, path, "MatrixComplex", ftype, mtype, dataspace, cv, global_combine_checksums(&sum, b->master));
-  qlua_free(L, cv);
-
-  qlua_Hdf5_leave();
-
-  return 0;
-}
-#endif /* XXXXXXXXXXXXXXXXX scalar uncolored objects */
-
 static void
 qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
 {
@@ -1031,6 +952,97 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
   *filetype = get_veccomplex_type(L, b, v->size, opts->wsize, 1);
   *memtype  = get_veccomplex_type(L, b, v->size, opts->wsize, 0);
   *kind = "VectorReal";
+}
+
+static void
+w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
+          struct wopts_s *opts, struct laddr_s *laddr,
+          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+          const char **kind)
+{
+  mMatReal *v = qlua_checkMatReal(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  int i, j;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    double *mat = qlua_malloc(L, v->l_size * v->r_size * sizeof (double));
+    double *ptr;
+    for (ptr = mat, i = 0; i < v->l_size; i++) {
+      for (j = 0; j < v->r_size; j++) {
+        *ptr++ = gsl_matrix_get(v->m, i, j);
+      }
+    }
+    *data = mat;
+    sha256_sum_add_doubles(ctx, *data, v->l_size * v->r_size);
+  } break;
+  case WS_Float: {
+    float *mat= qlua_malloc(L, v->l_size * v->r_size * sizeof (float));
+    float *ptr;
+    for (ptr = mat, i = 0; i < v->l_size; i++) {
+      for (j = 0; j < v->r_size; j++) {
+        *ptr++ = gsl_matrix_get(v->m, i, j);
+      }
+    }
+    *data = mat;
+    sha256_sum_add_floats(ctx, *data, v->l_size * v->r_size);
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_vecreal()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *filetype = get_matreal_type(L, b, v->l_size, v->r_size, opts->wsize, 1);
+  *memtype  = get_matreal_type(L, b, v->l_size, v->r_size, opts->wsize, 0);
+  *kind = "MatrixReal";
+}
+
+static void
+w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
+             struct wopts_s *opts, struct laddr_s *laddr,
+             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+             const char **kind)
+{
+  mMatComplex *v = qlua_checkMatComplex(L, 3);
+  SHA256_Context *ctx = sha256_create(L);
+  int i, j;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    machine_complex_double *mat = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_double));
+    machine_complex_double *ptr;
+    for (ptr = mat, i = 0; i < v->l_size; i++) {
+      for (j = 0; j < v->r_size; j++) {
+        gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
+        ptr->re = GSL_REAL(zz);
+        ptr->im = GSL_IMAG(zz);
+        ptr++;
+      }
+    }
+    *data = mat;
+    sha256_sum_add_doubles(ctx, *data, 2 * v->l_size * v->r_size);
+  } break;
+  case WS_Float: {
+    machine_complex_float *mat = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_float));
+    machine_complex_float *ptr;
+    for (ptr = mat, i = 0; i < v->l_size; i++) {
+      for (j = 0; j < v->r_size; j++) {
+        gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
+        ptr->re = GSL_REAL(zz);
+        ptr->im = GSL_IMAG(zz);
+      }
+    }
+    *data = mat;
+    sha256_sum_add_floats(ctx, *data, 2 * v->l_size * v->r_size);
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_veccomplex()");
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  *filetype = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 1);
+  *memtype  = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 0);
+  *kind = "MatrixComplex";
 }
 
 static void
@@ -1268,17 +1280,15 @@ q_hdf5_writer(lua_State *L)
 }
 
 /* setup */
-static QObjTable qotable[] = {
+static QOWTable qotable[] = {
   { qString,                 0,  w_string        },
   { qReal,                   0,  w_real          },
   { qComplex,                0,  w_complex       },
   { qVecInt,                 0,  w_vecint        },
   { qVecReal,                0,  w_vecreal       },
   { qVecComplex,             0,  w_veccomplex    },
-#if 0 /* XXXXXX scalar uncolored objects */
   { qMatReal,                0,  w_matreal       },
   { qMatComplex,             0,  w_matcomplex    },
-#endif /* XXXXX */
   { qLatInt,                 1,  w_latint        },
 #if 0 /* XXXXX qlua object dispatch table */
   { qLatReal,                1,  w_latreal       },
@@ -1322,6 +1332,7 @@ static const struct luaL_Reg mtFile[] = {
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
   { "delete",           qhdf5_delete  },
+  { "flush",            qhdf5_flush   },
   { "list",             qhdf5_list    },
   { "dims",             qhdf5_dims    },
   { "kind",             qhdf5_kind    },
