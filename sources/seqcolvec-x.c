@@ -283,9 +283,9 @@ Qs(qlua_newSeqColVec)(lua_State *L, int nc)
 Qs(mSeqColVec) *
 Qs(qlua_newZeroSeqColVec)(lua_State *L, int nc)
 {
-	Qs(mSeqColVec) *v = Qs(qlua_newSeqColVec)(L, nc);
-	Qx(QLA_D,_V_eq_zero)(QNC(nc) v->ptr);
-	return v;
+        Qs(mSeqColVec) *v = Qs(qlua_newSeqColVec)(L, nc);
+        Qx(QLA_D,_V_eq_zero)(QNC(nc) v->ptr);
+        return v;
 }
 Qs(mSeqColVec) *
 Qs(qlua_checkSeqColVec)(lua_State *L, int idx, int nc)
@@ -306,21 +306,21 @@ static int
 Qs(q_seqcolvec_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         Qs(qlua_newZeroSeqColVec)(L, nc);
         return 1;
     }
-    case 1: {
-        Qs(mSeqColVec) *a = Qs(qlua_checkSeqColVec)(L, 1, nc);
+    case 2: {
+        Qs(mSeqColVec) *a = Qs(qlua_checkSeqColVec)(L, 2, nc);
         Qs(mSeqColVec) *r = Qs(qlua_newSeqColVec)(L, nc);
         
         Qx(QLA_D,_V_eq_V)(QNC(nc) r->ptr, a->ptr);
         
         return 1;
     }
-    case 2: {
-        QLA_D_Complex *c = qlua_checkComplex(L, 1);
-        int a = qlua_checkcolorindex(L, 2, nc);
+    case 3: {
+        QLA_D_Complex *c = qlua_checkComplex(L, 2);
+        int a = qlua_checkcolorindex(L, 3, nc);
         Qs(mSeqColVec) *r = Qs(qlua_newSeqColVec)(L, nc);
 
         Qx(QLA_D,_V_eq_elem_C)(QNC(nc) r->ptr, c, a);

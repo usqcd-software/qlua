@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "qvector.h"                                                 /* DEPS */
@@ -6,6 +7,7 @@
 #include "sha256.h"                                                  /* DEPS */
 #include "qlayout.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "seqcolvec.h" /* DEPS */
 #include "latint.h"                                                  /* DEPS */
 #include "latreal.h"                                                 /* DEPS */
 #include "latcomplex.h"                                              /* DEPS */
@@ -148,11 +150,24 @@ lookup_htype(lua_State *L, mHdf5File *b, const char *name)
     p = qlua_malloc(L, sizeof (HType));
     p->name = qlua_strdup(L, name);
     p->next = b->htype;
-    p->ftype = -1;
+    p->ftype = H5Topen2(b->file, name, H5P_DEFAULT);
+    if (p->ftype < 0)
+      p->ftype = -1;
     p->mtype = -1;
     b->htype = p;
   }
   return p;
+}
+
+static hid_t
+save_htype(lua_State *L, mHdf5File *hf, const char *name, hid_t tv, int ftype_p, const char *msg)
+{
+  if (hf->writer && ftype_p) {
+    CHECK_H5(L, H5Tcommit2(hf->file, name, tv, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), msg);
+    CHECK_H5(L, H5Tclose(tv), "Tclose() in save_type");
+    tv = H5Topen2(hf->file, name, H5P_DEFAULT);
+  }
+  return tv;
 }
 
 static const char *
@@ -303,8 +318,7 @@ get_complex_type(lua_State *L, mHdf5File *hf, WriteSize wsize, int ftype_p)
     CHECK_H5(L, H5Tinsert(v, "r", get_real_offset(L, wsize, ftype_p), ct), "complex_type(): insert real");
     CHECK_H5(L, H5Tinsert(v, "i", get_imag_offset(L, wsize, ftype_p), ct), "complex_type(): insert imag");
     CHECK_H5(L, H5Tclose(ct), "complex_type(): close real type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "complex_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "complex_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -327,8 +341,7 @@ get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
     hid_t v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "vecint_type(): creating vecint type");
     CHECK_H5(L, H5Tclose(ct), "vecint_type(): closing int type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecint_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "vecint_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -351,8 +364,7 @@ get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_
     hid_t v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "vecreal_type(): creating vecreal type");
     CHECK_H5(L, H5Tclose(ct), "vecreal_type(): closing real type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "vecreal_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "vecreal_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -376,8 +388,7 @@ get_matreal_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int
     hid_t v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "matreal_type(): creating matreal type");
     CHECK_H5(L, H5Tclose(ct), "matreal_type(): closing real type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "matreal_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "matreal_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -401,8 +412,7 @@ get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int fty
     hid_t v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "veccomplex_type(): creating veccomplex type");
     CHECK_H5(L, H5Tclose(ct), "veccomplex_type(): closing complex type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "veccomplex_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "veccomplex_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -426,8 +436,7 @@ get_matcomplex_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, 
     hid_t v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "matcomplex_type(): creating matcomplex type");
     CHECK_H5(L, H5Tclose(ct), "matcomplex_type(): closing complex type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "matcomplex_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "matcomplex_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -450,8 +459,7 @@ get_colvec_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
     hid_t v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "colvec_type(): creating colvec type");
     CHECK_H5(L, H5Tclose(ct), "colvec_type(): closing complex type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "colvec_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "colvec_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -475,8 +483,7 @@ get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
     hid_t v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "colmat_type(): creating colmat type");
     CHECK_H5(L, H5Tclose(ct), "colmat_type(): closing complex type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "colmat_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "colmat_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -499,8 +506,7 @@ get_dirferm_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
     hid_t v = H5Tarray_create(ct, 1, &vsize);
     CHECK_H5(L, v, "dirferm_type(): creating dirferm type");
     CHECK_H5(L, H5Tclose(ct), "dirferm_type(): closing colvec type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "dirferm_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "dirferm_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -523,8 +529,7 @@ get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
     hid_t v = H5Tarray_create(ct, 2, msize);
     CHECK_H5(L, v, "dirprop_type(): creating dirprop type");
     CHECK_H5(L, H5Tclose(ct), "dirprop_type(): closing colmat type");
-    if (hf->writer && ftype_p)
-      CHECK_H5(L, H5Tcommit2(hf->file, tname, v, H5P_DEFAULT,  H5P_DEFAULT,  H5P_DEFAULT), "dirprop_type(): commit failed");
+    v = save_htype(L, hf, tname, v, ftype_p, "dirprop_type(): commit failed");
     if (ftype_p)
       b->ftype = v;
     else
@@ -749,6 +754,36 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Tclose(stype), "Tclose(sum) in write_attrs()");
 
 }
+
+#if USE_Nc2
+#define QNc  '2'
+#define Qcolors "2"
+#define Qs(a)   a ## 2
+#define Qx(a,b)  a ## 2 ## b
+#define QC(x)    2
+#define QNC(x)
+#include "hdf5_io-x.c"                                              /* DEPS */
+#endif
+
+#if USE_Nc3
+#define QNc  '3'
+#define Qcolors "3"
+#define Qs(a)   a ## 3
+#define Qx(a,b)  a ## 3 ## b
+#define QC(x)    3
+#define QNC(x)
+#include "hdf5_io-x.c"                                              /* DEPS */
+#endif
+
+#if USE_NcN
+#define QNc  'N'
+#define Qcolors "N"
+#define Qs(a)   a ## N
+#define Qx(a,b)  a ## N ## b
+#define QC(x)    (x)->nc
+#define QNC(x)   (x), 
+#include "hdf5_io-x.c"                                              /* DEPS */
+#endif
 
 /* writers */
 static void
@@ -1424,7 +1459,7 @@ static QOWTable qotable[] = {
   { qLatInt,                 1,  w_latint        },
   { qLatReal,                1,  w_latreal       },
   { qLatComplex,             1,  w_latcomplex    },
-#if 0 /* XXXXX qlua object dispatch table */
+#if USE_Nc2
   { qSeqColVec2,             0,  w_colvec2       },
   { qSeqColMat2,             0,  w_colmat2       },
   { qSeqDirFerm2,            0,  w_dirferm2      },
@@ -1433,6 +1468,8 @@ static QOWTable qotable[] = {
   { qLatColMat2,             1,  w_latcolmat2    },
   { qLatDirFerm2,            1,  w_latdirferm2   },
   { qLatDirProp2,            1,  w_latdirprop2   },
+#endif
+#if USE_Nc3
   { qSeqColVec3,             0,  w_colvec3       },
   { qSeqColMat3,             0,  w_colmat3       },
   { qSeqDirFerm3,            0,  w_dirferm3      },
@@ -1441,6 +1478,8 @@ static QOWTable qotable[] = {
   { qLatColMat3,             1,  w_latcolmat3    },
   { qLatDirFerm3,            1,  w_latdirferm3   },
   { qLatDirProp3,            1,  w_latdirprop3   },
+#endif
+#if USE_NcN
   { qSeqColVecN,             0,  w_colvecN       },
   { qSeqColMatN,             0,  w_colmatN       },
   { qSeqDirFermN,            0,  w_dirfermN      },
@@ -1449,7 +1488,7 @@ static QOWTable qotable[] = {
   { qLatColMatN,             1,  w_latcolmatN    },
   { qLatDirFermN,            1,  w_latdirfermN   },
   { qLatDirPropN,            1,  w_latdirpropN   },
-#endif /* XXXXX qlua object dispatch table */
+#endif
   { qNoType,                 0,  NULL            }
 };
 
