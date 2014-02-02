@@ -1149,6 +1149,76 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 }
 
+/////////////////////////////////
+static void
+w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
+             struct wopts_s *opts, struct laddr_s *laddr,
+             SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+             const char **kind)
+{
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  SHA256_Context *ctx = sha256_create(L);
+  int volume = laddr->volume;
+  int rank = laddr->rank;
+  int i;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    machine_complex_double *ptr = qlua_malloc(L, volume * sizeof (machine_complex_double));
+    CALL_QDP(L);
+    mLatComplex *m = qlua_checkLatComplex(L, 3, S);
+    QLA_D_Complex *locked = QDP_expose_C(m->ptr);
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+      QLA_D_Complex zz = QLA_elem_R(locked[QDP_index_L(S->lat, local_x)]);
+      ptr[i].re = QLA_real(zz);
+      ptr[i].im = QLA_imag(zz);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &rank, 1);
+      sha256_sum_add_ints(ctx, local_x, rank);
+      sha256_sum_add_doubles(ctx, (double *)&ptr[i], 2);
+      SHA256_Sum l_sum;
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+    }
+    QDP_reset_C(m->ptr);
+    *data = ptr;
+  } break;
+  case WS_Float: {
+    machine_complex_float *ptr = qlua_malloc(L, volume * sizeof (machine_complex_float));
+    CALL_QDP(L);
+    mLatComplex *m = qlua_checkLatComplex(L, 3, S);
+    QLA_D_Complex *locked = QDP_expose_C(m->ptr);
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+      QLA_D_Complex zz = QLA_elem_R(locked[QDP_index_L(S->lat, local_x)]);
+      ptr[i].re = QLA_real(zz);
+      ptr[i].im = QLA_imag(zz);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &rank, 1);
+      sha256_sum_add_ints(ctx, local_x, rank);
+      sha256_sum_add_floats(ctx, (float *)&ptr[i], 2);
+      SHA256_Sum l_sum;
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+    }
+    QDP_reset_C(m->ptr);
+    *data = ptr;
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_latreal()");
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  *kind = "LatticeReal";
+  *filetype = get_complex_type(L, b, opts->wsize, 1);
+  *memtype  = get_complex_type(L, b, opts->wsize, 0);
+
+}
+/////////////////////////////////
+
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
@@ -1355,8 +1425,8 @@ static QOWTable qotable[] = {
   { qMatComplex,             0,  w_matcomplex    },
   { qLatInt,                 1,  w_latint        },
   { qLatReal,                1,  w_latreal       },
-#if 0 /* XXXXX qlua object dispatch table */
   { qLatComplex,             1,  w_latcomplex    },
+#if 0 /* XXXXX qlua object dispatch table */
   { qSeqColVec2,             0,  w_colvec2       },
   { qSeqColMat2,             0,  w_colmat2       },
   { qSeqDirFerm2,            0,  w_dirferm2      },
