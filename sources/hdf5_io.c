@@ -1149,7 +1149,6 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 }
 
-/////////////////////////////////
 static void
 w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
              struct wopts_s *opts, struct laddr_s *laddr,
@@ -1217,7 +1216,6 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_complex_type(L, b, opts->wsize, 0);
 
 }
-/////////////////////////////////
 
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
