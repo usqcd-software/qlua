@@ -7,6 +7,8 @@
 #include "qlayout.h"                                                 /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
 #include "latint.h"                                                  /* DEPS */
+#include "latreal.h"                                                 /* DEPS */
+#include "latcomplex.h"                                              /* DEPS */
 #include <string.h>
 #include <complex.h>
 #include <sys/stat.h>
@@ -1052,20 +1054,14 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
          const char **kind)
 {
   int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
-  mLatInt *m = qlua_checkLatInt(L, 3, S);
   SHA256_Context *ctx = sha256_create(L);
   int volume = laddr->volume;
   int rank = laddr->rank;
   int i;
 
   int *ptr = qlua_malloc(L, volume * sizeof (int));
-
   CALL_QDP(L);
-
-  *data = ptr;
-  *kind = "LatticeInt";
-  *filetype = get_int_type(L, b, 1);
-  *memtype  = get_int_type(L, b, 0);
+  mLatInt *m = qlua_checkLatInt(L, 3, S);
   QLA_Int *locked = QDP_expose_I(m->ptr);
   for (i = 0; i < volume; i++) {
     qdp2hdf5_addr(local_x, i, laddr);
@@ -1080,9 +1076,77 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
     local_combine_checksums(sum, &l_sum);
   }
   QDP_reset_I(m->ptr);
+  *data = ptr;
 
   sha256_destroy(ctx);
   qlua_free(L, local_x);
+  *kind = "LatticeInt";
+  *filetype = get_int_type(L, b, 1);
+  *memtype  = get_int_type(L, b, 0);
+}
+
+static void
+w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
+         struct wopts_s *opts, struct laddr_s *laddr,
+         SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
+         const char **kind)
+{
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  SHA256_Context *ctx = sha256_create(L);
+  int volume = laddr->volume;
+  int rank = laddr->rank;
+  int i;
+
+  switch (opts->wsize) {
+  case WS_Double: {
+    double *ptr = qlua_malloc(L, volume * sizeof (double));
+    CALL_QDP(L);
+    mLatReal *m = qlua_checkLatReal(L, 3, S);
+    QLA_Real *locked = QDP_expose_R(m->ptr);
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+      ptr[i] = QLA_elem_R(locked[QDP_index_L(S->lat, local_x)]);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &rank, 1);
+      sha256_sum_add_ints(ctx, local_x, rank);
+      sha256_sum_add_doubles(ctx, &ptr[i], 1);
+      SHA256_Sum l_sum;
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+    }
+    QDP_reset_R(m->ptr);
+    *data = ptr;
+  } break;
+  case WS_Float: {
+    float *ptr = qlua_malloc(L, volume * sizeof (float));
+    CALL_QDP(L);
+    mLatReal *m = qlua_checkLatReal(L, 3, S);
+    QLA_Real *locked = QDP_expose_R(m->ptr);
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
+      ptr[i] = QLA_elem_R(locked[QDP_index_L(S->lat, local_x)]);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &rank, 1);
+      sha256_sum_add_ints(ctx, local_x, rank);
+      sha256_sum_add_floats(ctx, &ptr[i], 1);
+      SHA256_Sum l_sum;
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+    }
+    QDP_reset_R(m->ptr);
+    *data = ptr;
+  } break;
+  default:
+    luaL_error(L, "Unknown precision in w_latreal()");
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  *kind = "LatticeReal";
+  *filetype = get_real_type(L, b, opts->wsize, 1);
+  *memtype  = get_real_type(L, b, opts->wsize, 0);
+
 }
 
 static int
@@ -1290,8 +1354,8 @@ static QOWTable qotable[] = {
   { qMatReal,                0,  w_matreal       },
   { qMatComplex,             0,  w_matcomplex    },
   { qLatInt,                 1,  w_latint        },
-#if 0 /* XXXXX qlua object dispatch table */
   { qLatReal,                1,  w_latreal       },
+#if 0 /* XXXXX qlua object dispatch table */
   { qLatComplex,             1,  w_latcomplex    },
   { qSeqColVec2,             0,  w_colvec2       },
   { qSeqColMat2,             0,  w_colmat2       },
