@@ -605,7 +605,6 @@ make_hdf5_path(lua_State *L, hid_t file, hid_t cwd, char *dpath)
   char *dname = dpath[0] == '/' ? &dpath[1] : dpath;
   char *buf = dname;
   hid_t dhandle = dpath[0] == '/' ? H5Gopen2(file, "/", H5P_DEFAULT) : cwd;
-  int isused = dpath[0] != '/';
 
   while (buf && buf[0]) {
     strsep(&buf, "/");
@@ -614,9 +613,8 @@ make_hdf5_path(lua_State *L, hid_t file, hid_t cwd, char *dpath)
       dnext = H5Gcreate2(dhandle, dname, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
       CHECK_H5(L, dnext, "mkpath failed");
     }
-    if (isused == 0)
-      H5Gclose(dhandle);
-    isused = 0;
+    if (dhandle != cwd)
+      CHECK_H5(L, H5Gclose(dhandle), "Gclose() failed");
     dhandle = dnext;
     dname = buf;
   }
@@ -971,6 +969,68 @@ qhdf5_stat(lua_State *L)
   return 1;
 }
 
+static int
+qhdf5_cwd(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  int res = 0;
+  check_file(L, b);
+  qlua_Hdf5_enter(L);
+  int len = H5Iget_name(b->cwd, NULL, 0);
+  if (len > 0) {
+    char *path = qlua_malloc(L, len + 1);
+    H5Iget_name(b->cwd, path, len + 1);
+    lua_pushstring(L, path);
+    res = 1;
+  }
+  qlua_Hdf5_leave();
+  return res;
+}
+
+static int
+qhdf5_remove(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+  const char *path = luaL_checkstring(L, 2);
+
+  check_writer(L, b);
+  qlua_Hdf5_enter(L);
+
+#if 1 ///////////////////
+  char *dpath = qlua_strdup(L, path);
+  char *ename = strrchr(dpath, '/');
+  hid_t wdir = b->cwd;
+  if (ename == NULL) {
+    ename = dpath;
+  } else {
+    ename[0] = 0;
+    ename = ename + 1;
+    char *dname = path[0] == '/'? &dpath[1]: dpath;
+    char *buf = dname;
+    hid_t dhandle = path[0] == '/'? H5Gopen2(b->file, "/", H5P_DEFAULT): b->cwd;
+    while (buf && buf[0]) {
+      strsep(&buf, "/");
+      hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
+      if (dhandle != b->cwd)
+        CHECK_H5(L, H5Gclose(dhandle), "Gclose() failed");
+      if (dnext >= 0) {
+        dhandle = dnext;
+        dname = buf;
+        continue;
+      }
+      qlua_free(L, dpath);
+      return 0;
+    }
+    wdir = dhandle;
+  }
+  H5Ldelete(wdir, ename, H5P_DEFAULT);
+  if (wdir != b->cwd)
+    CHECK_H5(L, H5Gclose(wdir), "Gclose() failed after delete");
+  qlua_free(L, dpath);
+#endif ///////////////////
+  qlua_Hdf5_leave();
+  return 0;
+}
 
 static int
 qhdf5_flush(lua_State *L)
@@ -1780,9 +1840,10 @@ static const struct luaL_Reg mtFile[] = {
   { "list",             qhdf5_list    },
   { "flush",            qhdf5_flush   },
   { "stat",             qhdf5_stat    },
+  { "cwd",              qhdf5_cwd     },
+  { "remove",           qhdf5_remove  },
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
-  { "remove",           qhdf5_remove  },
 #endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };
