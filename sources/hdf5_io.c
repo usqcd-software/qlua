@@ -37,7 +37,77 @@ static const char htn_matrix_fmt[]          = ".Matrix%s%s%dx%d";
 static const char htn_color_fmt[]           = ".Color%s%s%d";
 static const char htn_dirac_fmt[]           = ".Dirac%s%s%d";
 
-#define FAILED_H5CALL -1
+typedef enum {
+  sScalar,
+  sLattice,
+  sOther
+} SpaceOfH;
+
+typedef enum {
+  kString,
+  kReal,
+  kComplex,
+  kMatrixReal,
+  kMatrixComplex,
+  kVectorInt,
+  kVectorReal,
+  kVectorComplex,
+  kColorVector,
+  kColorMatrix,
+  kDiracFermion,
+  kDiracPropagator,
+  kLatticeInt,
+  kLatticeReal,
+  kLatticeComplex,
+  kLatticeColorVector,
+  kLatticeColorMatrix,
+  kLatticeDiracFermion,
+  kLatticeDiracPropagator,
+  kGroup,
+  kDataSpace,
+  kDataSet,
+  kDataType,
+  kAttribute,
+  kFile,
+  kUnknown,
+  kNoKind
+} KindOfH;
+
+static const char knUnknown[] = "Unknown";
+
+const struct {
+  KindOfH kind;
+  const char *name;
+} knTable[] = {
+  { kString,                  "String"                  },
+  { kReal,                    "Real"                    },
+  { kComplex,                 "Complex"                 },
+  { kMatrixReal,              "MatrixReal"              },
+  { kMatrixComplex,           "MatrixComplex"           },
+  { kVectorInt,               "VectorInt"               },
+  { kVectorReal,              "VectorReal"              },
+  { kVectorComplex,           "VectorComplex"           },
+  { kColorVector,             "ColorVector"             },
+  { kColorMatrix,             "ColorMatrix"             },
+  { kDiracFermion,            "DiracFermion"            },
+  { kDiracPropagator,         "DiracPropagator"         },
+  { kLatticeInt,              "LatticeInt"              },
+  { kLatticeReal,             "LatticeReal"             },
+  { kLatticeComplex,          "LatticeComplex"          },
+  { kLatticeColorVector,      "LatticeColorVector"      },
+  { kLatticeColorMatrix,      "LatticeColorMatrix"      },
+  { kLatticeDiracFermion,     "LatticeDiracFermion"     },
+  { kLatticeDiracPropagator,  "LatticeDiracPropagator"  },
+  { kGroup,                   "Group"                   },
+  { kDataSpace,               "DataSpace"               },
+  { kDataSet,                 "DataSet"                 },
+  { kDataType,                "DataType"                },
+  { kAttribute,               "Attribute"               },
+  { kFile,                    "File"                    },
+  { kUnknown,                 knUnknown                 },
+  { kNoKind,                  NULL                      }
+};
+
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
 
 typedef struct {
@@ -87,6 +157,30 @@ typedef struct QOWTable_s {
 static QOWTable qotable[];
 
 /* common helpers */
+static const char *
+kind2name(KindOfH k)
+{
+  int i;
+  for (i = 0; knTable[i].name; i++) {
+    if (k == knTable[i].kind)
+      return knTable[i].name;
+  }
+  QLUA_ASSERT(0 && "Unknown hdf5 kind");
+  return knUnknown;
+}
+
+static KindOfH
+name2kind(const char *name)
+{
+  int i;
+  for (i = 0; knTable[i].name; i++) {
+    if (strcmp(knTable[i].name, name) == 0)
+      return knTable[i].kind;
+  }
+  QLUA_ASSERT(0 && "Unknown hdf5 kind");
+  return kUnknown;
+}
+
 static void
 qdp2hdf5_addr(int *local_x, int xl, struct laddr_s *laddr)
 {
@@ -706,6 +800,130 @@ qhdf5_list(lua_State *L)
   return 1;
 }
 
+static KindOfH
+get_kind(lua_State *L, mHdf5File *b, hid_t obj)
+{
+  switch (H5Iget_type(obj)) {
+  case H5I_FILE: return kFile;
+  case H5I_GROUP: return kGroup;
+  case H5I_DATATYPE: return kDataType;
+  case H5I_DATASPACE: return kDataSpace;
+  case H5I_ATTR: return kAttribute;
+  case H5I_DATASET: {
+    hid_t a = H5Aopen(obj, kind_attr_name, H5P_DEFAULT);
+    KindOfH kind = kDataSet;
+    if (a >= 0) {
+      int len = H5Aget_storage_size(a);
+      if (len > 0) {
+        char *val = qlua_malloc(L, len + 1);
+        hid_t mtype = get_string_type(L, b, len, 0);
+        CHECK_H5(L, H5Aread(a, mtype, val), "Aread() failed");
+        CHECK_H5(L, H5Tclose(mtype), "Tclose() failed");
+        val[len] = 0;
+        kind = name2kind(val);
+        qlua_free(L, val);
+      }
+      CHECK_H5(L, H5Aclose(a), "Aclose() failed");
+    }
+    return kind;
+  }
+  default:
+    break;
+  }
+  return kUnknown;
+}
+
+static int
+get_h5_time(lua_State *L, mHdf5File *b, hid_t obj, long long *pt)
+{
+  hid_t a = H5Aopen(obj, time_attr_name, H5P_DEFAULT);
+  if (a >= 0) {
+    hid_t mtype = get_time_type(L, b, 0);
+    CHECK_H5(L, H5Aread(a, mtype, pt), "Aread() failed");
+    CHECK_H5(L, H5Tclose(mtype), "Tclose() failed");
+    return 1;
+  }
+  return 0;
+}
+
+static SpaceOfH
+get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, int **dims)
+{
+  SpaceOfH s = sOther;
+  hid_t space = H5Dget_space(obj);
+  if (space >= 0) {
+    if (H5Sis_simple(space)) {
+      int nd = H5Sget_simple_extent_ndims(space);
+      s = sScalar;
+      if (nd > 0) {
+        hsize_t *d = qlua_malloc(L, nd * sizeof (hsize_t));
+        *dims = qlua_malloc(L, nd * sizeof (int));
+        *rank = nd;
+        H5Sget_simple_extent_dims(space, NULL, d);
+        int i;
+        for (i = 0; i < nd; i++)
+          (*dims)[i] = d[i];
+        qlua_free(L, d);
+        s = sLattice;
+      }
+    }
+    CHECK_H5(L, H5Sclose(space), "Sclose() failed");
+  }
+  return s;
+}
+
+static int
+qhdf5_stat(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  const char *path = luaL_checkstring(L, 2);
+
+  check_file(L, b);
+  qlua_Hdf5_enter(L);
+  hid_t obj = H5Oopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
+  if (obj < 0) {
+    lua_pushnil(L);
+    return 1;
+  }
+  KindOfH kind = get_kind(L, b, obj);
+  lua_createtable(L, 0, 4);
+  lua_pushstring(L, kind2name(kind));
+  lua_setfield(L, -2, "kind");
+  long long t;
+  if (get_h5_time(L, b, obj, &t)) {
+    lua_pushnumber (L, t);
+    lua_setfield(L, -2, "time");
+  }
+  int rank = 0;
+  int *dims = NULL;
+  SpaceOfH space = get_h5_space(L, b, obj, &rank, &dims);
+  switch (space) {
+  case sScalar:
+    lua_pushstring(L, "scalar");
+    lua_setfield(L, -2, "geometry");
+    break;
+  case sLattice: {
+    int i;
+    lua_createtable(L, 0, rank);
+    for (i = 0; i < rank; i++) {
+      lua_pushnumber(L, i+1);
+      lua_pushnumber(L, dims[i]);
+      lua_settable(L, -3);
+    }
+    lua_setfield(L, -2, "geometry");
+    qlua_free(L, dims);
+  } break;
+  case sOther:
+    break;
+  default:
+    QLUA_ASSERT(0 && "unkown SpaceOfH value");
+  }
+  CHECK_H5(L, H5Oclose(obj), "Oclose() failed");
+  qlua_Hdf5_leave();
+  return 1;
+}
+
+
 static int
 qhdf5_flush(lua_State *L)
 {
@@ -717,6 +935,7 @@ qhdf5_flush(lua_State *L)
   qlua_Hdf5_leave();
   return 0;
 }
+
 static void
 write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
 {
@@ -1512,10 +1731,10 @@ static const struct luaL_Reg mtFile[] = {
   { "mkpath",           qhdf5_mkpath  },
   { "list",             qhdf5_list    },
   { "flush",            qhdf5_flush   },
+  { "stat",             qhdf5_stat    },
 #if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { "read",             qhdf5_real    },
   { "remove",           qhdf5_remove  },
-  { "stat",             qhdf5_stat    },
 #endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
   { NULL,               NULL          }
 };
