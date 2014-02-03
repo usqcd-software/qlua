@@ -13,7 +13,6 @@ for a = 0, w:colors() - 1 do
 end
 v[{0,1,2}] = w
 
-os.remove(fname)
 x = qcd.hdf5.Writer(fname)
 x:write("/sample/serial/colmat-D", w)
 x:write("/sample/serial/colmat-F", w, {precision = "float"})

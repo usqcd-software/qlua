@@ -73,31 +73,50 @@ typedef enum {
   kNoKind
 } KindOfH;
 
-static const char knUnknown[] = "Unknown";
+static const char knString[]                  = "String";
+static const char knReal[]                    = "Real";
+static const char knComplex[]                 = "Complex";
+static const char knMatrixReal[]              = "MatrixReal";
+static const char knMatrixComplex[]           = "MatrixComplex";
+static const char knVectorInt[]               = "VectorInt";
+static const char knVectorReal[]              = "VectorReal";
+static const char knVectorComplex[]           = "VectorComplex";
+static const char knColorVector[]             = "ColorVector";
+static const char knColorMatrix[]             = "ColorMatrix";
+static const char knDiracFermion[]            = "DiracFermion";
+static const char knDiracPropagator[]         = "DiracPropagator";
+static const char knLatticeInt[]              = "LatticeInt";
+static const char knLatticeReal[]             = "LatticeReal";
+static const char knLatticeComplex[]          = "LatticeComplex";
+static const char knLatticeColorVector[]      = "LatticeColorVector";
+static const char knLatticeColorMatrix[]      = "LatticeColorMatrix";
+static const char knLatticeDiracFermion[]     = "LatticeDiracFermion";
+static const char knLatticeDiracPropagator[]  = "LatticeDiracPropagator";
+static const char knUnknown[]                 = "Unknown";
 
-const struct {
+static const struct {
   KindOfH kind;
   const char *name;
 } knTable[] = {
-  { kString,                  "String"                  },
-  { kReal,                    "Real"                    },
-  { kComplex,                 "Complex"                 },
-  { kMatrixReal,              "MatrixReal"              },
-  { kMatrixComplex,           "MatrixComplex"           },
-  { kVectorInt,               "VectorInt"               },
-  { kVectorReal,              "VectorReal"              },
-  { kVectorComplex,           "VectorComplex"           },
-  { kColorVector,             "ColorVector"             },
-  { kColorMatrix,             "ColorMatrix"             },
-  { kDiracFermion,            "DiracFermion"            },
-  { kDiracPropagator,         "DiracPropagator"         },
-  { kLatticeInt,              "LatticeInt"              },
-  { kLatticeReal,             "LatticeReal"             },
-  { kLatticeComplex,          "LatticeComplex"          },
-  { kLatticeColorVector,      "LatticeColorVector"      },
-  { kLatticeColorMatrix,      "LatticeColorMatrix"      },
-  { kLatticeDiracFermion,     "LatticeDiracFermion"     },
-  { kLatticeDiracPropagator,  "LatticeDiracPropagator"  },
+  { kString,                  knString                  },
+  { kReal,                    knReal                    },
+  { kComplex,                 knComplex                 },
+  { kMatrixReal,              knMatrixReal              },
+  { kMatrixComplex,           knMatrixComplex           },
+  { kVectorInt,               knVectorInt               },
+  { kVectorReal,              knVectorReal              },
+  { kVectorComplex,           knVectorComplex           },
+  { kColorVector,             knColorVector             },
+  { kColorMatrix,             knColorMatrix             },
+  { kDiracFermion,            knDiracFermion            },
+  { kDiracPropagator,         knDiracPropagator         },
+  { kLatticeInt,              knLatticeInt              },
+  { kLatticeReal,             knLatticeReal             },
+  { kLatticeComplex,          knLatticeComplex          },
+  { kLatticeColorVector,      knLatticeColorVector      },
+  { kLatticeColorMatrix,      knLatticeColorMatrix      },
+  { kLatticeDiracFermion,     knLatticeDiracFermion     },
+  { kLatticeDiracPropagator,  knLatticeDiracPropagator  },
   { kGroup,                   "Group"                   },
   { kDataSpace,               "DataSpace"               },
   { kDataSet,                 "DataSet"                 },
@@ -801,7 +820,7 @@ qhdf5_list(lua_State *L)
 }
 
 static KindOfH
-get_kind(lua_State *L, mHdf5File *b, hid_t obj)
+get_h5_kind(lua_State *L, mHdf5File *b, hid_t obj)
 {
   switch (H5Iget_type(obj)) {
   case H5I_FILE: return kFile;
@@ -873,6 +892,29 @@ get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, int **dims)
 }
 
 static int
+get_h5_type_name(lua_State *L, mHdf5File *b, hid_t obj, char **ptr)
+{
+  hid_t tid = H5Dget_type(obj);
+  int present = 0;
+  if (tid >= 0) {
+    if (H5Tequal(tid, H5T_IEEE_F64BE) || H5Tequal(tid, H5T_IEEE_F32BE)) {
+      *ptr = qlua_strdup(L, "real");
+      present = 1;
+    } else {
+      ssize_t len = H5Iget_name(tid, NULL, 0);
+      if (len > 0) {
+        *ptr = qlua_malloc(L, len + 3);
+        H5Iget_name(tid, *ptr, len + 2);
+        (*ptr)[len + 2] = 0;
+        present = 1;
+      }
+    }
+    CHECK_H5(L, H5Tclose(tid), "Tclose() failed");
+  }
+  return present;
+}
+
+static int
 qhdf5_stat(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
@@ -885,7 +927,7 @@ qhdf5_stat(lua_State *L)
     lua_pushnil(L);
     return 1;
   }
-  KindOfH kind = get_kind(L, b, obj);
+  KindOfH kind = get_h5_kind(L, b, obj);
   lua_createtable(L, 0, 4);
   lua_pushstring(L, kind2name(kind));
   lua_setfield(L, -2, "kind");
@@ -917,6 +959,12 @@ qhdf5_stat(lua_State *L)
     break;
   default:
     QLUA_ASSERT(0 && "unkown SpaceOfH value");
+  }
+  char *tname = NULL;
+  if (get_h5_type_name(L, b, obj, &tname)) {
+    lua_pushstring(L, tname);
+    lua_setfield(L, -2, "type");
+    qlua_free(L, tname);
   }
   CHECK_H5(L, H5Oclose(obj), "Oclose() failed");
   qlua_Hdf5_leave();
@@ -1026,7 +1074,7 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
   const char *str = luaL_checkstring(L, 3);
   size_t len = strlen(str) + 1;
   sha256_sum_string(sum, str, len);
-  *kind = "String";
+  *kind = knString;
   *data = qlua_strdup(L, str);
   *filetype = get_string_type(L, b, len, 1);
   *memtype  = get_string_type(L, b, len, 0);
@@ -1059,7 +1107,7 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "Real";
+  *kind = knReal;
   *filetype = get_real_type(L, b, opts->wsize, 1);
   *memtype  = get_real_type(L, b, opts->wsize, 0);
 }
@@ -1093,7 +1141,7 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "Complex";
+  *kind = knComplex;
   *filetype = get_complex_type(L, b, opts->wsize, 1);
   *memtype  = get_complex_type(L, b, opts->wsize, 0);
 }
@@ -1117,7 +1165,7 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
   *data = vec;
   *filetype = get_vecint_type(L, b, v->size, 1);
   *memtype =  get_vecint_type(L, b, v->size, 0);
-  *kind = "VectorInt";
+  *kind = knVectorInt;
 }
 
 static void
@@ -1152,7 +1200,7 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_destroy(ctx);
   *filetype = get_vecreal_type(L, b, v->size, opts->wsize, 1);
   *memtype  = get_vecreal_type(L, b, v->size, opts->wsize, 0);
-  *kind = "VectorReal";
+  *kind = knVectorReal;
 }
 
 static void
@@ -1191,7 +1239,7 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_destroy(ctx);
   *filetype = get_veccomplex_type(L, b, v->size, opts->wsize, 1);
   *memtype  = get_veccomplex_type(L, b, v->size, opts->wsize, 0);
-  *kind = "VectorReal";
+  *kind = knVectorReal;
 }
 
 static void
@@ -1234,7 +1282,7 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_destroy(ctx);
   *filetype = get_matreal_type(L, b, v->l_size, v->r_size, opts->wsize, 1);
   *memtype  = get_matreal_type(L, b, v->l_size, v->r_size, opts->wsize, 0);
-  *kind = "MatrixReal";
+  *kind = knMatrixReal;
 }
 
 static void
@@ -1282,7 +1330,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_destroy(ctx);
   *filetype = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 1);
   *memtype  = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 0);
-  *kind = "MatrixComplex";
+  *kind = knMatrixComplex;
 }
 
 static void
@@ -1318,7 +1366,7 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
 
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeInt";
+  *kind = knLatticeInt;
   *filetype = get_int_type(L, b, 1);
   *memtype  = get_int_type(L, b, 0);
 }
@@ -1381,7 +1429,7 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeReal";
+  *kind = knLatticeReal;
   *filetype = get_real_type(L, b, opts->wsize, 1);
   *memtype  = get_real_type(L, b, opts->wsize, 0);
 
@@ -1449,7 +1497,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
   }
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeReal";
+  *kind = knLatticeReal;
   *filetype = get_complex_type(L, b, opts->wsize, 1);
   *memtype  = get_complex_type(L, b, opts->wsize, 0);
 

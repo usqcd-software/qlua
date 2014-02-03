@@ -62,7 +62,7 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
   Qs(wpack_colvec)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "ColorVector";
+  *kind = knColorVector;
   *filetype = get_colvec_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_colvec_type(L, b, nc, opts->wsize, 0);
 }
@@ -116,7 +116,7 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
   Qx(QDP_D, _reset_V)(m->ptr);
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeColorVector";
+  *kind = knLatticeColorVector;
   *filetype = get_colvec_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_colvec_type(L, b, nc, opts->wsize, 0);
 }
@@ -189,7 +189,7 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
   Qs(wpack_colmat)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "ColorMatrix";
+  *kind = knColorMatrix;
   *filetype = get_colmat_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_colmat_type(L, b, nc, opts->wsize, 0);
 }
@@ -243,7 +243,7 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
   Qx(QDP_D, _reset_M)(m->ptr);
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeColorMatrix";
+  *kind = knLatticeColorMatrix;
   *filetype = get_colmat_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_colmat_type(L, b, nc, opts->wsize, 0);
 }
@@ -316,7 +316,7 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   Qs(wpack_dirferm)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "DiracFermion";
+  *kind = knDiracFermion;
   *filetype = get_dirferm_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirferm_type(L, b, nc, opts->wsize, 0);
 }
@@ -370,7 +370,7 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   Qx(QDP_D, _reset_D)(m->ptr);
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeDiracFermion";
+  *kind = knLatticeDiracFermion;
   *filetype = get_dirferm_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirferm_type(L, b, nc, opts->wsize, 0);
 }
@@ -451,7 +451,7 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   Qs(wpack_dirprop)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
-  *kind = "DiracPropagator";
+  *kind = knDiracPropagator;
   *filetype = get_dirprop_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirprop_type(L, b, nc, opts->wsize, 0);
 }
@@ -505,7 +505,7 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   Qx(QDP_D, _reset_P)(m->ptr);
   sha256_destroy(ctx);
   qlua_free(L, local_x);
-  *kind = "LatticeDiracPropagator";
+  *kind = knLatticeDiracPropagator;
   *filetype = get_dirprop_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirprop_type(L, b, nc, opts->wsize, 0);
 }

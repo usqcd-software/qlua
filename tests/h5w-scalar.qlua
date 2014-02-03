@@ -1,0 +1,89 @@
+require "stdlib"
+
+if not fname then
+   fname = "xxx.h5"
+end
+
+-- BEGIN helper routines
+
+function rcoord(lx, n)
+   return lx:Real(lx:pcoord(n))
+end
+
+function ccoord(lx, n)
+   return lx:Complex(lx:Real(lx:pcoord(n)))
+end
+
+function create_dir(f, path)
+   local st = x:mkpath(path)
+   printf("create_dir(%s, %s) : %s\n",
+          tostring(f),
+          path,
+          tostring(st))
+end
+
+function ch_dir(f, path)
+   local st = x:chpath(path)
+   printf("ch_dir(%s, %s) : %s\n",
+          tostring(f),
+          path,
+          tostring(st))
+end
+
+function fill_vec(v, start, inc)
+   for i = 0, #v - 1 do
+      v[i] = start + i * inc
+   end
+   return v
+end
+
+function fill_mat(m, start, dx, dy)
+   local i, j
+   local a, b = m:dims()
+   for i = 0, a - 1 do
+      for j = 0, b - 1 do
+         m[{i,j}] = start + dx * i  + dy * j
+      end
+   end
+   return m
+end
+
+
+function write_h(f, path, data, ...)
+   local st = x:write(path, data, ...)
+   printf("write(%q, %q) : %s\n",
+          path,
+          tostring(data),
+          tostring(st))
+end
+
+-- END helper routines
+
+-- remove the file to start from the known state
+
+x = qcd.hdf5.Writer(fname)
+
+create_dir(x, "/dir-top/baz")
+create_dir(x, "/good/group/name")
+create_dir(x, "/tmp/zzz")
+
+wF = {precision = "float" }
+write_h(x, "/a/b/c", 2.718)
+write_h(x, "/string", "hello there")
+write_h(x, "/string2", "")
+write_h(x, "/real/double", 1.234)
+write_h(x, "/real/float", 1.234, {precision = "float"} )
+write_h(x, "/comllex/double-num", complex(1.2, 3.6), {precision = "double"})
+write_h(x, "/comllex/float-num", complex(1.2, 3.6), {precision = "float"})
+write_h(x, "/vector-int-a", fill_vec(vector.int(13), 100, 1))
+write_h(x, "/vector-int-b", fill_vec(vector.int(13), 200, 1))
+write_h(x, "/vector-int-c", fill_vec(vector.int(8), 10, 2))
+write_h(x, "/vector-real", fill_vec(vector.real(5), 10, 2), {precision = "float"})
+write_h(x, "/vector-complex", fill_vec(vector.complex(15), complex(0,1), complex(2, 3)), {precision = "float"})
+write_h(x, "/vector-complex-D", fill_vec(vector.complex(15), complex(0,1), complex(2, 3)))
+write_h(x, "/gg/matrix-real", fill_mat(matrix.real{5,6}, 0, 1, 0.1))
+write_h(x, "/gg/matrix-complex", fill_mat(matrix.complex{7,4}, -1, complex(-1,2), complex(0.1,0.2)))
+
+x:close()
+
+printf("DONE\n")
