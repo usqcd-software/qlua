@@ -857,7 +857,7 @@ get_h5_time(lua_State *L, mHdf5File *b, hid_t obj, long long *pt)
 }
 
 static SpaceOfH
-get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, int **dims)
+get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, hsize_t **dims)
 {
   SpaceOfH s = sOther;
   hid_t space = H5Dget_space(obj);
@@ -866,14 +866,9 @@ get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, int **dims)
       int nd = H5Sget_simple_extent_ndims(space);
       s = sScalar;
       if (nd > 0) {
-        hsize_t *d = qlua_malloc(L, nd * sizeof (hsize_t));
-        *dims = qlua_malloc(L, nd * sizeof (int));
+        *dims = qlua_malloc(L, nd * sizeof (hsize_t));
         *rank = nd;
-        H5Sget_simple_extent_dims(space, NULL, d);
-        int i;
-        for (i = 0; i < nd; i++)
-          (*dims)[i] = d[i];
-        qlua_free(L, d);
+        H5Sget_simple_extent_dims(space, NULL, dims);
         s = sLattice;
       }
     }
@@ -928,7 +923,7 @@ qhdf5_stat(lua_State *L)
     lua_setfield(L, -2, "time");
   }
   int rank = 0;
-  int *dims = NULL;
+  hsize_t *dims = NULL;
   SpaceOfH space = get_h5_space(L, b, obj, &rank, &dims);
   switch (space) {
   case sScalar:
