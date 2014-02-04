@@ -167,14 +167,6 @@ typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
-typedef struct QOWTable_s {
-  QLUA_Type qtype;
-  int is_parallel;
-  OutPacker_H5 repack;
-} QOWTable;
-
-static QOWTable qotable[];
-
 /* common helpers */
 static const char *
 kind2name(KindOfH k)
@@ -184,7 +176,7 @@ kind2name(KindOfH k)
     if (k == knTable[i].kind)
       return knTable[i].name;
   }
-  QLUA_ASSERT(0 && "Unknown hdf5 kind");
+  QLUA_ABORT("Unknown hdf5 kind");
   return knUnknown;
 }
 
@@ -196,7 +188,7 @@ name2kind(const char *name)
     if (strcmp(knTable[i].name, name) == 0)
       return knTable[i].kind;
   }
-  QLUA_ASSERT(0 && "Unknown hdf5 kind");
+  QLUA_ABORT("Unknown hdf5 kind");
   return kUnknown;
 }
 
@@ -307,6 +299,7 @@ get_string_type(lua_State *L, mHdf5File *b, int size, int ftype_p)
   return v;
 }
 
+////////
 static hid_t
 get_int_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
@@ -956,7 +949,7 @@ qhdf5_stat(lua_State *L)
   case sOther:
     break;
   default:
-    QLUA_ASSERT(0 && "unkown SpaceOfH value");
+    QLUA_ABORT("unkown SpaceOfH value");
   }
   char *tname = NULL;
   if (get_h5_type_name(L, b, obj, &tname)) {
@@ -995,8 +988,6 @@ qhdf5_remove(lua_State *L)
 
   check_writer(L, b);
   qlua_Hdf5_enter(L);
-
-#if 1 ///////////////////
   char *dpath = qlua_strdup(L, path);
   char *ename = strrchr(dpath, '/');
   hid_t wdir = b->cwd;
@@ -1027,7 +1018,6 @@ qhdf5_remove(lua_State *L)
   if (wdir != b->cwd)
     CHECK_H5(L, H5Gclose(wdir), "Gclose() failed after delete");
   qlua_free(L, dpath);
-#endif ///////////////////
   qlua_Hdf5_leave();
   return 0;
 }
@@ -1698,6 +1688,55 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   return 0;
 }
 
+static struct {
+  QLUA_Type qtype;
+  int is_parallel;
+  OutPacker_H5 repack;
+} qowtable[] = {
+  { qString,                 0,  w_string        },
+  { qReal,                   0,  w_real          },
+  { qComplex,                0,  w_complex       },
+  { qVecInt,                 0,  w_vecint        },
+  { qVecReal,                0,  w_vecreal       },
+  { qVecComplex,             0,  w_veccomplex    },
+  { qMatReal,                0,  w_matreal       },
+  { qMatComplex,             0,  w_matcomplex    },
+  { qLatInt,                 1,  w_latint        },
+  { qLatReal,                1,  w_latreal       },
+  { qLatComplex,             1,  w_latcomplex    },
+#if USE_Nc2
+  { qSeqColVec2,             0,  w_colvec2       },
+  { qSeqColMat2,             0,  w_colmat2       },
+  { qSeqDirFerm2,            0,  w_dirferm2      },
+  { qSeqDirProp2,            0,  w_dirprop2      },
+  { qLatColVec2,             1,  w_latcolvec2    },
+  { qLatColMat2,             1,  w_latcolmat2    },
+  { qLatDirFerm2,            1,  w_latdirferm2   },
+  { qLatDirProp2,            1,  w_latdirprop2   },
+#endif
+#if USE_Nc3
+  { qSeqColVec3,             0,  w_colvec3       },
+  { qSeqColMat3,             0,  w_colmat3       },
+  { qSeqDirFerm3,            0,  w_dirferm3      },
+  { qSeqDirProp3,            0,  w_dirprop3      },
+  { qLatColVec3,             1,  w_latcolvec3    },
+  { qLatColMat3,             1,  w_latcolmat3    },
+  { qLatDirFerm3,            1,  w_latdirferm3   },
+  { qLatDirProp3,            1,  w_latdirprop3   },
+#endif
+#if USE_NcN
+  { qSeqColVecN,             0,  w_colvecN       },
+  { qSeqColMatN,             0,  w_colmatN       },
+  { qSeqDirFermN,            0,  w_dirfermN      },
+  { qSeqDirPropN,            0,  w_dirpropN      },
+  { qLatColVecN,             1,  w_latcolvecN    },
+  { qLatColMatN,             1,  w_latcolmatN    },
+  { qLatDirFermN,            1,  w_latdirfermN   },
+  { qLatDirPropN,            1,  w_latdirpropN   },
+#endif
+  { qNoType,                 0,  NULL            }
+};
+
 static int
 qhdf5_write(lua_State *L)
 {
@@ -1708,14 +1747,13 @@ qhdf5_write(lua_State *L)
   int i;
 
   check_writer(L, b);
-  for (i = 0; qotable[i].qtype != qNoType; i++) {
-    if (qotable[i].qtype == kind)
+  for (i = 0; qowtable[i].qtype != qNoType; i++) {
+    if (qowtable[i].qtype == kind)
       break;
   }
-  if (qotable[i].repack == NULL)
+  if (qowtable[i].repack == NULL)
     luaL_error(L, "unwritable data");
-  count = (qotable[i].is_parallel? write_lat: write_seq)(L, b, p, qotable[i].repack);
-  qlua_Hdf5_leave();
+  count = (qowtable[i].is_parallel? write_lat: write_seq)(L, b, p, qowtable[i].repack);
   return count;
 }
 
@@ -1782,52 +1820,6 @@ q_hdf5_reader(lua_State *L)
 
   return 1;
 }
-
-/* setup */
-static QOWTable qotable[] = {
-  { qString,                 0,  w_string        },
-  { qReal,                   0,  w_real          },
-  { qComplex,                0,  w_complex       },
-  { qVecInt,                 0,  w_vecint        },
-  { qVecReal,                0,  w_vecreal       },
-  { qVecComplex,             0,  w_veccomplex    },
-  { qMatReal,                0,  w_matreal       },
-  { qMatComplex,             0,  w_matcomplex    },
-  { qLatInt,                 1,  w_latint        },
-  { qLatReal,                1,  w_latreal       },
-  { qLatComplex,             1,  w_latcomplex    },
-#if USE_Nc2
-  { qSeqColVec2,             0,  w_colvec2       },
-  { qSeqColMat2,             0,  w_colmat2       },
-  { qSeqDirFerm2,            0,  w_dirferm2      },
-  { qSeqDirProp2,            0,  w_dirprop2      },
-  { qLatColVec2,             1,  w_latcolvec2    },
-  { qLatColMat2,             1,  w_latcolmat2    },
-  { qLatDirFerm2,            1,  w_latdirferm2   },
-  { qLatDirProp2,            1,  w_latdirprop2   },
-#endif
-#if USE_Nc3
-  { qSeqColVec3,             0,  w_colvec3       },
-  { qSeqColMat3,             0,  w_colmat3       },
-  { qSeqDirFerm3,            0,  w_dirferm3      },
-  { qSeqDirProp3,            0,  w_dirprop3      },
-  { qLatColVec3,             1,  w_latcolvec3    },
-  { qLatColMat3,             1,  w_latcolmat3    },
-  { qLatDirFerm3,            1,  w_latdirferm3   },
-  { qLatDirProp3,            1,  w_latdirprop3   },
-#endif
-#if USE_NcN
-  { qSeqColVecN,             0,  w_colvecN       },
-  { qSeqColMatN,             0,  w_colmatN       },
-  { qSeqDirFermN,            0,  w_dirfermN      },
-  { qSeqDirPropN,            0,  w_dirpropN      },
-  { qLatColVecN,             1,  w_latcolvecN    },
-  { qLatColMatN,             1,  w_latcolmatN    },
-  { qLatDirFermN,            1,  w_latdirfermN   },
-  { qLatDirPropN,            1,  w_latdirpropN   },
-#endif
-  { qNoType,                 0,  NULL            }
-};
 
 /* metatables */
 static const struct luaL_Reg mtFile[] = {

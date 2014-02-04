@@ -6,7 +6,6 @@
 #include "qlanczos.h"                                                /* DEPS */
 
 #include <string.h>
-#include <assert.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -396,7 +395,7 @@ lanczos_internal_float(
 
     int conv_cnt = 0;
     if (0 == info_) {
-        assert(iparam_[4] == nev);
+        QLUA_ASSERT(iparam_[4] == nev);
         conv_cnt = iparam_[4];
     } else if (1 == info_) {
         conv_cnt = iparam_[4];
@@ -636,7 +635,7 @@ lanczos_internal_double(
     free(select_);
 
     /* free extra memory in the eigenspace buffer */
-    assert(ldv_ == loc_dim);
+    QLUA_ASSERT(ldv_ == loc_dim);
     *evec = realloc(w_v_, sizeof(double complex) * ldv_ * nev_);
 
     /* copy real part of eigenvalues */
@@ -668,7 +667,7 @@ op_MDWF_D3_eoprec_MdagM_op(
         void *op_arg) /* x<-op(y) */
 {
     op_MDWF_D3_eoprec_MdagM_arg_s *a = (op_MDWF_D3_eoprec_MdagM_arg_s *)op_arg;
-    assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
+    QLUA_ASSERT(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
 
     QOP_D3_MDWF_half_fermion_from_blas(a->y, (double *)y, 2 * loc_dim);
     QOP_D3_MDWF_M_operator(

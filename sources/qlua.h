@@ -235,6 +235,7 @@ void XMP_dist_int_array(int src_node, int count, int *value);
 void XMP_dist_double_array(int src_node, int count, double *value);
 
 #define QLUA_ASSERT(x) do qlua_assert(x, #x); while (0)
+#define QLUA_ABORT(msg) do qlua_assert(0, msg); while (0)
 void qlua_assert(int, const char *);
 
 char *qlua_strdup(lua_State *L, const char *str);

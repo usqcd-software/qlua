@@ -4,7 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <assert.h>
 
 #define BLOCK_SIZE 64
 
@@ -174,7 +173,7 @@ sha256_sum(SHA256_Sum *r, SHA256_Context *c)
 
   sha256_update(&d, tmp, 8);
 
-  assert(d.x_len == 0);
+  QLUA_ASSERT(d.x_len == 0);
   for (j = i = 0; i < 8; i++) {
     r->v[j++] = (uint8_t)(d.h[i] >> 24);
     r->v[j++] = (uint8_t)(d.h[i] >> 16);

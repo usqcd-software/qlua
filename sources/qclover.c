@@ -14,7 +14,6 @@
 #include "qlanczos.h"
 
 #include <math.h>
-#include <assert.h>
 #include <string.h>
 
 #define QNc(a,b) QNc_1(a,QLUA_CLOVER_NC,b)
@@ -777,7 +776,7 @@ QNc(op_CLOVER_F, _eoprec_MdagM_op)(int loc_dim,
   double t1, t2;
 
   QNc(op_CLOVER_F, _eoprec_MdagM_arg_s) *a = (QNc(op_CLOVER_F, _eoprec_MdagM_arg_s) *)op_arg;
-  assert(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
+  QLUA_ASSERT(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
 
   QNc(QOP_F, _CLOVER_half_fermion_from_blas)(a->y, (float *)y, 2 * loc_dim);
   if (0 < a->poly_n) {
@@ -842,10 +841,10 @@ QNc(op_CLOVER_F, _eoprec_MdagM_double_op)(int loc_dim,
   double complex *d_buf = NULL;
 
   QNc(op_CLOVER_D, _eoprec_MdagM_arg_s) *a = (QNc(op_CLOVER_D, _eoprec_MdagM_arg_s) *)op_arg;
-  assert(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
+  QLUA_ASSERT(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
 
   d_buf = malloc(sizeof(d_buf[0]) * loc_dim);
-  assert(NULL != d_buf);
+  QLUA_ASSERT(NULL != d_buf);
 
   for (i = 0 ; i < loc_dim ; i++)
     d_buf[i] = y[i];
@@ -1113,7 +1112,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
   MPI_Comm mpi_comm = MPI_COMM_WORLD; /* FIXME any better choice? */
 
   loc_dim = QNc(QOP_, _CLOVER_half_fermion_size)(c->state) / 2;
-  assert(0 == QNc(QOP_, _CLOVER_half_fermion_size)(c->state) % 2);
+  QLUA_ASSERT(0 == QNc(QOP_, _CLOVER_half_fermion_size)(c->state) % 2);
 
   /* run Arnoldi/Lanczos iterations */
   n_iters = nconv = 0;

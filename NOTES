@@ -1,16 +1,11 @@
-* hdf5:stat() provides all information about the object:
-  return values:
-     nil if the object does not exists
-   otherwise:
-   { kind = "string",  // the kind of the object
-     type = "string",  // only for datasets: ".double", ".int", ".string" or the object type name
-     time = double,    // creation time in seconds since the epoch
-     geometry = {n1, n2, ...} // only if the object is non-scalar
-   }
+* Put all operations on the same qlua type together
+* Put all hdf5 type manipulations together
 
 * Do better message if write() is attempted into an existing dataset
 
 * Guard against user's writing /.* ?
+
+* Keep sha -> object map in /.sha256 ?
 
 * Reader:read("/path/to/data/set" [, {lattice = lat, kind = "kind of data"}])
 
@@ -45,14 +40,3 @@
     "Attribute"                 H5I_ATTR
     "File"                      H5I_FILE
     "Unknown"                   default case, never happens
-
---------- rethink
-* reader
-   ** check the first argument
-   ** get hid_t of the second argument
-   ** set kind to NULL, set lattice to NULL
-   ** if argument three is a lattice, remember it
-   *** if there is a fourth argument, check that it's a string and remember it as kind
-   ** if argument three is a string, remember it as kind
-   ** if kind is NULL, get it from h
-   ** dispatch on kind, call fn(L, b, h, lattice)

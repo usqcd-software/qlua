@@ -18,7 +18,6 @@
 /* NB: Code in this file relies on \gamma_5 = diag(1,1,-1,-1) */
 #include <string.h>
 #include <math.h>
-#include <assert.h>
 
 #if USE_Nc3
 static const char mdwf_name[] = "MDWF";
@@ -1118,7 +1117,7 @@ op_MDWF_F3_eoprec_MdagM_op(
     double t1, t2;
 
     op_MDWF_F3_eoprec_MdagM_arg_s *a = (op_MDWF_F3_eoprec_MdagM_arg_s *)op_arg;
-    assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
+    QLUA_ASSERT(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
 
     QOP_F3_MDWF_half_fermion_from_blas(a->y, (float *)y, 2 * loc_dim);
     if (0 < a->poly_n) {
@@ -1187,10 +1186,10 @@ op_MDWF_F3_eoprec_MdagM_double_op(
     double complex *d_buf = NULL;
 
     op_MDWF_D3_eoprec_MdagM_arg_s *a = (op_MDWF_D3_eoprec_MdagM_arg_s *)op_arg;
-    assert(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
+    QLUA_ASSERT(2 * loc_dim == QOP_MDWF_half_fermion_size(a->mdwf_state));
 
     d_buf = malloc(sizeof(d_buf[0]) * loc_dim);
-    assert(NULL != d_buf);
+    QLUA_ASSERT(NULL != d_buf);
 
     for (i = 0 ; i < loc_dim ; i++)
         d_buf[i] = y[i];
@@ -1463,7 +1462,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
     MPI_Comm mpi_comm = MPI_COMM_WORLD; /* FIXME any better choice? */
 
     loc_dim = QOP_MDWF_half_fermion_size(c->state) / 2;
-    assert(0 == QOP_MDWF_half_fermion_size(c->state) % 2);
+    QLUA_ASSERT(0 == QOP_MDWF_half_fermion_size(c->state) % 2);
 
     /* run Arnoldi/Lanczos iterations */
     n_iters = nconv = 0;
