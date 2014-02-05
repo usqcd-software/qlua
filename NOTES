@@ -1,3 +1,5 @@
+* Better handling of failed type writes ?
+
 * Put all operations on the same qlua type together
 * Put all hdf5 type manipulations together
 

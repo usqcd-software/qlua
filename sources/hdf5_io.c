@@ -128,6 +128,7 @@ static const struct {
 };
 
 #define CHECK_H5(L,expr,message) do { if (expr < 0) luaL_error(L, "HDF5 error %s", message); } while (0)
+#define CHECK_H5p(L, expr, message, path) do { if ((expr) < 0) luaL_error(L, message, path); } while (0)
 
 typedef struct {
   double re;
@@ -162,10 +163,20 @@ struct wopts_s {
   WriteSize wsize;
 };
 
+struct ropts_s {
+  KindOfH kind;
+  mLattice *S;
+  int forced_p;
+  int check_p;
+};
+
 typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
                              struct wopts_s *opts, struct laddr_s *laddr,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
+
+typedef int (*InUnpacker_H5)(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+                             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum);
 
 /* common helpers */
 static const char *
@@ -299,7 +310,15 @@ get_string_type(lua_State *L, mHdf5File *b, int size, int ftype_p)
   return v;
 }
 
-////////
+static int
+check_string_type(lua_State *L, const char *path, hid_t tobj, int *len)
+{
+  if (H5Tget_class(tobj) != H5T_STRING)
+    return 0;
+  *len = H5Tget_size(tobj);
+  return 1;
+}
+
 static hid_t
 get_int_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
@@ -1064,6 +1083,20 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Sclose(dspace), "Sclose() in write_attrs()");
 }
 
+static int
+read_sha256(lua_State *L, mHdf5File *b, hid_t obj, SHA256_Sum *sum)
+{
+  int status = 0;
+  hid_t a = H5Aopen(obj, csum_attr_name, H5P_DEFAULT);
+  if (a >= 0) {
+    hid_t mtype = get_sha256_type(L, b, 0);
+    status = H5Aread(a, mtype, sum) >= 0;
+    CHECK_H5(L, H5Tclose(mtype), "Tclose() in read_sha256()");
+    CHECK_H5(L, H5Aclose(a), "Aclose() in read_sha256()");
+  }
+  return status;
+}
+
 #if USE_Nc2
 #define QNc  '2'
 #define Qcolors "2"
@@ -1096,19 +1129,21 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
 
 /* writers */
 
-static void
-process_wopts(lua_State *L, struct wopts_s *opts) /* XXX */
+static struct wopts_s
+process_wopts(lua_State *L) /* XXX */
 {
-  opts->wsize = WS_Double;
+  struct wopts_s wopts;
+  wopts.wsize = WS_Double;
   if (qlua_checkopt_table(L, 4)) {
     const char *prec = qlua_tabkey_stringopt(L, 4, "precision", "double");
     if (strcmp(prec, "double") == 0)
-      opts->wsize = WS_Double;
+      wopts.wsize = WS_Double;
     else if (strcmp(prec, "float") == 0)
-      opts->wsize = WS_Float;
+      wopts.wsize = WS_Float;
     else
       luaL_error(L, "Unknown precision value \"%s\"", prec);
   }
+  return wopts;
 }
 
 static void
@@ -1126,6 +1161,27 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_string_type(L, b, len, 0);
   CHECK_H5(L, *memtype, "Tcopy(memtype) in w_string()");
   CHECK_H5(L, H5Tset_size(*memtype, len), "Sset_size(memtype) in w_string()");
+}
+
+static int
+r_string(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int len;
+  if (!check_string_type(L, path, tobj, &len))
+    return 0;
+  hid_t memtype = get_string_type(L, b, len, 0);
+  char *buffer = qlua_malloc(L, len + 1);
+  herr_t status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() failed in read(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, buffer);
+    return 0;
+  }
+  buffer[len] = 0;
+  sha256_sum_string(sum, buffer, len);
+  lua_pushstring(L, buffer);
+  return 1;
 }
 
 static void
@@ -1552,8 +1608,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts;
-  process_wopts(L, &wopts);
+  struct wopts_s wopts = process_wopts(L);
   mLattice *S = qlua_ObjLattice(L, 3);
   struct laddr_s laddr;
   laddr.rank = S->rank;
@@ -1637,8 +1692,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 static int
 write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts;
-  process_wopts(L, &wopts);
+  struct wopts_s wopts = process_wopts(L);
 
   hid_t filetype, memtype;
   void *data;
@@ -1753,6 +1807,172 @@ qhdf5_write(lua_State *L)
   return count;
 }
 
+/* reader */
+static struct {
+  KindOfH kind;
+  int is_parallel;
+  InUnpacker_H5 unpacker;
+} qortable[] = {
+  { kString,                  0,  r_string        },
+#if 0 /* XXX */
+  { kReal,                    0,  r_real          },
+  { kComplex,                 0,  r_complex       },
+  { kMatrixReal,              0,  r_matreal       },
+  { kMatrixComplex,           0,  r_matcomplex    },
+  { kVectorInt,               0,  r_vecint        },
+  { kVectorReal,              0,  r_vecreal       },
+  { kVectorComplex,           0,  r_veccomplex    },
+  { kColorVector,             0,  r_colvec        },
+  { kColorMatrix,             0,  r_colmat        },
+  { kDiracFermion,            0,  r_dirferm       },
+  { kDiracPropagator,         0,  r_dirprop       },
+  { kLatticeInt,              1,  r_latint        },
+  { kLatticeReal,             1,  r_latreal       },
+  { kLatticeComplex,          1,  r_latcomplex    },
+  { kLatticeColorVector,      1,  r_latcolvec     },
+  { kLatticeColorMatrix,      1,  r_latcolmat     },
+  { kLatticeDiracFermion,     1,  r_latdirferm    },
+  { kLatticeDiracPropagator,  1,  r_latdirprop    },
+#endif /* XXX */
+  { kNoKind,                  0,  NULL            }
+};
+
+static struct ropts_s
+process_ropts(lua_State *L)
+{
+  struct ropts_s ropts;
+  ropts.kind = kNoKind;
+  ropts.S = NULL;
+  ropts.forced_p = 0;
+  ropts.check_p = 1;
+  if (qlua_checkopt_table(L, 3)) {
+    const char *check = qlua_tabkey_stringopt(L, 3, "sha256", "check");
+    if (strcmp(check, "ignore") == 0)
+      ropts.check_p = 0;
+    else if (strcmp(check, "check") != 0)
+      luaL_error(L, "unknown check value \"%s\"", check);
+    const char *forced = qlua_tabkey_stringopt(L, 3, "kind", NULL);
+    if (forced) {
+      ropts.forced_p = 1;
+      ropts.kind = name2kind(forced);
+    }
+    if (qlua_tabpushopt_key(L, 3, "lattice")) {
+      ropts.S = qlua_checkLattice(L, -1);
+      lua_pop(L, 1);
+    }
+  }
+  return ropts;
+}
+
+typedef int (*TheReader)(lua_State *L, mHdf5File *b, const char *path,
+                         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+                         InUnpacker_H5 unpacker, SHA256_Sum *sum);
+
+static int
+read_seq(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+         InUnpacker_H5 unpacker, SHA256_Sum *sum)
+{
+  if (!H5Sis_simple(dspace) || (H5Sget_simple_extent_ndims(dspace) != 0))
+    return 0;
+  return (*unpacker)(L, NULL, b, path, ropts, obj, dtype, sum);
+}
+
+static int
+read_lat(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+         InUnpacker_H5 unpacker, SHA256_Sum *sum)
+{
+  if (!H5Sis_simple(dspace) || (ropts->S == NULL))
+    return 0;
+  int rank = H5Sget_simple_extent_ndims(dspace);
+  if (rank != ropts->S->rank)
+    return 0;
+  hsize_t *dims = qlua_malloc(L, rank * sizeof (hsize_t));
+  H5Sget_simple_extent_dims(dspace, NULL, dims);
+  int i;
+  for (i = 0; i < rank; i++) {
+    if (dims[i] != ropts->S->dim[i]) {
+      qlua_free(L, dims);
+      return 0;
+    }
+  }
+  qlua_free(L, dims);
+  int status = (*unpacker)(L, ropts->S, b, path, ropts, obj, dtype, sum);
+  combine_checksums(sum, 1);
+  return status;
+}
+
+/* If the reader managed to get the data, it pushes
+ *   (data, "OK")           if sha256 matches
+ *   (data, "missing")      if there is no sha256 in the file
+ *   (data, "mismatched")   if sha256 do not agree
+ * the last two cases can only happen if !ropts->check_p
+ * if ropts->check_p, then the last two cases result in an error report.
+ * The reader returns 1 if data was read, otherwise it returns 0 (e.g., no kind or space mismatch.)
+ */
+static int
+try_reader(lua_State *L, mHdf5File *b, const char *path,
+           struct ropts_s *ropts, hid_t obj, KindOfH kind)
+{
+  int i;
+  for (i = 0; qortable[i].unpacker; i++) {
+    if (qortable[i].kind == kind)
+      break;
+  }
+  if (qortable[i].unpacker == NULL)
+    return 0;
+  hid_t dspace = H5Dget_space(obj);
+  CHECK_H5p(L, dspace, "Dget_space() failed in read(\"%s\")", path);
+  hid_t dtype = H5Dget_type(obj);
+  CHECK_H5p(L, dtype, "Dget_type() failed in read(\"%s\")", path);
+  TheReader reader = qortable[i].is_parallel? read_lat: read_seq;
+  SHA256_Sum r_sum;
+  int status = (*reader)(L, b, path, ropts, obj, dtype, dspace, qortable[i].unpacker, &r_sum);
+  CHECK_H5p(L, H5Tclose(dtype), "Tclose() failed in read(\"%s\")", path);
+  CHECK_H5p(L, H5Sclose(dspace), "Sclose() failed in read(\"%s\")", path);
+  if (!status)
+    return 0;
+  SHA256_Sum f_sum;
+  if (!read_sha256(L, b, obj, &f_sum)) {
+    if (ropts->check_p)
+      luaL_error(L, "missing checksum in read(\"%s\")", path);
+    lua_pushstring(L, "missing");
+  } else {
+    if (sha256_cmp(&r_sum, &f_sum) != 0) {
+      if (ropts->check_p)
+        luaL_error(L, "mismatched checksum in read(\"%s\")", path);
+      lua_pushstring(L, "mismatched");
+    } else {
+      lua_pushstring(L, "OK");
+    }
+  }
+  return 1;
+}
+
+static int
+qhdf5_read(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  const char *path = luaL_checkstring(L, 2);
+  struct ropts_s ropts = process_ropts(L);
+  check_file(L, b);
+  qlua_Hdf5_enter(L);
+  hid_t obj = H5Dopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
+  CHECK_H5p(L, obj, "no object for read(\"%s\")", path);
+  int status;
+  if (ropts.forced_p) {
+    status = try_reader(L, b, path, &ropts, obj, ropts.kind);
+  } else {
+    KindOfH kind = get_h5_kind(L, b, obj);
+    status = try_reader(L, b, path, &ropts, obj, kind);
+  }
+  CHECK_H5p(L, H5Dclose(obj), "Dclose() failed in read(\"%s\")", path);
+  if (!status)
+    luaL_error(L, "no suitable reader for read(\"%s\")", path);
+  return 2;
+}
+
 static int
 q_hdf5_writer(lua_State *L)
 {
@@ -1821,18 +2041,16 @@ q_hdf5_reader(lua_State *L)
 static const struct luaL_Reg mtFile[] = {
   { "__tostring",       qhdf5_fmt     },
   { "__gc",             qhdf5_gc      },
-  { "close",            qhdf5_close   },
-  { "write",            qhdf5_write   },
-  { "chpath",           qhdf5_chpath  },
-  { "mkpath",           qhdf5_mkpath  },
   { "list",             qhdf5_list    },
   { "flush",            qhdf5_flush   },
   { "stat",             qhdf5_stat    },
   { "cwd",              qhdf5_cwd     },
+  { "chpath",           qhdf5_chpath  },
+  { "mkpath",           qhdf5_mkpath  },
+  { "read",             qhdf5_read    },
+  { "write",            qhdf5_write   },
   { "remove",           qhdf5_remove  },
-#if 0 /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
-  { "read",             qhdf5_real    },
-#endif /* XXXXXXXXXXXXXXXXXXXXXXXXXX */
+  { "close",            qhdf5_close   },
   { NULL,               NULL          }
 };
 
