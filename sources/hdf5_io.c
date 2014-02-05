@@ -274,7 +274,7 @@ static hid_t
 get_time_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
   hid_t v = ftype_p? H5Tcopy(H5T_STD_I64BE): H5Tcopy(H5T_NATIVE_LLONG);
-  CHECK_H5(L, v, "Tcopy() in time_type");
+  CHECK_H5(L, v, "time_type(): copy i64 type");
   return v;
 }
 
@@ -714,8 +714,8 @@ qhdf5_close(lua_State *L)
   mHdf5File *b = qlua_checkHdf5File(L, 1);
 
   check_file(L, b);
-  // CHECK_H5(L, do_w_close(L, b), "writer close error");
-  do_close(L, b);
+  CHECK_H5(L, do_close(L, b), "close error");
+  //do_close(L, b);
   lua_pushnil(L);
   return 1;
 }
@@ -798,7 +798,7 @@ qhdf5_list(lua_State *L)
   check_file(L, b);
   qlua_Hdf5_enter(L);
   hid_t dh = H5Gopen(p[0] == '/'? b->file: b->cwd, p, H5P_DEFAULT);
-  CHECK_H5(L, dh, "qcd.hdf5.Reader:list() failed");
+  CHECK_H5(L, dh, "list() open failed");
   H5G_info_t gi;
   CHECK_H5(L, H5Gget_info(dh, &gi), "Gget_info() failed");
   lua_createtable(L, gi.nlinks, 0);
@@ -850,6 +850,7 @@ get_h5_time(lua_State *L, mHdf5File *b, hid_t obj, long long *pt)
   if (a >= 0) {
     hid_t mtype = get_time_type(L, b, 0);
     CHECK_H5(L, H5Aread(a, mtype, pt), "Aread() failed");
+    CHECK_H5(L, H5Aclose(a), "Aclose() failed");
     CHECK_H5(L, H5Tclose(mtype), "Tclose() failed");
     return 1;
   }
@@ -868,7 +869,7 @@ get_h5_space(lua_State *L, mHdf5File *b, hid_t obj, int *rank, hsize_t **dims)
       if (nd > 0) {
         *dims = qlua_malloc(L, nd * sizeof (hsize_t));
         *rank = nd;
-        H5Sget_simple_extent_dims(space, NULL, dims);
+        H5Sget_simple_extent_dims(space, NULL, *dims);
         s = sLattice;
       }
     }

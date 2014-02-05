@@ -38,19 +38,21 @@ function process_list(x, dir, nm)
       local ls = x:list(dir)
       local subs = {}
       for i,v in pairs(ls) do
-         stat = x:stat(string.format("%s/%s", nm, v))
-         if stat then
-            local geom = fmt_geometry(stat.geometry)
-            local tx = fmt_time(stat.time)
-            printf(" %-20s %-16s %-28s %26s  %s\n", stat.kind, geom, fmt_type(stat.type), tx, v)
-         end
-         if stat.kind == "Group" then
-            subs[#subs + 1] = v
+         if true then
+            local stat = x:stat(string.format("%s/%s", nm, v))
+            if stat then
+               local geom = fmt_geometry(stat.geometry)
+               local tx = fmt_time(stat.time)
+               printf(" %-20s %-16s %-28s %26s  %s\n", stat.kind, geom, fmt_type(stat.type), tx, v)
+            end
+            if stat.kind == "Group" then
+               subs[#subs + 1] = v
+            end
          end
       end
       for i = 1, #subs do
          local g = string.format("%s/%s", nm, subs[i])
-         list(g,g)
+         -- list(g,g)
       end
    end
 
@@ -66,9 +68,9 @@ process_list(qcd.hdf5.Reader(fname), "/", "")
 printf("as a writer:\n")
 process_list(qcd.hdf5.Writer(fname), "/sample")
 process_list(qcd.hdf5.Writer(fname), "/sample/lattice")
-process_list(qcd.hdf5.Writer(fname), "/sample/serial")
+--process_list(qcd.hdf5.Writer(fname), "/sample/serial")
 x = qcd.hdf5.Reader(fname)
-x:chpath("/sample/serial")
+-- x:chpath("/sample/serial")
 process_list(x, ".")
 
 
