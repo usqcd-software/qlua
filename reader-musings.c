@@ -28,18 +28,6 @@ check_sha256_type(lua_State *L, const char *path, hid_t tobj)
 }
 
 static int
-check_real_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize)
-{
-  if (H5Tget_class(tobj) != H5T_STRING)
-    return 0;
-  switch (H5Tget_size(tobj)) {
-  case 8: *wsize = WS_Double; return 1;
-  case 4: *wsize = WS_Float; return 1;
-  }
-  return 0;
-}
-
-static int
 check_complex_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize)
 {
   if ((H5Tget_class(tobj) != H5T_COMPOUND) || (H5Tget_nmembers(tobj) != 2))

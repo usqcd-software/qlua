@@ -354,6 +354,18 @@ get_real_type(lua_State *L, mHdf5File *b, WriteSize wsize, int ftype_p)
   return v;
 }
 
+static int
+check_real_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize)
+{
+  if (H5Tget_class(tobj) != H5T_FLOAT)
+    return 0;
+  switch (H5Tget_size(tobj)) {
+  case 8: *wsize = WS_Double; return 1;
+  case 4: *wsize = WS_Float; return 1;
+  }
+  return 0;
+}
+
 static hsize_t
 get_complex_size(lua_State *L, WriteSize wsize, int ftype_p)
 {
@@ -1205,13 +1217,52 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, 1);
     break;
   default:
-    luaL_error(L, "Unknown precision in w_real()");
+    QLUA_ABORT("Unknown precision in w_real()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
   *kind = knReal;
   *filetype = get_real_type(L, b, opts->wsize, 1);
   *memtype  = get_real_type(L, b, opts->wsize, 0);
+}
+
+static int
+r_real(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+       struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  WriteSize wsize;
+  if (!check_real_type(L, path, tobj, &wsize))
+    return 0;
+  hid_t memtype = get_real_type(L, b, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+
+  double val;
+  int status;
+  switch (wsize) {
+  case WS_Double: {
+    double v;
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    sha256_sum_add_doubles(ctx, &v, 1);
+    val = v;
+    break;
+  }
+  case WS_Float: {
+    float v;
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    sha256_sum_add_floats(ctx, &v, 1);
+    val = v;
+    break;
+  }
+  default:
+    QLUA_ABORT("Unknown precision in r_real()");
+  }
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose failed in read(\"%s\")", path);
+  if (status < 0)
+    return 0;
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  lua_pushnumber(L, val);
+  return 1;
 }
 
 static void
@@ -1239,7 +1290,7 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, 2);
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_complex()");
+    QLUA_ABORT("Unknown precision in w_complex()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
@@ -1296,7 +1347,7 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, v->size);
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_vecreal()");
+    QLUA_ABORT("Unknown precision in w_vecreal()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
@@ -1335,7 +1386,7 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, 2 * v->size);
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_veccomplex()");
+    QLUA_ABORT("Unknown precision in w_veccomplex()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
@@ -1378,7 +1429,7 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, v->l_size * v->r_size);
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_vecreal()");
+    QLUA_ABORT("Unknown precision in w_vecreal()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
@@ -1426,7 +1477,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
     sha256_sum_add_floats(ctx, *data, 2 * v->l_size * v->r_size);
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_veccomplex()");
+    QLUA_ABORT("Unknown precision in w_veccomplex()");
   }
   sha256_sum(sum, ctx);
   sha256_destroy(ctx);
@@ -1527,7 +1578,7 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
     *data = ptr;
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_latreal()");
+    QLUA_ABORT("Unknown precision in w_latreal()");
   }
   sha256_destroy(ctx);
   qlua_free(L, local_x);
@@ -1595,7 +1646,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
     *data = ptr;
   } break;
   default:
-    luaL_error(L, "Unknown precision in w_latreal()");
+    QLUA_ABORT("Unknown precision in w_latreal()");
   }
   sha256_destroy(ctx);
   qlua_free(L, local_x);
@@ -1814,8 +1865,8 @@ static struct {
   InUnpacker_H5 unpacker;
 } qortable[] = {
   { kString,                  0,  r_string        },
-#if 0 /* XXX */
   { kReal,                    0,  r_real          },
+#if 0 /* XXX */
   { kComplex,                 0,  r_complex       },
   { kMatrixReal,              0,  r_matreal       },
   { kMatrixComplex,           0,  r_matcomplex    },
