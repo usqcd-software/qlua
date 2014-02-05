@@ -1,11 +1,44 @@
 require "stdlib"
 
-L = qcd.lattice{2,3,5}
+Lgeom = {2,3,5}
+L = qcd.lattice(Lgeom)
 fname = "h5-test.h5"
 Pstd = {}
 Pd = { precision = "double" }
 Pf = { precision = "float" }
+Pl = { lattice = L, sha256 = "ignore" }
+seed_A = 367458
+seed_B = 587642
 
+do
+   local x = L:Int(seed_B)
+   local i
+   lint = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+      lint = lint * 100 + L:pcoord(i)
+   end
+   S = L:RandomState(seed_A, x)
+end
+
+function latint_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %5d %5d\n", x, y, z, a[{x,y,z}], b[{x,y,z}])
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = (d*d):sum()/(a*a):sum()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
 
 function str_cmp(a,b)
    if a == b then
@@ -153,7 +186,8 @@ dtab = {
    { "/serial/rmat-D",     mfill(matrix.real{3,4}, 1, 2, 3),          Pd,    rmat_cmp},
    { "/serial/rmat-F",     mfill(matrix.real{5,2}, 1.5, 2.25, 3.25),  Pf,    rmat_cmp},
    { "/serial/cmat-D",     mfill(matrix.complex{3,4}, c1, c2, c3),    Pd,    cmat_cmp},
-   { "/serial/cmat-F",     mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp}
+   { "/serial/cmat-F",     mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp},
+   { "/lattice/int",       lint,                                      Pl,    latint_cmp}
 }
 
 os.remove(fname)
@@ -170,7 +204,7 @@ printf("Reading from %s:\n", fname)
 x = qcd.hdf5.Reader(fname)
 for i = 1, #dtab do
    local el = dtab[i]
-   local a, st = x:read(el[1], {sha256 = "ignore"} )
+   local a, st = x:read(el[1], el[3])
    local f = el[4](a, el[2])
    printf(" %-30s %10s %s\n", el[1], st, f)
 end

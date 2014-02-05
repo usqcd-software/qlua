@@ -1908,6 +1908,47 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_int_type(L, b, 0);
 }
 
+static int
+r_latint(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  if (!check_int_type(L, path, tobj))
+    return 0;
+  hid_t memtype = get_int_type(L, b, 0);
+  int volume = laddr->volume;
+  int rank = ropts->S->rank;
+  int *ptr = qlua_malloc(L, volume * sizeof (int));
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, ptr);
+  CHECK_H5(L, H5Tclose(memtype), "Tclose() memory type");
+  if (status < 0) {
+    qlua_free(L, ptr);
+    return 0;
+  }
+  mLatInt *m = qlua_newLatInt(L, ropts->Sidx);
+  QLA_Int *locked = QDP_expose_I(m->ptr);
+  SHA256_Context *ctx = sha256_create(L);
+  int *local_x = qlua_malloc(L, ropts->S->rank * sizeof (int));
+  int i;
+  for (i = 0; i < volume; i++) {
+    qdp2hdf5_addr(local_x, i, laddr);
+    QLUA_ASSERT(QDP_node_number_L(ropts->S->lat, local_x) == QDP_this_node);
+    QLA_elem_I(locked[QDP_index_L(ropts->S->lat, local_x)]) = ptr[i];
+    sha256_reset(ctx);
+    sha256_sum_add_ints(ctx, &rank, 1);
+    sha256_sum_add_ints(ctx, local_x, rank);
+    sha256_sum_add_ints(ctx, &ptr[i], 1);
+    SHA256_Sum l_sum;
+    sha256_sum(&l_sum, ctx);
+    local_combine_checksums(sum, &l_sum);
+  }
+  QDP_reset_I(m->ptr);
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  qlua_free(L, ptr);
+  return 1;
+}
+
 static void
 w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
          struct wopts_s *opts, struct laddr_s *laddr,
@@ -2072,6 +2113,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   void *data;
   SHA256_Sum sum;
   const char *kind;
+  memset(&sum, 0, sizeof (SHA256_Sum));
   (*repack)(L, b, S, &wopts, &laddr, &sum, &data, &filetype, &memtype, &kind);
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
@@ -2256,17 +2298,17 @@ static struct {
   { kVectorComplex,           0,  r_veccomplex    },
   { kMatrixReal,              0,  r_matreal       },
   { kMatrixComplex,           0,  r_matcomplex    },
-#if 0 /* XXX */
-  { kColorVector,             0,  r_colvec        },
-  { kColorMatrix,             0,  r_colmat        },
-  { kDiracFermion,            0,  r_dirferm       },
-  { kDiracPropagator,         0,  r_dirprop       },
   { kLatticeInt,              1,  r_latint        },
+#if 0 /* XXX */
   { kLatticeReal,             1,  r_latreal       },
   { kLatticeComplex,          1,  r_latcomplex    },
+  { kColorVector,             0,  r_colvec        },
   { kLatticeColorVector,      1,  r_latcolvec     },
+  { kColorMatrix,             0,  r_colmat        },
   { kLatticeColorMatrix,      1,  r_latcolmat     },
+  { kDiracFermion,            0,  r_dirferm       },
   { kLatticeDiracFermion,     1,  r_latdirferm    },
+  { kDiracPropagator,         0,  r_dirprop       },
   { kLatticeDiracPropagator,  1,  r_latdirprop    },
 #endif /* XXX */
   { kNoKind,                  0,  NULL            }
