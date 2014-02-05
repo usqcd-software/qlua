@@ -28,35 +28,6 @@ check_sha256_type(lua_State *L, const char *path, hid_t tobj)
 }
 
 static int
-check_complex_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize)
-{
-  if ((H5Tget_class(tobj) != H5T_COMPOUND) || (H5Tget_nmembers(tobj) != 2))
-    return 0;
-  WriteSize s[2];
-  int has_r = 0;
-  int has_i = 0;
-  int i;
-  for (i = 0; i < 2; i++) {
-    char *name = H5Tget_member_name(tobj, i);
-    if (strcmp(name, "r") == 0)
-      has_r = 1;
-    if (strcmp(name, "i") == 0)
-      has_i = 1;
-    free(name);
-    hid_t et = H5T_get_member_type(tobj, i);
-    CHECK_H5p(L, et, "Tget_member_type() failed in read(\"%s\")", path);
-    int status = check_real_type(L, et, &s[i]);
-    CHECK_H5p(L, H5Tclose(et), "Tclose() failed in read(\"%s\")", path);
-    if (status == 0)
-      return 0;
-  }
-  if ((has_r == 0) || (has_i == 0) || (s[0] != s[1]))
-    return 0;
-  *wsize = s[0];
-  return 1;
-}
-
-static int
 check_vecint_type(lua_State *L, const char *path, hid_t tobj, int *len)
 {
   if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))

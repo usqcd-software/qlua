@@ -450,6 +450,35 @@ get_complex_type(lua_State *L, mHdf5File *hf, WriteSize wsize, int ftype_p)
   return v;
 }
 
+static int
+check_complex_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_COMPOUND) || (H5Tget_nmembers(tobj) != 2))
+    return 0;
+  WriteSize s[2];
+  int has_r = 0;
+  int has_i = 0;
+  int i;
+  for (i = 0; i < 2; i++) {
+    char *name = H5Tget_member_name(tobj, i);
+    if (strcmp(name, "r") == 0)
+      has_r = 1;
+    if (strcmp(name, "i") == 0)
+      has_i = 1;
+    free(name);
+    hid_t et = H5Tget_member_type(tobj, i);
+    CHECK_H5p(L, et, "Tget_member_type() failed in read(\"%s\")", path);
+    int status = check_real_type(L, path, et, &s[i]);
+    CHECK_H5p(L, H5Tclose(et), "Tclose() failed in read(\"%s\")", path);
+    if (status == 0)
+      return 0;
+  }
+  if ((has_r == 0) || (has_i == 0) || (s[0] != s[1]))
+    return 0;
+  *wsize = s[0];
+  return 1;
+}
+
 static hid_t
 get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
 {
@@ -1235,7 +1264,6 @@ r_real(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
     return 0;
   hid_t memtype = get_real_type(L, b, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
-
   double val;
   int status;
   switch (wsize) {
@@ -1297,6 +1325,47 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
   *kind = knComplex;
   *filetype = get_complex_type(L, b, opts->wsize, 1);
   *memtype  = get_complex_type(L, b, opts->wsize, 0);
+}
+
+static int
+r_complex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  WriteSize wsize;
+  if (!check_complex_type(L, path, tobj, &wsize))
+    return 0;
+  hid_t memtype = get_complex_type(L, b, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  QLA_D_Complex val;
+  int status;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double v;
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    sha256_sum_add_doubles(ctx, (double *)&v, 2);
+    QLA_real(val) = v.re;
+    QLA_imag(val) = v.im;
+    break;
+  }
+  case WS_Float: {
+    machine_complex_float v;
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    sha256_sum_add_floats(ctx, (float *)&v, 2);
+    QLA_real(val) = v.re;
+    QLA_imag(val) = v.im;
+    break;
+  }
+  default:
+    QLUA_ABORT("Unknown precision in r_real()");
+  }
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose failed in read(\"%s\")", path);
+  if (status < 0)
+    return 0;
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  QLA_D_Complex *ptr = qlua_newComplex(L);
+  *ptr = val;
+  return 1;
 }
 
 static void
@@ -1866,8 +1935,8 @@ static struct {
 } qortable[] = {
   { kString,                  0,  r_string        },
   { kReal,                    0,  r_real          },
-#if 0 /* XXX */
   { kComplex,                 0,  r_complex       },
+#if 0 /* XXX */
   { kMatrixReal,              0,  r_matreal       },
   { kMatrixComplex,           0,  r_matcomplex    },
   { kVectorInt,               0,  r_vecint        },
