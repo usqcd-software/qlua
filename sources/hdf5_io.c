@@ -166,6 +166,7 @@ struct wopts_s {
 struct ropts_s {
   KindOfH kind;
   mLattice *S;
+  int Sidx;
   int forced_p;
   int check_p;
 };
@@ -175,8 +176,9 @@ typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
-typedef int (*InUnpacker_H5)(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-                             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum);
+typedef int (*InUnpacker_H5)(lua_State *L, mHdf5File *b, const char *path,
+                             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+                             struct laddr_s *laddr);
 
 /* common helpers */
 static const char *
@@ -1288,8 +1290,9 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_string(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_string(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+         struct laddr_s *laddr)
 {
   int len;
   if (!check_string_type(L, path, tobj, &len))
@@ -1339,8 +1342,9 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_real(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-       struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_real(lua_State *L, mHdf5File *b, const char *path,
+       struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+       struct laddr_s *laddr)
 {
   WriteSize wsize;
   if (!check_real_type(L, path, tobj, &wsize))
@@ -1411,8 +1415,9 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_complex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_complex(lua_State *L, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+          struct laddr_s *laddr)
 {
   WriteSize wsize;
   if (!check_complex_type(L, path, tobj, &wsize))
@@ -1474,8 +1479,9 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_vecint(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_vecint(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+         struct laddr_s *laddr)
 {
   int len;
   if (!check_vecint_type(L, path, tobj, &len))
@@ -1534,8 +1540,9 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_vecreal(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_vecreal(lua_State *L, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+          struct laddr_s *laddr)
 {
   int len;
   WriteSize wsize;
@@ -1616,8 +1623,9 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_veccomplex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+             struct laddr_s *laddr)
 {
   int len;
   WriteSize wsize;
@@ -1706,8 +1714,9 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_matreal(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_matreal(lua_State *L, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+          struct laddr_s *laddr)
 {
   int llen, rlen;
   WriteSize wsize;
@@ -1804,8 +1813,9 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static int
-r_matcomplex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
+             struct laddr_s *laddr)
 {
   int llen, rlen;
   WriteSize wsize;
@@ -2283,7 +2293,7 @@ process_ropts(lua_State *L)
     }
     if (qlua_tabpushopt_key(L, 3, "lattice")) {
       ropts.S = qlua_checkLattice(L, -1);
-      lua_pop(L, 1);
+      ropts.Sidx = lua_gettop(L);
     }
   }
   return ropts;
@@ -2300,7 +2310,7 @@ read_seq(lua_State *L, mHdf5File *b, const char *path,
 {
   if (!H5Sis_simple(dspace) || (H5Sget_simple_extent_ndims(dspace) != 0))
     return 0;
-  return (*unpacker)(L, NULL, b, path, ropts, obj, dtype, sum);
+  return (*unpacker)(L, b, path, ropts, obj, dtype, sum, NULL);
 }
 
 static int
@@ -2323,8 +2333,22 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
     }
   }
   qlua_free(L, dims);
-  int status = (*unpacker)(L, ropts->S, b, path, ropts, obj, dtype, sum);
+  struct laddr_s laddr;
+  laddr.rank = ropts->S->rank;
+  laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
+  laddr.high = qlua_malloc(L, laddr.rank * sizeof (int));
+  qlua_sublattice(laddr.low, laddr.high, QDP_this_node, ropts->S);
+  int volume, j;
+  for (volume = 1, j = 0; j < laddr.rank; j++) {
+    int extend_j = laddr.high[j] - laddr.low[j];
+    volume *= extend_j;
+  }
+  laddr.volume = volume;
+  memset(sum, 0, sizeof (SHA256_Sum));
+  int status = (*unpacker)(L, b, path, ropts, obj, dtype, sum, &laddr);
   combine_checksums(sum, 1);
+  qlua_free(L, laddr.low);
+  qlua_free(L, laddr.high);
   return status;
 }
 
