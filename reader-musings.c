@@ -112,14 +112,14 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-         int volume, struct laddr_s *laddr)
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
 {
   if (!check_int_type(L, path, tobj))
     return 0;
   int *ptr = qlua_malloc(L, volume * sizeof (int));
-  // XXX this is rong: only local hyperslab should be read
-  if (H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, ptr) < 0) {
+  // XXX may be wrong: what steps are needed for independent read?
+  if (H5Dread(obj, memtype, H5S_ALL, dspace, H5P_DEFAULT, ptr) < 0) {
     qlua_free(L, ptr);
     return 0;
   mLatInt *m = qlua_newLatInt(L, ropts->Sidx);
@@ -127,7 +127,7 @@ r_latint(lua_State *L, mHdf5File *b, const char *path,
   SHA256_Context *ctx = sha256_create(L);
   int *local_x = qlua_malloc(L, ropts->rank * sizeof (int));
   int i;
-  for (i = 0; i < volume; i++) {
+  for (i = 0; i < laddr->volume; i++) {
     qdp2hdf5_addr(local_x, i, laddr);
     QLUA_ASSERT(QDP_node_number_L(S->lat, local_x) == QDP_this_node);
     QLA_elem_I(locked[QDP_index_L(S->lat, local_x)]) = ptr[i];

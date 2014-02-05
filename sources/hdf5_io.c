@@ -177,8 +177,8 @@ typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
                              const char **kind);
 
 typedef int (*InUnpacker_H5)(lua_State *L, mHdf5File *b, const char *path,
-                             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-                             struct laddr_s *laddr);
+                             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+                             SHA256_Sum *sum, struct laddr_s *laddr);
 
 /* common helpers */
 static const char *
@@ -1291,15 +1291,15 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_string(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-         struct laddr_s *laddr)
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
   if (!check_string_type(L, path, tobj, &len))
     return 0;
   hid_t memtype = get_string_type(L, b, len, 0);
   char *buffer = qlua_malloc(L, len + 1);
-  herr_t status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, buffer);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, buffer);
   CHECK_H5p(L, H5Tclose(memtype), "Tclose() failed in read(\"%s\")", path);
   if (status < 0) {
     qlua_free(L, buffer);
@@ -1343,8 +1343,8 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_real(lua_State *L, mHdf5File *b, const char *path,
-       struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-       struct laddr_s *laddr)
+       struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+       SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
   if (!check_real_type(L, path, tobj, &wsize))
@@ -1356,14 +1356,14 @@ r_real(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     double v;
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, &v);
     sha256_sum_add_doubles(ctx, &v, 1);
     val = v;
     break;
   }
   case WS_Float: {
     float v;
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, &v);
     sha256_sum_add_floats(ctx, &v, 1);
     val = v;
     break;
@@ -1416,8 +1416,8 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_complex(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-          struct laddr_s *laddr)
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
   if (!check_complex_type(L, path, tobj, &wsize))
@@ -1429,7 +1429,7 @@ r_complex(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     machine_complex_double v;
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, &v);
     sha256_sum_add_doubles(ctx, (double *)&v, 2);
     QLA_real(val) = v.re;
     QLA_imag(val) = v.im;
@@ -1437,7 +1437,7 @@ r_complex(lua_State *L, mHdf5File *b, const char *path,
   }
   case WS_Float: {
     machine_complex_float v;
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, &v);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, &v);
     sha256_sum_add_floats(ctx, (float *)&v, 2);
     QLA_real(val) = v.re;
     QLA_imag(val) = v.im;
@@ -1480,8 +1480,8 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-         struct laddr_s *laddr)
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
   if (!check_vecint_type(L, path, tobj, &len))
@@ -1489,7 +1489,7 @@ r_vecint(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_vecint_type(L, b, len, 0);
   SHA256_Context *ctx = sha256_create(L);
   int *data = qlua_malloc(L, len * sizeof (int));
-  if (H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data) < 0) {
+  if (H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data) < 0) {
     qlua_free(L, data);
     return 0;
   }
@@ -1541,8 +1541,8 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-          struct laddr_s *laddr)
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
   WriteSize wsize;
@@ -1555,7 +1555,7 @@ r_vecreal(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     double *data = qlua_malloc(L, len * sizeof (double));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i;
     for (i = 0; i < len; i++)
       v->val[i] = data[i];
@@ -1564,7 +1564,7 @@ r_vecreal(lua_State *L, mHdf5File *b, const char *path,
   } break;
   case WS_Float: {
     float *data = qlua_malloc(L, len * sizeof (float));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i;
     for (i = 0; i < len; i++)
       v->val[i] = data[i];
@@ -1624,8 +1624,8 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-             struct laddr_s *laddr)
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
   WriteSize wsize;
@@ -1638,7 +1638,7 @@ r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     machine_complex_double *data = qlua_malloc(L, len * sizeof (machine_complex_double));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i;
     for (i = 0; i < len; i++) {
       QLA_real(v->val[i]) = data[i].re;
@@ -1649,7 +1649,7 @@ r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
   } break;
   case WS_Float: {
     machine_complex_float *data = qlua_malloc(L, len * sizeof (machine_complex_float));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i;
     for (i = 0; i < len; i++) {
       QLA_real(v->val[i]) = data[i].re;
@@ -1715,8 +1715,8 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-          struct laddr_s *laddr)
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
   WriteSize wsize;
@@ -1729,7 +1729,7 @@ r_matreal(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     double *data = qlua_malloc(L, llen * rlen * sizeof (double));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i, j;
     double *ptr;
     for (ptr = data, i = 0; i < llen; i++) {
@@ -1742,7 +1742,7 @@ r_matreal(lua_State *L, mHdf5File *b, const char *path,
   } break;
   case WS_Float: {
     float *data = qlua_malloc(L, llen * rlen * sizeof (float));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i, j;
     float *ptr;
     for (ptr = data, i = 0; i < llen; i++) {
@@ -1814,8 +1814,8 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum,
-             struct laddr_s *laddr)
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
   WriteSize wsize;
@@ -1828,7 +1828,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
   switch (wsize) {
   case WS_Double: {
     machine_complex_double *data = qlua_malloc(L, llen * rlen * sizeof (machine_complex_double));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i, j;
     machine_complex_double *ptr;
     for (ptr = data, i = 0; i < llen; i++) {
@@ -1844,7 +1844,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
   } break;
   case WS_Float: {
     machine_complex_float *data = qlua_malloc(L, llen * rlen * sizeof (machine_complex_float));
-    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
     int i, j;
     machine_complex_float *ptr;
     for (ptr = data, i = 0; i < llen; i++) {
@@ -2310,21 +2310,21 @@ read_seq(lua_State *L, mHdf5File *b, const char *path,
 {
   if (!H5Sis_simple(dspace) || (H5Sget_simple_extent_ndims(dspace) != 0))
     return 0;
-  return (*unpacker)(L, b, path, ropts, obj, dtype, sum, NULL);
+  return (*unpacker)(L, b, path, ropts, obj, dtype, H5S_ALL, H5S_ALL, sum, NULL);
 }
 
 static int
 read_lat(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t filespace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
-  if (!H5Sis_simple(dspace) || (ropts->S == NULL))
+  if (!H5Sis_simple(filespace) || (ropts->S == NULL))
     return 0;
-  int rank = H5Sget_simple_extent_ndims(dspace);
+  int rank = H5Sget_simple_extent_ndims(filespace);
   if (rank != ropts->S->rank)
     return 0;
   hsize_t *dims = qlua_malloc(L, rank * sizeof (hsize_t));
-  H5Sget_simple_extent_dims(dspace, NULL, dims);
+  H5Sget_simple_extent_dims(filespace, NULL, dims);
   int i;
   for (i = 0; i < rank; i++) {
     if (dims[i] != ropts->S->dim[i]) {
@@ -2337,15 +2337,31 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
   laddr.rank = ropts->S->rank;
   laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
   laddr.high = qlua_malloc(L, laddr.rank * sizeof (int));
+  hsize_t *offset = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *stride = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *count = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
+  hsize_t *block = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
   qlua_sublattice(laddr.low, laddr.high, QDP_this_node, ropts->S);
   int volume, j;
   for (volume = 1, j = 0; j < laddr.rank; j++) {
     int extend_j = laddr.high[j] - laddr.low[j];
+    offset[j] = laddr.low[j];
+    stride[j] = 1;
+    count[j] = 1;
+    block[j] = extend_j;
     volume *= extend_j;
   }
   laddr.volume = volume;
+  hid_t memspace = H5Screate_simple(laddr.rank, block, NULL);
+  CHECK_H5(L, memspace, "Screate_simple() mem space");
+  CHECK_H5(L, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block), "Sselect_hyperslab()");
+  qlua_free(L, block);
+  qlua_free(L, offset);
+  qlua_free(L, stride);
+  qlua_free(L, count);
   memset(sum, 0, sizeof (SHA256_Sum));
-  int status = (*unpacker)(L, b, path, ropts, obj, dtype, sum, &laddr);
+  int status = (*unpacker)(L, b, path, ropts, obj, dtype, memspace, filespace, sum, &laddr);
+  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
   combine_checksums(sum, 1);
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
