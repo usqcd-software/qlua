@@ -6,12 +6,6 @@ check_time_type(lua_State *L, const char *path, hid_t tobj)
 }
 
 static int
-check_int_type(lua_State *L, const char *path, hid_t tobj)
-{
-  return ((H5Tget_class(tobj) == H5T_INTEGER) && (H5Tget_size(tobj) == 4));
-}
-
-static int
 check_sha256_type(lua_State *L, const char *path, hid_t tobj)
 {
   if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
@@ -24,83 +18,6 @@ check_sha256_type(lua_State *L, const char *path, hid_t tobj)
   CHECK_H5p(L, base, "Tget_super() failed in read(\"%s\")", path);
   int status = (H5Tget_class(base) == H5T_INTEGER);
   CHECK_H5p(L, H5Tclose(base), "Tclose(base) failed in read(\"%s\")", path);
-  return status;
-}
-
-static int
-check_vecint_type(lua_State *L, const char *path, hid_t tobj, int *len)
-{
-  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
-    return 0;
-  hsize_t dim;
-  H5Tget_array_dim2(tobj, &dim);
-  *len = dim;
-  hid_t te = H5Tget_super(tobj);
-  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
-  int status = check_int_type(L, path, te);
-  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
-  return status;
-}
-
-static int
-check_vecreal_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize, int *len)
-{
-  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
-    return 0;
-  hsize_t dim;
-  H5Tget_array_dim2(tobj, &dim);
-  *len = dim;
-  hid_t te = H5Tget_super(tobj);
-  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
-  int status = check_real_type(L, path, te, wsize);
-  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
-  return status;
-}
-
-static int
-check_veccomplex_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize, int *len)
-{
-  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
-    return 0;
-  hsize_t dim;
-  H5Tget_array_dim2(tobj, &dim);
-  *len = dim;
-  hid_t te = H5Tget_super(tobj);
-  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
-  int status = check_complex_type(L, path, te, wsize);
-  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
-  return status;
-}
-
-static int
-check_matreal_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize, int *l_len, int *r_len)
-{
-  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 2))
-    return 0;
-  hsize_t dims[2];
-  H5Tget_array_dim2(tobj, dims);
-  *l_len = dim[0];
-  *r_len = dim[1];
-  hid_t te = H5Tget_super(tobj);
-  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
-  int status = check_real_type(L, path, te, wsize);
-  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
-  return status;
-}
-
-static int
-check_matcomplex_type(lua_State *L, const char *path, hid_t tobj, WriteSize *wsize, int *l_len, int *r_len)
-{
-  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 2))
-    return 0;
-  hsize_t dims[2];
-  H5Tget_array_dim2(tobj, dims);
-  *l_len = dim[0];
-  *r_len = dim[1];
-  hid_t te = H5Tget_super(tobj);
-  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
-  int status = check_complex_type(L, path, te, wsize);
-  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
   return status;
 }
 

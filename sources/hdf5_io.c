@@ -289,6 +289,12 @@ get_time_type(lua_State *L, mHdf5File *b, int ftype_p)
   return v;
 }
 
+static int
+check_int_type(lua_State *L, const char *path, hid_t tobj)
+{
+  return ((H5Tget_class(tobj) == H5T_INTEGER) && (H5Tget_size(tobj) == 4));
+}
+
 static hid_t
 get_sha256_type(lua_State *L, mHdf5File *b, int ftype_p)
 {
@@ -496,6 +502,21 @@ get_vecint_type(lua_State *L, mHdf5File *hf, int n, int ftype_p)
   return v;
 }
 
+static int
+check_vecint_type(lua_State *L, const char *path, hid_t tobj, int *len)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
+    return 0;
+  hsize_t dim;
+  H5Tget_array_dims2(tobj, &dim);
+  *len = dim;
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_int_type(L, path, te);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
+}
+
 static hid_t
 get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
@@ -511,6 +532,21 @@ get_vecreal_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_
     v = write_htype(L, hf, tname, ftype_p, v);
   }
   return v;
+}
+
+static int
+check_vecreal_type(lua_State *L, const char *path, hid_t tobj, int *len, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
+    return 0;
+  hsize_t dim;
+  H5Tget_array_dims2(tobj, &dim);
+  *len = dim;
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_real_type(L, path, te, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
 }
 
 static hid_t
@@ -531,6 +567,22 @@ get_matreal_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, int
   return v;
 }
 
+static int
+check_matreal_type(lua_State *L, const char *path, hid_t tobj, int *l_len, int *r_len, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 2))
+    return 0;
+  hsize_t dims[2];
+  H5Tget_array_dims2(tobj, dims);
+  *l_len = dims[0];
+  *r_len = dims[1];
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_real_type(L, path, te, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
+}
+
 static hid_t
 get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int ftype_p)
 {
@@ -546,6 +598,21 @@ get_veccomplex_type(lua_State *L, mHdf5File *hf, int n, WriteSize wsize, int fty
     v = write_htype(L, hf, tname, ftype_p, v);
   }
   return v;
+}
+
+static int
+check_veccomplex_type(lua_State *L, const char *path, hid_t tobj, int *len, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
+    return 0;
+  hsize_t dim;
+  H5Tget_array_dims2(tobj, &dim);
+  *len = dim;
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_complex_type(L, path, te, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
 }
 
 static hid_t
@@ -564,6 +631,22 @@ get_matcomplex_type(lua_State *L, mHdf5File *hf, int n, int m, WriteSize wsize, 
     v = write_htype(L, hf, tname, ftype_p, v);
   }
   return v;
+}
+
+static int
+check_matcomplex_type(lua_State *L, const char *path, hid_t tobj, int *l_len, int *r_len, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 2))
+    return 0;
+  hsize_t dims[2];
+  H5Tget_array_dims2(tobj, dims);
+  *l_len = dims[0];
+  *r_len = dims[1];
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_complex_type(L, path, te, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
 }
 
 static hid_t
@@ -1390,6 +1473,31 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
   *kind = knVectorInt;
 }
 
+static int
+r_vecint(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int len;
+  if (!check_vecint_type(L, path, tobj, &len))
+    return 0;
+  hid_t memtype = get_vecint_type(L, b, len, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  int *data = qlua_malloc(L, len * sizeof (int));
+  if (H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data) < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  sha256_sum_add_ints(ctx, data, len);
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  mVecInt *v = qlua_newVecInt(L, len);
+  int i;
+  for (i = 0; i < len; i++)
+    v->val[i] = data[i];
+  qlua_free(L, data);
+  return 1;
+}
+
 static void
 w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
           struct wopts_s *opts, struct laddr_s *laddr,
@@ -1423,6 +1531,49 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
   *filetype = get_vecreal_type(L, b, v->size, opts->wsize, 1);
   *memtype  = get_vecreal_type(L, b, v->size, opts->wsize, 0);
   *kind = knVectorReal;
+}
+
+static int
+r_vecreal(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int len;
+  WriteSize wsize;
+  if (!check_vecreal_type(L, path, tobj, &len, &wsize))
+    return 0;
+  hid_t memtype = get_vecreal_type(L, b, len, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  mVecReal *v = qlua_newVecReal(L, len);
+  herr_t status;
+  switch (wsize) {
+  case WS_Double: {
+    double *data = qlua_malloc(L, len * sizeof (double));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i;
+    for (i = 0; i < len; i++)
+      v->val[i] = data[i];
+    sha256_sum_add_doubles(ctx, data, len);
+    qlua_free(L, data);
+  } break;
+  case WS_Float: {
+    float *data = qlua_malloc(L, len * sizeof (float));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i;
+    for (i = 0; i < len; i++)
+      v->val[i] = data[i];
+    sha256_sum_add_floats(ctx, data, len);
+    qlua_free(L, data);
+  } break;
+  default:
+    QLUA_ABORT("Unknown precision in r_vecreal()");
+  }
+  if (status < 0) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  return 1;
 }
 
 static void
@@ -1461,7 +1612,54 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
   sha256_destroy(ctx);
   *filetype = get_veccomplex_type(L, b, v->size, opts->wsize, 1);
   *memtype  = get_veccomplex_type(L, b, v->size, opts->wsize, 0);
-  *kind = knVectorReal;
+  *kind = knVectorComplex;
+}
+
+static int
+r_veccomplex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int len;
+  WriteSize wsize;
+  if (!check_veccomplex_type(L, path, tobj, &len, &wsize))
+    return 0;
+  hid_t memtype = get_veccomplex_type(L, b, len, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  mVecComplex *v = qlua_newVecComplex(L, len);
+  herr_t status;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *data = qlua_malloc(L, len * sizeof (machine_complex_double));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i;
+    for (i = 0; i < len; i++) {
+      QLA_real(v->val[i]) = data[i].re;
+      QLA_imag(v->val[i]) = data[i].im;
+    }
+    sha256_sum_add_doubles(ctx, (double *)data, 2 * len);
+    qlua_free(L, data);
+  } break;
+  case WS_Float: {
+    machine_complex_float *data = qlua_malloc(L, len * sizeof (machine_complex_float));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i;
+    for (i = 0; i < len; i++) {
+      QLA_real(v->val[i]) = data[i].re;
+      QLA_imag(v->val[i]) = data[i].im;
+    }
+    sha256_sum_add_floats(ctx, (float *)data, 2 * len);
+    qlua_free(L, data);
+  } break;
+  default:
+    QLUA_ABORT("Unknown precision in r_veccomplex()");
+  }
+  if (status < 0) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  return 1;
 }
 
 static void
@@ -1507,6 +1705,57 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
   *kind = knMatrixReal;
 }
 
+static int
+r_matreal(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int llen, rlen;
+  WriteSize wsize;
+  if (!check_matreal_type(L, path, tobj, &llen, &rlen, &wsize))
+    return 0;
+  hid_t memtype = get_matreal_type(L, b, llen, rlen, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  mMatReal *v = qlua_newMatReal(L, llen, rlen);
+  herr_t status;
+  switch (wsize) {
+  case WS_Double: {
+    double *data = qlua_malloc(L, llen * rlen * sizeof (double));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i, j;
+    double *ptr;
+    for (ptr = data, i = 0; i < llen; i++) {
+      for (j = 0; j < rlen; j++, ptr++) {
+        gsl_matrix_set(v->m, i, j, *ptr);
+      }
+    }
+    sha256_sum_add_doubles(ctx, data, llen * rlen);
+    qlua_free(L, data);
+  } break;
+  case WS_Float: {
+    float *data = qlua_malloc(L, llen * rlen * sizeof (float));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i, j;
+    float *ptr;
+    for (ptr = data, i = 0; i < llen; i++) {
+      for (j = 0; j < rlen; j++, ptr++) {
+        gsl_matrix_set(v->m, i, j, *ptr);
+      }
+    }
+    sha256_sum_add_floats(ctx, data, llen * rlen);
+    qlua_free(L, data);
+  } break;
+  default:
+    QLUA_ABORT("Unknown precision in r_matreal()");
+  }
+  if (status < 0) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  return 1;
+}
+
 static void
 w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
              struct wopts_s *opts, struct laddr_s *laddr,
@@ -1522,11 +1771,10 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
     machine_complex_double *mat = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_double));
     machine_complex_double *ptr;
     for (ptr = mat, i = 0; i < v->l_size; i++) {
-      for (j = 0; j < v->r_size; j++) {
+      for (j = 0; j < v->r_size; j++, ptr++) {
         gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
         ptr->re = GSL_REAL(zz);
         ptr->im = GSL_IMAG(zz);
-        ptr++;
       }
     }
     *data = mat;
@@ -1536,7 +1784,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
     machine_complex_float *mat = qlua_malloc(L, v->l_size * v->r_size * sizeof (machine_complex_float));
     machine_complex_float *ptr;
     for (ptr = mat, i = 0; i < v->l_size; i++) {
-      for (j = 0; j < v->r_size; j++) {
+      for (j = 0; j < v->r_size; j++, ptr++) {
         gsl_complex zz = gsl_matrix_complex_get(v->m, i, j);
         ptr->re = GSL_REAL(zz);
         ptr->im = GSL_IMAG(zz);
@@ -1553,6 +1801,63 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
   *filetype = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 1);
   *memtype  = get_matcomplex_type(L, b, v->l_size, v->r_size, opts->wsize, 0);
   *kind = knMatrixComplex;
+}
+
+static int
+r_matcomplex(lua_State *L, mLattice *S, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, SHA256_Sum *sum)
+{
+  int llen, rlen;
+  WriteSize wsize;
+  if (!check_matcomplex_type(L, path, tobj, &llen, &rlen, &wsize))
+    return 0;
+  hid_t memtype = get_matcomplex_type(L, b, llen, rlen, wsize, 0);
+  SHA256_Context *ctx = sha256_create(L);
+  mMatComplex *v = qlua_newMatComplex(L, llen, rlen);
+  herr_t status;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *data = qlua_malloc(L, llen * rlen * sizeof (machine_complex_double));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i, j;
+    machine_complex_double *ptr;
+    for (ptr = data, i = 0; i < llen; i++) {
+      for (j = 0; j < rlen; j++, ptr++) {
+        gsl_complex zz;
+        GSL_REAL(zz) = ptr->re;
+        GSL_IMAG(zz) = ptr->im;
+        gsl_matrix_complex_set(v->m, i, j, zz);
+      }
+    }
+    sha256_sum_add_doubles(ctx, (double *)data, 2 * llen * rlen);
+    qlua_free(L, data);
+  } break;
+  case WS_Float: {
+    machine_complex_float *data = qlua_malloc(L, llen * rlen * sizeof (machine_complex_float));
+    status = H5Dread(obj, memtype, H5S_ALL, H5S_ALL, H5P_DEFAULT, data);
+    int i, j;
+    machine_complex_float *ptr;
+    for (ptr = data, i = 0; i < llen; i++) {
+      for (j = 0; j < rlen; j++, ptr++) {
+        gsl_complex zz;
+        GSL_REAL(zz) = ptr->re;
+        GSL_IMAG(zz) = ptr->im;
+        gsl_matrix_complex_set(v->m, i, j, zz);
+      }
+    }
+    sha256_sum_add_floats(ctx, (float *)data, 2 * llen * rlen);
+    qlua_free(L, data);
+  } break;
+  default:
+    QLUA_ABORT("Unknown precision in r_matcomplex()");
+  }
+  if (status < 0) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  return 1;
 }
 
 static void
@@ -1936,12 +2241,12 @@ static struct {
   { kString,                  0,  r_string        },
   { kReal,                    0,  r_real          },
   { kComplex,                 0,  r_complex       },
-#if 0 /* XXX */
-  { kMatrixReal,              0,  r_matreal       },
-  { kMatrixComplex,           0,  r_matcomplex    },
   { kVectorInt,               0,  r_vecint        },
   { kVectorReal,              0,  r_vecreal       },
   { kVectorComplex,           0,  r_veccomplex    },
+  { kMatrixReal,              0,  r_matreal       },
+  { kMatrixComplex,           0,  r_matcomplex    },
+#if 0 /* XXX */
   { kColorVector,             0,  r_colvec        },
   { kColorMatrix,             0,  r_colmat        },
   { kDiracFermion,            0,  r_dirferm       },

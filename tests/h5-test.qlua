@@ -1,0 +1,179 @@
+require "stdlib"
+
+L = qcd.lattice{2,3,5}
+fname = "h5-test.h5"
+Pstd = {}
+Pd = { precision = "double" }
+Pf = { precision = "float" }
+
+
+function str_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return "different"
+end
+
+function real_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return string.format("different: %.1e", 2*math.abs(a-b)/(a+b))
+end
+
+function complex_cmp(a,b)
+   local ar = a:real()
+   local ai = a:imag()
+   local br = b:real()
+   local bi = b:imag()
+   if (ar == br) and (ai == bi) then
+      return "eq"
+   end
+   return string.format("different: %.1e", (2*(a-b)/(a+b)):abs())
+end
+
+function vfill(v,a,b)
+   local i
+   for i = 0, #v - 1 do
+      v[i] = a + b*i
+   end
+   return v
+end
+
+function mfill(m,a,b,c)
+   local i, j
+   local ml, mr = m:dims()
+   for i = 0, ml - 1 do
+      for j = 0, mr - 1 do 
+         m[{i,j}] = a + b * i + c * j
+      end
+   end
+   return m
+end
+
+function ivec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %d vs %d", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function rvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %g vs %g", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function cvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not ((a[i]:real() == b[i]:real()) and (a[i]:imag() == b[i]:imag())) then
+         return string.format("differ at %d: diff %.1e", i, 2*((a[i]-b[i])/(a[i]+b[i])):abs())
+      end
+   end
+   return "eq"
+end
+
+function rmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         if not (a[{i,j}] == b[{i,j}]) then
+            return string.format("differ at %d: %g vs %g", i, a[{i,j}], b[{i,j}])
+         end
+      end
+   end
+   return "eq"
+end
+
+function cmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   local ok = true
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         local ax = a[{i,j}]
+         local bx = b[{i,j}]
+         if not ((ax:real() == bx:real()) and (ax:imag() == bx:imag())) then
+            return string.format("differ at %d: diff %.1e (%s vs %s)",
+                                 i, 2*((ax-bx)/(ax+bx)):abs(),
+                                 tostring(ax), tostring(bx))
+         end
+      end
+   end
+   return "eq"
+end
+
+
+
+c1 = complex(2,3)
+c2 = complex(4,5.25)
+c3 = complex(2.25,1.125)
+c4 = c2 + 3 * c3
+
+--------------------------------------------------------
+dtab = {
+   { "/serial/string",     "hello",                                   Pstd,  str_cmp },
+   { "/serial/str2",       "there",                                   Pstd,  str_cmp },
+   { "/serial/real-D",     1.125,                                     Pd,    real_cmp },
+   { "/serial/real-F",     3451.25,                                   Pf,    real_cmp },
+   { "/serial/complex-D",  c1,                                        Pd,    complex_cmp },
+   { "/serial/complex-F",  c2,                                        Pf,    complex_cmp },
+   { "/serial/ivec-1",     vfill(vector.int(7), 543, 61),             Pstd,  ivec_cmp},
+   { "/serial/ivec-2",     vfill(vector.int(12), 3, -6),              Pstd,  ivec_cmp},
+   { "/serial/realvec-D",  vfill(vector.real(12), 3, -6),             Pd,    rvec_cmp},
+   { "/serial/realvec-F",  vfill(vector.real(5), 6.5, -1.25),         Pf,    rvec_cmp},
+   { "/serial/cvec-D",     vfill(vector.complex(12), c3, c4),         Pd,    cvec_cmp},
+   { "/serial/cvec-F",     vfill(vector.complex(7), c4, c2),          Pf,    cvec_cmp},
+   { "/serial/rmat-D",     mfill(matrix.real{3,4}, 1, 2, 3),          Pd,    rmat_cmp},
+   { "/serial/rmat-F",     mfill(matrix.real{5,2}, 1.5, 2.25, 3.25),  Pf,    rmat_cmp},
+   { "/serial/cmat-D",     mfill(matrix.complex{3,4}, c1, c2, c3),    Pd,    cmat_cmp},
+   { "/serial/cmat-F",     mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp}
+}
+
+os.remove(fname)
+printf("Writing to %s:\n", fname)
+x = qcd.hdf5.Writer(fname)
+for i = 1, #dtab do
+   local el = dtab[i]
+   printf("  %s\n", el[1])
+   x:write(el[1], el[2], el[3])
+end
+x:close()
+
+printf("Reading from %s:\n", fname)
+x = qcd.hdf5.Reader(fname)
+for i = 1, #dtab do
+   local el = dtab[i]
+   local a, st = x:read(el[1], {sha256 = "ignore"} )
+   local f = el[4](a, el[2])
+   printf(" %-30s %10s %s\n", el[1], st, f)
+end
+x:close()
+
+printf("DONE\n")
