@@ -81,9 +81,9 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
   int rank = laddr->rank;
   int dsize, i;
 #if QNc == 'N'
-            typedef QLA_DN_ColorVector(nc, Vtype);
+  typedef QLA_DN_ColorVector(nc, Vtype);
 #else
-            typedef Qx(QLA_D,_ColorVector) Vtype;
+  typedef Qx(QLA_D,_ColorVector) Vtype;
 #endif
 
   switch (opts->wsize) {
@@ -208,9 +208,9 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
   int rank = laddr->rank;
   int dsize, i;
 #if QNc == 'N'
-            typedef QLA_DN_ColorMatrix(nc, Vtype);
+  typedef QLA_DN_ColorMatrix(nc, Vtype);
 #else
-            typedef Qx(QLA_D,_ColorMatrix) Vtype;
+  typedef Qx(QLA_D,_ColorMatrix) Vtype;
 #endif
 
   switch (opts->wsize) {
@@ -335,9 +335,9 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   int rank = laddr->rank;
   int dsize, i;
 #if QNc == 'N'
-            typedef QLA_DN_DiracFermion(nc, Vtype);
+  typedef QLA_DN_DiracFermion(nc, Vtype);
 #else
-            typedef Qx(QLA_D,_DiracFermion) Vtype;
+  typedef Qx(QLA_D,_DiracFermion) Vtype;
 #endif
 
   switch (opts->wsize) {
@@ -470,9 +470,9 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   int rank = laddr->rank;
   int dsize, i;
 #if QNc == 'N'
-            typedef QLA_DN_DiracPropagator(nc, Vtype);
+  typedef QLA_DN_DiracPropagator(nc, Vtype);
 #else
-            typedef Qx(QLA_D,_DiracPropagator) Vtype;
+  typedef Qx(QLA_D,_DiracPropagator) Vtype;
 #endif
 
   switch (opts->wsize) {
