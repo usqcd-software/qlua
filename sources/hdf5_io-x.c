@@ -32,8 +32,48 @@ Qs(wpack_colvec)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
     sha256_sum_add_floats(ctx, data, nc * 2);
   } break;
   default:
-    luaL_error(L, "unknown wsize in wpack_colvecN()");
+    luaL_error(L, "unknown wsize in wpack_colvecX()");
     break;
+  }
+}
+
+static void
+Qs(unpack_colvecD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorVector(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorVector) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int c;
+  sha256_sum_add_doubles(ctx, (double *)src, 2 * nc);
+  for (c = 0; c < nc; c++) {
+    QLA_D_Complex zz;
+    QLA_real(zz) = src->re;
+    QLA_imag(zz) = src->im;
+    Qx(QLA_D,_V_eq_elem_C)(QNC(nc) ptr, &zz, c);
+    src++;
+  }
+}
+
+static void
+Qs(unpack_colvecF)(void *dst, int nc, const machine_complex_float *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorVector(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorVector) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int c;
+  sha256_sum_add_floats(ctx, (float *)src, 2 * nc);
+  for (c = 0; c < nc; c++) {
+    QLA_D_Complex zz;
+    QLA_real(zz) = src->re;
+    QLA_imag(zz) = src->im;
+    Qx(QLA_D,_V_eq_elem_C)(QNC(nc) ptr, &zz, c);
+    src++;
   }
 }
 
@@ -68,6 +108,24 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
+Qs(r_colvec)(lua_State *L, struct ropts_s *ropts,
+             SHA256_Context *ctx,
+             int nc, WriteSize wsize, void *data)
+{
+  Qs(mSeqColVec) *m = Qs(qlua_newSeqColVec)(L, nc);
+  switch (wsize) {
+  case WS_Double:
+    Qs(unpack_colvecD)(m->ptr, nc, data, ctx);
+    break;
+  case WS_Float:
+    Qs(unpack_colvecF)(m->ptr, nc, data, ctx);
+    break;
+  default:
+    QLUA_ABORT("unknown precision in r_colvecX()");
+  }
+}    
+
+static void
 Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
              struct wopts_s *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
@@ -94,7 +152,7 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
-    luaL_error(L, "Unknown precision in w_colvec()");
+    luaL_error(L, "Unknown precision in w_latcolvec()");
   }
   *data = qlua_malloc(L, dsize * nc * volume);
   CALL_QDP(L);
@@ -121,6 +179,57 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_colvec_type(L, b, nc, opts->wsize, 0);
 }
 
+static void
+Qs(r_latcolvec)(lua_State *L, struct ropts_s *ropts,
+                struct laddr_s *laddr, int *local_x,
+                SHA256_Context *ctx, SHA256_Sum *sum,
+                int nc, WriteSize wsize, void *data)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorVector(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorVector) Vtype;
+#endif
+  Qs(mLatColVec) *m = Qs(qlua_newLatColVec)(L, ropts->Sidx, nc);
+  Vtype *dst = Qx(QDP_D, _expose_V)(m->ptr);
+  int volume = laddr->volume;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_colvecD)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += nc;
+    }
+  } break;
+  case WS_Float: {
+    machine_complex_float *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_colvecF)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += nc;
+    }
+  } break;
+  default:
+    QLUA_ABORT("unknown precision in r_latcolvecX()");
+  }
+  Qx(QDP_D, _reset_V)(m->ptr);
+}
+
 // Color Matrix
 static void
 Qs(wpack_colmat)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int nc, WriteSize wsize)
@@ -144,7 +253,7 @@ Qs(wpack_colmat)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
         dst->im = QLA_imag(zz);
       }
     }
-    sha256_sum_add_doubles(ctx, data, nc * nc * 2);
+    sha256_sum_add_doubles(ctx, data, 2 * nc * nc);
   } break;
   case WS_Float: {
     machine_complex_float *dst = (machine_complex_float *)data;
@@ -156,11 +265,55 @@ Qs(wpack_colmat)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
         dst->im = QLA_imag(zz);
       }
     }
-    sha256_sum_add_floats(ctx, data, nc * nc * 2);
+    sha256_sum_add_floats(ctx, data, 2 * nc * nc);
   } break;
   default:
-    luaL_error(L, "unknown wsize in wpack_colvecN()");
+    luaL_error(L, "unknown wsize in wpack_colmatX()");
     break;
+  }
+}
+
+static void
+Qs(unpack_colmatD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorMatrix(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorMatrix) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int ci, cj;
+  sha256_sum_add_doubles(ctx, (double *)src, 2 * nc * nc);
+  for (ci = 0; ci < nc; ci++) {
+    for (cj = 0; cj < nc; cj++) {
+      QLA_D_Complex zz;
+      QLA_real(zz) = src->re;
+      QLA_imag(zz) = src->im;
+      Qx(QLA_D,_M_eq_elem_C)(QNC(nc) ptr, &zz, ci, cj);
+      src++;
+    }
+  }
+}
+
+static void
+Qs(unpack_colmatF)(void *dst, int nc, const machine_complex_float *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorMatrix(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorMatrix) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int ci, cj;
+  sha256_sum_add_floats(ctx, (float *)src, 2 * nc * nc);
+  for (ci = 0; ci < nc; ci++) {
+    for (cj = 0; cj < nc; cj++) {
+      QLA_D_Complex zz;
+      QLA_real(zz) = src->re;
+      QLA_imag(zz) = src->im;
+      Qx(QLA_D,_M_eq_elem_C)(QNC(nc) ptr, &zz, ci, cj);
+      src++;
+    }
   }
 }
 
@@ -195,6 +348,24 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
+Qs(r_colmat)(lua_State *L, struct ropts_s *ropts,
+             SHA256_Context *ctx,
+             int nc, WriteSize wsize, void *data)
+{
+  Qs(mSeqColMat) *m = Qs(qlua_newSeqColMat)(L, nc);
+  switch (wsize) {
+  case WS_Double:
+    Qs(unpack_colmatD)(m->ptr, nc, data, ctx);
+    break;
+  case WS_Float:
+    Qs(unpack_colmatF)(m->ptr, nc, data, ctx);
+    break;
+  default:
+    QLUA_ABORT("unknown precision in r_colmatX()");
+  }
+}    
+
+static void
 Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
              struct wopts_s *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
@@ -221,7 +392,7 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
-    luaL_error(L, "Unknown precision in w_colmat()");
+    luaL_error(L, "Unknown precision in w_latcolmat()");
   }
   *data = qlua_malloc(L, dsize * nc * nc * volume);
   CALL_QDP(L);
@@ -246,6 +417,57 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
   *kind = knLatticeColorMatrix;
   *filetype = get_colmat_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_colmat_type(L, b, nc, opts->wsize, 0);
+}
+
+static void
+Qs(r_latcolmat)(lua_State *L, struct ropts_s *ropts,
+                struct laddr_s *laddr, int *local_x,
+                SHA256_Context *ctx, SHA256_Sum *sum,
+                int nc, WriteSize wsize, void *data)
+{
+#if QNc == 'N'
+  typedef QLA_DN_ColorMatrix(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_ColorMatrix) Vtype;
+#endif
+  Qs(mLatColMat) *m = Qs(qlua_newLatColMat)(L, ropts->Sidx, nc);
+  Vtype *dst = Qx(QDP_D, _expose_M)(m->ptr);
+  int volume = laddr->volume;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_colmatD)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += nc * nc;
+    }
+  } break;
+  case WS_Float: {
+    machine_complex_float *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_colmatF)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += nc * nc;
+    }
+  } break;
+  default:
+    QLUA_ABORT("unknown precision in r_latcolmatX()");
+  }
+  Qx(QDP_D, _reset_M)(m->ptr);
 }
 
 // Dirac Fermions

@@ -668,6 +668,12 @@ get_colvec_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
   return v;
 }
 
+static int
+check_colvec_type(lua_State *L, const char *path, hid_t tobj, int *Nc, WriteSize *wsize)
+{
+  return check_veccomplex_type(L, path, tobj, Nc, wsize);
+}
+
 static hid_t
 get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
@@ -684,6 +690,18 @@ get_colmat_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_
     v = write_htype(L, hf, tname, ftype_p, v);
   }
   return v;
+}
+
+static int
+check_colmat_type(lua_State *L, const char *path, hid_t tobj, int *Nc, WriteSize *wsize)
+{
+  int la, lb;
+  if (check_matcomplex_type(L, path, tobj, &la, &lb, wsize) == 0)
+    return 0;
+  if (la != lb)
+    return 0;
+  *Nc = la;
+  return 1;
 }
 
 static hid_t
@@ -2222,6 +2240,226 @@ r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
 }
 
 static int
+r_colvec(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int nc;
+  WriteSize wsize;
+  if (!check_colvec_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, nc * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, nc * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_colvec()");
+  }
+  hid_t memtype = get_colvec_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_colvec(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_colvec2(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_colvec3(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_colvecN(L, ropts, ctx, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_colvec()", nc);
+#endif
+    break;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  qlua_free(L, data);
+  return 1;
+}
+
+static int
+r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
+            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int volume = laddr->volume;
+  int nc;
+  WriteSize wsize;
+  if (!check_colvec_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, nc * volume * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, nc * volume * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_latcolvec()");
+  }
+  hid_t memtype = get_colvec_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_latcolvec(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_latcolvec2(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_latcolvec3(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_latcolvecN(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_latcolvec()", nc);
+#endif
+    break;
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  qlua_free(L, data);
+  return 1;
+}
+
+//////////////
+static int
+r_colmat(lua_State *L, mHdf5File *b, const char *path,
+         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int nc;
+  WriteSize wsize;
+  if (!check_colmat_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, nc * nc * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, nc * nc * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_colmat()");
+  }
+  hid_t memtype = get_colmat_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_colmat(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_colmat2(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_colmat3(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_colmatN(L, ropts, ctx, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_colmat()", nc);
+#endif
+    break;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  qlua_free(L, data);
+  return 1;
+}
+
+static int
+r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
+            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int volume = laddr->volume;
+  int nc;
+  WriteSize wsize;
+  if (!check_colmat_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, nc * nc * volume * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, nc * nc * volume * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_latcolmat()");
+  }
+  hid_t memtype = get_colmat_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_latcolmat(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_latcolmat2(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_latcolmat3(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_latcolmatN(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_latcolmat()", nc);
+#endif
+    break;
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  qlua_free(L, data);
+  return 1;
+}
+
+//////////////
+
+/* lattice object writer dispatch */
+static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
   struct wopts_s wopts = process_wopts(L);
@@ -2441,11 +2679,11 @@ static struct {
   { kLatticeInt,              1,  r_latint        },
   { kLatticeReal,             1,  r_latreal       },
   { kLatticeComplex,          1,  r_latcomplex    },
-#if 0 /* XXX */
   { kColorVector,             0,  r_colvec        },
   { kLatticeColorVector,      1,  r_latcolvec     },
   { kColorMatrix,             0,  r_colmat        },
   { kLatticeColorMatrix,      1,  r_latcolmat     },
+#if 0 /* XXX */
   { kDiracFermion,            0,  r_dirferm       },
   { kLatticeDiracFermion,     1,  r_latdirferm    },
   { kDiracPropagator,         0,  r_dirprop       },

@@ -4,8 +4,8 @@ Lgeom = {2,3,5}
 L = qcd.lattice(Lgeom)
 fname = "h5-test.h5"
 Pstd = {}
-Pd = { precision = "double" }
-Pf = { precision = "float" }
+Pd = { precision = "double", sha256 = "ignore"  }
+Pf = { precision = "float", sha256 = "ignore"  }
 Pl = { lattice = L, sha256 = "ignore" }
 Pld = { lattice = L, sha256 = "ignore", precision = "double" }
 Plf = { lattice = L, sha256 = "ignore", precision = "float" }
@@ -23,6 +23,7 @@ do
    end
    S = L:RandomState(seed_A, x)
 end
+s = qcd.RandomState(3456,24513)
 
 function latint_cmp(a, b)
    if false then
@@ -56,6 +57,40 @@ function latx_cmp(a, b)
    end
    local d = a - b
    local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latc_cmp(a, b)
+   if true then
+      local x, y, z, i, j
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               for i = 0, a:colors() - 1 do
+                  for j = 0, a:colors() - 1 do
+                     printf("[%3d %3d %3d] [%d %d] %s %s\n", x, y, z, i, j,
+                            tostring(a[{x,y,z}][{a=i,b=j}]),
+                            tostring(b[{x,y,z}][{a=i,b=j}]))
+                  end
+               end
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function seq_cmp(a,b)
+   local d = a - b
+   local c = qcd.dot(d,d):real()/qcd.dot(a,a):real()
    if c == 0 then
       return "eq"
    end
@@ -214,7 +249,24 @@ dtab = {
    { "/lattice/real-D",    S:gaussian_Real() * 1.2341,                Pld,   latint_cmp},
    { "/lattice/real-F",    S:gaussian_Real() * 0.14561,               Plf,   latint_cmp},
    { "/lattice/complex-D", S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
-   { "/lattice/comlpex-F", S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp}
+   { "/lattice/comlpex-F", S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp},
+   { "/color/seq/vec6-D",  s:gaussian_ColorVectorN(6) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec6-F",  s:gaussian_ColorVectorN(6) * cx,           Pf,    seq_cmp},
+   { "/color/seq/vec2-D",  s:gaussian_ColorVectorN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec2-F",  s:gaussian_ColorVectorN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/vec7-D",  S:gaussian_ColorVectorN(7) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec7-F",  S:gaussian_ColorVectorN(7) * cx,           Plf,   latx_cmp},
+   { "/color/lat/vec2-D",  S:gaussian_ColorVectorN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec2-F",  S:gaussian_ColorVectorN(2) * cx,           Plf,   latx_cmp},
+   { "/color/seq/mat4-D",  s:gaussian_ColorMatrixN(4) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat4-F",  s:gaussian_ColorMatrixN(4) * cx,           Pf,    seq_cmp},
+   { "/color/seq/mat2-D",  s:gaussian_ColorMatrixN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat2-F",  s:gaussian_ColorMatrixN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/mat5-D",  S:gaussian_ColorMatrixN(5) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat5-F",  S:gaussian_ColorMatrixN(5) * cx,           Plf,   latx_cmp},
+   { "/color/lat/mat2-D",  S:gaussian_ColorMatrixN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat2-F",  S:gaussian_ColorMatrixN(2) * cx,           Plf,   latx_cmp},
+   { "/final",             "DONE",                                    Pstd,  str_cmp}
 }
 
 os.remove(fname)
