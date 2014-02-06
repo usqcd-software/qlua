@@ -7,6 +7,9 @@ Pstd = {}
 Pd = { precision = "double" }
 Pf = { precision = "float" }
 Pl = { lattice = L, sha256 = "ignore" }
+Pld = { lattice = L, sha256 = "ignore", precision = "double" }
+Plf = { lattice = L, sha256 = "ignore", precision = "float" }
+
 seed_A = 367458
 seed_B = 587642
 
@@ -34,6 +37,25 @@ function latint_cmp(a, b)
    end
    local d = a - b
    local c = (d*d):sum()/(a*a):sum()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latx_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %s %s\n", x, y, z, tostring(a[{x,y,z}]), tostring(b[{x,y,z}]))
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
    if c == 0 then
       return "eq"
    end
@@ -168,6 +190,7 @@ c1 = complex(2,3)
 c2 = complex(4,5.25)
 c3 = complex(2.25,1.125)
 c4 = c2 + 3 * c3
+cx = complex(1.1231, -15.12451)
 
 --------------------------------------------------------
 dtab = {
@@ -187,7 +210,11 @@ dtab = {
    { "/serial/rmat-F",     mfill(matrix.real{5,2}, 1.5, 2.25, 3.25),  Pf,    rmat_cmp},
    { "/serial/cmat-D",     mfill(matrix.complex{3,4}, c1, c2, c3),    Pd,    cmat_cmp},
    { "/serial/cmat-F",     mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp},
-   { "/lattice/int",       lint,                                      Pl,    latint_cmp}
+   { "/lattice/int",       lint,                                      Pl,    latint_cmp},
+   { "/lattice/real-D",    S:gaussian_Real() * 1.2341,                Pld,   latint_cmp},
+   { "/lattice/real-F",    S:gaussian_Real() * 0.14561,               Plf,   latint_cmp},
+   { "/lattice/complex-D", S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
+   { "/lattice/comlpex-F", S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp}
 }
 
 os.remove(fname)
