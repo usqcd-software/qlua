@@ -514,6 +514,50 @@ Qs(wpack_dirferm)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
 }
 
 static void
+Qs(unpack_dirfermD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracFermion(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracFermion) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int d, c;
+  sha256_sum_add_doubles(ctx, (double *)src, 2 * QDP_Ns * nc);
+  for (d = 0; d < QDP_Ns; d++) {
+    for (c = 0; c < nc; c++) {
+      QLA_D_Complex zz;
+      QLA_real(zz) = src->re;
+      QLA_imag(zz) = src->im;
+      Qx(QLA_D,_D_eq_elem_C)(QNC(nc) ptr, &zz, c, d);
+      src++;
+    }
+  }
+}
+
+static void
+Qs(unpack_dirfermF)(void *dst, int nc, const machine_complex_float *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracFermion(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracFermion) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int d, c;
+  sha256_sum_add_floats(ctx, (float *)src, 2 * QDP_Ns * nc);
+  for (d = 0; d < QDP_Ns; d++) {
+    for (c = 0; c < nc; c++) {
+      QLA_D_Complex zz;
+      QLA_real(zz) = src->re;
+      QLA_imag(zz) = src->im;
+      Qx(QLA_D,_D_eq_elem_C)(QNC(nc) ptr, &zz, c, d);
+      src++;
+    }
+  }
+}
+
+static void
 Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
              struct wopts_s *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
@@ -533,7 +577,7 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   default:
     luaL_error(L, "Unknown precision in w_dirferm()");
   }
-  *data = qlua_malloc(L, dsize * nc * QDP_Ns);
+  *data = qlua_malloc(L, QDP_Ns * dsize * nc);
   SHA256_Context *ctx = sha256_create(L);
   Qs(wpack_dirferm)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
@@ -542,6 +586,24 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   *filetype = get_dirferm_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirferm_type(L, b, nc, opts->wsize, 0);
 }
+
+static void
+Qs(r_dirferm)(lua_State *L, struct ropts_s *ropts,
+              SHA256_Context *ctx,
+              int nc, WriteSize wsize, void *data)
+{
+  Qs(mSeqDirFerm) *m = Qs(qlua_newSeqDirFerm)(L, nc);
+  switch (wsize) {
+  case WS_Double:
+    Qs(unpack_dirfermD)(m->ptr, nc, data, ctx);
+    break;
+  case WS_Float:
+    Qs(unpack_dirfermF)(m->ptr, nc, data, ctx);
+    break;
+  default:
+    QLUA_ABORT("unknown precision in r_dirfermX()");
+  }
+}    
 
 static void
 Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -572,7 +634,7 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   default:
     luaL_error(L, "Unknown precision in w_dirferm()");
   }
-  *data = qlua_malloc(L, dsize * nc * QDP_Ns * volume);
+  *data = qlua_malloc(L, QDP_Ns * dsize * nc * volume);
   CALL_QDP(L);
   Vtype *locked = Qx(QDP_D,_expose_D)(m->ptr);
   char *out_mem = *data;
@@ -595,6 +657,57 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   *kind = knLatticeDiracFermion;
   *filetype = get_dirferm_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirferm_type(L, b, nc, opts->wsize, 0);
+}
+
+static void
+Qs(r_latdirferm)(lua_State *L, struct ropts_s *ropts,
+                 struct laddr_s *laddr, int *local_x,
+                 SHA256_Context *ctx, SHA256_Sum *sum,
+                 int nc, WriteSize wsize, void *data)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracFermion(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracFermion) Vtype;
+#endif
+  Qs(mLatDirFerm) *m = Qs(qlua_newLatDirFerm)(L, ropts->Sidx, nc);
+  Vtype *dst = Qx(QDP_D, _expose_D)(m->ptr);
+  int volume = laddr->volume;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_dirfermD)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += QDP_Ns * nc;
+    }
+  } break;
+  case WS_Float: {
+    machine_complex_float *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_dirfermF)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += QDP_Ns * nc;
+    }
+  } break;
+  default:
+    QLUA_ABORT("unknown precision in r_latdirfermX()");
+  }
+  Qx(QDP_D, _reset_D)(m->ptr);
 }
 
 // Dirac Propagators
@@ -624,7 +737,7 @@ Qs(wpack_dirprop)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
         }
       }
     }
-    sha256_sum_add_doubles(ctx, data, nc * nc * QDP_Ns * QDP_Ns * 2);
+    sha256_sum_add_doubles(ctx, data, 2 * QDP_Ns * QDP_Ns * nc * nc);
   } break;
   case WS_Float: {
     machine_complex_float *dst = (machine_complex_float *)data;
@@ -640,11 +753,63 @@ Qs(wpack_dirprop)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
         }
       }
     }
-    sha256_sum_add_floats(ctx, data, nc * nc * QDP_Ns * QDP_Ns * 2);
+    sha256_sum_add_floats(ctx, data, 2 * QDP_Ns * QDP_Ns * nc * nc);
   } break;
   default:
     luaL_error(L, "unknown wsize in wpack_dirpropN()");
     break;
+  }
+}
+
+static void
+Qs(unpack_dirpropD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracPropagator(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int di, dj, ci, cj;
+  sha256_sum_add_doubles(ctx, (double *)src, 2 * QDP_Ns * QDP_Ns * nc * nc);
+  for (di = 0; di < QDP_Ns; di++) {
+    for (dj = 0; dj < QDP_Ns; dj++) {
+      for (ci = 0; ci < nc; ci++) {
+        for (cj = 0; cj < nc; cj++) {
+          QLA_D_Complex zz;
+          QLA_real(zz) = src->re;
+          QLA_imag(zz) = src->im;
+          Qx(QLA_D,_P_eq_elem_C)(QNC(nc) ptr, &zz, ci, di, cj, dj);
+          src++;
+        }
+      }
+    }
+  }
+}
+
+static void
+Qs(unpack_dirpropF)(void *dst, int nc, const machine_complex_float *src, SHA256_Context *ctx)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracPropagator(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
+  Vtype *ptr = dst;
+  int di, dj, ci, cj;
+  sha256_sum_add_floats(ctx, (float *)src, 2 * QDP_Ns * QDP_Ns * nc * nc);
+  for (di = 0; di < QDP_Ns; di++) {
+    for (dj = 0; dj < QDP_Ns; dj++) {
+      for (ci = 0; ci < nc; ci++) {
+        for (cj = 0; cj < nc; cj++) {
+          QLA_D_Complex zz;
+          QLA_real(zz) = src->re;
+          QLA_imag(zz) = src->im;
+          Qx(QLA_D,_P_eq_elem_C)(QNC(nc) ptr, &zz, ci, di, cj, dj);
+          src++;
+        }
+      }
+    }
   }
 }
 
@@ -668,7 +833,7 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   default:
     luaL_error(L, "Unknown precision in w_dirprop()");
   }
-  *data = qlua_malloc(L, dsize * nc * nc * QDP_Ns * QDP_Ns);
+  *data = qlua_malloc(L, QDP_Ns * QDP_Ns * dsize * nc * nc);
   SHA256_Context *ctx = sha256_create(L);
   Qs(wpack_dirprop)(L, *data, ctx, m->ptr, nc, opts->wsize);
   sha256_sum(sum, ctx);
@@ -677,6 +842,24 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   *filetype = get_dirprop_type(L, b, nc, opts->wsize, 1);
   *memtype  = get_dirprop_type(L, b, nc, opts->wsize, 0);
 }
+
+static void
+Qs(r_dirprop)(lua_State *L, struct ropts_s *ropts,
+             SHA256_Context *ctx,
+             int nc, WriteSize wsize, void *data)
+{
+  Qs(mSeqDirProp) *m = Qs(qlua_newSeqDirProp)(L, nc);
+  switch (wsize) {
+  case WS_Double:
+    Qs(unpack_dirpropD)(m->ptr, nc, data, ctx);
+    break;
+  case WS_Float:
+    Qs(unpack_dirpropF)(m->ptr, nc, data, ctx);
+    break;
+  default:
+    QLUA_ABORT("unknown precision in r_dirpropX()");
+  }
+}    
 
 static void
 Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -707,7 +890,7 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   default:
     luaL_error(L, "Unknown precision in w_dirprop()");
   }
-  *data = qlua_malloc(L, dsize * nc * nc * QDP_Ns * QDP_Ns * volume);
+  *data = qlua_malloc(L, QDP_Ns * QDP_Ns * dsize * nc * nc * volume);
   CALL_QDP(L);
   Vtype *locked = Qx(QDP_D,_expose_P)(m->ptr);
   char *out_mem = *data;
@@ -732,6 +915,56 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_dirprop_type(L, b, nc, opts->wsize, 0);
 }
 
+static void
+Qs(r_latdirprop)(lua_State *L, struct ropts_s *ropts,
+                struct laddr_s *laddr, int *local_x,
+                SHA256_Context *ctx, SHA256_Sum *sum,
+                int nc, WriteSize wsize, void *data)
+{
+#if QNc == 'N'
+  typedef QLA_DN_DiracPropagator(nc, Vtype);
+#else
+  typedef Qx(QLA_D,_DiracPropagator) Vtype;
+#endif
+  Qs(mLatDirProp) *m = Qs(qlua_newLatDirProp)(L, ropts->Sidx, nc);
+  Vtype *dst = Qx(QDP_D, _expose_P)(m->ptr);
+  int volume = laddr->volume;
+  switch (wsize) {
+  case WS_Double: {
+    machine_complex_double *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_dirpropD)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += QDP_Ns * QDP_Ns * nc * nc;
+    }
+  } break;
+  case WS_Float: {
+    machine_complex_float *src = data;
+    SHA256_Sum l_sum;
+    int i;
+    for (i = 0; i < volume; i++) {
+      qdp2hdf5_addr(local_x, i, laddr);
+      sha256_reset(ctx);
+      sha256_sum_add_ints(ctx, &laddr->rank, 1);
+      sha256_sum_add_ints(ctx, local_x, laddr->rank);
+      Qs(unpack_dirpropF)(&dst[QDP_index_L(ropts->S->lat, local_x)], nc, src, ctx);
+      sha256_sum(&l_sum, ctx);
+      local_combine_checksums(sum, &l_sum);
+      src += QDP_Ns * QDP_Ns * nc * nc;
+    }
+  } break;
+  default:
+    QLUA_ABORT("unknown precision in r_latdirpropX()");
+  }
+  Qx(QDP_D, _reset_P)(m->ptr);
+}
 
 #undef QNc
 #undef Qcolors

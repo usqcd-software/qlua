@@ -721,6 +721,22 @@ get_dirferm_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
   return v;
 }
 
+static int
+check_dirferm_type(lua_State *L, const char *path, hid_t tobj, int *Nc, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 1))
+    return 0;
+  hsize_t dim;
+  H5Tget_array_dims2(tobj, &dim);
+  if (dim != QDP_Ns)
+    return 0;
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_colvec_type(L, path, te, Nc, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
+}
+
 static hid_t
 get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype_p)
 {
@@ -736,6 +752,22 @@ get_dirprop_type(lua_State *L, mHdf5File *hf, int nc, WriteSize wsize, int ftype
     v = write_htype(L, hf, tname, ftype_p, v);
   }
   return v;
+}
+
+static int
+check_dirprop_type(lua_State *L, const char *path, hid_t tobj, int *Nc, WriteSize *wsize)
+{
+  if ((H5Tget_class(tobj) != H5T_ARRAY) || (H5Tget_array_ndims(tobj) != 2))
+    return 0;
+  hsize_t dims[2];
+  H5Tget_array_dims2(tobj, dims);
+  if ((dims[0] != QDP_Ns) || (dims[1] != QDP_Ns))
+    return 0;
+  hid_t te = H5Tget_super(tobj);
+  CHECK_H5p(L, te, "Tget_super() failed in read(\"%s\")", path);
+  int status = check_colmat_type(L, path, te, Nc, wsize);
+  CHECK_H5p(L, H5Tclose(te), "Tclose() failed in read(\"%s\")", path);
+  return status;
 }
 
 /* writer */
@@ -2347,7 +2379,6 @@ r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
   return 1;
 }
 
-//////////////
 static int
 r_colmat(lua_State *L, mHdf5File *b, const char *path,
          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
@@ -2456,7 +2487,221 @@ r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
   return 1;
 }
 
-//////////////
+static int
+r_dirferm(lua_State *L, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int nc;
+  WriteSize wsize;
+  if (!check_dirferm_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, QDP_Ns * nc * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, QDP_Ns * nc * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_dirferm()");
+  }
+  hid_t memtype = get_dirferm_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_dirferm(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_dirferm2(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_dirferm3(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_dirfermN(L, ropts, ctx, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_dirferm()", nc);
+#endif
+    break;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  qlua_free(L, data);
+  return 1;
+}
+
+static int
+r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int volume = laddr->volume;
+  int nc;
+  WriteSize wsize;
+  if (!check_dirferm_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, QDP_Ns * nc * volume * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, QDP_Ns * nc * volume * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_latdirferm()");
+  }
+  hid_t memtype = get_dirferm_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_latdirferm(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_latdirferm2(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_latdirferm3(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_latdirfermN(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_latdirferm()", nc);
+#endif
+    break;
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  qlua_free(L, data);
+  return 1;
+}
+
+static int
+r_dirprop(lua_State *L, mHdf5File *b, const char *path,
+          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int nc;
+  WriteSize wsize;
+  if (!check_dirprop_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_dirprop()");
+  }
+  hid_t memtype = get_dirprop_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_dirprop(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_dirprop2(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_dirprop3(L, ropts, ctx, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_dirpropN(L, ropts, ctx, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_dirprop()", nc);
+#endif
+    break;
+  }
+  sha256_sum(sum, ctx);
+  sha256_destroy(ctx);
+  qlua_free(L, data);
+  return 1;
+}
+
+static int
+r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
+             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             SHA256_Sum *sum, struct laddr_s *laddr)
+{
+  int volume = laddr->volume;
+  int nc;
+  WriteSize wsize;
+  if (!check_dirprop_type(L, path, tobj, &nc, &wsize))
+    return 0;
+  void *data;
+  switch (wsize) {
+  case WS_Double:
+    data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * volume * sizeof (machine_complex_double));
+    break;
+  case WS_Float:
+    data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * volume * sizeof (machine_complex_float));
+    break;
+  default:
+    QLUA_ABORT("Unknown precision in r_latdirprop()");
+  }
+  hid_t memtype = get_dirprop_type(L, b, nc, wsize, 0);
+  herr_t status = H5Dread(obj, memtype, memspace, filespace, H5P_DEFAULT, data);
+  CHECK_H5p(L, H5Tclose(memtype), "Tclose() mem type in r_latdirprop(\"%s\")", path);
+  if (status < 0) {
+    qlua_free(L, data);
+    return 0;
+  }
+  SHA256_Context *ctx = sha256_create(L);
+  int *local_x = qlua_malloc(L, laddr->rank * sizeof (int));
+  switch (nc) {
+#if USE_Nc2
+  case 2:
+    r_latdirprop2(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+#if USE_Nc3
+  case 3:
+    r_latdirprop3(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+    break;
+#endif
+  default:
+#if USE_NcN
+    r_latdirpropN(L, ropts, laddr, local_x, ctx, sum, nc, wsize, data);
+#else
+    luaL_error(L, "Unsupported Nc=%d in r_latdirprop()", nc);
+#endif
+    break;
+  }
+  sha256_destroy(ctx);
+  qlua_free(L, local_x);
+  qlua_free(L, data);
+  return 1;
+}
 
 /* lattice object writer dispatch */
 static int
@@ -2683,12 +2928,10 @@ static struct {
   { kLatticeColorVector,      1,  r_latcolvec     },
   { kColorMatrix,             0,  r_colmat        },
   { kLatticeColorMatrix,      1,  r_latcolmat     },
-#if 0 /* XXX */
   { kDiracFermion,            0,  r_dirferm       },
   { kLatticeDiracFermion,     1,  r_latdirferm    },
   { kDiracPropagator,         0,  r_dirprop       },
   { kLatticeDiracPropagator,  1,  r_latdirprop    },
-#endif /* XXX */
   { kNoKind,                  0,  NULL            }
 };
 
