@@ -268,3 +268,5 @@ function latvec_op_dslash_moebius(d, u, M5, mf, b5, c5)
             c5 * (4 - M5) - 1.,   x5_d,
             -1.,                  xw_bpcx5_d)
 end
+
+require "dwf" -- definitions for DWF

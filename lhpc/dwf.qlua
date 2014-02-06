@@ -1,0 +1,63 @@
+-- definition of dwf and Moebius routines
+--require "latvec"
+
+-- conversion between 4d and 5d sources, compatible with the built-in solvers
+function dwf_src_4to5(src_4d, L5)
+  local src_5d = {}
+  src_5d[1]  = (.5*(1 + gamma{mu=5})) *src_4d
+  for s = 1, L5-2 do
+    src_5d[1+s] = 0.*src_4d
+  end
+  src_5d[L5] = (.5*(1 - gamma{mu=5})) *src_4d
+  return src_5d
+end
+function dwf_sol_5to4(sol_5d, L5)
+  return (.5*(1 - gamma{mu=5})) *sol_5d[1] + (.5*(1 + gamma{mu=5})) *sol_5d[L5]
+end
+
+function latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, x)
+  local xw_x = latvec_op_xwilson(x, gauge_u)
+  return latvec_scalsum_left(
+            mdwf_c5 * (4. - mdwf_M5) - 1.,  x,
+            -mdwf_c5,                       xw_x)
+end
+
+--* compute propagator including Dminus, i.e with action 
+--* S_fermion = \bar q [ Dminus^{-1} DMoebiusSlash ] q
+function calc_mdwf_prop(mdwf_solver, gauge_u, mdwf_L5, mdwf_M5, mdwf_b5, mdwf_c5, src,
+        is_relaxed, is_verbose)
+  printf("%s %s %s %s\n", tostring(mdwf_L5), tostring(mdwf_M5), tostring(mdwf_b5), tostring(mdwf_c5))
+  if type(src) == 'lattice.dirac.propagator' then
+    local sol_4d = (src.lattice):DiracPropagator()
+    for is = 0, 3 do
+      for ic = 0, src:colors()-1 do
+        sol_4d[{d=is,c=ic}] = calc_mdwf_prop(mdwf_solver, gauge_u,
+                                             mdwf_L5, mdwf_M5, mdwf_b5, mdwf_c5,
+                                             src[{d=is, c=ic}],
+                                             is_relaxed, is_verbose)
+      end
+    end
+    return sol_4d
+  elseif type(src) == 'lattice.dirac.fermion' then
+    local src_5d = dwf_src_4to5(src, mdwf_L5)
+    src_5d[1]       = -1. * latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, src_5d[1])
+    src_5d[mdwf_L5] = -1. * latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, src_5d[mdwf_L5])
+    return dwf_sol_5to4(mdwf_solver(src_5d, is_relaxed, is_verbose), mdwf_L5)
+  elseif type(src) == 'table' then --works only for a 5d fermion; FIXME for 5d prop
+    local src_dminus = {}
+    for s = 0, mdwf_L5 - 1 do
+      src_dminus[1+s] = -1. * latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, src[1+s])
+    end
+    return mdwf_solver(src_dminus, is_relaxed, is_verbose)
+  else
+    error(string.format("invalid source type='%s'", type(src)))
+    return nil
+  end
+end
+-- wrapper including Dminus application
+function make_calc_mdwf_prop(mdwf_solver, gauge_u, mdwf_L5, mdwf_M5, mdwf_b5, mdwf_c5)
+  return function(x, is_relaxed, is_verbose)
+    return calc_mdwf_prop(mdwf_solver, gauge_u, mdwf_L5, mdwf_M5, mdwf_b5, mdwf_c5, 
+                          x, is_relaxed, is_verbose)
+  end
+end
