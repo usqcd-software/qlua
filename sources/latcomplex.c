@@ -31,6 +31,7 @@ q_C_gc(lua_State *L)
 
     QDP_destroy_C(b->ptr);
     b->ptr = 0;
+    qlua_qdp_memuse(L, "Complex", -1);
 
     return 0;
 }
@@ -778,7 +779,7 @@ q_C_project(lua_State *L)
         QLA_c_eq_r_plus_ir(r->val[k], rr[2 * k], rr[2 * k + 1]);
     }
 
-	qlua_free(L, rr);
+        qlua_free(L, rr);
     return 1;
 }
 
@@ -1111,6 +1112,7 @@ qlua_newLatComplex(lua_State *L, int Sidx)
     hdr->ptr = v;
     qlua_createLatticeTable(L, Sidx, mtLatComplex, qLatComplex, LatComplexName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "Complex", 1);
 
     return hdr;
 }
@@ -1118,10 +1120,10 @@ qlua_newLatComplex(lua_State *L, int Sidx)
 mLatComplex *
 qlua_newZeroLatComplex(lua_State *L, int Sidx)
 {
-	mLatComplex *v = qlua_newLatComplex(L, Sidx);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	QDP_C_eq_zero(v->ptr, S->all);
-	return v;
+        mLatComplex *v = qlua_newLatComplex(L, Sidx);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        QDP_C_eq_zero(v->ptr, S->all);
+        return v;
 }
 
 mLatComplex *

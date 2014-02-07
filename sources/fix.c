@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <sys/resource.h>
 
 static char self[72];
 
@@ -379,6 +380,110 @@ qlua_random(lua_State *L)
     return 1;
 }
 
+static int
+qlua_limit(lua_State *L)
+{
+  const char *name = luaL_checkstring(L, 1);
+  int resource = 0;
+
+  if (strcmp(name, "as") == 0)
+    resource = RLIMIT_AS;
+  else if (strcmp(name, "data") == 0)
+    resource = RLIMIT_DATA;
+  else if (strcmp(name, "rss") == 0)
+    resource = RLIMIT_RSS;
+  else if (strcmp(name, "stack") == 0)
+    resource  = RLIMIT_STACK;
+  else
+    luaL_error(L, "unknown resource name %s", name);
+  switch (lua_gettop(L)) {
+  case 1: {
+    struct rlimit rl;
+    if (getrlimit(resource, &rl))
+      luaL_error(L, "getrlimit(%s) failed", name);
+    lua_pushnumber(L, rl.rlim_cur / 1024.0);
+    lua_pushnumber(L, rl.rlim_max / 1024.0);
+    return 2;
+  }
+  case 2: {
+    double s = 1024.0 * luaL_checknumber(L, 2);
+    struct rlimit rl;
+    rl.rlim_cur = s;
+    rl.rlim_max = s;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  case 3: {
+    double s0 = 1024.0 * luaL_checknumber(L, 2);
+    double s1 = 1024.0 * luaL_checknumber(L, 3);
+    struct rlimit rl;
+    rl.rlim_cur = s0;
+    rl.rlim_max = s1;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  default:
+    break;
+  }
+  return luaL_error(L, "too many parameters");
+}
+
+static int
+qlua_node(lua_State *L)
+{
+  lua_pushnumber(L, QDP_this_node);
+  return 1;
+}
+
+typedef struct qcdmem_s {
+  char *name;
+  long long count;
+  struct qcdmem_s *next;
+} QCDMem;
+
+static QCDMem *qcdmem = NULL;
+
+static int
+qlua_qcdmem(lua_State *L)
+{
+  int n = 0;
+  QCDMem *p;
+
+  for (n = 0, p = qcdmem; p; p = p->next)
+    n++;
+  lua_createtable(L, 0, n);
+  for (p = qcdmem; p; p = p->next) {
+    if (p->count) {
+      lua_pushnumber(L, p->count);
+      lua_setfield(L, -2, p->name);
+    }
+  }
+  return 1;
+}
+
+void
+qlua_qdp_memuse(lua_State *L, const char *name, int count)
+{
+  QCDMem *p;
+
+  for (p = qcdmem; p; p = p-> next) {
+    if (strcmp(p->name, name) == 0)
+      break;
+  }
+  if (p == 0) {
+    p = qlua_malloc(L, sizeof (QCDMem));
+    p->name = qlua_malloc(L, strlen(name) + 1);
+    strcpy(p->name, name);
+    p->count = 0;
+    p->next = qcdmem;
+    qcdmem = p;
+  }
+  p->count += count;
+}
+
+
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
     { "__gc",       qf_gc },
@@ -527,8 +632,11 @@ init_qlua_io(lua_State *L)
         lua_pushcfunction(L, qlua_random);
         lua_setfield(L, -2, "random");
     }
-    
-    lua_pop(L, 1);
+    lua_pushcfunction(L, qlua_limit);
+    lua_setfield(L, -2, "limit");
+    lua_pushcfunction(L, qlua_node);
+    lua_setfield(L, -2, "node");
+    lua_setglobal(L, "os");
 
     /* fix package.path -- try to get QLUALIB from the environment first */
         {
@@ -547,6 +655,11 @@ init_qlua_io(lua_State *L)
     /* fix getmetatable */
     lua_pushcfunction(L, qlua_getmetatable);
     lua_setglobal(L, "getmetatable");
+
+    /* qdp memory usage state */
+    lua_getglobal(L, qcdlib);
+    lua_pushcfunction(L, qlua_qcdmem);
+    lua_setfield(L, -2, "memory_usage");
 
     return 0;
 }

@@ -28,6 +28,7 @@ q_multi_gc(lua_State *L)
     if (v->idx)
         qlua_free(L, v->idx);
     v->idx = 0;
+    qlua_qdp_memuse(L, "MultiSet", -1);
 
     return 0;
 }
@@ -51,6 +52,7 @@ qlua_newLatMulti(lua_State *L, int Sidx)
     v->idx = qlua_malloc(L, QDP_sites_on_node_L(S->lat) * sizeof (int));
     qlua_createLatticeTable(L, Sidx, mtLatMulti, qLatMulti, LatMultiName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "MultiSet", 1);
 
     return v;
 }

@@ -1,3 +1,14 @@
+require "stdlib"
+
+
+function show_mem(name)
+   printf("Memory usage at %s:\n", name);
+   for i,v in pairs(qcd.memory_usage()) do
+      printf("   %-20s %d\n", i, v)
+   end
+end
+
+
 d = 128
 LAT = qcd.lattice({d})
 
@@ -21,3 +32,15 @@ end
 -- end
 
 print("zz", qcd.dot(z,z):sum())
+
+show_mem("before GC")
+c = nil
+s = nil
+j = nil
+x = nil
+z = nil
+q = nil
+collectgarbage("collect")
+show_mem("after GC")
+
+printf("DONE\n")

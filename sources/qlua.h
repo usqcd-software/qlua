@@ -147,6 +147,7 @@ QLUA_Ztype qlua_ztype(lua_State *L, int idx);
 QLUA_Type qlua_atype(lua_State *L, int idx); /* non-arith types => qOther */
 const char *qlua_ptype(lua_State *L, int idx);
 void *qlua_malloc(lua_State *L, int size);
+void qlua_qdp_memuse(lua_State *L, const char *name, int count);
 void qlua_free(lua_State *L, void *ptr);
 
 int qlua_index(lua_State *L, int idx, const char *name, int mv);  /* k or -1 */
