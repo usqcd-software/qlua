@@ -5,6 +5,3 @@
 * Guard against user's writing /.* ?
 
 * Keep sha -> object map in /.sha256 ?
-
-* Only when writing a lattice object, check for chunk = { n, ....} in the options.
-  If present, use it to set up chunk size.
