@@ -95,7 +95,9 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_colvec()");
+    break;
   }
   *data = qlua_malloc(L, dsize * nc);
   SHA256_Context *ctx = sha256_create(L);
@@ -152,7 +154,9 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_latcolvec()");
+    break;
   }
   *data = qlua_malloc(L, dsize * nc * volume);
   CALL_QDP(L);
@@ -335,7 +339,9 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_colmat()");
+    break;
   }
   *data = qlua_malloc(L, dsize * nc * nc);
   SHA256_Context *ctx = sha256_create(L);
@@ -392,7 +398,9 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_latcolmat()");
+    break;
   }
   *data = qlua_malloc(L, dsize * nc * nc * volume);
   CALL_QDP(L);
@@ -575,7 +583,9 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_dirferm()");
+    break;
   }
   *data = qlua_malloc(L, QDP_Ns * dsize * nc);
   SHA256_Context *ctx = sha256_create(L);
@@ -632,7 +642,9 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_dirferm()");
+    break;
   }
   *data = qlua_malloc(L, QDP_Ns * dsize * nc * volume);
   CALL_QDP(L);
@@ -831,7 +843,9 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_dirprop()");
+    break;
   }
   *data = qlua_malloc(L, QDP_Ns * QDP_Ns * dsize * nc * nc);
   SHA256_Context *ctx = sha256_create(L);
@@ -888,7 +902,9 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
     dsize = sizeof (machine_complex_float);
     break;
   default:
+    dsize = 0;
     luaL_error(L, "Unknown precision in w_dirprop()");
+    break;
   }
   *data = qlua_malloc(L, QDP_Ns * QDP_Ns * dsize * nc * nc * volume);
   CALL_QDP(L);

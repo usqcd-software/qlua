@@ -1370,8 +1370,8 @@ r_real(lua_State *L, mHdf5File *b, const char *path,
     return 0;
   hid_t memtype = get_real_type(L, b, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
-  double val;
-  int status;
+  double val = -1;
+  int status = -1;
   switch (wsize) {
   case WS_Double: {
     double v;
@@ -1444,7 +1444,7 @@ r_complex(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_complex_type(L, b, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
   QLA_D_Complex val;
-  int status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     machine_complex_double v;
@@ -1570,7 +1570,7 @@ r_vecreal(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_vecreal_type(L, b, len, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
   mVecReal *v = qlua_newVecReal(L, len);
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     double *data = qlua_malloc(L, len * sizeof (double));
@@ -1653,7 +1653,7 @@ r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_veccomplex_type(L, b, len, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
   mVecComplex *v = qlua_newVecComplex(L, len);
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     machine_complex_double *data = qlua_malloc(L, len * sizeof (machine_complex_double));
@@ -1744,7 +1744,7 @@ r_matreal(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_matreal_type(L, b, llen, rlen, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
   mMatReal *v = qlua_newMatReal(L, llen, rlen);
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     double *data = qlua_malloc(L, llen * rlen * sizeof (double));
@@ -1843,7 +1843,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
   hid_t memtype = get_matcomplex_type(L, b, llen, rlen, wsize, 0);
   SHA256_Context *ctx = sha256_create(L);
   mMatComplex *v = qlua_newMatComplex(L, llen, rlen);
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     machine_complex_double *data = qlua_malloc(L, llen * rlen * sizeof (machine_complex_double));
@@ -2047,7 +2047,7 @@ r_latreal(lua_State *L, mHdf5File *b, const char *path,
   QLA_D_Real *locked = QDP_expose_R(m->ptr);
   SHA256_Context *ctx = sha256_create(L);
   int *local_x = qlua_malloc(L, ropts->S->rank * sizeof (int));
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     double *ptr = qlua_malloc(L, volume * sizeof (double));
@@ -2182,7 +2182,7 @@ r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
   QLA_D_Complex *locked = QDP_expose_C(m->ptr);
   SHA256_Context *ctx = sha256_create(L);
   int *local_x = qlua_malloc(L, ropts->S->rank * sizeof (int));
-  herr_t status;
+  herr_t status = -1;
   switch (wsize) {
   case WS_Double: {
     machine_complex_double *ptr = qlua_malloc(L, volume * sizeof (machine_complex_double));
@@ -2249,7 +2249,7 @@ r_colvec(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_colvec_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, nc * sizeof (machine_complex_double));
@@ -2303,7 +2303,7 @@ r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_colvec_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, nc * volume * sizeof (machine_complex_double));
@@ -2357,7 +2357,7 @@ r_colmat(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_colmat_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, nc * nc * sizeof (machine_complex_double));
@@ -2411,7 +2411,7 @@ r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_colmat_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, nc * nc * volume * sizeof (machine_complex_double));
@@ -2465,7 +2465,7 @@ r_dirferm(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_dirferm_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, QDP_Ns * nc * sizeof (machine_complex_double));
@@ -2519,7 +2519,7 @@ r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_dirferm_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, QDP_Ns * nc * volume * sizeof (machine_complex_double));
@@ -2573,7 +2573,7 @@ r_dirprop(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_dirprop_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * sizeof (machine_complex_double));
@@ -2627,7 +2627,7 @@ r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
   WriteSize wsize;
   if (!check_dirprop_type(L, path, tobj, &nc, &wsize))
     return 0;
-  void *data;
+  void *data = NULL;
   switch (wsize) {
   case WS_Double:
     data = qlua_malloc(L, QDP_Ns * QDP_Ns * nc * nc * volume * sizeof (machine_complex_double));
