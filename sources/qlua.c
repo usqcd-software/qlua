@@ -501,6 +501,17 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
   return v;
 }
 
+const char *
+qlua_tabkey_tableopt(lua_State *L, int idx, const char *key)
+{
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return 0;
+  if (lua_type(L, -1) == LUA_TTABLE)
+    return 1;
+  lua_pop(L, 1);
+  return 0;
+}
+
 int
 qlua_index(lua_State *L, int n, const char *name, int max_value)
 {

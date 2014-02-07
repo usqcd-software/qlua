@@ -1,44 +1,10 @@
 * Better handling of failed type writes ?
 
-* Put all operations on the same qlua type together
-* Put all hdf5 type manipulations together
-
 * Do better message if write() is attempted into an existing dataset
 
 * Guard against user's writing /.* ?
 
 * Keep sha -> object map in /.sha256 ?
 
-* Reader:read("/path/to/data/set" [, {lattice = lat, kind = "kind of data"}])
-
-* Kinds if there is "kind" attribute, its value is one of the following:
-
-    "String"                      H5I_DATASET
-    "Real"                        H5I_DATASET
-    "Complex"                     H5I_DATASET
-    "MatrixReal"                  H5I_DATASET
-    "MatrixComplex"               H5I_DATASET
-    "VectorInt"                   H5I_DATASET
-    "VectorReal"                  H5I_DATASET
-    "VectorComplex"               H5I_DATASET
-    "ColorVector"                 H5I_DATASET
-    "ColorMatrix"                 H5I_DATASET
-    "DiracFermion"                H5I_DATASET
-    "DiracPropagator"             H5I_DATASET
-    "LatticeInt"                  H5I_DATASET
-    "LatticeReal"                 H5I_DATASET
-    "LatticeComplex"              H5I_DATASET
-    "LatticeColorVector"          H5I_DATASET
-    "LatticeColorMatrix"          H5I_DATASET
-    "LatticeDiracFermion"         H5I_DATASET
-    "LatticeDiracPropagator"      H5I_DATASET
-
-* other HDF5 elements without corresponding qlua objects have implicit kinds:
-
-    "Group"                     H5I_GROUP
-    "DataSpace"                 H5I_DATASPACE
-    "DataSet"                   H5I_DATASET
-    "DataType"                  H5I_DATATYPE
-    "Attribute"                 H5I_ATTR
-    "File"                      H5I_FILE
-    "Unknown"                   default case, never happens
+* Only when writing a lattice object, check for chunk = { n, ....} in the options.
+  If present, use it to set up chunk size.

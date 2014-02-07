@@ -446,6 +446,7 @@ q_qtypename(lua_State *L, int idx, char *def)
     case qWriter: t = "qio.writer"; break;
     case qAffReader: t = "aff.reader"; break;
     case qAffWriter: t = "aff.writer"; break;
+    case qHdf5File: t = "hdf5.file"; break;
     case qClover: t = "clover"; break;
     case qCloverDeflator: t = "clover.deflator"; break;
     case qCloverDeflatorState: t = "clover.deflator.state"; break;
