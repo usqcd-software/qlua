@@ -161,6 +161,8 @@ typedef enum {
 
 struct wopts_s {
   WriteSize wsize;
+  int rank;
+  hsize_t *chunk;
 };
 
 struct ropts_s {
@@ -1310,6 +1312,8 @@ process_wopts(lua_State *L) /* XXX */
 {
   struct wopts_s wopts;
   wopts.wsize = WS_Double;
+  wopts.rank = 0;
+  wopts.chunk = NULL;
   if (qlua_checkopt_table(L, 4)) {
     const char *prec = qlua_tabkey_stringopt(L, 4, "precision", "double");
     if (strcmp(prec, "double") == 0)
@@ -1319,7 +1323,29 @@ process_wopts(lua_State *L) /* XXX */
     else
       luaL_error(L, "Unknown precision value \"%s\"", prec);
   }
+  if (qlua_tabkey_tableopt(L, 4, "chunk")) {
+    wopts.rank = lua_objlen(L, -1);
+    if (wopts.rank > 0) {
+      wopts.chunk = qlua_malloc(L, wopts.rank * sizeof (hsize_t));
+      int i;
+      for (i = 0; i < wopts.rank; i++) {
+        lua_pushnumber(L, i+1);
+        lua_gettable(L, -2);
+        wopts.chunk[i] = luaL_checkint(L, -1);
+        lua_pop(L, 1);
+      }
+    }
+    lua_pop(L, 1);
+  }
   return wopts;
+}
+
+static void
+close_wopts(lua_State *L, struct wopts_s *wopts)
+{
+  if (wopts->chunk)
+    qlua_free(L, wopts->chunk);
+  wopts->chunk = NULL;
 }
 
 static void
@@ -2757,7 +2783,19 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   hid_t filespace = H5Screate_simple(S->rank, hlatdim, NULL);
   qlua_free(L, hlatdim);
   CHECK_H5(L, filespace, "Screate_simple() file space");
-  hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  hid_t dcpl;
+  if (wopts.rank > 0) {
+    if (wopts.rank != S->rank)
+      luaL_error(L, "hdf5:write() chunk rank mismatch: %d, lattice rank is %d", wopts.rank, S->rank);
+    dcpl = H5Pcreate(H5P_DATASET_CREATE);
+    CHECK_H5(L, dcpl, "Pcreate() dcpl in write_lat()");
+    CHECK_H5(L, H5Pset_chunk(dcpl, wopts.rank, wopts.chunk), "Pset_chunk() in write_lat()");
+  } else {
+    dcpl = H5Pcopy(H5P_DEFAULT);
+    CHECK_H5(L, dcpl, "Pcopy() dcpl in write_lat()");
+  }
+  hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+  CHECK_H5(L, H5Pclose(dcpl), "Pclose() dcpl in write_lat()");
   qlua_free(L, dpath);
   CHECK_H5(L, dataset, "Dcreate() data set");
   CHECK_H5(L, H5Tclose(filetype), "Tclose() file type");
@@ -2785,7 +2823,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
 
   qlua_Hdf5_leave();
-
+  close_wopts(L, &wopts);
   return 0;
 }
 
@@ -2834,6 +2872,7 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
 
   qlua_Hdf5_leave();
+  close_wopts(L, &wopts);
 
   return 0;
 }

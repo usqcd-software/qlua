@@ -501,7 +501,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
   return v;
 }
 
-const char *
+int
 qlua_tabkey_tableopt(lua_State *L, int idx, const char *key)
 {
   if (!qlua_tabpushopt_key(L, idx, key))
