@@ -1099,63 +1099,6 @@ get_h5_type_name(lua_State *L, mHdf5File *b, hid_t obj, char **ptr)
 }
 
 static int
-qhdf5_stat(lua_State *L)
-{
-  mHdf5File *b = qlua_checkHdf5File(L, 1);
-  const char *path = luaL_checkstring(L, 2);
-
-  check_file(L, b);
-  qlua_Hdf5_enter(L);
-  hid_t obj = H5Oopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
-  if (obj < 0) {
-    lua_pushnil(L);
-    return 1;
-  }
-  KindOfH kind = get_h5_kind(L, b, obj);
-  lua_createtable(L, 0, 4);
-  lua_pushstring(L, kind2name(kind));
-  lua_setfield(L, -2, "kind");
-  long long t;
-  if (get_h5_time(L, b, obj, &t)) {
-    lua_pushnumber (L, t);
-    lua_setfield(L, -2, "time");
-  }
-  int rank = 0;
-  hsize_t *dims = NULL;
-  SpaceOfH space = get_h5_space(L, b, obj, &rank, &dims);
-  switch (space) {
-  case sScalar:
-    lua_pushstring(L, "scalar");
-    lua_setfield(L, -2, "geometry");
-    break;
-  case sLattice: {
-    int i;
-    lua_createtable(L, 0, rank);
-    for (i = 0; i < rank; i++) {
-      lua_pushnumber(L, i+1);
-      lua_pushnumber(L, dims[i]);
-      lua_settable(L, -3);
-    }
-    lua_setfield(L, -2, "geometry");
-    qlua_free(L, dims);
-  } break;
-  case sOther:
-    break;
-  default:
-    QLUA_ABORT("unkown SpaceOfH value");
-  }
-  char *tname = NULL;
-  if (get_h5_type_name(L, b, obj, &tname)) {
-    lua_pushstring(L, tname);
-    lua_setfield(L, -2, "type");
-    qlua_free(L, tname);
-  }
-  CHECK_H5(L, H5Oclose(obj), "Oclose() failed");
-  qlua_Hdf5_leave();
-  return 1;
-}
-
-static int
 qhdf5_cwd(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
@@ -3138,6 +3081,76 @@ qhdf5_read(lua_State *L)
   if (!status)
     luaL_error(L, "no suitable reader for read(\"%s\")", path);
   return 2;
+}
+
+static int
+qhdf5_stat(lua_State *L)
+{
+  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  const char *path = luaL_checkstring(L, 2);
+
+  check_file(L, b);
+  qlua_Hdf5_enter(L);
+  hid_t obj = H5Oopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
+  if (obj < 0) {
+    lua_pushnil(L);
+    return 1;
+  }
+  KindOfH kind = get_h5_kind(L, b, obj);
+  lua_createtable(L, 0, 4);
+  lua_pushstring(L, kind2name(kind));
+  lua_setfield(L, -2, "kind");
+  long long t;
+  if (get_h5_time(L, b, obj, &t)) {
+    lua_pushnumber (L, t);
+    lua_setfield(L, -2, "time");
+  }
+  int rank = 0;
+  hsize_t *dims = NULL;
+  SpaceOfH space = get_h5_space(L, b, obj, &rank, &dims);
+  switch (space) {
+  case sScalar:
+    lua_pushstring(L, "scalar");
+    lua_setfield(L, -2, "geometry");
+    break;
+  case sLattice: {
+    int i;
+    lua_createtable(L, 0, rank);
+    for (i = 0; i < rank; i++) {
+      lua_pushnumber(L, i+1);
+      lua_pushnumber(L, dims[i]);
+      lua_settable(L, -3);
+    }
+    lua_setfield(L, -2, "geometry");
+    qlua_free(L, dims);
+  } break;
+  case sOther:
+    break;
+  default:
+    QLUA_ABORT("unkown SpaceOfH value");
+  }
+  char *tname = NULL;
+  if (get_h5_type_name(L, b, obj, &tname)) {
+    lua_pushstring(L, tname);
+    lua_setfield(L, -2, "type");
+    qlua_free(L, tname);
+  }
+
+  SHA256_Sum sum;
+  if (read_sha256(L, b, obj, &sum)) {
+    char chsum[1 + 2 * sizeof (SHA256_Sum)];
+    char b[3];
+    int i;
+    for (chsum[0] = 0, i = 0; i < sizeof (SHA256_Sum); i++) {
+      sprintf(b, "%02x", 0xff & sum.v[i]);
+      strcat(chsum, b);
+    }
+    lua_pushstring(L, chsum);
+    lua_setfield(L, -2, "sha256");
+  }
+  CHECK_H5(L, H5Oclose(obj), "Oclose() failed");
+  qlua_Hdf5_leave();
+  return 1;
 }
 
 static int

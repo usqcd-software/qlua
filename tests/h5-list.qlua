@@ -1,7 +1,7 @@
 require "stdlib"
 
 if not fname then
-   fname = "xxx.h5"
+   fname = "h5-test.h5"
 end
 
 function process_list(x, dir, nm)
@@ -33,6 +33,12 @@ function process_list(x, dir, nm)
       end
       return ""
    end
+   local function fmt_sha(t)
+      if t then
+         return t
+      end
+      return "-"
+   end
    local function list(dir, nm)
       printf("ls %s:\n", dir)
       local ls = x:list(dir)
@@ -43,7 +49,8 @@ function process_list(x, dir, nm)
             if stat then
                local geom = fmt_geometry(stat.geometry)
                local tx = fmt_time(stat.time)
-               printf(" %-20s %-16s %-28s %26s  %s\n", stat.kind, geom, fmt_type(stat.type), tx, v)
+               printf(" %-64s %-24s %-16s %-28s %26s  %s\n",
+                       fmt_sha(stat.sha256), stat.kind, geom, fmt_type(stat.type), tx, v)
             end
             if stat.kind == "Group" then
                subs[#subs + 1] = v
@@ -52,7 +59,7 @@ function process_list(x, dir, nm)
       end
       for i = 1, #subs do
          local g = string.format("%s/%s", nm, subs[i])
-         -- list(g,g)
+         list(g,g)
       end
    end
 
@@ -65,13 +72,13 @@ end
 
 printf("as a reader:\n")
 process_list(qcd.hdf5.Reader(fname), "/", "")
-printf("as a writer:\n")
-process_list(qcd.hdf5.Writer(fname), "/sample")
-process_list(qcd.hdf5.Writer(fname), "/sample/lattice")
+--printf("as a writer:\n")
+--process_list(qcd.hdf5.Writer(fname), "/sample")
+--process_list(qcd.hdf5.Writer(fname), "/sample/lattice")
 --process_list(qcd.hdf5.Writer(fname), "/sample/serial")
-x = qcd.hdf5.Reader(fname)
+--x = qcd.hdf5.Reader(fname)
 -- x:chpath("/sample/serial")
-process_list(x, ".")
+--process_list(x, ".")
 
 
 printf("DONE\n")

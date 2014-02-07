@@ -288,7 +288,8 @@ dtab = {
    { "/color/lat/dirprop2-F",  S:gaussian_DiracPropagatorN(2) * cx,        Plf,   latx_cmp},
 
 
-   { "/final",             "DONE",                                    Pstd,  str_cmp}
+   { "/final",             "DONE",                                    Pstd,  str_cmp},
+   { "/final2",            "DONE",                                    Pstd,  str_cmp}
 }
 
 os.remove(fname)
