@@ -10,25 +10,23 @@ SEQUENCE_NUMBER = 4540</info></usqcdPropFile>]],
 end
 
 function rbc_ddpairs_header_proptype(mf, tol, ferm_bc, gf_string, ferm_act_string)
+  local function rbc_ddpairs_header_fermbc(ferm_bc)
+    local res = ''
+    for i_bc, bc in pairs(ferm_bc) do
+      if 1 == bc then res = res .. 'P'
+      elseif -1 == bc then res = res .. 'A'
+      else
+        error(string.format("incorrect bc=%s", bc))
+      end
+    end
+    return res
+  end
+
   return string.format([[
 4D propagator, mass=%f, StpCond=%E,
 BC=%s,
 %s,
 %s]],
-            mf, tol, usqcd_header_fermbc(ferm_bc), gf_string, ferm_act_string)
+            mf, tol, rbc_ddpairs_header_fermbc(ferm_bc), gf_string, ferm_act_string)
 end
-
-function rbc_ddpairs_header_fermbc(ferm_bc)
-  res = ''
-  for i_bc, bc in pairs(ferm_bc) do
-    if 1 == bc then res = res .. 'P'
-    elseif -1 == bc then res = res .. 'A'
-    else
-      error(string.format("incorrect bc=%s", bc))
-    end
-  end
-  return res
-end
-
-
 

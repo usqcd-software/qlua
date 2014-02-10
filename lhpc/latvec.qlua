@@ -99,7 +99,7 @@ function latvec_axpy(a, x, y)     -- return a*x + y
     return c
   else return (a*x + y) end
 end
-function latvec_scalsum_left(...) -- (a0,x0,a1,b1,...) -> a0*x0+a1*x1+... 
+function latvec_scalsum_left(...) -- (a0,x0,a1,x1,...) -> a0*x0+a1*x1+... 
   local ll = {...}
   assert (0 == #ll % 2)
   if #ll <= 0 then return 0 end
@@ -200,6 +200,16 @@ function print_latvec_cmp(a, b, title)
            latvec_cosangle_arg(a, b))
   end
 end
+function latvec_rdiff(a,b) -- compute 2*|a - b| / (|a| + |b|)
+  local a_n2 = latvec_norm2(a)
+  local b_n2 = latvec_norm2(b)
+  local amb  = latvec_norm2(latvec_axpy(-1., a, b))
+  if 0. == a_n2 and 0. == b_n2 then return 0.
+  else return 2.*amb / (a_n2 + b_n2) end
+end
+  
+
+
 -- operator definitions
 -- site-hopping part of the Wilson operator (mind the sign)
 --    d       fermion
