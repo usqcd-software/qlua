@@ -26,7 +26,6 @@ end
 --* S_fermion = \bar q [ Dminus^{-1} DMoebiusSlash ] q
 function calc_mdwf_prop(mdwf_solver, gauge_u, mdwf_L5, mdwf_M5, mdwf_b5, mdwf_c5, src,
         is_relaxed, is_verbose)
-  printf("%s %s %s %s\n", tostring(mdwf_L5), tostring(mdwf_M5), tostring(mdwf_b5), tostring(mdwf_c5))
   if type(src) == 'lattice.dirac.propagator' then
     local sol_4d = (src.lattice):DiracPropagator()
     for is = 0, 3 do

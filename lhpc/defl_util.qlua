@@ -61,7 +61,7 @@ function deflator_save_espace_d5(
   if nil == evec_qio_prec then 
     evec_qio_prec = "single" -- default to single precision
   end
-  local df_dim = mdwf_eigcg_df:current_dim()
+  local df_dim = df:current_dim()
   if nil ~= df_dim_max and df_dim_max < df_dim then 
     df_dim = df_dim_max 
   end
@@ -74,16 +74,17 @@ function deflator_save_espace_d5(
       if 2*i + 1 < df_dim then
         vec_pack = latvec_eopc_pair_to_single(
                       L:Subset("even"),
-                      mdwf_eigcg_df:get_vector(2*i), 
-                      mdwf_eigcg_df:get_vector(2*i + 1))
+                      df:get_vector(2*i), 
+                      df:get_vector(2*i + 1))
       else
-        vec_pack = mdwf_eigcg_df:get_vector(2*i)
+        vec_pack = df:get_vector(2*i)
       end 
+      assert(L5 == #vec_pack)
       qdp_w:DiracFermion(evec_qio_prec, vec_pack, "")
     end
   else
     for i = 0, df_dim - 1 do
-      qdp_w:DiracFermion(evec_qio_prec, mdwf_eigcg_df:get_vector(i))
+      qdp_w:DiracFermion(evec_qio_prec, df:get_vector(i))
     end
   end
   force_gc('deflator_save_espace_d5|')
