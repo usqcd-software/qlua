@@ -237,9 +237,6 @@ lanczos_internal_float(
         const char *arpack_logfile/* file for ARPACK log output, if not NULL */
         )
 {
-    const char *err_str;
-    static char err_buf[256];
-
     MPI_Fint mpi_comm_f = MPI_Comm_c2f(mpi_comm);
     CALL_QDP(L);
 
@@ -297,8 +294,7 @@ lanczos_internal_float(
            NULL == w_rwork_ ||
            NULL == w_workev_ ||
            NULL == select_) {
-        err_str = "not enough memory for CN*UPD workspace";
-        goto clearerr;
+      return luaL_error(L, "not enough memory for CN*UPD workspace");
     }
     
     memset(resid_, 0, sizeof(float complex) * n_);
@@ -352,10 +348,7 @@ lanczos_internal_float(
                        &ldv_, iparam_, ipntr_, w_workd_, w_workl_,
                        &lworkl_, w_rwork_, &info_, 1, 2);
         if (info_ < 0 || 1 < info_) {
-            snprintf(err_buf, sizeof(err_buf), 
-                     "CNAUPD returned INFO=%d", info_);
-            err_str = err_buf;
-            goto clearerr;
+          return luaL_error(L, "CNAUPD returned INFO=%d", info_);
         }
         iter_cnt++;
         
@@ -381,10 +374,7 @@ lanczos_internal_float(
                 fprintf(stderr, "%s: iter=%04d  info=%d  ido=%d\n", 
                         __func__, iter_cnt, info_, ido_);
             }
-            snprintf(err_buf, sizeof(err_buf),
-                     "CNAUPD returned IDO=%d", ido_);
-            err_str = err_buf;
-            goto clearerr;
+            return luaL_error(L, "CNAUPD returned IDO=%d", ido_);
         }
 
     } while (99 != ido_ && iter_cnt < max_iter);
@@ -400,10 +390,7 @@ lanczos_internal_float(
     } else if (1 == info_) {
         conv_cnt = iparam_[4];
     } else {
-        snprintf(err_buf, sizeof(err_buf),
-                "CNAUPD returned INFO=%d", info_);
-        err_str = err_buf;
-        goto clearerr;
+      return luaL_error(L, "CNAUPD returned INFO=%d", info_);
     }
 
     /* for howmny="P", no additional space is required */
@@ -417,10 +404,7 @@ lanczos_internal_float(
         finilog(&arpack_log_u);
 
     if (0 != info_) {
-        snprintf(err_buf, sizeof(err_buf),
-                "CNEUPD returned INFO=%d", info_);
-        err_str = err_buf;
-        goto clearerr;
+      return luaL_error(L, "CNEUPD returned INFO=%d", info_);
     }
     
     /* cleanup */
@@ -437,17 +421,6 @@ lanczos_internal_float(
         *nconv      = conv_cnt;
 
     return 0;
-
-clearerr:
-
-    if (NULL != resid_)     free(resid_);
-    if (NULL != w_workd_)   free(w_workd_);
-    if (NULL != w_workl_)   free(w_workl_);
-    if (NULL != w_rwork_)   free(w_rwork_);
-    if (NULL != w_workev_)  free(w_workev_);
-    if (NULL != select_)    free(select_);
-
-    return luaL_error(L, err_str);
 }
 
 
