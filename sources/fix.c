@@ -2,6 +2,7 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qmp.h"
+#include <time.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/stat.h>
