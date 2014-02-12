@@ -149,7 +149,7 @@ function latvec_eopc_single_to_pair(ss, v12)
   local ss_v1 = latvec_copy(v12, 0.)
   ss:where(latvec_set, ss_v1, v12)
   local ss_v2 = latvec_copy(v12, 0.)
-  v12_sh = latvec_shift(v12, eopc_shift2nd_mu, "from_forward")
+  local v12_sh = latvec_shift(v12, eopc_shift2nd_mu, "from_forward")
   ss:where(latvec_set, ss_v2, v12_sh)
   return ss_v1, ss_v2
 end
