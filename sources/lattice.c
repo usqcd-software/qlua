@@ -320,48 +320,6 @@ q_lattice(lua_State *L)
 }
 
 int *
-qlua_intarray(lua_State *L, int n, int *dim)
-{
-    int d, i;
-    int *idx;
-
-    if (lua_type(L, n) != LUA_TTABLE)
-        return NULL;
-
-    d = lua_objlen(L, n);
-    idx = qlua_malloc(L, d * sizeof (int));
-    for (i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, n);
-        if (lua_type(L, -1) != LUA_TNUMBER) {
-            qlua_free(L, idx);
-            return NULL;
-        }
-        idx[i] = qlua_checkint(L, -1, "array element %d", i + 1);
-        lua_pop(L, 1);
-    }
-    *dim = d;
-    return idx;
-}
-
-int *
-qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
-{
-    int d_dim;
-    int *idx = qlua_intarray(L, n, &d_dim);
-
-    if (idx == 0)
-        luaL_error(L, "table of integers expected");
-
-    if (out_dim)
-        *out_dim = d_dim;
-    else if (d_dim != dim)
-        luaL_error(L, "table of integer has wrong size");
-
-    return idx;
-}
-
-int *
 qlua_latcoord(lua_State *L, int n, mLattice *S)
 {
     int d, i;

@@ -22,8 +22,8 @@ cmd_run=""
 qmp_geom=""
 
 if [ "x${do_mpi}" != "x" ] ; then
-  cmd_run="./mpirun -np 16 $cmd_run"
-  qmp_geom="-qmp-geom 2 2 2 2"
+  cmd_run="mpirun -np 16 $cmd_run"
+  #qmp_geom="-qmp-geom 2 2 2 2"
 fi
 
 if [ "x$do_valgrind" != "x" ] ; then

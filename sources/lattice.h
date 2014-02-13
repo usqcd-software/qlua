@@ -42,8 +42,6 @@ extern const char opLattice[];
 int *qlua_latcoord(lua_State *L, int idx, mLattice *S);      /* lc[] or NULL */
 int *qlua_checklatcoord(lua_State *L, int idx, mLattice *S);
 void qlua_verifylatcoord(lua_State *L, int *coord, mLattice *S);
-int *qlua_intarray(lua_State *L, int idx, int *out_dim);
-int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 
 mLattice *qlua_checkLattice(lua_State *L, int idx);
 mLattice *qlua_ObjLattice(lua_State *L, int idx);

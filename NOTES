@@ -1,3 +1,7 @@
+[done] * move qlua_intarray() and qlua_checkintarray() to qlua.[ch]
+
+* replace hdf5-io.c and lattice.c calls to gettable() to qlua_intarray()
+
 * Better handling of failed type writes ?
 
 * Do better message if write() is attempted into an existing dataset
