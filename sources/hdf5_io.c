@@ -1267,16 +1267,15 @@ process_wopts(lua_State *L) /* XXX */
       luaL_error(L, "Unknown precision value \"%s\"", prec);
   }
   if (qlua_tabkey_tableopt(L, 4, "chunk")) {
-    wopts.rank = lua_objlen(L, -1);
-    if (wopts.rank > 0) {
+    int rank = 0;
+    int *dims = qlua_intarray(L, -1, &rank);
+    if (dims) {
+      wopts.rank = rank;
       wopts.chunk = qlua_malloc(L, wopts.rank * sizeof (hsize_t));
       int i;
-      for (i = 0; i < wopts.rank; i++) {
-        lua_pushnumber(L, i+1);
-        lua_gettable(L, -2);
-        wopts.chunk[i] = luaL_checkint(L, -1);
-        lua_pop(L, 1);
-      }
+      for (i = 0; i < wopts.rank; i++)
+        wopts.chunk[i] = dims[i];
+      qlua_free(L, dims);
     }
     lua_pop(L, 1);
   }
