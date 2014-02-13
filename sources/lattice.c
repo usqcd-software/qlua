@@ -268,61 +268,57 @@ subset_none(QDP_Lattice *S, int *coord, void *arg)
 static int
 q_lattice(lua_State *L)
 {
-  //int r, i;
-    static int lat_id = 0;
-    mLattice *S = lua_newuserdata(L, sizeof (mLattice));
-    static const struct luaL_Reg mtLattice[] = {
-        { "__tostring",   q_L_fmt        },
-        { "__gc",         q_L_gc         },
-        { "__index",      q_L_get        },
-        { "__newindex",   qlua_nowrite   },
-        { "__len",        q_L_dim        },
-        { NULL,           NULL           }
-    };
+  int lat_rank = 0;
+  int *lat_dims = qlua_intarray(L, 1, &lat_rank);
+  int net_forced = 0;
+  int *net_dim = NULL;
+  if (qlua_checkopt_table(L, 2) && qlua_tabpushopt_key(L, 2, "network")) {
+    int net_idx = lua_gettop(L);
+    net_dim = qlua_checkintarray(L, net_idx, lat_rank, NULL);
+    net_forced = 1;
+    lua_pop(L, 1);
+  } else {
+    net_dim = qlua_malloc(L, lat_rank * sizeof (int));
+  }
+  static int lat_id = 0;
+  mLattice *S = lua_newuserdata(L, sizeof (mLattice));
+  static const struct luaL_Reg mtLattice[] = {
+    { "__tostring",   q_L_fmt        },
+    { "__gc",         q_L_gc         },
+    { "__index",      q_L_get        },
+    { "__newindex",   qlua_nowrite   },
+    { "__len",        q_L_dim        },
+    { NULL,           NULL           }
+  };
 
-    S->dim = qlua_intarray(L, 1, &S->rank);
-    luaL_checktype(L, 1, LUA_TTABLE);
-    if (S->rank <= 0)
-      return luaL_error(L, "Bad lattice rank");
-    if (S->rank > QLUA_MAX_LATTICE_RANK)
-      return luaL_error(L, "lattice rank too large");
+  S->rank = lat_rank;
+  S->dim = lat_dims;
+  S->node = 0;
+  S->neighbor_up = qlua_malloc(L, S->rank * sizeof (int));
+  S->neighbor_down = qlua_malloc(L, S->rank * sizeof (int));
+  S->net_forced = net_forced;
+  S->net = net_dim;
+  S->L = L;
 
-    //    r = lua_objlen(L, 1);
-    //    if (r <= 0)
-    //        return luaL_error(L, "Bad lattice rank");
-    // if (r > QLUA_MAX_LATTICE_RANK)
-    //                return luaL_error(L, "latice rank is too large");
-    // S->rank = r;
-    S->node = 0;
-    S->neighbor_up = qlua_malloc(L, S->rank * sizeof (int));
-    S->neighbor_down = qlua_malloc(L, S->rank * sizeof (int));
-    S->net = qlua_malloc(L, S->rank * sizeof (int));
-    // S->dim = qlua_malloc(L, r * sizeof (int));
-    //for (i = 0; i < r; i++) {
-    //lua_pushnumber(L, i + 1);
-    //lua_gettable(L, 1);
-    //S->dim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
-    //lua_pop(L, 1);
-    //}
-    CALL_QDP(L);
-    S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
-    if (S->lat == 0)
-        return luaL_error(L, "can not create lattice");
-    S->all = QDP_all_L(S->lat);
-    S->even = QDP_even_L(S->lat);
-    S->odd = QDP_odd_L(S->lat);
-    S->none = QDP_create_subset_L(S->lat, subset_none, 0, 0, 1);
-    S->qss = &S->all;
-    S->lss.cl = qss_all;
-    S->lss.mask = NULL;
-    S->id = lat_id;
-    S->nc = 3;
-    lat_id++;
-
-    qlua_selftable(L, mtLattice, qLattice);
-    lua_setmetatable(L, -2);
-    
-    return 1;
+  CALL_QDP(L);
+  S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
+  if (S->lat == 0)
+    return luaL_error(L, "can not create lattice");
+  S->all = QDP_all_L(S->lat);
+  S->even = QDP_even_L(S->lat);
+  S->odd = QDP_odd_L(S->lat);
+  S->none = QDP_create_subset_L(S->lat, subset_none, 0, 0, 1);
+  S->qss = &S->all;
+  S->lss.cl = qss_all;
+  S->lss.mask = NULL;
+  S->id = lat_id;
+  S->nc = 3;
+  lat_id++;
+  
+  qlua_selftable(L, mtLattice, qLattice);
+  lua_setmetatable(L, -2);
+  
+  return 1;
 }
 
 int *

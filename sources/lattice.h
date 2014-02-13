@@ -21,6 +21,8 @@ typedef struct {
 
 typedef struct {
     QDP_Lattice *lat;
+    int net_forced;
+    lua_State *L;
     int id;
     int nc;
     int rank;

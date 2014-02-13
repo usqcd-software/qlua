@@ -64,7 +64,16 @@ eo_setup(QDP_Lattice *lat, void *args)
 
     p->S = S;
 
-    if (QMP_get_msg_passing_type() != QMP_SWITCH) {
+    if (S->net_forced) {
+      int nv = 1;
+      int i;
+      int mn = QMP_get_number_of_nodes();
+      for (i = 0; i < S->rank; i++)
+        nv = nv * S->net[i];
+      if (nv != mn)
+        luaL_error(S->L, "Requested network of %d nodes, ran at %d", nv, mn);
+
+    } else if (QMP_get_msg_passing_type() != QMP_SWITCH) {
         int nd2 = QMP_get_allocated_number_of_dimensions();
         const int *nsquares2 = QMP_get_allocated_dimensions();
         int i;

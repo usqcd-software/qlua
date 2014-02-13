@@ -1,6 +1,8 @@
 [done] * move qlua_intarray() and qlua_checkintarray() to qlua.[ch]
 
-* replace hdf5-io.c and lattice.c calls to gettable() to qlua_intarray()
+[done] * replace hdf5-io.c and lattice.c calls to gettable() to qlua_intarray()
+
+* setting lattice geometry with { network = {...}}
 
 * Better handling of failed type writes ?
 
