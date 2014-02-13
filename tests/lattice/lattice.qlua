@@ -1,0 +1,37 @@
+require "stdlib"
+
+lsize = {4, 5, 6, 7, 8}
+nodes=qcd.network()
+
+printf("qcd.network nodes: %d\n", nodes)
+
+function test_lattice(name, ls, ns)
+   local L = qcd.lattice(ls, ns)
+   local i
+   printf("Lattice test %s:\n", name)
+   local x = L:network()
+   for i = 0, #L - 1 do
+      printf("[%d]:  %3d   %3d", i, L[i], x[i+1])
+      if ns.network then
+         printf(" (%3d)\n", ns.network[i+1])
+      else
+         printf("\n")
+      end
+   end
+   printf("\n")
+end
+
+test_lattice("natural", lsize, {})
+for i = 1, #lsize do
+   nw = {}
+   for j = 1, #lsize do
+      if j == i then
+         nw[j] = nodes
+      else
+         nw[j] = 1
+      end
+   end
+   test_lattice(string.format("all in d=%d", i), lsize, {network = nw})
+end
+
+printf("DONE\n")

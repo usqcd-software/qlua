@@ -7,9 +7,12 @@ end
 
 LAT = qcd.lattice{7, 8}
 
-print("lattice:", LAT)
-for i = 0, #LAT - 1 do
-   printf("dim[ %2d ] = %4d\n", i, LAT[i])
+do
+   local n = LAT:network()
+   print("lattice:", LAT)
+   for i = 0, #LAT - 1 do
+      printf("[ %2d ]  dim = %4d  net = %4d\n", i, LAT[i], n[i+1])
+   end
 end
 
 c0 = LAT:pcoord(0) + LAT:Int(7)
@@ -51,23 +54,25 @@ check_op("mod_Ii", (c0 - c0 + 1) % 2, function(a,b) return 1 end)
 check_op("mod_iI", 6 % (c0 - c0 + 3), function(a,b) return 0 end)
 
 cx = c0 + 100 * (6 + c1) % c0 - c1 / 2
-cy = LAT:pcoord(0):shift(0, "from_backward")
-cz = LAT:pcoord(1):shift(1, "from_forward")
-for d0 = 0, 7 - 1 do 
-  for d1 = 0, 8 - 1 do
-    local v0 = c0[{d0,d1}]
-    local v1 = c1[{d0,d1}]
-    print("  ", d0, d1,
-          cy[{d0, d1}],
-          cz[{d0, d1}],
-          cx[{d0, d1}])
-  end
+if false then
+   cy = LAT:pcoord(0):shift(0, "from_backward")
+   cz = LAT:pcoord(1):shift(1, "from_forward")
+   for d0 = 0, 7 - 1 do 
+      for d1 = 0, 8 - 1 do
+         local v0 = c0[{d0,d1}]
+         local v1 = c1[{d0,d1}]
+         print("  ", d0, d1,
+               cy[{d0, d1}],
+               cz[{d0, d1}],
+               cx[{d0, d1}])
+      end
+   end
 end
 
 cz = LAT:Int(cx)
 printf("sum(pcoord(0)) = %d\n", LAT:pcoord(0):sum())
 printf("sum(pcoord(1)) = %d\n", LAT:pcoord(1):sum())
 
-printf("s2 is %s", tostring(LAT:Int(2):norm2() == 7 * 8 * 4))
+printf("s2 is %s\n", tostring(LAT:Int(2):norm2() == 7 * 8 * 4))
 
 printf("DONE\n")
