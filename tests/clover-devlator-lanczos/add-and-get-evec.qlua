@@ -1,0 +1,51 @@
+-- check the first vector in gdb before and after extract_vector+add_vector
+-- 1. create deflator A, 
+-- 2. add constant vector e.g. delta func
+-- 2. get 1st vector, compare
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+require "latvec"
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+
+
+
+clover = qcd.Clover(gauge_u, clover_kappa, clover_csw, ferm_bc) 
+clover_eigcg_df = clover:eig_deflator(eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax)
+
+
+v1, v2 = latvec_eopc_single_to_pair(L:Subset("even"), rnd:gaussian_DiracFermion())
+print_latvec_cmp(v1, v2, "v1^v2")
+v2o = latvec_ortho(v2, v1)
+print_latvec_cmp(v1, v2o, "v1^v2o")
+
+clover_eigcg_df:start_load()
+clover_eigcg_df:add_vector(v1)
+clover_eigcg_df:add_vector(v2)    -- will be orthogonalized wrt v1
+clover_eigcg_df:stop_load()
+clover_eigcg_df:resume()
+
+y = rnd:gaussian_DiracFermion()
+x, x_eps, x_iter = clover_eigcg_df:mixed_solver(
+      mixcg_tol1, mixcg_maxiter1, 
+      mixcg_tol, mixcg_maxiter) (y)
+printf("inv: norm2(y)=%e  norm2(x)=%e  eps=%e  iter=%d  df_dim=%d\n",
+       y:norm2(), x:norm2(), x_eps, x_iter, clover_eigcg_df:current_dim())
+
+v1x = clover_eigcg_df:get_vector(0)
+v2x = clover_eigcg_df:get_vector(1)
+print_latvec_cmp(v1x, v2x, "v1x^v2x")
+print_latvec_cmp(v1x, v1, "v1x^v1")
+print_latvec_cmp(v2x, v2o, "v2x^v2o")
+

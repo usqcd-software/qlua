@@ -24,12 +24,11 @@ LIBS='-lz' \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-hdf5=$HOME/Local/packages/hdf5-1.8.11-parallel   \
-   --with-nc=2                                             \
+   --without-nc=any                                        \
    --with-nc=3                                             \
-   --with-nc=N                                             \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-mdwf=$PACKTOP/mdwf                               \
-   --with-clover=$PACKTOP/clover                           \
+   --with-clover=$HOME/Local/packages/clover-working       \
    --clover-nc=$Nc                                         \
    $*
 
