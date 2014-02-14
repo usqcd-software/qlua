@@ -7,3 +7,56 @@
 * Guard against user's writing /.* ?
 
 * Keep sha -> object map in /.sha256 ?
+
+* qcd.hdf5.Writer(filename, opts)
+
+   opts:
+      alignment = number
+      threshold = number     
+      driver = "posix"       fapl_sec2
+      driver = "core"        fapl_core
+        increment = number      allocation increment
+        write     = bool        is data written on close?
+      driver = "direct"      fapl_direct  ??
+      driver = "stdio"       fapl_stdio
+      driver = "family"      fapl_family
+        size = number           size of each file in bytes
+        ?????????               memb_fapl_id
+      driver = "multi"       fapl_multi
+        ?????
+      driver = "mpio"        fapl_mpio
+        ????? -- does it only make sense to use MPI_COMM_WORLD and MPI_INFO_NONE?
+      driver = "mpiposix"    fapl_mpiposix
+        hints = bool
+
+* how to pass arguments to H5Pset_chunk_cache() ?
+
+* Write options:
+    h:write(path, object)
+    h:write(path, object, opts)
+
+    opts: (only for lattice objects)
+     chunk = "contiguous" -- the default
+     chunk = "natural",   -- L[i]/L:network()[i+1]
+     chunk = {4, 5, 2, 5}
+     method = "independent" -- the default
+     method = "collective"
+     subset = "even"                -- do we have it?
+            = "odd"
+            = { low = {x-lo, ...},    -- if we are going to support the slices
+                high = {x-hi, ...}}
+
+* create a multifile driver? -- talk to Andre'
+
+* writers:
+** in the posix mode only the master node opens the file, no lattice objects many be written
+** in the mpio mode, all nodes open the file, lattice ops are permitted
+
+* readers:
+** always mpio (?)
+
+* If the subset option is handled, we need to store the following attributes:
+   .lattice = int []
+   .subset = string: "all", "even", "odd", "slice"
+   .low = int [] : only for slice subset
+   .high = int [] : only for slice subset
