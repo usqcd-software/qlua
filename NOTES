@@ -1,3 +1,59 @@
+* Approaches:
+** single file / phdf file
+   -- it seems considerably slower than multifile QIO
+** LQCD driver
+   -- complicated
+   -- hdf5 design may lack necessary machinery
+** format on top of hdf5:
+   -- extra layer of indirection (is it cheap?)
+
+* Build qhdf5 library with open interface, lua agnostic memory management
+
+* Separated reader and writer vs versatile writer?
+
+
+-----------------------------------------------------------
+master file:
+   /.qcd/master/id = sha256
+   /.qcd/master/count = number-of-nodes
+   /.qcd/types/.... -- all types are stored here
+data file:
+   /.qcd/data/id = sha256
+   /.qcd/data/number = uint32
+   /.qcd/types/....
+single file:
+   /.qcd/single/id = sha256
+   /..qcd/types/....
+
+All global data is stored in the master file
+All lattice data is spread accross data files (or stored in the single file)
+    the master file contains a header under the same path.
+ Keys:
+     key              master           data            single             Comment
+     .kind            "parallel"       <obj kind>      <obj kind>         there is no "parallel" kind
+     .subkind         <obj kind>       ----            ----               to speedup lookup ops
+     .type            <name of type>   ----            ----               to speedup lookup ops
+     .time            int64            int64           int64              must be the same everywhere
+     .sha256          <global sum>     <local sum>     <global sum>
+     .lattice         {Sx,...}         {Sx,...}        {Sx,...}           (1)
+     .low             {Lx,...}         {Lx,...}        {Lx,...}           (2)
+     .high            {Hx,...}         {Hx,...}        {Hx,...}           (2)
+     .sublattice      ----             {Nx,...}        ----               start of local block
+  Data:               I[...]           T[...]          T[...]             (3)
+
+ (1) master: lattice size defines the lattice object size
+     data:   lattice size must match that in the master
+     single: lattice size must agree with dataspace rank and dimensions
+ (2) for sliced data, both low and high attributes must be present.
+ (3) master: stores a 1-d map node -> (lo,hi) where lo and hi are vectors of ints
+     data:   array of data elements local to the node
+     single: all data for the object
+ (*) low is always inclusive, high is exclusive
+
+If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....}
+
+-----------------------------------------------------------
+
 * Better handling of failed type writes ?
 
 * Do better message if write() is attempted into an existing dataset
@@ -8,55 +64,51 @@
 
 * Keep sha -> object map in /.sha256 ?
 
+* qcd.hdf5.Reader(filename)
+    independent at hdf5 level, only uses QMP for global checksums on lattice objects
+
 * qcd.hdf5.Writer(filename, opts)
-
    opts:
-      alignment = number
-      threshold = number     
-      driver = "posix"       fapl_sec2
-      driver = "core"        fapl_core
-        increment = number      allocation increment
-        write     = bool        is data written on close?
-      driver = "direct"      fapl_direct  ??
-      driver = "stdio"       fapl_stdio
-      driver = "family"      fapl_family
-        size = number           size of each file in bytes
-        ?????????               memb_fapl_id
-      driver = "multi"       fapl_multi
-        ?????
-      driver = "mpio"        fapl_mpio
-        ????? -- does it only make sense to use MPI_COMM_WORLD and MPI_INFO_NONE?
-      driver = "mpiposix"    fapl_mpiposix
-        hints = bool
+     driver     = "posix"       -- only sequential data may be written from the master   DEFAULT
+     driver     = "phdf5"       -- all nodes write using pHDF5 driver
+     driver     = "qcd"         -- ? if we are going to implement it
+     align      = #             -- data alignment, default not set
+     threshold  = #             -- alignment threshold, default not set
+     istoreK    = #             -- value for H5Pset_istore_k(), default not set
+ ** mdc_config() values
 
-* how to pass arguments to H5Pset_chunk_cache() ?
+ 
+* lattice writers:
+     H:write(path, obj, opts)
+     opts:
+       chunk = "contiguous"          -- plain flat address space
+               "natural"             -- L[i]/n[i]                   DEFAULT
+               { n, ...}             -- explicit chunking
+       transfer = "independent"      -- non-collective          DEFAULT
+                  "collective"       --  ? do we need the transfter mode at all?
+       subset = "all"                --  DEFAULT
+              = "even"               -- only even sublattice
+              = "odd"                -- only odd sublattice
+              = { low = { n, ...},   -- hyperslice
+                  high = { n,...}}
 
-* Write options:
-    h:write(path, object)
-    h:write(path, object, opts)
+* Each object has the following attributes:
+    .kind = "string"      -- kind of the object as defined at present
+    .sha265 = int8[32]    -- the checksum
 
-    opts: (only for lattice objects)
-     chunk = "contiguous" -- the default
-     chunk = "natural",   -- L[i]/L:network()[i+1]
-     chunk = {4, 5, 2, 5}
-     method = "independent" -- the default
-     method = "collective"
-     subset = "even"                -- do we have it?
-            = "odd"
-            = { low = {x-lo, ...},    -- if we are going to support the slices
-                high = {x-hi, ...}}
+** for lattice objects, there are also
+     .lattice = int32[]   -- if present, should not contradict the dataspace
+     .low = int32[]       -- only for sliced data
+     .high = int32[]      -- both .low and .high must be present
 
-* create a multifile driver? -- talk to Andre'
+* reader:
+    H:read(path, opts)
+     opts:
+        kind = "string"     -- assume kind of the object
+        sha265 = "ignore"   -- allow mismatched or missing checksum
+               = "check"    -- abort on missing or mismatched checksum DEFAULT
+        lattice = L         -- if the object is non-scalar, this is the lattice to read into
+        low = { n, .... }   -- slice to read to. dataspace must agree with low and high options
+        high = { n, ... }   -- must be present if low is present.
 
-* writers:
-** in the posix mode only the master node opens the file, no lattice objects many be written
-** in the mpio mode, all nodes open the file, lattice ops are permitted
-
-* readers:
-** always mpio (?)
-
-* If the subset option is handled, we need to store the following attributes:
-   .lattice = int []
-   .subset = string: "all", "even", "odd", "slice"
-   .low = int [] : only for slice subset
-   .high = int [] : only for slice subset
+    lattice, low, and high are ignored for scalars
