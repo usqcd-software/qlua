@@ -653,14 +653,14 @@ static int
 Qs(q_seqcolmat_)(lua_State *L, int nc)
 {
     switch (lua_gettop(L)) {
-    case 0: {
+    case 1: {
         Qs(qlua_newZeroSeqColMat)(L, nc);
         return 1;
     }
-    case 1: {
-        switch (qlua_qtype(L, 1)) {
+    case 2: {
+        switch (qlua_qtype(L, 2)) {
         case qReal: {
-            QLA_D_Real x = luaL_checknumber(L, 1);
+            QLA_D_Real x = luaL_checknumber(L, 2);
             Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
             QLA_D_Complex z;
 
@@ -671,7 +671,7 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
             return 1;
         }
         case qComplex: {
-            QLA_D_Complex *z = qlua_checkComplex(L, 1);
+            QLA_D_Complex *z = qlua_checkComplex(L, 2);
             Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
 
             Qx(QLA_D,_M_eq_c)(QNC(nc) v->ptr, z);
@@ -683,12 +683,12 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
         }
         break;
     }
-    case 2: {
-        switch (qlua_qtype(L, 1)) {
+    case 3: {
+        switch (qlua_qtype(L, 2)) {
         case qComplex: {
-            QLA_D_Complex *z = qlua_checkComplex(L, 1);
-            int a = qlua_checkleftindex(L, 2, nc);
-            int b = qlua_checkrightindex(L, 2, nc);
+            QLA_D_Complex *z = qlua_checkComplex(L, 2);
+            int a = qlua_checkleftindex(L, 3, nc);
+            int b = qlua_checkrightindex(L, 3, nc);
             Qs(mSeqColMat) *v = Qs(qlua_newZeroSeqColMat)(L, nc);
 
             Qx(QLA_D,_M_eq_elem_C)(QNC(nc) v->ptr, z, a, b);
@@ -696,10 +696,10 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
             return 1;
         }
         case Qs(qSeqColVec): {
-            Qs(mSeqColVec) *f = Qs(qlua_checkSeqColVec)(L, 1, nc);
-            switch (qlua_qtype(L, 2)) {
+            Qs(mSeqColVec) *f = Qs(qlua_checkSeqColVec)(L, 2, nc);
+            switch (qlua_qtype(L, 3)) {
             case qTable: {
-                int b = qlua_checkrightindex(L, 2, nc);
+                int b = qlua_checkrightindex(L, 3, nc);
                 Qs(mSeqColMat) *v = Qs(qlua_newZeroSeqColMat)(L, nc);
                 
                 Qx(QLA_D,_M_eq_colorvec_V)(QNC(nc) v->ptr, f->ptr, b);
@@ -707,7 +707,7 @@ Qs(q_seqcolmat_)(lua_State *L, int nc)
                 return 1;
             }
             case Qs(qSeqColVec): {
-                Qs(mSeqColVec) *g = Qs(qlua_checkSeqColVec)(L, 2, nc);
+                Qs(mSeqColVec) *g = Qs(qlua_checkSeqColVec)(L, 3, nc);
                 Qs(mSeqColMat) *v = Qs(qlua_newSeqColMat)(L, nc);
 
                 Qx(QLA_D,_M_eq_V_times_Va)(QNC(nc) v->ptr, f->ptr, g->ptr);

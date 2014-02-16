@@ -1,0 +1,319 @@
+require "stdlib"
+
+Lgeom = {2,3,5}
+L = qcd.lattice(Lgeom)
+fname = "h5-test.h5"
+Pstd = {}
+Pd = { precision = "double", sha256 = "ignore"  }
+Pf = { precision = "float", sha256 = "ignore"  }
+Pl = { lattice = L, sha256 = "ignore" }
+Pld = { lattice = L, sha256 = "ignore", precision = "double" }
+Plf = { lattice = L, sha256 = "ignore", precision = "float" }
+
+seed_A = 367458
+seed_B = 587642
+
+do
+   local x = L:Int(seed_B)
+   local i
+   lint = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+      lint = lint * 100 + L:pcoord(i)
+   end
+   S = L:RandomState(seed_A, x)
+end
+s = qcd.RandomState(3456,24513)
+
+function latint_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %5d %5d\n", x, y, z, a[{x,y,z}], b[{x,y,z}])
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = (d*d):sum()/(a*a):sum()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latx_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %s %s\n", x, y, z, tostring(a[{x,y,z}]), tostring(b[{x,y,z}]))
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latc_cmp(a, b)
+   if true then
+      local x, y, z, i, j
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               for i = 0, a:colors() - 1 do
+                  for j = 0, a:colors() - 1 do
+                     printf("[%3d %3d %3d] [%d %d] %s %s\n", x, y, z, i, j,
+                            tostring(a[{x,y,z}][{a=i,b=j}]),
+                            tostring(b[{x,y,z}][{a=i,b=j}]))
+                  end
+               end
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function seq_cmp(a,b)
+   local d = a - b
+   local c = qcd.dot(d,d):real()/qcd.dot(a,a):real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function str_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return "different"
+end
+
+function real_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return string.format("different: %.1e", 2*math.abs(a-b)/(a+b))
+end
+
+function complex_cmp(a,b)
+   local ar = a:real()
+   local ai = a:imag()
+   local br = b:real()
+   local bi = b:imag()
+   if (ar == br) and (ai == bi) then
+      return "eq"
+   end
+   return string.format("different: %.1e", (2*(a-b)/(a+b)):abs())
+end
+
+function vfill(v,a,b)
+   local i
+   for i = 0, #v - 1 do
+      v[i] = a + b*i
+   end
+   return v
+end
+
+function mfill(m,a,b,c)
+   local i, j
+   local ml, mr = m:dims()
+   for i = 0, ml - 1 do
+      for j = 0, mr - 1 do 
+         m[{i,j}] = a + b * i + c * j
+      end
+   end
+   return m
+end
+
+function ivec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %d vs %d", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function rvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %g vs %g", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function cvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not ((a[i]:real() == b[i]:real()) and (a[i]:imag() == b[i]:imag())) then
+         return string.format("differ at %d: diff %.1e", i, 2*((a[i]-b[i])/(a[i]+b[i])):abs())
+      end
+   end
+   return "eq"
+end
+
+function rmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         if not (a[{i,j}] == b[{i,j}]) then
+            return string.format("differ at %d: %g vs %g", i, a[{i,j}], b[{i,j}])
+         end
+      end
+   end
+   return "eq"
+end
+
+function cmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   local ok = true
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         local ax = a[{i,j}]
+         local bx = b[{i,j}]
+         if not ((ax:real() == bx:real()) and (ax:imag() == bx:imag())) then
+            return string.format("differ at %d: diff %.1e (%s vs %s)",
+                                 i, 2*((ax-bx)/(ax+bx)):abs(),
+                                 tostring(ax), tostring(bx))
+         end
+      end
+   end
+   return "eq"
+end
+
+
+
+c1 = complex(2,3)
+c2 = complex(4,5.25)
+c3 = complex(2.25,1.125)
+c4 = c2 + 3 * c3
+cx = complex(1.1231, -15.12451)
+
+--------------------------------------------------------
+dtab = {
+   { "/serial/string",         "hello",                                   Pstd,  str_cmp },
+   { "/serial/str2",           "there",                                   Pstd,  str_cmp },
+   { "/serial/real-D",         1.125,                                     Pd,    real_cmp },
+   { "/serial/real-F",         3451.25,                                   Pf,    real_cmp },
+   { "/serial/complex-D",      c1,                                        Pd,    complex_cmp },
+   { "/serial/complex-F",      c2,                                        Pf,    complex_cmp },
+   { "/serial/ivec-1",         vfill(vector.int(7), 543, 61),             Pstd,  ivec_cmp},
+   { "/serial/ivec-2",         vfill(vector.int(12), 3, -6),              Pstd,  ivec_cmp},
+   { "/serial/realvec-D",      vfill(vector.real(12), 3, -6),             Pd,    rvec_cmp},
+   { "/serial/realvec-F",      vfill(vector.real(5), 6.5, -1.25),         Pf,    rvec_cmp},
+   { "/serial/cvec-D",         vfill(vector.complex(12), c3, c4),         Pd,    cvec_cmp},
+   { "/serial/cvec-F",         vfill(vector.complex(7), c4, c2),          Pf,    cvec_cmp},
+   { "/serial/rmat-D",         mfill(matrix.real{3,4}, 1, 2, 3),          Pd,    rmat_cmp},
+   { "/serial/rmat-F",         mfill(matrix.real{5,2}, 1.5, 2.25, 3.25),  Pf,    rmat_cmp},
+   { "/serial/cmat-D",         mfill(matrix.complex{3,4}, c1, c2, c3),    Pd,    cmat_cmp},
+   { "/serial/cmat-F",         mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp},
+   { "/lattice/int",           lint,                                      Pl,    latint_cmp},
+   { "/lattice/real-D",        S:gaussian_Real() * 1.2341,                Pld,   latint_cmp},
+   { "/lattice/real-F",        S:gaussian_Real() * 0.14561,               Plf,   latint_cmp},
+   { "/lattice/complex-D",     S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
+   { "/lattice/comlpex-F",     S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp},
+   -- color vectors
+   { "/color/seq/vec6-D",      s:gaussian_ColorVectorN(6) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec6-F",      s:gaussian_ColorVectorN(6) * cx,           Pf,    seq_cmp},
+   { "/color/seq/vec2-D",      s:gaussian_ColorVectorN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec2-F",      s:gaussian_ColorVectorN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/vec7-D",      S:gaussian_ColorVectorN(7) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec7-F",      S:gaussian_ColorVectorN(7) * cx,           Plf,   latx_cmp},
+   { "/color/lat/vec2-D",      S:gaussian_ColorVectorN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec2-F",      S:gaussian_ColorVectorN(2) * cx,           Plf,   latx_cmp},
+   -- color matrices
+   { "/color/seq/mat4-D",      s:gaussian_ColorMatrixN(4) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat4-F",      s:gaussian_ColorMatrixN(4) * cx,           Pf,    seq_cmp},
+   { "/color/seq/mat2-D",      s:gaussian_ColorMatrixN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat2-F",      s:gaussian_ColorMatrixN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/mat5-D",      S:gaussian_ColorMatrixN(5) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat5-F",      S:gaussian_ColorMatrixN(5) * cx,           Plf,   latx_cmp},
+   { "/color/lat/mat2-D",      S:gaussian_ColorMatrixN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat2-F",      S:gaussian_ColorMatrixN(2) * cx,           Plf,   latx_cmp},
+   -- dirac fermions
+   { "/color/seq/dirferm4-D",  s:gaussian_DiracFermionN(4) * cx,           Pd,    seq_cmp},
+   { "/color/seq/dirferm4-F",  s:gaussian_DiracFermionN(4) * cx,           Pf,    seq_cmp},
+   { "/color/seq/dirferm2-D",  s:gaussian_DiracFermionN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/dirferm2-F",  s:gaussian_DiracFermionN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/dirferm5-D",  S:gaussian_DiracFermionN(5) * cx,           Pld,   latx_cmp},
+   { "/color/lat/dirferm5-F",  S:gaussian_DiracFermionN(5) * cx,           Plf,   latx_cmp},
+   { "/color/lat/dirferm2-D",  S:gaussian_DiracFermionN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/dirferm2-F",  S:gaussian_DiracFermionN(2) * cx,           Plf,   latx_cmp},
+   -- dirac propagators
+   { "/color/seq/dirprop4-D",  s:gaussian_DiracPropagatorN(4) * cx,        Pd,    seq_cmp},
+   { "/color/seq/dirprop4-F",  s:gaussian_DiracPropagatorN(4) * cx,        Pf,    seq_cmp},
+   { "/color/seq/dirprop2-D",  s:gaussian_DiracPropagatorN(2) * cx,        Pd,    seq_cmp},
+   { "/color/seq/dirprop2-F",  s:gaussian_DiracPropagatorN(2) * cx,        Pf,    seq_cmp},
+   { "/color/lat/dirprop5-D",  S:gaussian_DiracPropagatorN(5) * cx,        Pld,   latx_cmp},
+   { "/color/lat/dirprop5-F",  S:gaussian_DiracPropagatorN(5) * cx,        Plf,   latx_cmp},
+   { "/color/lat/dirprop2-D",  S:gaussian_DiracPropagatorN(2) * cx,        Pld,   latx_cmp},
+   { "/color/lat/dirprop2-F",  S:gaussian_DiracPropagatorN(2) * cx,        Plf,   latx_cmp},
+
+
+   { "/final",             "DONE",                                    Pstd,  str_cmp},
+   { "/final2",            "DONE",                                    Pstd,  str_cmp}
+}
+
+os.remove(fname)
+printf("Writing to %s:\n", fname)
+x = qcd.hdf5.Writer(fname)
+for i = 1, #dtab do
+   local el = dtab[i]
+   printf("  %s\n", el[1])
+   x:write(el[1], el[2], el[3])
+end
+printf("hdf5 writer %s has type %s\n", tostring(x), type(x));
+x:close()
+printf("hdf5 writer %s has type %s when closed\n", tostring(x), type(x));
+
+printf("Reading from %s:\n", fname)
+x = qcd.hdf5.Reader(fname)
+for i = 1, #dtab do
+   local el = dtab[i]
+   local a, st = x:read(el[1], el[3])
+   local f = el[4](a, el[2])
+   printf(" %-30s %10s %s\n", el[1], st, f)
+end
+printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
+x:close()
+printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
+
+printf("DONE\n")

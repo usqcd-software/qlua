@@ -1,0 +1,18 @@
+require "stdlib"
+
+rnames = { "as", "data", "rss", "stack"}
+
+for i, v in pairs(os) do
+   printf(" os.%-20s %s\n", i, tostring(v))
+end
+
+for n = 1, #rnames do
+   local s, h = os.limit(rnames[n])
+   printf("current %s = %.0f KiB (hard %.0f KiB)\n", rnames[n], s, h)
+end
+
+os.limit("data", 1024*1024, 1024*1024 * 1024);
+local s, h = os.limit("data")
+printf("new data = %.0f KiB (%.0f KiB)\n", s, h)
+
+printf("DONE\n")

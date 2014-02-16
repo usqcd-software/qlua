@@ -15,8 +15,11 @@ Qs(q_M_fmt)(lua_State *L)
 static int
 Qs(q_M_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatColMat) *b = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "ColorMatrix%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_M)(b->ptr);
     b->ptr = 0;
 
@@ -935,6 +938,7 @@ Qs(mLatColMat) *
 Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
 {
     mLattice *S = qlua_checkLattice(L, Sidx);
+    char qdp_name[72];
 #if QNc == 'N'
     Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M_L)(nc, S->lat);
 #else
@@ -960,6 +964,8 @@ Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatColMat), Qs(qLatColMat),
                             Qs(LatColMatName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "ColorMatrix%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }

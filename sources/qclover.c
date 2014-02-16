@@ -14,7 +14,6 @@
 #include "qlanczos.h"
 
 #include <math.h>
-#include <assert.h>
 #include <string.h>
 
 #define QNc(a,b) QNc_1(a,QLUA_CLOVER_NC,b)
@@ -535,7 +534,6 @@ q_DF_add_vector(lua_State *L)
     QNc(QLA_D, _DiracFermion) *e_psi;
     struct QNc(QOP_F,_CLOVER_HalfFermion) *c_psi;
     struct QNc(QOP_F,_CLOVER_Gauge) *gaugeF;
-    const char *err_str;
 
     if (d->umax <= n_vec)
       return luaL_error(L, "vector space is full");
@@ -550,19 +548,12 @@ q_DF_add_vector(lua_State *L)
     r_env.lat   = S->lat;
     r_env.f     = e_psi;
     r_env.s     = 1. / norm;
-    if (QNc(QOP_F, _CLOVER_import_half_fermion)(&c_psi, c->state,
-                                                q_CL_D_reader_scaled, &r_env)) {
-      err_str = "CLOVER_import_fermion() failed";
-      goto clearerr_2;
-    }
-    if (QNc(QOP_, _CLOVER_gauge_float_from_double)(&gaugeF, c->gauge)) {
-      err_str = "CLOVER_gauge_float_from_double() failed";
-      goto clearerr_3;
-    }
-    if (QNc(QOP_F, _CLOVER_deflator_add_vector)(gaugeF, d->deflator, c_psi)) {
-      err_str = QNc(QOP_, _CLOVER_error)(c->state);
-      goto clearerr_4;
-    }
+    if (QNc(QOP_F, _CLOVER_import_half_fermion)(&c_psi, c->state, q_CL_D_reader_scaled, &r_env))
+      return luaL_error(L, "CLOVER_import_fermion() failed");
+    if (QNc(QOP_, _CLOVER_gauge_float_from_double)(&gaugeF, c->gauge))
+      return luaL_error(L, "CLOVER_gauge_float_from_double() failed");
+    if (QNc(QOP_F, _CLOVER_deflator_add_vector)(gaugeF, d->deflator, c_psi))
+      return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
 
     /* cleanup */
     QNc(QOP_F, _CLOVER_free_gauge)(&gaugeF);
@@ -573,14 +564,6 @@ q_DF_add_vector(lua_State *L)
     /* normal return */
     lua_pushnumber(L, QNc(QOP_F, _CLOVER_deflator_current_dim)(d->deflator));
     return 1;
-
-clearerr_4:
-    QNc(QOP_F, _CLOVER_free_gauge)(&gaugeF);
-clearerr_3:
-    QNc(QOP_F, _CLOVER_free_half_fermion)(&c_psi);
-clearerr_2:
-    QNc(QDP_D, _reset_D)(psi->ptr);
-    return luaL_error(L, err_str);
 }
 
 static int
@@ -592,7 +575,6 @@ q_DF_get_vector(lua_State *L)
     int Sidx = lua_gettop(L);
     int num_vec = QNc(QOP_F, _CLOVER_deflator_current_dim)(d->deflator);
     int idx_vec = qlua_checkint(L, 2, "expect vector index");
-    const char *err_str;
 
     if (idx_vec < 0 || num_vec <= idx_vec)
         return luaL_error(L, "expect vector index 0 <= i < dim");
@@ -608,29 +590,18 @@ q_DF_get_vector(lua_State *L)
     w_env.s   = 1.;
 
     struct QNc(QOP_F, _CLOVER_HalfFermion) *c_psi;
-    if (QNc(QOP_F,_CLOVER_allocate_half_fermion)(&c_psi, c->state)) {
-      err_str = "CLOVER_allocate_half_fermion() failed";
-      goto clearerr_1;
-    }
-    if (QNc(QOP_F, _CLOVER_deflator_extract_vector)(c_psi, d->deflator, idx_vec)) {
-      err_str = QNc(QOP_, _CLOVER_error)(c->state);
-      goto clearerr_2;
-    }
-    if (QNc(QOP_F, _CLOVER_export_half_fermion)(q_CL_D_writer_scaled, &w_env, c_psi)) {
-      err_str = "CLOVER_export_half_fermion() failed";
-      goto clearerr_2;
-    }
+    if (QNc(QOP_F,_CLOVER_allocate_half_fermion)(&c_psi, c->state))
+      return luaL_error(L, "CLOVER_allocate_half_fermion() failed");
+    if (QNc(QOP_F, _CLOVER_deflator_extract_vector)(c_psi, d->deflator, idx_vec))
+      return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
+    if (QNc(QOP_F, _CLOVER_export_half_fermion)(q_CL_D_writer_scaled, &w_env, c_psi))
+      return luaL_error(L, "CLOVER_export_half_fermion() failed");
 
     QNc(QDP_D, _reset_D)(psi->ptr);
 
     /* clean up */
     QNc(QOP_F, _CLOVER_free_half_fermion)(&c_psi);
     return 1;
-
-clearerr_2:
-    QNc(QOP_F, _CLOVER_free_half_fermion)(&c_psi);
-clearerr_1:
-    return luaL_error(L, err_str);
 }
 
 static int
@@ -777,7 +748,7 @@ QNc(op_CLOVER_F, _eoprec_MdagM_op)(int loc_dim,
   double t1, t2;
 
   QNc(op_CLOVER_F, _eoprec_MdagM_arg_s) *a = (QNc(op_CLOVER_F, _eoprec_MdagM_arg_s) *)op_arg;
-  assert(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
+  QLUA_ASSERT(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
 
   QNc(QOP_F, _CLOVER_half_fermion_from_blas)(a->y, (float *)y, 2 * loc_dim);
   if (0 < a->poly_n) {
@@ -842,10 +813,10 @@ QNc(op_CLOVER_F, _eoprec_MdagM_double_op)(int loc_dim,
   double complex *d_buf = NULL;
 
   QNc(op_CLOVER_D, _eoprec_MdagM_arg_s) *a = (QNc(op_CLOVER_D, _eoprec_MdagM_arg_s) *)op_arg;
-  assert(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
+  QLUA_ASSERT(2 * loc_dim == QNc(QOP_, _CLOVER_half_fermion_size)(a->clover_state));
 
   d_buf = malloc(sizeof(d_buf[0]) * loc_dim);
-  assert(NULL != d_buf);
+  QLUA_ASSERT(NULL != d_buf);
 
   for (i = 0 ; i < loc_dim ; i++)
     d_buf[i] = y[i];
@@ -905,14 +876,11 @@ QNc(op_CLOVER_F, _eoprec_MdagM_double_op)(int loc_dim,
 static int
 q_CL_make_deflator_lanczos(lua_State *L)
 {
-#define clearerr_exit(msg) do { err_str = msg; goto clearerr; } while(0)
 #define LANCZOS_MXM_DOUBLE  1
-  const char *err_str;
   /* by default, search for ev with smallest real part */
   const char *lanczos_which= "SR";
   const char *arpack_logfile = NULL;
   struct QNc(QOP_F, _CLOVER_HalfFermionMat) *hfm = NULL;
-  static char err_str_buf[1024];
   /* operator parameters, init to empty */
   struct QNc(QOP_F, _CLOVER_Gauge) *gaugeF = NULL;
 #ifdef LANCZOS_MXM_DOUBLE
@@ -936,7 +904,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
 
   mClover *c = qlua_checkClover(L, 1, NULL, 1);
   if (NULL == c->state || NULL == c->gauge)
-    clearerr_exit("closed CLOVER used");
+    return luaL_error(L, "closed CLOVER used");
 
   mDeflatorState *d = NULL;
 
@@ -969,16 +937,16 @@ q_CL_make_deflator_lanczos(lua_State *L)
       int do_norm = 0;
 
       if (0 <= op_arg.poly_n)
-        err_str = "more than one poly.accel. parameter";
+        return luaL_error(L, "more than one poly.accel. parameter");
 
       cheb_n  = qlua_tabidx_int(L, -1, 1);
       if (cheb_n < 0)
-        clearerr_exit("poly.degree must be positive");
+        return luaL_error(L, "poly.degree must be positive");
 
       cheb_a  = qlua_tabidx_double(L, -1, 2);
       cheb_b  = qlua_tabidx_double(L, -1, 3);
       if (cheb_a == cheb_b)
-        clearerr_exit("invalid segment [a;b]");
+        return luaL_error(L, "invalid segment [a;b]");
 
       if (qlua_tabpushopt_idx(L, -1, 4)) {
         do_norm = 1;
@@ -995,7 +963,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
       if (NULL == a->poly_a
           || NULL == a->poly_b
           || NULL == a->poly_c)
-        clearerr_exit("not enough memory");
+        return luaL_error(L, "not enough memory");
 
       a->poly_a[0] = (-cheb_b - cheb_a) / (cheb_b - cheb_a);
       a->poly_b[0] = 2. / (cheb_b - cheb_a);
@@ -1024,12 +992,9 @@ q_CL_make_deflator_lanczos(lua_State *L)
              && strcmp("SI", lanczos_which)
              && strcmp("LI", lanczos_which)
              && strcmp("SM", lanczos_which)
-             && strcmp("LM", lanczos_which))) {
-        snprintf(err_str_buf, sizeof(err_str_buf),
-                 "invalid value for which='%s'",
-                 NULL == lanczos_which ? "null" : lanczos_which);
-        clearerr_exit(err_str_buf);
-      }
+             && strcmp("LM", lanczos_which)))
+        return luaL_error(L, "invalid value for which='%s'",
+                          NULL == lanczos_which ? "null" : lanczos_which);
       lua_pop(L, 1);
     }
 
@@ -1050,7 +1015,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
       if (lua_isboolean(L, -1)) {
         do_lanczos_inplace = lua_toboolean(L, -1);
       } else
-        clearerr_exit("'inplace' : expect boolean");
+        return luaL_error(L, "'inplace' : expect boolean");
       lua_pop(L, 1);
     }
   }
@@ -1064,7 +1029,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
       eigcg_nev = eigcg_vmax / 2;
   }
   if (eigcg_vmax < 2 * eigcg_nev)
-    clearerr_exit("eigcg VMAX: must satisfy VMAX > 2*NEV");
+    return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
 #endif
 
 
@@ -1077,7 +1042,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
   lua_pushvalue(L, 1);
   lua_rawseti(L, -2, 1);
   if (NULL == (d = q_newDeflatorState(L, Sidx)))
-    clearerr_exit("cannot create deflator state");
+    return luaL_error(L, "cannot create deflator state");
   lua_rawseti(L, -2, 2);
   qlua_createLatticeTable(L, Sidx, mtDeflator, qCloverDeflator,
                           CloverDeflatorName);
@@ -1089,7 +1054,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
 
   gaugeF = NULL;
   if (QNc(QOP_, _CLOVER_gauge_float_from_double)(&gaugeF, c->gauge))
-    clearerr_exit("QOP_CLOVER_gauge_float_from_double() failed");
+    return luaL_error(L, "QOP_CLOVER_gauge_float_from_double() failed");
 
 #ifdef LANCZOS_MXM_DOUBLE
   op_arg.clover_state = c->state;
@@ -1098,22 +1063,22 @@ q_CL_make_deflator_lanczos(lua_State *L)
   op_arg.x = op_arg.y = NULL;
   if (QNc(QOP_D, _CLOVER_allocate_half_fermion)(&op_arg.x, c->state)
       || QNc(QOP_D, _CLOVER_allocate_half_fermion)(&op_arg.y, c->state))
-    clearerr_exit("cannot allocate HalfFermion");
+    return luaL_error(L, "cannot allocate HalfFermion");
 #else
   op_arg.clover_state   = c->state;
   if (QNc(QOP_, _CLOVER_gauge_float_from_double)(&(op_arg.clover_gauge), c->gauge))
-    clearerr_exit("CLOVER_gauge_float_from_double() failed");
+    return luaL_error(L, "CLOVER_gauge_float_from_double() failed");
 
   op_arg.x = op_arg.y = NULL;
   if (QNc(QOP_F, _CLOVER_allocate_half_fermion)(&op_arg.x, c->state)
       || QNc(QOP_F, _CLOVER_allocate_half_fermion)(&op_arg.y, c->state))
-    clearerr_exit("cannot allocate HalfFermion");
+    return luaL_error(L, "cannot allocate HalfFermion");
 #endif/*LANCZOS_MXM_DOUBLE*/
 
   MPI_Comm mpi_comm = MPI_COMM_WORLD; /* FIXME any better choice? */
 
   loc_dim = QNc(QOP_, _CLOVER_half_fermion_size)(c->state) / 2;
-  assert(0 == QNc(QOP_, _CLOVER_half_fermion_size)(c->state) % 2);
+  QLUA_ASSERT(0 == QNc(QOP_, _CLOVER_half_fermion_size)(c->state) % 2);
 
   /* run Arnoldi/Lanczos iterations */
   n_iters = nconv = 0;
@@ -1126,12 +1091,12 @@ q_CL_make_deflator_lanczos(lua_State *L)
       hfm_ld       = 0;
 
     if (NULL == (eval = qlua_malloc(L, sizeof(eval[0]) * nev)))
-      clearerr_exit("not enough memory");
+      return luaL_error(L, "not enough memory");
     if (QNc(QOP_F, _CLOVER_alloc_half_fermion_matrix)(&hfm, c->state, inplace_umax))
-      clearerr_exit("CLOVER_alloc_half_fermion_matrix failed");
+      return luaL_error(L, "CLOVER_alloc_half_fermion_matrix failed");
     if (QNc(QOP_F, _CLOVER_blas_view_half_fermion_matrix)(hfm, &hfm_nrow_loc, &hfm_ncol,
                                                           &hfm_blas_ptr, &hfm_ld))
-      clearerr_exit(QNc(QOP_, _CLOVER_error)(c->state));
+      return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
 
     if (0 != (status = lanczos_inplace_float(
                                              L, mpi_comm,
@@ -1144,15 +1109,12 @@ q_CL_make_deflator_lanczos(lua_State *L)
                                              lanczos_which, loc_dim, nev, ncv, max_iter, tol,
                                              eval, (float complex *)hfm_blas_ptr, hfm_ld, hfm_ncol,
                                              &n_iters, &nconv, arpack_logfile))) {
-      QNc(QOP_F, _CLOVER_free_half_fermion_matrix)(&hfm);
-      snprintf(err_str_buf, sizeof(err_str_buf),
-               "lanczos_float_inplace returned %d", status);
-      clearerr_exit(err_str_buf);
+      return luaL_error(L, "lanczos_float_inplace returned %d", status);
     }
     if (QNc(QOP_F, _CLOVER_create_deflator_inplace)(&(d->deflator), gaugeF, &hfm,
                                                     nconv, eigcg_vmax, eigcg_nev, eigcg_eps,
                                                     eigcg_umax))
-      clearerr_exit(QNc(QOP_, _CLOVER_error)(c->state));
+      return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
 
   } else {
     if (0 != (status = lanczos_float(
@@ -1164,11 +1126,8 @@ q_CL_make_deflator_lanczos(lua_State *L)
 #endif/*LANCZOS_MXM_DOUBLE*/
                                      &op_arg,
                                      lanczos_which, loc_dim, nev, ncv, max_iter, tol,
-                                     &eval, &evec, &n_iters, &nconv, arpack_logfile))) {
-      snprintf(err_str_buf, sizeof(err_str_buf),
-               "lanczos_float returned %d", status);
-      clearerr_exit(err_str_buf);
-    }
+                                     &eval, &evec, &n_iters, &nconv, arpack_logfile)))
+      return luaL_error(L, "lanczos_float returned %d", status);
     /* FIXME rewrite with clear explanation for the choice of
        default values */
     if (eigcg_umax <= 0 || eigcg_umax <= nconv)
@@ -1177,29 +1136,29 @@ q_CL_make_deflator_lanczos(lua_State *L)
 
     if (QNc(QOP_F, _CLOVER_create_deflator)(&d->deflator, c->state,
                                             eigcg_vmax, eigcg_nev, eigcg_eps, eigcg_umax))
-      clearerr_exit("CLOVER_create_deflator() failed");
+      return luaL_error(L, "CLOVER_create_deflator() failed");
 
     /* fill deflator with e.vecs */
     if (QNc(QOP_F, _CLOVER_deflator_start_load)(d->deflator))
-      clearerr_exit("CLOVER_deflator_start_load() failed");
+      return luaL_error(L, "CLOVER_deflator_start_load() failed");
     /* (have space for eigcg_umax) */
     n_evecs = (nconv <= eigcg_umax ? nconv : eigcg_umax);
 
     struct QNc(QOP_F, _CLOVER_HalfFermion) *hf_buf = NULL;
     if (QNc(QOP_F, _CLOVER_allocate_half_fermion)(&hf_buf, c->state))
-      clearerr_exit("cannot allocate HalfFermion");
+      return luaL_error(L, "cannot allocate HalfFermion");
 
     for (i = 0 ; i < n_evecs ; i++) {
       QNc(QOP_F, _CLOVER_half_fermion_from_blas)(hf_buf,
                                                  (float *)(evec + i * loc_dim), 2 * loc_dim);
       if (QNc(QOP_F, _CLOVER_deflator_add_vector)(gaugeF, d->deflator, hf_buf)) {
         QNc(QOP_F, _CLOVER_free_half_fermion)(&hf_buf);
-        clearerr_exit("CLOVER_deflator_add_vector() failed");
+        return luaL_error(L, "CLOVER_deflator_add_vector() failed");
       }
     }
 
     if (QNc(QOP_F, _CLOVER_deflator_stop_load)(d->deflator))
-      clearerr_exit("CLOVER_deflator_end_load() failed");
+      return luaL_error(L, "CLOVER_deflator_end_load() failed");
   }
 
   /* initialize CLOVER side of deflator */
@@ -1233,29 +1192,6 @@ q_CL_make_deflator_lanczos(lua_State *L)
   lua_pushnumber(L, nconv);
   lua_pushnumber(L, n_iters);
   return 3; /* deflator object, n_converged, n_iter */
-
- clearerr:
-  /* cleanup on error */
-  if (NULL != evec) free(evec);
-  if (NULL != eval) free(eval);
-  if (NULL != gaugeF) QNc(QOP_F, _CLOVER_free_gauge)(&(gaugeF));
-#ifdef LANCZOS_MXM_DOUBLE
-  if (NULL != op_arg.y) QNc(QOP_D, _CLOVER_free_half_fermion)(&op_arg.y);
-  if (NULL != op_arg.x) QNc(QOP_D, _CLOVER_free_half_fermion)(&op_arg.x);
-#else
-  if (NULL != op_arg.clover_gauge) QNc(QOP_F, _CLOVER_free_gauge)(&(op_arg.clover_gauge));
-  if (NULL != op_arg.y) QNc(QOP_F, _CLOVER_free_half_fermion)(&op_arg.y);
-  if (NULL != op_arg.x) QNc(QOP_F, _CLOVER_free_half_fermion)(&op_arg.x);
-#endif/*LANCZOS_MXM_DOUBLE*/
-
-  if (NULL != op_arg.poly_a) qlua_free(L, op_arg.poly_a);
-  if (NULL != op_arg.poly_b) qlua_free(L, op_arg.poly_b);
-  if (NULL != op_arg.poly_c) qlua_free(L, op_arg.poly_c);
-
-  if (NULL != hfm)  QNc(QOP_F, _CLOVER_free_half_fermion_matrix)(&hfm);
-
-  return luaL_error(L, err_str);
-#undef clearerr_exit
 }
 
 #endif /* HAS_ARPACK */

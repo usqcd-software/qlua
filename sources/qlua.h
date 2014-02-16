@@ -90,16 +90,15 @@ typedef enum {
     qWriter,                  /* 47 */
     qAffReader,               /* 48 */
     qAffWriter,               /* 49 */
-    qHdf5Reader,              /* 50 */
-    qHdf5Writer,              /* 51 */
-    qClover,                  /* 52 */
-    qCloverDeflator,          /* 53 */
-    qCloverDeflatorState,     /* 54 */
-    qMDWF,                    /* 55 */
-    qMDWFDeflator,            /* 56 */
-    qMDWFDeflatorState,       /* 57 */
+    qHdf5File,                /* 50 */
+    qClover,                  /* 51 */
+    qCloverDeflator,          /* 52 */
+    qCloverDeflatorState,     /* 53 */
+    qMDWF,                    /* 54 */
+    qMDWFDeflator,            /* 55 */
+    qMDWFDeflatorState,       /* 56 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 58 */
+    qNoType                   /* 57 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -114,6 +113,8 @@ extern const char *progname;
 extern const char *qcdlib;
 extern const char *a_type_key;
 extern int qlua_master_node;
+
+double qlua_timeofday(void);
 
 void qlua_fillmeta(lua_State *L,
                    const luaL_Reg *table,
@@ -146,6 +147,7 @@ QLUA_Ztype qlua_ztype(lua_State *L, int idx);
 QLUA_Type qlua_atype(lua_State *L, int idx); /* non-arith types => qOther */
 const char *qlua_ptype(lua_State *L, int idx);
 void *qlua_malloc(lua_State *L, int size);
+void qlua_qdp_memuse(lua_State *L, const char *name, int count);
 void qlua_free(lua_State *L, void *ptr);
 
 int qlua_index(lua_State *L, int idx, const char *name, int mv);  /* k or -1 */
@@ -169,6 +171,8 @@ const char *qlua_checkstring(lua_State *L, int idx, const char *fmt, ...);
 int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
 double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
 void qlua_checktable(lua_State *L, int idx, const char *fmt, ...);
+int *qlua_intarray(lua_State *L, int idx, int *out_dim);
+int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
@@ -180,6 +184,8 @@ double qlua_tabkey_double(lua_State *L, int idx, const char *key);
 double qlua_tabidx_double(lua_State *L, int idx, int subidx);
 const char *qlua_tabkey_string(lua_State *L, int idx, const char *key);
 const char *qlua_tabidx_string(lua_State *L, int idx, int subidx);
+const char *qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def);
+int qlua_tabkey_tableopt(lua_State *L, int idx, const char *key);
 
 typedef int (*q_op)(lua_State *L);
 
@@ -233,6 +239,7 @@ void XMP_dist_int_array(int src_node, int count, int *value);
 void XMP_dist_double_array(int src_node, int count, double *value);
 
 #define QLUA_ASSERT(x) do qlua_assert(x, #x); while (0)
+#define QLUA_ABORT(msg) do qlua_assert(0, msg); while (0)
 void qlua_assert(int, const char *);
 
 char *qlua_strdup(lua_State *L, const char *str);

@@ -1,0 +1,62 @@
+-- check the first vector in gdb before and after extract_vector+add_vector
+-- 1. create deflator A, 
+-- 2. compute espace with A
+-- 3. create deflator B
+-- 4. extract vectors from A, add to B
+-- 5. breakpoint on QOP_MDWF_deflator_eigen : first A, then B
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+require "latvec"
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+
+
+
+mdwf_A = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+mdwf_eigcg_df_A = mdwf_A:eig_deflator(eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax)
+mdwf_eigcg_solver_A = mdwf_eigcg_df_A:mixed_solver(
+                        mixcg_tol1, mixcg_maxiter1, 
+                        mixcg_tol, mixcg_maxiter)
+
+tot_timer = timer('total')
+for i = 0, eigcg_nsol - 1 do
+  timeri = timer(string.format('sol #%02d', i))
+  y = rnd:gaussian_DiracFermion()
+  x = mdwf_eigcg_solver_A(y)
+  printf('df_current_dim = %d\n', mdwf_eigcg_df_A:current_dim())
+  timeri('done')
+end
+tot_timer('done')
+
+-- copy vecs
+df_dim = mdwf_eigcg_df_A:current_dim()
+mdwf_B = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+mdwf_eigcg_df_B = mdwf_B:eig_deflator(eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax)
+mdwf_eigcg_df_B:start_load()
+for i = 0, df_dim - 1 do
+  vec_i = mdwf_eigcg_df_A:get_vector(i)
+  mdwf_eigcg_df_B:add_vector(vec_i)
+end
+mdwf_eigcg_df_B:stop_load()
+
+-- print evalues
+evals_A = mdwf_eigcg_df_A:eigenvalues()
+evals_B = mdwf_eigcg_df_B:eigenvalues()
+for i=0, #evals_A - 1 do 
+  printf("eval[%04d]=%e  <->  %e\n", i, evals_A[i], evals_B[i])
+end
+
+

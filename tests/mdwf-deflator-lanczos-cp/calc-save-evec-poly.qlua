@@ -1,0 +1,93 @@
+-- 1. make mdwf+deflator
+-- 2. calc evecs with poly.accel; note that which<-LR
+-- 3. save evecs
+-- 4. gen rand source, calc prop, save src+sol
+require "gauge"
+require "ape-smear"
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+require "latvec"
+
+
+tot_timer = timer("total")
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+gauge_u = APE_smear(gauge_u, ape_alpha, ape_N, ape_accu, ape_maxiter, -1) 
+printf("APE(%f, %3d) : plaq = %f\n", ape_alpha, ape_N, calc_plaq_av(gauge_u))
+
+
+
+mdwf = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+
+
+
+-- compute evalues
+l_timer = timer("lanczos")
+mdwf_eigcg_df, lanczos_nconv, lanczos_niter = mdwf:eig_deflator_lanczos(
+      l_nev, l_ncv, l_maxiter, l_tol,
+      { ["eigcg"] = {eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax},
+        ["cheb_accel"] = { l_poly_n, l_poly_a, l_poly_b, l_poly_x0 },
+        ["which"] = "LR", -- need the largest ev of polynomial T_n(A)
+        ["arpack_logfile"] = "arpack.log"
+        })
+l_timer("done")
+printf("df_lanczos: nconv=%d  n_iter=%d\n", lanczos_nconv, lanczos_niter)
+
+mdwf_eigcg_solver = mdwf_eigcg_df:mixed_solver(
+                        mixcg_tol1, mixcg_maxiter1, 
+                        mixcg_tol, mixcg_maxiter)
+
+
+-- save vectors
+df_save_timer = timer("save_df_space")
+df_dim = mdwf_eigcg_df:current_dim()
+qdp_w = open_qdpc_write(L, df_vecs_file, "", df_vec_save_qio_format)
+if df_vec_save_pack_eopc then
+  for i = 0, (df_dim + 1) / 2 - 1 do
+    if 2*i + 1 < df_dim then 
+      vec_pack = latvec_eopc_pair_to_single(
+                    L:Subset("even"),
+                    mdwf_eigcg_df:get_vector(2*i),
+                    mdwf_eigcg_df:get_vector(2*i + 1))
+    else
+      vec_pack = mdwf_eigcg_df:get_vector(2*i)
+    end
+    qdp_w:DiracFermion(df_vec_qioprec, vec_pack, "")
+  end
+else
+  for i = 0, df_dim - 1 do
+    vec_i = mdwf_eigcg_df:get_vector(i)  
+  --  print_latvec_eo_norm2(vec_i, string.format("evec[%02d]", i))
+    qdp_w:DiracFermion(df_vec_qioprec, vec_i, "")
+  end
+end
+qdp_w:close()
+df_save_timer("done")
+
+-- print evalues
+evals = mdwf_eigcg_df:eigenvalues()
+for i=0, #evals - 1 do 
+  printf("eval[%04d]=%e\n", i, evals[i])
+end
+
+-- control inversion with full deflator: check iters & final eps
+y = rnd:gaussian_DiracFermion()
+x, x_eps, x_iter = mdwf_eigcg_solver(y)
+printf("CTRL inversion: norm2(y)=%e  norm2(x)=%e  eps=%e  iter=%d\n",
+       y:norm2(), x:norm2(), x_eps, x_iter)
+qdp_w = open_qdpc_write(L, ctrl_vec_file, "", "single")
+qdp_w:DiracFermion(y, "rgaussian-random src")
+qdp_w:DiracFermion(x, "Dinv.y")
+qdp_w:close()
+
+tot_timer("done")

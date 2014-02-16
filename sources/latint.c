@@ -30,6 +30,7 @@ q_I_gc(lua_State *L)
 
     QDP_destroy_I(b->ptr);
     b->ptr = 0;
+    qlua_qdp_memuse(L, "Integer", -1);
 
     return 0;
 }
@@ -965,6 +966,7 @@ qlua_newLatInt(lua_State *L, int Sidx)
     hdr->ptr = v;
     qlua_createLatticeTable(L, Sidx, mtLatInt, qLatInt, LatIntName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "Integer", 1);
 
     return hdr;
 }
