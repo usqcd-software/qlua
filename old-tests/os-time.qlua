@@ -1,0 +1,10 @@
+require "stdlib"
+
+function show_time(name, t)
+   printf("%-20s %20.3f %s\n", name, t, os.ctime(t))
+end
+
+show_time("time from .h5", 1391372974081136e-6)
+show_time("now", os.time())
+show_time("epoch", 0)
+show_time("long time ago", -2000000000)

@@ -1,0 +1,30 @@
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+
+require "latvec"
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+
+-- make MDWF & deflator
+mdwf = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+mdwf_solver = mdwf:mixed_solver(
+                        mixcg_tol1, mixcg_maxiter1, 
+                        mixcg_tol, mixcg_maxiter)
+
+-- control inversion with full deflator: check iters & final eps
+y = rnd:gaussian_DiracFermion()
+x, x_eps, x_iter = mdwf_solver(y)
+printf("CTRL inversion: norm2(y)=%e  norm2(x)=%e  eps=%e  iter=%d\n",
+       y:norm2(), x:norm2(), x_eps, x_iter)

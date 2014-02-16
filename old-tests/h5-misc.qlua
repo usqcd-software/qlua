@@ -1,0 +1,17 @@
+require "stdlib"
+
+if not fname then
+   fname = "xxx.h5"
+end
+
+x = qcd.hdf5.Writer(fname)
+
+printf("initial cwd: %s\n", x:cwd())
+x:chpath("/sample/serial")
+printf("new     cwd: %s\n", x:cwd())
+x:remove("/sample/serial/colmat-F")
+x:remove("/sample/serial")
+x:remove("/sample")
+x:close()
+
+printf("DONE\n")

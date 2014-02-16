@@ -346,6 +346,48 @@ qlua_checkint(lua_State *L, int idx, const char *fmt, ...)
     return (int)d;
 }
 
+int *
+qlua_intarray(lua_State *L, int n, int *dim)
+{
+    int d, i;
+    int *idx;
+
+    if (lua_type(L, n) != LUA_TTABLE)
+        return NULL;
+
+    d = lua_objlen(L, n);
+    idx = qlua_malloc(L, d * sizeof (int));
+    for (i = 0; i < d; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, n);
+        if (lua_type(L, -1) != LUA_TNUMBER) {
+            qlua_free(L, idx);
+            return NULL;
+        }
+        idx[i] = qlua_checkint(L, -1, "array element %d", i + 1);
+        lua_pop(L, 1);
+    }
+    *dim = d;
+    return idx;
+}
+
+int *
+qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
+{
+    int d_dim;
+    int *idx = qlua_intarray(L, n, &d_dim);
+
+    if (idx == 0)
+        luaL_error(L, "table of integers expected");
+
+    if (out_dim)
+        *out_dim = d_dim;
+    else if (d_dim != dim)
+        luaL_error(L, "table of integer has wrong size");
+
+    return idx;
+}
+
 const char *
 qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
 {
@@ -478,6 +520,17 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 }
 
 const char *
+qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def)
+{
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  const char *v = luaL_checkstring(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+const char *
 qlua_tabidx_string(lua_State *L, int idx, int key)
 {
   const char *v;
@@ -488,6 +541,17 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
   lua_pop(L, 1); /* expect the user not to drop the object */
 
   return v;
+}
+
+int
+qlua_tabkey_tableopt(lua_State *L, int idx, const char *key)
+{
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return 0;
+  if (lua_type(L, -1) == LUA_TTABLE)
+    return 1;
+  lua_pop(L, 1);
+  return 0;
 }
 
 int
@@ -1169,6 +1233,7 @@ main(int argc, char *argv[])
                         if (status) {
                                 fflush(stdout);
                                 fflush(stderr);
+                                qlua_fini(L);
                                 QDP_abort(1);
                                 break;
                         }

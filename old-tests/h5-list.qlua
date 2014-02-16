@@ -1,0 +1,84 @@
+require "stdlib"
+
+if not fname then
+   fname = "h5-test.h5"
+end
+
+function process_list(x, dir, nm)
+   local function fmt_geometry(g)
+      local t = type(g)
+      if t == "string" then
+         return g
+      end
+      if t == "table" then
+         local r = ""
+         local sep = "{"
+         for i = 1, #g do
+            r = string.format("%s%s%d", r, sep, g[i])
+            sep = ", "
+         end
+         return r .. "}"
+      end
+      return ""
+   end
+   local function fmt_time(t)
+      if type(t) == "number" then
+         return os.ctime(t * 1e-6)
+      end
+      return ""
+   end
+   local function fmt_type(t)
+      if t then
+         return t
+      end
+      return ""
+   end
+   local function fmt_sha(t)
+      if t then
+         return t
+      end
+      return "-"
+   end
+   local function list(dir, nm)
+      printf("ls %s:\n", dir)
+      local ls = x:list(dir)
+      local subs = {}
+      for i,v in pairs(ls) do
+         if true then
+            local stat = x:stat(string.format("%s/%s", nm, v))
+            if stat then
+               local geom = fmt_geometry(stat.geometry)
+               local tx = fmt_time(stat.time)
+               printf(" %-64s %-24s %-16s %-28s %26s  %s\n",
+                       fmt_sha(stat.sha256), stat.kind, geom, fmt_type(stat.type), tx, v)
+            end
+            if stat.kind == "Group" then
+               subs[#subs + 1] = v
+            end
+         end
+      end
+      for i = 1, #subs do
+         local g = string.format("%s/%s", nm, subs[i])
+         list(g,g)
+      end
+   end
+
+   if not nm then
+      nm = dir
+   end
+   list(dir, nm)
+   x:close()
+end
+
+printf("as a reader:\n")
+process_list(qcd.hdf5.Reader(fname), "/", "")
+--printf("as a writer:\n")
+--process_list(qcd.hdf5.Writer(fname), "/sample")
+--process_list(qcd.hdf5.Writer(fname), "/sample/lattice")
+--process_list(qcd.hdf5.Writer(fname), "/sample/serial")
+--x = qcd.hdf5.Reader(fname)
+-- x:chpath("/sample/serial")
+--process_list(x, ".")
+
+
+printf("DONE\n")

@@ -1,0 +1,65 @@
+-- check the first vector in gdb before and after extract_vector+add_vector
+-- 1. create deflator A, 
+-- 2. add constant vector e.g. delta func
+-- 2. get 1st vector, compare
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+require "latvec"
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+
+
+
+mdwf = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+mdwf_eigcg_df = mdwf:eig_deflator(eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax)
+
+
+
+v1  = L:Subset("even"):where(dw_random_latdirferm, mdwf_Ls, rnd)
+v2  = L:Subset("even"):where(dw_random_latdirferm, mdwf_Ls, rnd)
+print_latvec_cmp(v1, v2, "v1^v2")
+v2o = latvec_ortho(v2, v1)
+print_latvec_cmp(v1, v2o, "v1^v2o")
+
+
+if false then
+  -- to check that dot(x,y) = (x^\dag . y)
+  cplx_I = complex(0,1)
+  print_latvec_cmp(latvec_scal_left(cplx_I, v1), v2, "(I*v1)^v2")
+  print_latvec_cmp(v1, latvec_scal_left(cplx_I, v2), "v1^(I*v2)")
+end
+
+mdwf_eigcg_df:start_load()
+mdwf_eigcg_df:add_vector(v1)
+mdwf_eigcg_df:add_vector(v2)    -- will be orthogonalized wrt v1
+mdwf_eigcg_df:stop_load()
+mdwf_eigcg_df:resume()
+
+y = rnd:gaussian_DiracFermion()
+x, x_eps, x_iter = mdwf_eigcg_df:mixed_solver(
+      mixcg_tol1, mixcg_maxiter1, 
+      mixcg_tol, mixcg_maxiter) (y)
+printf("inv: norm2(y)=%e  norm2(x)=%e  eps=%e  iter=%d  df_dim=%d\n",
+       y:norm2(), x:norm2(), x_eps, x_iter, mdwf_eigcg_df:current_dim())
+
+v1x = mdwf_eigcg_df:get_vector(0)
+v2x = mdwf_eigcg_df:get_vector(1)
+print_latvec_cmp(v1x, v2x, "v1x^v2x")
+print_latvec_cmp(v1x, v1, "v1x^v1")
+print_latvec_cmp(v2x, v2o, "v2x^v2o")
+
+--print_latvec_eo_norm2(v1,  "v1")
+--print_latvec_eo_norm2(v1x, "v1x")
+--print_latvec_eo_norm2(latvec_sub(v1x, v1), "v1x-v1")

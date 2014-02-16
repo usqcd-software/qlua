@@ -16,8 +16,11 @@ Qs(q_D_fmt)(lua_State *L)
 static int
 Qs(q_D_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatDirFerm) *b = Qs(qlua_checkLatDirFerm)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "DiracFermion%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_D)(b->ptr);
     b->ptr = 0;
 
@@ -659,6 +662,7 @@ static struct luaL_Reg Qs(mtLatDirFerm)[] = {
 Qs(mLatDirFerm) *
 Qs(qlua_newLatDirFerm)(lua_State *L, int Sidx, int nc)
 {
+    char qdp_name[72];
     mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
     Qx(QDP_D,_DiracFermion) *v = Qx(QDP_D,_create_D_L)(nc, S->lat);
@@ -685,6 +689,8 @@ Qs(qlua_newLatDirFerm)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatDirFerm), Qs(qLatDirFerm),
                             Qs(LatDirFermName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "DiracFermion%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }

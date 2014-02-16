@@ -1,0 +1,76 @@
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "gauge"
+require "ape-smear"
+require "stdlib"
+require "lhpc-std"
+require "qdpc_io"
+
+require "latvec"
+
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+gauge_u = qcd.nersc.read_gauge(L, gauge_file)
+gauge_u = APE_smear(gauge_u, ape_alpha, ape_N, ape_accu, ape_maxiter, -1) 
+printf("APE(%f, %3d) : plaq = %f\n", ape_alpha, ape_N, calc_plaq_av(gauge_u))
+
+
+-- make MDWF & deflator
+mdwf = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_Ls, mdwf_M5, mdwf_mf, 
+        make_list_const(mdwf_b5, mdwf_Ls), make_list_const(mdwf_c5, mdwf_Ls))
+mdwf_eigcg_df = mdwf:eig_deflator(eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax)
+
+-- populate deflator with saved vectors
+df_load_timer = timer("load_df_space")
+qdp_r = open_qdpc_read(L, df_vecs_file)
+mdwf_eigcg_df:start_load()
+if df_vec_save_pack_eopc then
+  for i = 0, (eigcg_umax + 1) / 2 - 1 do
+    if 2*i + 1 < eigcg_umax then
+      ss_v1, ss_v2 = latvec_eopc_single_to_pair(
+                        L:Subset("even"), 
+                        qdp_r:DiracFermion(mdwf_Ls))
+      mdwf_eigcg_df:add_vector(ss_v1)
+      mdwf_eigcg_df:add_vector(ss_v2)
+    else
+      mdwf_eigcg_df:add_vector(qdp_r:DiracFermion(mdwf_Ls))
+    end
+  end
+else
+  for i = 0, eigcg_umax - 1 do
+    mdwf_eigcg_df:add_vector(qdp_r:DiracFermion(mdwf_Ls))
+  end
+end
+mdwf_eigcg_df:stop_load()
+qdp_r:close()
+printf("df_cur_dim=%d\n", mdwf_eigcg_df:current_dim())
+df_load_timer("done")
+
+-- make solver
+mdwf_eigcg_solver = mdwf_eigcg_df:mixed_solver(
+                        mixcg_tol1, mixcg_maxiter1, 
+                        mixcg_tol, mixcg_maxiter)
+
+-- print evalues
+evals = mdwf_eigcg_df:eigenvalues()
+printf("str(evals)=%s\n", tostring(evals))
+for i=0, #evals-1 do 
+  printf("eval[%04d]=%e\n", i, evals[i])
+end
+
+-- load & solve CTRL pair
+qdp_r = open_qdpc_read(L, ctrl_vec_file)
+y = qdp_r:DiracFermion()
+x1 = qdp_r:DiracFermion()
+qdp_r:close()
+x, x_eps, x_iter = mdwf_eigcg_solver(y, true, true)
+printf("CTRL inversion: norm2(y)=%e  norm2(x)=%e  eps=%e  iter=%d\n",
+       y:norm2(), x:norm2(), x_eps, x_iter)
+printf("norm2(x-x1)=%e\n", (x - x1):norm2())
+

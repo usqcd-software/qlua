@@ -2,10 +2,12 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qmp.h"
+#include <time.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <sys/resource.h>
 
 static char self[72];
 
@@ -333,20 +335,38 @@ qlua_exit(lua_State *L)
     return 0;
 }
 
-static int
-qlua_timeofday(lua_State *L)
+double
+qlua_timeofday(void)
 {
-    struct timeval t;
-    double v;
-    
-    if (QDP_this_node == qlua_master_node) {
-        gettimeofday(&t, NULL);
-        v = t.tv_sec + 1e-6 * t.tv_usec;
-    }
-    XMP_dist_double_array(qlua_master_node, 1, &v);
-    lua_pushnumber(L, v);
+  struct timeval t;
+  double v;
+  
+  if (QDP_this_node == qlua_master_node) {
+    gettimeofday(&t, NULL);
+    v = t.tv_sec + 1e-6 * t.tv_usec;
+  }
+  XMP_dist_double_array(qlua_master_node, 1, &v);
+  return v;
+}
 
-    return 1;
+static int
+qlua_time(lua_State *L)
+{
+  lua_pushnumber(L, qlua_timeofday());
+  return 1;
+}
+
+static int
+qlua_ctime(lua_State *L)
+{
+  double v = luaL_checknumber(L, 1);
+  time_t tv = (time_t) v;
+  char buf[72];
+
+  ctime_r(&tv, buf);
+  buf[24] = 0;
+  lua_pushstring(L, buf);
+  return 1;
 }
 
 static int
@@ -360,6 +380,110 @@ qlua_random(lua_State *L)
 
     return 1;
 }
+
+static int
+qlua_limit(lua_State *L)
+{
+  const char *name = luaL_checkstring(L, 1);
+  int resource = 0;
+
+  if (strcmp(name, "as") == 0)
+    resource = RLIMIT_AS;
+  else if (strcmp(name, "data") == 0)
+    resource = RLIMIT_DATA;
+  else if (strcmp(name, "rss") == 0)
+    resource = RLIMIT_RSS;
+  else if (strcmp(name, "stack") == 0)
+    resource  = RLIMIT_STACK;
+  else
+    luaL_error(L, "unknown resource name %s", name);
+  switch (lua_gettop(L)) {
+  case 1: {
+    struct rlimit rl;
+    if (getrlimit(resource, &rl))
+      luaL_error(L, "getrlimit(%s) failed", name);
+    lua_pushnumber(L, rl.rlim_cur / 1024.0);
+    lua_pushnumber(L, rl.rlim_max / 1024.0);
+    return 2;
+  }
+  case 2: {
+    double s = 1024.0 * luaL_checknumber(L, 2);
+    struct rlimit rl;
+    rl.rlim_cur = s;
+    rl.rlim_max = s;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  case 3: {
+    double s0 = 1024.0 * luaL_checknumber(L, 2);
+    double s1 = 1024.0 * luaL_checknumber(L, 3);
+    struct rlimit rl;
+    rl.rlim_cur = s0;
+    rl.rlim_max = s1;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  default:
+    break;
+  }
+  return luaL_error(L, "too many parameters");
+}
+
+static int
+qlua_node(lua_State *L)
+{
+  lua_pushnumber(L, QDP_this_node);
+  return 1;
+}
+
+typedef struct qcdmem_s {
+  char *name;
+  long long count;
+  struct qcdmem_s *next;
+} QCDMem;
+
+static QCDMem *qcdmem = NULL;
+
+static int
+qlua_qcdmem(lua_State *L)
+{
+  int n = 0;
+  QCDMem *p;
+
+  for (n = 0, p = qcdmem; p; p = p->next)
+    n++;
+  lua_createtable(L, 0, n);
+  for (p = qcdmem; p; p = p->next) {
+    if (p->count) {
+      lua_pushnumber(L, p->count);
+      lua_setfield(L, -2, p->name);
+    }
+  }
+  return 1;
+}
+
+void
+qlua_qdp_memuse(lua_State *L, const char *name, int count)
+{
+  QCDMem *p;
+
+  for (p = qcdmem; p; p = p-> next) {
+    if (strcmp(p->name, name) == 0)
+      break;
+  }
+  if (p == 0) {
+    p = qlua_malloc(L, sizeof (QCDMem));
+    p->name = qlua_malloc(L, strlen(name) + 1);
+    strcpy(p->name, name);
+    p->count = 0;
+    p->next = qcdmem;
+    qcdmem = p;
+  }
+  p->count += count;
+}
+
 
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
@@ -428,6 +552,7 @@ q_qtypename(lua_State *L, int idx, char *def)
     case qWriter: t = "qio.writer"; break;
     case qAffReader: t = "aff.reader"; break;
     case qAffWriter: t = "aff.writer"; break;
+    case qHdf5File: t = "hdf5.file"; break;
     case qClover: t = "clover"; break;
     case qCloverDeflator: t = "clover.deflator"; break;
     case qCloverDeflatorState: t = "clover.deflator.state"; break;
@@ -499,15 +624,20 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, "os");
     lua_pushcfunction(L, qlua_exit);
     lua_setfield(L, -2, "exit");
-    lua_pushcfunction(L, qlua_timeofday);
+    lua_pushcfunction(L, qlua_time);
     lua_setfield(L, -2, "time");
+    lua_pushcfunction(L, qlua_ctime);
+    lua_setfield(L, -2, "ctime");
     rf = fopen("/dev/urandom", "rb");
     if (rf) {
         lua_pushcfunction(L, qlua_random);
         lua_setfield(L, -2, "random");
     }
-    
-    lua_pop(L, 1);
+    lua_pushcfunction(L, qlua_limit);
+    lua_setfield(L, -2, "limit");
+    lua_pushcfunction(L, qlua_node);
+    lua_setfield(L, -2, "node");
+    lua_setglobal(L, "os");
 
     /* fix package.path -- try to get QLUALIB from the environment first */
         {
@@ -526,6 +656,11 @@ init_qlua_io(lua_State *L)
     /* fix getmetatable */
     lua_pushcfunction(L, qlua_getmetatable);
     lua_setglobal(L, "getmetatable");
+
+    /* qdp memory usage state */
+    lua_getglobal(L, qcdlib);
+    lua_pushcfunction(L, qlua_qcdmem);
+    lua_setfield(L, -2, "memory_usage");
 
     return 0;
 }
