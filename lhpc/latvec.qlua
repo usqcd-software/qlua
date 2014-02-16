@@ -194,7 +194,7 @@ function print_latvec_cmp(a, b, title)
   if nil == ca then 
     printf('print_latvec_cmp: %s: nil\n', title)
   else
-    printf('print_latvec_cmp: %s: |a/b|=%f  a^b=polar(%f,%f)\n',
+    printf('print_latvec_cmp: %s: |a/b|=%.10e  a^b=polar(%.10f,%.10f)\n',
            tostring(title), math.sqrt(latvec_norm2(a) / latvec_norm2(b)), 
            latvec_cosangle_abs(a, b),
            latvec_cosangle_arg(a, b))
