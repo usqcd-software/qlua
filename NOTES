@@ -9,13 +9,23 @@
 
 * Build qhdf5 library with open interface, lua agnostic memory management
 
-* Separated reader and writer vs versatile writer?
+* Separate reader and writer vs versatile writer?
 
+* No delete for the writer ?
+
+* Only create writer? E.g., no updating existing files?
+
+* Read/write vs. write only?
+
+* generic options parser
+* store default options in the HDF5File object, use write and read options to override the defaults.
 
 -----------------------------------------------------------
 master file:
    /.qcd/master/id = sha256
    /.qcd/master/count = number-of-nodes
+   /.qcd/master/format = format string for node names
+   /.qcd/master/format-kind = int kind of format string
    /.qcd/types/.... -- all types are stored here
 data file:
    /.qcd/data/id = sha256
@@ -23,7 +33,7 @@ data file:
    /.qcd/types/....
 single file:
    /.qcd/single/id = sha256
-   /..qcd/types/....
+   /.qcd/types/....
 
 All global data is stored in the master file
 All lattice data is spread accross data files (or stored in the single file)
@@ -46,7 +56,7 @@ All lattice data is spread accross data files (or stored in the single file)
      single: lattice size must agree with dataspace rank and dimensions
  (2) for sliced data, both low and high attributes must be present.
  (3) master: stores a 1-d map node -> (lo,hi) where lo and hi are vectors of ints
-     data:   array of data elements local to the node
+     data:   array of data elements local to the node, no object if no data
      single: all data for the object
  (*) low is always inclusive, high is exclusive
 
@@ -72,6 +82,8 @@ If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....
      driver     = "posix"       -- only sequential data may be written from the master   DEFAULT
      driver     = "phdf5"       -- all nodes write using pHDF5 driver
      driver     = "qcd"         -- ? if we are going to implement it
+     driver     = "mpiposix"    -- MPI posix fapl
+     gpfsHints  = #             -- gpfs_hints for mpiposix
      align      = #             -- data alignment, default not set
      threshold  = #             -- alignment threshold, default not set
      istoreK    = #             -- value for H5Pset_istore_k(), default not set
@@ -86,6 +98,8 @@ If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....
                { n, ...}             -- explicit chunking
        transfer = "independent"      -- non-collective          DEFAULT
                   "collective"       --  ? do we need the transfter mode at all?
+       chunk_opt = "one"
+                 = "multi"
        subset = "all"                --  DEFAULT
               = "even"               -- only even sublattice
               = "odd"                -- only odd sublattice
