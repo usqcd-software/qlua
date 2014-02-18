@@ -179,6 +179,7 @@ int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
 int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);
 
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);
+int qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabidx_int(lua_State *L, int idx, int subidx);
 double qlua_tabkey_double(lua_State *L, int idx, const char *key);
 double qlua_tabidx_double(lua_State *L, int idx, int subidx);

@@ -11,7 +11,7 @@ Qs(wpack_colvec)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
   int c;
 
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *dst = (machine_complex_double *)data;
     for (c = 0; c < nc; c++, dst++) {
       QLA_D_Complex zz;
@@ -79,7 +79,7 @@ Qs(unpack_colvecF)(void *dst, int nc, const machine_complex_float *src, SHA256_C
 
 static void
 Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -88,7 +88,7 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
   int dsize;
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -110,13 +110,13 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_colvec)(lua_State *L, struct ropts_s *ropts,
+Qs(r_colvec)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
              int nc, WriteSize wsize, void *data)
 {
   Qs(mSeqColVec) *m = Qs(qlua_newSeqColVec)(L, nc);
   switch (wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     Qs(unpack_colvecD)(m->ptr, nc, data, ctx);
     break;
   case WS_Float:
@@ -129,7 +129,7 @@ Qs(r_colvec)(lua_State *L, struct ropts_s *ropts,
 
 static void
 Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -147,7 +147,7 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
 #endif
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -184,7 +184,7 @@ Qs(w_latcolvec)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_latcolvec)(lua_State *L, struct ropts_s *ropts,
+Qs(r_latcolvec)(lua_State *L, QH5Opts *ropts,
                 struct laddr_s *laddr, int *local_x,
                 SHA256_Context *ctx, SHA256_Sum *sum,
                 int nc, WriteSize wsize, void *data)
@@ -198,7 +198,7 @@ Qs(r_latcolvec)(lua_State *L, struct ropts_s *ropts,
   Vtype *dst = Qx(QDP_D, _expose_V)(m->ptr);
   int volume = laddr->volume;
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *src = data;
     SHA256_Sum l_sum;
     int i;
@@ -247,7 +247,7 @@ Qs(wpack_colmat)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
   int ci, cj;
 
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *dst = (machine_complex_double *)data;
     for (ci = 0; ci < nc; ci++) {
       for (cj = 0; cj < nc; cj++, dst++) {
@@ -323,7 +323,7 @@ Qs(unpack_colmatF)(void *dst, int nc, const machine_complex_float *src, SHA256_C
 
 static void
 Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -332,7 +332,7 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
   int dsize;
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -354,13 +354,13 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_colmat)(lua_State *L, struct ropts_s *ropts,
+Qs(r_colmat)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
              int nc, WriteSize wsize, void *data)
 {
   Qs(mSeqColMat) *m = Qs(qlua_newSeqColMat)(L, nc);
   switch (wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     Qs(unpack_colmatD)(m->ptr, nc, data, ctx);
     break;
   case WS_Float:
@@ -373,7 +373,7 @@ Qs(r_colmat)(lua_State *L, struct ropts_s *ropts,
 
 static void
 Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -391,7 +391,7 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
 #endif
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -428,7 +428,7 @@ Qs(w_latcolmat)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_latcolmat)(lua_State *L, struct ropts_s *ropts,
+Qs(r_latcolmat)(lua_State *L, QH5Opts *ropts,
                 struct laddr_s *laddr, int *local_x,
                 SHA256_Context *ctx, SHA256_Sum *sum,
                 int nc, WriteSize wsize, void *data)
@@ -442,7 +442,7 @@ Qs(r_latcolmat)(lua_State *L, struct ropts_s *ropts,
   Vtype *dst = Qx(QDP_D, _expose_M)(m->ptr);
   int volume = laddr->volume;
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *src = data;
     SHA256_Sum l_sum;
     int i;
@@ -491,7 +491,7 @@ Qs(wpack_dirferm)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
   int c, d;
 
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *dst = (machine_complex_double *)data;
     for (d = 0; d < QDP_Ns; d++) {
       for (c = 0; c < nc; c++, dst++) {
@@ -567,7 +567,7 @@ Qs(unpack_dirfermF)(void *dst, int nc, const machine_complex_float *src, SHA256_
 
 static void
 Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -576,7 +576,7 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   int dsize;
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -598,13 +598,13 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_dirferm)(lua_State *L, struct ropts_s *ropts,
+Qs(r_dirferm)(lua_State *L, QH5Opts *ropts,
               SHA256_Context *ctx,
               int nc, WriteSize wsize, void *data)
 {
   Qs(mSeqDirFerm) *m = Qs(qlua_newSeqDirFerm)(L, nc);
   switch (wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     Qs(unpack_dirfermD)(m->ptr, nc, data, ctx);
     break;
   case WS_Float:
@@ -617,7 +617,7 @@ Qs(r_dirferm)(lua_State *L, struct ropts_s *ropts,
 
 static void
 Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -635,7 +635,7 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
 #endif
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -672,7 +672,7 @@ Qs(w_latdirferm)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_latdirferm)(lua_State *L, struct ropts_s *ropts,
+Qs(r_latdirferm)(lua_State *L, QH5Opts *ropts,
                  struct laddr_s *laddr, int *local_x,
                  SHA256_Context *ctx, SHA256_Sum *sum,
                  int nc, WriteSize wsize, void *data)
@@ -686,7 +686,7 @@ Qs(r_latdirferm)(lua_State *L, struct ropts_s *ropts,
   Vtype *dst = Qx(QDP_D, _expose_D)(m->ptr);
   int volume = laddr->volume;
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *src = data;
     SHA256_Sum l_sum;
     int i;
@@ -735,7 +735,7 @@ Qs(wpack_dirprop)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
   int ci, cj, di, dj;
 
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *dst = (machine_complex_double *)data;
     for (di = 0; di < QDP_Ns; di++) {
       for (dj = 0; dj < QDP_Ns; dj++) {
@@ -827,7 +827,7 @@ Qs(unpack_dirpropF)(void *dst, int nc, const machine_complex_float *src, SHA256_
 
 static void
 Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -836,7 +836,7 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   int dsize;
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -858,13 +858,13 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_dirprop)(lua_State *L, struct ropts_s *ropts,
+Qs(r_dirprop)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
              int nc, WriteSize wsize, void *data)
 {
   Qs(mSeqDirProp) *m = Qs(qlua_newSeqDirProp)(L, nc);
   switch (wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     Qs(unpack_dirpropD)(m->ptr, nc, data, ctx);
     break;
   case WS_Float:
@@ -877,7 +877,7 @@ Qs(r_dirprop)(lua_State *L, struct ropts_s *ropts,
 
 static void
 Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -895,7 +895,7 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
 #endif
 
   switch (opts->wsize) {
-  case WS_Double:
+  case WS_Default: case WS_Double:
     dsize = sizeof (machine_complex_double);
     break;
   case WS_Float:
@@ -932,7 +932,7 @@ Qs(w_latdirprop)(lua_State *L, mHdf5File *b, mLattice *S,
 }
 
 static void
-Qs(r_latdirprop)(lua_State *L, struct ropts_s *ropts,
+Qs(r_latdirprop)(lua_State *L, QH5Opts *ropts,
                 struct laddr_s *laddr, int *local_x,
                 SHA256_Context *ctx, SHA256_Sum *sum,
                 int nc, WriteSize wsize, void *data)
@@ -946,7 +946,7 @@ Qs(r_latdirprop)(lua_State *L, struct ropts_s *ropts,
   Vtype *dst = Qx(QDP_D, _expose_P)(m->ptr);
   int volume = laddr->volume;
   switch (wsize) {
-  case WS_Double: {
+  case WS_Default: case WS_Double: {
     machine_complex_double *src = data;
     SHA256_Sum l_sum;
     int i;

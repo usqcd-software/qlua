@@ -70,7 +70,8 @@ typedef enum {
   kAttribute,
   kFile,
   kUnknown,
-  kNoKind
+  kNoKind,
+  kDefault
 } KindOfH;
 
 static const char knString[]                  = "String";
@@ -140,13 +141,6 @@ typedef struct {
   float im;
 } machine_complex_float;
 
-struct mHdf5File_s {
-  hid_t file;
-  hid_t cwd;
-  int master;
-  int writer;
-};
-
 struct laddr_s {
   int rank;  /* lattice rank */
   int volume; /* local volume */
@@ -155,31 +149,69 @@ struct laddr_s {
 };
 
 typedef enum {
+  WS_Default,
   WS_Double,
   WS_Float
 } WriteSize;
 
-struct wopts_s {
-  WriteSize wsize;
-  int rank;
-  hsize_t *chunk;
-};
+typedef enum {
+  CNK_Default,
+  CNK_Contiguous,
+  CNK_Natural,
+  CNK_Explicit
+} ChunkOpt;
 
-struct ropts_s {
-  KindOfH kind;
-  mLattice *S;
-  int Sidx;
-  int forced_p;
-  int check_p;
+typedef enum {
+  SHA_Default,
+  SHA_Check,
+  SHA_Ignore
+} ShaOpt;
+
+typedef enum {
+  M_Default,
+  M_POSIX,
+  M_pHDF5,
+  M_MPIPOSIX
+} QH5Method;
+
+typedef enum {
+  T_Default,
+  T_Independent,
+  T_Collective
+} QH5Trans;
+
+typedef struct {
+  QH5Method   method;      /* .method = "posix" | "phdf5" | "mpiposix"           */
+  QH5Trans    transfer;    /* .transfer = "independent" | "collective"           */
+  int         alignment;   /* .alignment = # (defaults to 1)                     */
+  int         threshold;   /* .threshold = # (defaults to 1)                     */
+  int         istoreK;     /* .istoreK = # (defaults to -1)                      */
+  int         gpfsHints;   /* .gpfsHints = # (defaults to -1)                    */
+  WriteSize   wsize;       /* .precision = "double" | "float"                    */
+  ShaOpt      shaopt;      /* .sha256 = "ignore" | "check"                       */
+  KindOfH     kind;        /* .kind = string                                     */
+  mLattice   *S;           /* .lattice = Lat                                     */
+  int         Sidx;        /* lua stack index of S, only if S is not NULL        */
+  ChunkOpt    chunkopt;    /* .chunk = "contiguous" | "natural" | { n, ... }     */
+  int         rank;        /* rank of chunks, only if chunkopts == CNK_Explicit  */
+  hsize_t    *chunk;       /* chunk dimensions or NULL                           */
+} QH5Opts;
+
+struct mHdf5File_s {
+  hid_t   file;
+  hid_t   cwd;
+  int     master;
+  int     writer;
+  QH5Opts opts;
 };
 
 typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
-                             struct wopts_s *opts, struct laddr_s *laddr,
+                             QH5Opts *opts, struct laddr_s *laddr,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
 typedef int (*InUnpacker_H5)(lua_State *L, mHdf5File *b, const char *path,
-                             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+                             QH5Opts *opts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
                              SHA256_Sum *sum, struct laddr_s *laddr);
 
 /* common helpers */
@@ -196,15 +228,144 @@ kind2name(KindOfH k)
 }
 
 static KindOfH
-name2kind(const char *name)
+name2kind(lua_State *L, const char *name)
 {
   int i;
   for (i = 0; knTable[i].name; i++) {
     if (strcmp(knTable[i].name, name) == 0)
       return knTable[i].kind;
   }
-  QLUA_ABORT("Unknown hdf5 kind");
+  luaL_error(L, "Unknown hdf5 record kind \"%s\"", name);
   return kUnknown;
+}
+
+static QH5Opts
+qh5_get_opts(lua_State *L, int idx)
+{
+  QH5Opts opts;
+
+  opts.wsize = WS_Default;
+  opts.shaopt = SHA_Default;
+  opts.chunkopt = CNK_Default;
+  opts.method = M_Default;
+  opts.transfer = T_Default;
+  opts.rank = 0;
+  opts.chunk = NULL;
+  opts.S = NULL;
+  opts.alignment = -1;
+  opts.threshold = -1;
+  opts.istoreK = -1;
+  opts.gpfsHints = -1;
+
+  if (qlua_checkopt_table(L, idx)) {
+    const char *method = qlua_tabkey_stringopt(L, idx, "method", NULL);
+    if (method && !strcmp(method, "posix"))
+      opts.method = M_POSIX;
+    else if (method && !strcmp(method, "phdf5"))
+      opts.method = M_pHDF5;
+    else if (method && !strcmp(method, "mpiposix"))
+      opts.method = M_MPIPOSIX;
+    else if (method)
+      luaL_error(L, "Unknown access method \"%s\"", method);
+    const char *trans = qlua_tabkey_stringopt(L, idx, "tranfer", NULL);
+    if (trans && !strcmp(trans, "independent"))
+      opts.transfer = T_Independent;
+    else if (trans && !strcmp(trans, "collective"))
+      opts.transfer = T_Collective;
+    else if (trans)
+      luaL_error(L, "Unknown transfer mode \"%s\"", trans);
+    opts.alignment = qlua_tabkey_intopt(L, idx, "alignment", -1);
+    opts.threshold = qlua_tabkey_intopt(L, idx, "threshold", -1);
+    opts.istoreK = qlua_tabkey_intopt(L, idx, "istoreK", -1);
+    opts.gpfsHints = qlua_tabkey_intopt(L, idx, "gpfsHints", -1);
+    const char *prec = qlua_tabkey_stringopt(L, idx, "precision", NULL);
+    if (prec && !strcmp(prec, "double"))
+      opts.wsize = WS_Double;
+    else if (prec && !strcmp(prec, "float"))
+      opts.wsize = WS_Float;
+    else if (prec)
+      luaL_error(L, "Unknown precision option \"%s\"", prec);
+    const char *sha = qlua_tabkey_stringopt(L, idx, "sha256", NULL);
+    if (sha && !strcmp(sha, "ignore"))
+      opts.shaopt = SHA_Ignore;
+    else if (sha && !strcmp(sha, "check"))
+      opts.shaopt = SHA_Check;
+    else if (sha)
+      luaL_error(L, "Unknown sha256 option \"%s\"", sha);
+    const char *kind = qlua_tabkey_stringopt(L, idx, "kind", NULL);
+    if (kind)
+      opts.kind = name2kind(L, kind);
+    if (qlua_tabpushopt_key(L, idx, "chunk")) {
+      switch (qlua_qtype(L, -1)) {
+      case qString: {
+        const char *chunk = luaL_checkstring(L, -1);
+        if (!strcmp(chunk, "contiguous"))
+          opts.chunkopt = CNK_Contiguous;
+        else if (!strcmp(chunk, "natural"))
+          opts.chunkopt = CNK_Natural;
+        else goto bad_chunk;
+      } break;
+      case qTable: {
+        int *dims = qlua_intarray(L, -1, &opts.rank);
+        int i;
+        opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
+        for (i = 0; i < opts.rank; i++)
+          opts.chunk[i] = dims[i];
+        qlua_free(L, dims);
+        opts.chunkopt = CNK_Explicit;
+      } break;
+      default:
+      bad_chunk:
+        luaL_error(L, "Unexpected value for chunk option");
+        break;
+      }
+      lua_pop(L, 1);
+    }
+    if (qlua_tabpushopt_key(L, idx, "lattice")) {
+      opts.S = qlua_checkLattice(L, -1);
+      opts.Sidx = lua_gettop(L);
+    }
+  }
+  return opts;
+}
+
+static QH5Opts
+qh5_process_opts(lua_State *L, int idx, mHdf5File *b)
+{
+  QH5Opts opts = qh5_get_opts(L, idx);
+  if (opts.wsize == WS_Default) opts.wsize = b->opts.wsize;
+  if (opts.shaopt == SHA_Default) opts.shaopt = b->opts.shaopt;
+  if (opts.method == M_Default) opts.method = b->opts.method;
+  if (opts.transfer == T_Default) opts.transfer = b->opts.transfer;
+  if (opts.alignment < 0) opts.alignment = b->opts.alignment;
+  if (opts.threshold < 0) opts.threshold = b->opts.threshold;
+  if (opts.istoreK < 0) opts.istoreK = b->opts.istoreK;
+  if (opts.gpfsHints < 0) opts.gpfsHints = b->opts.gpfsHints;
+  if (opts.chunkopt == CNK_Default) {
+    opts.chunkopt = b->opts.chunkopt;
+    if (opts.chunkopt == CNK_Explicit) {
+      opts.rank = b->opts.rank;
+      opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
+      memcpy(opts.chunk, b->opts.chunk, opts.rank * sizeof (hsize_t));
+    }
+  }
+  if ((opts.chunkopt == CNK_Natural) && (opts.S != NULL)) {
+    opts.chunkopt = CNK_Explicit;
+    opts.rank = opts.S->rank;
+    opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
+    int i;
+    for (i = 0; i < opts.rank; i++)
+      opts.chunk[i] = opts.S->dim[i] / opts.S->net[i];
+  }
+  return opts;
+}
+
+static void
+qh5_fini_opts(lua_State *L, QH5Opts *opts)
+{
+  if (opts->chunkopt == CNK_Explicit)
+    qlua_free(L, opts->chunk);
+  opts->chunkopt = CNK_Default;
 }
 
 static void
@@ -348,15 +509,13 @@ get_real_type(lua_State *L, mHdf5File *b, WriteSize wsize, int ftype_p)
 {
   hid_t v = -1;
   if (ftype_p) {
-    switch (wsize) {
-    case WS_Double: v = H5T_IEEE_F64BE; break;
-    case WS_Float: v = H5T_IEEE_F32BE; break;
-    }
+    v = H5T_IEEE_F64BE;
+    if (wsize == WS_Float)
+      v = H5T_IEEE_F32BE;
   } else {
-    switch (wsize) {
-    case WS_Double: v = H5T_NATIVE_DOUBLE; break;
-    case WS_Float: v = H5T_NATIVE_FLOAT; break;
-    }
+    v = H5T_NATIVE_DOUBLE;
+    if (wsize == WS_Float)
+      v = H5T_NATIVE_FLOAT;
   }
   CHECK_H5(L, v, "real_type(): unknown wsize");
   v = H5Tcopy(v);
@@ -893,6 +1052,7 @@ do_close(lua_State *L, mHdf5File *b)
   b->file = -1;
 
   qlua_Hdf5_leave();
+  qh5_fini_opts(L, &b->opts);
   return status;
 }
 
@@ -1027,7 +1187,7 @@ get_h5_kind(lua_State *L, mHdf5File *b, hid_t obj)
         CHECK_H5(L, H5Aread(a, mtype, val), "Aread() failed");
         CHECK_H5(L, H5Tclose(mtype), "Tclose() failed");
         val[len] = 0;
-        kind = name2kind(val);
+        kind = name2kind(L, val);
         qlua_free(L, val);
       }
       CHECK_H5(L, H5Aclose(a), "Aclose() failed");
@@ -1250,49 +1410,9 @@ read_sha256(lua_State *L, mHdf5File *b, hid_t obj, SHA256_Sum *sum)
 
 /* writers */
 
-static struct wopts_s
-process_wopts(lua_State *L) /* XXX */
-{
-  struct wopts_s wopts;
-  wopts.wsize = WS_Double;
-  wopts.rank = 0;
-  wopts.chunk = NULL;
-  if (qlua_checkopt_table(L, 4)) {
-    const char *prec = qlua_tabkey_stringopt(L, 4, "precision", "double");
-    if (strcmp(prec, "double") == 0)
-      wopts.wsize = WS_Double;
-    else if (strcmp(prec, "float") == 0)
-      wopts.wsize = WS_Float;
-    else
-      luaL_error(L, "Unknown precision value \"%s\"", prec);
-  }
-  if (qlua_tabkey_tableopt(L, 4, "chunk")) {
-    int rank = 0;
-    int *dims = qlua_intarray(L, -1, &rank);
-    if (dims) {
-      wopts.rank = rank;
-      wopts.chunk = qlua_malloc(L, wopts.rank * sizeof (hsize_t));
-      int i;
-      for (i = 0; i < wopts.rank; i++)
-        wopts.chunk[i] = dims[i];
-      qlua_free(L, dims);
-    }
-    lua_pop(L, 1);
-  }
-  return wopts;
-}
-
-static void
-close_wopts(lua_State *L, struct wopts_s *wopts)
-{
-  if (wopts->chunk)
-    qlua_free(L, wopts->chunk);
-  wopts->chunk = NULL;
-}
-
 static void
 w_string(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1309,7 +1429,7 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_string(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1331,7 +1451,7 @@ r_string(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_real(lua_State *L, mHdf5File *b, mLattice *S,
-       struct wopts_s *opts, struct laddr_s *laddr,
+       QH5Opts *opts, struct laddr_s *laddr,
        SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
        const char **kind)
 {
@@ -1361,7 +1481,7 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_real(lua_State *L, mHdf5File *b, const char *path,
-       struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+       QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
        SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -1400,7 +1520,7 @@ r_real(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_complex(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
@@ -1434,7 +1554,7 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_complex(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -1476,7 +1596,7 @@ r_complex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1498,7 +1618,7 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1524,7 +1644,7 @@ r_vecint(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
@@ -1559,7 +1679,7 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1603,7 +1723,7 @@ r_vecreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -1642,7 +1762,7 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1690,7 +1810,7 @@ r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
@@ -1733,7 +1853,7 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
@@ -1785,7 +1905,7 @@ r_matreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -1832,7 +1952,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
@@ -1890,7 +2010,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latint(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1928,7 +2048,7 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   if (!check_int_type(L, path, tobj))
@@ -1969,7 +2089,7 @@ r_latint(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -2033,7 +2153,7 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -2100,7 +2220,7 @@ r_latreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -2168,7 +2288,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -2241,7 +2361,7 @@ r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_colvec(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2294,7 +2414,7 @@ r_colvec(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
-            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2349,7 +2469,7 @@ r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_colmat(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2402,7 +2522,7 @@ r_colmat(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
-            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2457,7 +2577,7 @@ r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_dirferm(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2510,7 +2630,7 @@ r_dirferm(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2565,7 +2685,7 @@ r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_dirprop(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2618,7 +2738,7 @@ r_dirprop(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2675,7 +2795,9 @@ r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts = process_wopts(L);
+  QH5Opts wopts = qh5_process_opts(L, 4, b);
+  /* XXX write lattice object */
+  /* XXX check that the writer is POSIX */
   mLattice *S = qlua_ObjLattice(L, 3);
   struct laddr_s laddr;
   laddr.rank = S->rank;
@@ -2726,6 +2848,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, hlatdim);
   CHECK_H5(L, filespace, "Screate_simple() file space");
   hid_t dcpl;
+  /* XXX set chunks according to wopts */
   if (wopts.rank > 0) {
     if (wopts.rank != S->rank)
       luaL_error(L, "hdf5:write() chunk rank mismatch: %d, lattice rank is %d", wopts.rank, S->rank);
@@ -2752,6 +2875,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, offset);
   qlua_free(L, stride);
   qlua_free(L, count);
+  /* XXX set transfter mode according to wopts */
   hid_t plist = H5Pcreate(H5P_DATASET_XFER);
   CHECK_H5(L, plist, "Pcreate() xfter plist");
   CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
@@ -2765,15 +2889,14 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
 
   qlua_Hdf5_leave();
-  close_wopts(L, &wopts);
+  qh5_fini_opts(L, &wopts);
   return 0;
 }
 
 static int
 write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts = process_wopts(L);
-
+  QH5Opts wopts = qh5_process_opts(L, 4, b);
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
@@ -2814,7 +2937,7 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
 
   qlua_Hdf5_leave();
-  close_wopts(L, &wopts);
+  qh5_fini_opts(L, &wopts);
 
   return 0;
 }
@@ -2916,40 +3039,13 @@ static struct {
   { kNoKind,                  0,  NULL            }
 };
 
-static struct ropts_s
-process_ropts(lua_State *L)
-{
-  struct ropts_s ropts;
-  ropts.kind = kNoKind;
-  ropts.S = NULL;
-  ropts.forced_p = 0;
-  ropts.check_p = 1;
-  if (qlua_checkopt_table(L, 3)) {
-    const char *check = qlua_tabkey_stringopt(L, 3, "sha256", "check");
-    if (strcmp(check, "ignore") == 0)
-      ropts.check_p = 0;
-    else if (strcmp(check, "check") != 0)
-      luaL_error(L, "unknown check value \"%s\"", check);
-    const char *forced = qlua_tabkey_stringopt(L, 3, "kind", NULL);
-    if (forced) {
-      ropts.forced_p = 1;
-      ropts.kind = name2kind(forced);
-    }
-    if (qlua_tabpushopt_key(L, 3, "lattice")) {
-      ropts.S = qlua_checkLattice(L, -1);
-      ropts.Sidx = lua_gettop(L);
-    }
-  }
-  return ropts;
-}
-
 typedef int (*TheReader)(lua_State *L, mHdf5File *b, const char *path,
-                         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+                         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t dspace,
                          InUnpacker_H5 unpacker, SHA256_Sum *sum);
 
 static int
 read_seq(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t dspace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
   if (!H5Sis_simple(dspace) || (H5Sget_simple_extent_ndims(dspace) != 0))
@@ -2959,7 +3055,7 @@ read_seq(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 read_lat(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t filespace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
   if (!H5Sis_simple(filespace) || (ropts->S == NULL))
@@ -3022,7 +3118,7 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
  */
 static int
 try_reader(lua_State *L, mHdf5File *b, const char *path,
-           struct ropts_s *ropts, hid_t obj, KindOfH kind)
+           QH5Opts *ropts, hid_t obj, KindOfH kind)
 {
   int i;
   for (i = 0; qortable[i].unpacker; i++) {
@@ -3035,6 +3131,7 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
   CHECK_H5p(L, dspace, "Dget_space() failed in read(\"%s\")", path);
   hid_t dtype = H5Dget_type(obj);
   CHECK_H5p(L, dtype, "Dget_type() failed in read(\"%s\")", path);
+  /* XXX check that lattice is read in parallel */
   TheReader reader = qortable[i].is_parallel? read_lat: read_seq;
   SHA256_Sum r_sum;
   int status = (*reader)(L, b, path, ropts, obj, dtype, dspace, qortable[i].unpacker, &r_sum);
@@ -3043,13 +3140,14 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
   if (!status)
     return 0;
   SHA256_Sum f_sum;
+  /* XXX check sha265 control mode in ropts */
   if (!read_sha256(L, b, obj, &f_sum)) {
-    if (ropts->check_p)
+    if (ropts->shaopt != SHA_Ignore)
       luaL_error(L, "missing checksum in read(\"%s\")", path);
     lua_pushstring(L, "missing");
   } else {
     if (sha256_cmp(&r_sum, &f_sum) != 0) {
-      if (ropts->check_p)
+      if (ropts->shaopt != SHA_Ignore)
         luaL_error(L, "mismatched checksum in read(\"%s\")", path);
       lua_pushstring(L, "mismatched");
     } else {
@@ -3064,13 +3162,14 @@ qhdf5_read(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *path = luaL_checkstring(L, 2);
-  struct ropts_s ropts = process_ropts(L);
+  QH5Opts ropts = qh5_process_opts(L, 3, b);
   check_file(L, b);
   qlua_Hdf5_enter(L);
+  /* XXX read operation */
   hid_t obj = H5Dopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
   CHECK_H5p(L, obj, "no object for read(\"%s\")", path);
   int status;
-  if (ropts.forced_p) {
+  if (ropts.kind != kDefault) {
     status = try_reader(L, b, path, &ropts, obj, ropts.kind);
   } else {
     KindOfH kind = get_h5_kind(L, b, obj);
@@ -3079,6 +3178,7 @@ qhdf5_read(lua_State *L)
   CHECK_H5p(L, H5Dclose(obj), "Dclose() failed in read(\"%s\")", path);
   if (!status)
     luaL_error(L, "no suitable reader for read(\"%s\")", path);
+  qh5_fini_opts(L, &ropts);
   return 2;
 }
 
@@ -3163,8 +3263,13 @@ q_hdf5_writer(lua_State *L)
   struct stat st;
   hid_t acc_tpl1;
 
+  w->opts = qh5_get_opts(L, 2);
   qlua_Hdf5_enter(L);
 
+  /* XXX opening the writer */
+  /* XXX check requested method, promote M_Default to M_POSIX */
+  /* XXX set up alignment and threshold */
+  /* XXX set gpfsHints */
   acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
   CHECK_H5(L, acc_tpl1, "Pcreate() failed");
   CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
@@ -3199,6 +3304,12 @@ q_hdf5_reader(lua_State *L)
   MPI_Info info = MPI_INFO_NULL;
   hid_t acc_tpl1;
 
+  w->opts = qh5_get_opts(L, 2);
+
+  /* XXX opening the reader */
+  /* XXX open with a given method, promote M_Default to M_POSIX */
+  /* XXX set up alignment and threshold */
+  /* XXX set gpfsHints */
   qlua_Hdf5_enter(L);
 
   acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);

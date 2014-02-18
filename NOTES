@@ -20,6 +20,39 @@
 * generic options parser
 * store default options in the HDF5File object, use write and read options to override the defaults.
 
+* options:
+    name         input             internal          meaning
+F   method       --                M_Default          same as M_POSIX
+                 "posix"           M_POSIX           use serial I/O from the head for writing, no parallel data can be written
+                 "phdf5"           M_pHDF5           use pHDF5 driver
+                 "mpiposix"        M_MPIPOSIX        use mpiposix driver
+DW  transfer     --                T_Default          same as T_Independent
+                 "independent"     T_Independent     use XFER independent
+                 "collective"      T_Collective      use XFER collective
+F   alignment    --                -1                do not set alignment and threshold
+                 n                 n                 set alignment and threshold
+F   threshold    --                -1                use default threshold of 1
+                 n                 n                 threshold value
+F   istoreK      --                -1                do not set istore_K
+                 n                 n                 use specified value of istore_K
+F   gpfsHints    --                -1                do not set GPFS hints
+                 n                 n                 set the GPFS hints
+DW  wsize        --                WS_Default         same as WS_Double
+                 "double"          WS_Double         write double precision data
+                 "float"           WS_Float          write single precision data
+DR  lattice      --                NULL
+                 S                 S, Sidx           lattice object for parallel reads
+DW  chunk        --                CNK_Default        same as CNK_Contiguous
+                 "contiguous"      CNK_Contiguous    do not use chunks
+                 "natural"         CNK_Natural       use L[i]/N[i] for chunk size, this is promoted to CNK_Explicit
+                 {n, ...}          CNK_Explicit      use chunks of rank and chunk[]
+DR  sha256       --                SHA_Default        same as SHA_Check
+                 "check"           SHA_Check         report error if sha256 is missing or mismatched
+                 "ignore"          SHA_Ignore        return sha265 check value as the second result
+DR  kind         --                kDefault          expect to see .kind attribute
+                 <string>          kXXX              assume data is of a given kind
+
+
 -----------------------------------------------------------
 master file:
    /.qcd/master/id = sha256

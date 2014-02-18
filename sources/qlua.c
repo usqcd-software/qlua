@@ -468,6 +468,19 @@ qlua_tabkey_int(lua_State *L, int idx, const char *key)
 }
 
 int
+qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def)
+{
+  int v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
 qlua_tabidx_int(lua_State *L, int idx, int key)
 {
   int v;
