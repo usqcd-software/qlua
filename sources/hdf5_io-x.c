@@ -37,6 +37,7 @@ Qs(wpack_colvec)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
   }
 }
 
+#if 0 /* XXX */
 static void
 Qs(unpack_colvecD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
 {
@@ -76,6 +77,7 @@ Qs(unpack_colvecF)(void *dst, int nc, const machine_complex_float *src, SHA256_C
     src++;
   }
 }
+#endif /* XXX */
 
 static void
 Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -109,6 +111,7 @@ Qs(w_colvec)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_colvec_type(L, b, nc, opts->wsize, 0);
 }
 
+#if 0 /* XXX */
 static void
 Qs(r_colvec)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
@@ -233,6 +236,7 @@ Qs(r_latcolvec)(lua_State *L, QH5Opts *ropts,
   }
   Qx(QDP_D, _reset_V)(m->ptr);
 }
+#endif /* XXX */
 
 // Color Matrix
 static void
@@ -277,6 +281,7 @@ Qs(wpack_colmat)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int n
   }
 }
 
+#if 0 /* XXX */
 static void
 Qs(unpack_colmatD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
 {
@@ -320,6 +325,7 @@ Qs(unpack_colmatF)(void *dst, int nc, const machine_complex_float *src, SHA256_C
     }
   }
 }
+#endif /* XXX */
 
 static void
 Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -353,6 +359,7 @@ Qs(w_colmat)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_colmat_type(L, b, nc, opts->wsize, 0);
 }
 
+#if 0 /* XXX */
 static void
 Qs(r_colmat)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
@@ -477,6 +484,7 @@ Qs(r_latcolmat)(lua_State *L, QH5Opts *ropts,
   }
   Qx(QDP_D, _reset_M)(m->ptr);
 }
+#endif /* XXX */
 
 // Dirac Fermions
 static void
@@ -521,6 +529,7 @@ Qs(wpack_dirferm)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
   }
 }
 
+#if 0 /* XXX */
 static void
 Qs(unpack_dirfermD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
 {
@@ -564,6 +573,7 @@ Qs(unpack_dirfermF)(void *dst, int nc, const machine_complex_float *src, SHA256_
     }
   }
 }
+#endif /* XXX */
 
 static void
 Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -597,6 +607,7 @@ Qs(w_dirferm)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_dirferm_type(L, b, nc, opts->wsize, 0);
 }
 
+#if 0 /* XXX */
 static void
 Qs(r_dirferm)(lua_State *L, QH5Opts *ropts,
               SHA256_Context *ctx,
@@ -721,6 +732,7 @@ Qs(r_latdirferm)(lua_State *L, QH5Opts *ropts,
   }
   Qx(QDP_D, _reset_D)(m->ptr);
 }
+#endif /* XXX */
 
 // Dirac Propagators
 static void
@@ -773,6 +785,7 @@ Qs(wpack_dirprop)(lua_State *L, void *data, SHA256_Context *ctx, void *src, int 
   }
 }
 
+#if 0 /* XXX */
 static void
 Qs(unpack_dirpropD)(void *dst, int nc, const machine_complex_double *src, SHA256_Context *ctx)
 {
@@ -824,6 +837,7 @@ Qs(unpack_dirpropF)(void *dst, int nc, const machine_complex_float *src, SHA256_
     }
   }
 }
+#endif /* XXX */
 
 static void
 Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
@@ -857,6 +871,7 @@ Qs(w_dirprop)(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_dirprop_type(L, b, nc, opts->wsize, 0);
 }
 
+#if 0 /* XXX */
 static void
 Qs(r_dirprop)(lua_State *L, QH5Opts *ropts,
              SHA256_Context *ctx,
@@ -981,6 +996,7 @@ Qs(r_latdirprop)(lua_State *L, QH5Opts *ropts,
   }
   Qx(QDP_D, _reset_P)(m->ptr);
 }
+#endif /* XXX */
 
 #undef QNc
 #undef Qcolors

@@ -349,6 +349,17 @@ qlua_timeofday(void)
   return v;
 }
 
+double
+qlua_nodetime(void)
+{
+  struct timeval t;
+  double v;
+  
+  gettimeofday(&t, NULL);
+  v = t.tv_sec + 1e-6 * t.tv_usec;
+  return v;
+}
+
 static int
 qlua_time(lua_State *L)
 {
@@ -552,7 +563,8 @@ q_qtypename(lua_State *L, int idx, char *def)
     case qWriter: t = "qio.writer"; break;
     case qAffReader: t = "aff.reader"; break;
     case qAffWriter: t = "aff.writer"; break;
-    case qHdf5File: t = "hdf5.file"; break;
+    case qHdf5Reader: t = "hdf5.reader"; break;
+    case qHdf5Writer: t = "hdf5.writer"; break;
     case qClover: t = "clover"; break;
     case qCloverDeflator: t = "clover.deflator"; break;
     case qCloverDeflatorState: t = "clover.deflator.state"; break;

@@ -90,15 +90,16 @@ typedef enum {
     qWriter,                  /* 47 */
     qAffReader,               /* 48 */
     qAffWriter,               /* 49 */
-    qHdf5File,                /* 50 */
-    qClover,                  /* 51 */
-    qCloverDeflator,          /* 52 */
-    qCloverDeflatorState,     /* 53 */
-    qMDWF,                    /* 54 */
-    qMDWFDeflator,            /* 55 */
-    qMDWFDeflatorState,       /* 56 */
+    qHdf5Reader,              /* 50 */
+    qHdf5Writer,              /* 51 */
+    qClover,                  /* 52 */
+    qCloverDeflator,          /* 53 */
+    qCloverDeflatorState,     /* 54 */
+    qMDWF,                    /* 55 */
+    qMDWFDeflator,            /* 56 */
+    qMDWFDeflatorState,       /* 57 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 57 */
+    qNoType                   /* 58 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -115,6 +116,7 @@ extern const char *a_type_key;
 extern int qlua_master_node;
 
 double qlua_timeofday(void);
+double qlua_nodetime(void);
 
 void qlua_fillmeta(lua_State *L,
                    const luaL_Reg *table,
@@ -231,6 +233,9 @@ void qlua_reg_dot(QLUA_Type ta, q_op op);
 
 int qlua_badconstr(lua_State *L, const char *name);
 int qlua_badindex(lua_State *L, const char *type);
+
+void qlua_send_string(lua_State *L, int idx);
+int qlua_receive_string(lua_State *L, char **str);
 
 /* generic error reporter for __newindex in metatables */
 int qlua_nowrite(lua_State *L);
