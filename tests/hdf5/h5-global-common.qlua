@@ -51,8 +51,10 @@ dtab = {
 os.remove(fname)
 printf("Writing to %s:\n", fname)
 if Pcreat then
+   printf("........ writer with method=%q\n", Pcreat.method)
    x = qcd.hdf5.Writer(fname, Pcreat)
 else
+   printf("........ default writer\n")
    x = qcd.hdf5.Writer(fname)
 end
 for i = 1, #dtab do

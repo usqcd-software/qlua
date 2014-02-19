@@ -2880,10 +2880,8 @@ static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
 #if 0 /* XXX */
-  QH5Opts wopts = qh5_process_opts(L, 4, b);
-  /* XXX write lattice object */
-  /* XXX check that the writer is POSIX */
   mLattice *S = qlua_ObjLattice(L, 3);
+  QH5Opts wopts = qh5_process_opts(L, 4, b); /* XXX include S into option processing */
   struct laddr_s laddr;
   laddr.rank = S->rank;
   laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
@@ -2893,7 +2891,6 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   hsize_t *count = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
   hsize_t *block = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
   hsize_t *hlatdim = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
-  
   qlua_sublattice(laddr.low, laddr.high, QDP_this_node, S);
   int volume, j;
   for (volume = 1, j = 0; j < laddr.rank; j++) {
@@ -2906,7 +2903,6 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
     hlatdim[j] = S->dim[j];
   }
   laddr.volume = volume;
-
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
@@ -2916,9 +2912,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   combine_checksums(&sum, 1);
-
   qlua_Hdf5_enter(L);
-
   char *dpath = qlua_strdup(L, path);
   char *ename = strrchr(dpath, '/');
   hid_t wdir = b->cwd;
@@ -2933,7 +2927,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, hlatdim);
   CHECK_H5(L, filespace, "Screate_simple() file space");
   hid_t dcpl;
-  /* XXX set chunks according to wopts */
+  /* XXX set chunks according to wopts -- switch on wopts.chunkopt */
   if (wopts.rank > 0) {
     if (wopts.rank != S->rank)
       luaL_error(L, "hdf5:write() chunk rank mismatch: %d, lattice rank is %d", wopts.rank, S->rank);
@@ -2960,7 +2954,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, offset);
   qlua_free(L, stride);
   qlua_free(L, count);
-  /* XXX set transfter mode according to wopts */
+  /* XXX set transfter mode according to wopts -- call it dxpl, switch between Collective and Independent */
   hid_t plist = H5Pcreate(H5P_DATASET_XFER);
   CHECK_H5(L, plist, "Pcreate() xfter plist");
   CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
@@ -2969,10 +2963,8 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
   CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
   qlua_free(L, data);
-
-  write_attrs(L, b, dataset, &sum, kind); /* XXX current time */
+  write_attrs(L, b, dataset, &sum, kind, qlua_timeofday());
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
-
   qlua_Hdf5_leave();
   qh5_fini_opts(L, &wopts);
 #endif /* XXX */
@@ -3010,11 +3002,11 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
   if (wdir != b->cwd)
     CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  CHECK_H5(L, plist, "Pcreate() xfter plist");
+  hid_t dxpl = H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, dxpl, "Pcreate() xfter plist");
   if (b->master)
-    CHECK_H5(L, H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, plist, data), "Dwrite() data");
-  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
+    CHECK_H5(L, H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, dxpl, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(dxpl), "Pclose() xfer plist");
   CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
   qlua_free(L, data);
   write_attrs(L, b, dataset, &sum, kind, qlua_nodetime());
@@ -3161,6 +3153,7 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
          QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t filespace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
+#if 0 /* XXX */
   if (!H5Sis_simple(filespace) || (ropts->S == NULL))
     return 0;
   int rank = H5Sget_simple_extent_ndims(filespace);
@@ -3209,6 +3202,9 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   return status;
+#else /* XXXX */
+  return -1;
+#endif /* XXX */
 }
 
 /* If the reader managed to get the data, it pushes
@@ -3223,6 +3219,7 @@ static int
 try_reader(lua_State *L, mHdf5File *b, const char *path,
            QH5Opts *ropts, hid_t obj, KindOfH kind)
 {
+#if 0 /* XXX */
   int i;
   for (i = 0; qortable[i].unpacker; i++) {
     if (qortable[i].kind == kind)
@@ -3234,7 +3231,7 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
   CHECK_H5p(L, dspace, "Dget_space() failed in read(\"%s\")", path);
   hid_t dtype = H5Dget_type(obj);
   CHECK_H5p(L, dtype, "Dget_type() failed in read(\"%s\")", path);
-  /* XXX check that lattice is read in parallel */
+  /* XXX check that lattice if read in parallel */
   TheReader reader = qortable[i].is_parallel? read_lat: read_seq;
   SHA256_Sum r_sum;
   int status = (*reader)(L, b, path, ropts, obj, dtype, dspace, qortable[i].unpacker, &r_sum);
@@ -3257,15 +3254,17 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
       lua_pushstring(L, "OK");
     }
   }
+#endif /* XXX */
   return 1;
 }
 
 static int
 qhdf5_read(lua_State *L)
 {
+#if 0 /* XXX */
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *path = luaL_checkstring(L, 2);
-  QH5Opts ropts = qh5_process_opts(L, 3, b);
+  QH5Opts ropts = qh5_process_opts(L, 3, b); /* XXX */
   check_file(L, b);
   qlua_Hdf5_enter(L);
   /* XXX read operation */
@@ -3282,6 +3281,7 @@ qhdf5_read(lua_State *L)
   if (!status)
     luaL_error(L, "no suitable reader for read(\"%s\")", path);
   qh5_fini_opts(L, &ropts);
+#endif /* XXX */
   return 2;
 }
 
