@@ -49,7 +49,7 @@ dtab = {
 }
 
 os.remove(fname)
-printf("Writing to %s:\n", fname)
+printf("\n\n---------------------------------\nWriting to %s:\n", fname)
 if Pcreat then
    printf("........ writer with method=%q\n", Pcreat.method)
    x = qcd.hdf5.Writer(fname, Pcreat)
@@ -59,28 +59,28 @@ else
 end
 for i = 1, #dtab do
    local el = dtab[i]
-   printf("  %s\n", el[1])
+   printf(" write  %s\n", el[1])
    x:write(el[1], el[2], el[3])
 end
 printf("hdf5 writer %s has type %s\n", tostring(x), type(x));
 x:close()
 printf("hdf5 writer %s has type %s when closed\n", tostring(x), type(x));
 
-printf("Reading from %s:\n", fname)
+printf("\n\n----------------------------------\nReading from %s:\n", fname)
 x = qcd.hdf5.Reader(fname)
 show_lR(x)
 
-if false then
-   printf("Reading from %s:\n", fname)
-   x = qcd.hdf5.Reader(fname)
-   for i = 1, #dtab do
-      local el = dtab[i]
-      local a, st = x:read(el[1], el[3])
-      local f = el[4](a, el[2])
-      printf(" %-30s %10s %s\n", el[1], st, f)
-   end
+printf("\n\n---------------------------------\n Check of data in %s:\n", fname)
+x = qcd.hdf5.Reader(fname)
+for i = 1, #dtab do
+   local el = dtab[i]
+   local a, st = x:read(el[1], el[3])
+   local f = el[4](a, el[2])
+   printf(" read  %-30s %10s %s\n", el[1], st, f)
 end
 
 printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
 x:close()
 printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
+
+printf("=============================\n\n")
