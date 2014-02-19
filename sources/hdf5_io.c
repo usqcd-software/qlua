@@ -351,6 +351,7 @@ static void
 qh5_process_opts(lua_State *L, QH5Opts *opts, mHdf5File *b, mLattice *S, int Sidx)
 {
   if (opts->wsize == WS_Default) opts->wsize = b->opts.wsize;
+  if (opts->wsize == WS_Default) opts->wsize = WS_Double;
   if (opts->shaopt == SHA_Default) opts->shaopt = b->opts.shaopt;
   if (opts->method == M_Default) opts->method = b->opts.method;
   if (opts->transfer == T_Default) opts->transfer = b->opts.transfer;

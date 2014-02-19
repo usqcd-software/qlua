@@ -6,6 +6,7 @@ Lgeom = {2,3,5}
 L = qcd.lattice(Lgeom)
 Pcreat = { method = "phdf5", alignment = 1024 * 512, threshold = 1024, istoreK = 4096, metadata = "deferred" }
 Pstd = {}
+Px = { lattice = L, sha256 = "ignore" }
 Pd = { precision = "double", sha256 = "ignore"  }
 Pf = { precision = "float", sha256 = "ignore"  }
 Pl = { lattice = L, sha256 = "ignore" }

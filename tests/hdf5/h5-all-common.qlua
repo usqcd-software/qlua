@@ -29,6 +29,7 @@ dtab = {
    { "/lattice/complex-D",     S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
    { "/lattice/complex-F",     S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp},
 --   -- color vectors
+   { "/color/default-prec-v3", S:gaussian_ColorVectorN(3) * cx,           Px,    latx_cmp},
    { "/color/seq/vec6-D",      s:gaussian_ColorVectorN(6) * cx,           Pd,    seq_cmp},
    { "/color/seq/vec6-F",      s:gaussian_ColorVectorN(6) * cx,           Pf,    seq_cmp},
    { "/color/seq/vec2-D",      s:gaussian_ColorVectorN(2) * cx,           Pd,    seq_cmp},
