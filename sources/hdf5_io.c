@@ -176,6 +176,12 @@ typedef enum {
 } QH5Method;
 
 typedef enum {
+  MDC_Default,
+  MDC_Auto,
+  MDC_Deferred
+} QH5Metadata;
+
+typedef enum {
   T_Default,
   T_Independent,
   T_Collective
@@ -183,6 +189,7 @@ typedef enum {
 
 typedef struct {
   QH5Method   method;      /* .method = "posix" | "phdf5" | "mpiposix"           */
+  QH5Metadata metadata;    /* .metadata = "auto" | "deferred"                    */
   QH5Trans    transfer;    /* .transfer = "independent" | "collective"           */
   int         alignment;   /* .alignment = # (defaults to 1)                     */
   int         threshold;   /* .threshold = # (defaults to 1)                     */
@@ -253,6 +260,7 @@ qh5_get_opts(lua_State *L, int idx)
   opts.chunkopt = CNK_Default;
   opts.method = M_Default;
   opts.transfer = T_Default;
+  opts.metadata = MDC_Default;
   opts.rank = 0;
   opts.chunk = NULL;
   opts.S = NULL;
@@ -278,6 +286,13 @@ qh5_get_opts(lua_State *L, int idx)
       opts.transfer = T_Collective;
     else if (trans)
       luaL_error(L, "Unknown transfer mode \"%s\"", trans);
+    const char *meta = qlua_tabkey_stringopt(L, idx, "metdata", NULL);
+    if (meta && !strcmp(meta, "auto"))
+      opts.metadata = MDC_Auto;
+    else if (meta && !strcmp(meta, "deferred"))
+      opts.metadata = MDC_Deferred;
+    else if (meta)
+      luaL_error(L, "Unknown metadata value \"%s\"", meta);
     opts.alignment = qlua_tabkey_intopt(L, idx, "alignment", -1);
     opts.threshold = qlua_tabkey_intopt(L, idx, "threshold", -1);
     opts.istoreK = qlua_tabkey_intopt(L, idx, "istoreK", -1);
@@ -341,10 +356,6 @@ qh5_process_opts(lua_State *L, int idx, mHdf5File *b)
   if (opts.shaopt == SHA_Default) opts.shaopt = b->opts.shaopt;
   if (opts.method == M_Default) opts.method = b->opts.method;
   if (opts.transfer == T_Default) opts.transfer = b->opts.transfer;
-  if (opts.alignment < 0) opts.alignment = b->opts.alignment;
-  if (opts.threshold < 0) opts.threshold = b->opts.threshold;
-  if (opts.istoreK < 0) opts.istoreK = b->opts.istoreK;
-  if (opts.gpfsHints < 0) opts.gpfsHints = b->opts.gpfsHints;
   if (opts.chunkopt == CNK_Default) {
     opts.chunkopt = b->opts.chunkopt;
     if (opts.chunkopt == CNK_Explicit) {
@@ -2977,7 +2988,8 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   SHA256_Sum sum;
   const char *kind;
   (*repack)(L, b, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &kind);
-  // combine_checksums(&sum, b->master); // XXX ?
+  if (b->parallel)
+    combine_checksums(&sum, b->master);
   qlua_Hdf5_enter(L);
   char *dpath = qlua_strdup(L, path);
   char *ename = strrchr(dpath, '/');

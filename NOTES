@@ -37,6 +37,9 @@ F   istoreK      --                -1                do not set istore_K
                  n                 n                 use specified value of istore_K
 F   gpfsHints    --                -1                do not set GPFS hints
                  n                 n                 set the GPFS hints
+F   metadata     --                MDC_Default         same as MD_Auto
+                 "auto"            MDC_Auto          use default mdc settings
+                 "deferred"        MDC_Deferred      write metadata to store on flush and close only
 DW  wsize        --                WS_Default         same as WS_Double
                  "double"          WS_Double         write double precision data
                  "float"           WS_Float          write single precision data
@@ -121,6 +124,56 @@ If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....
      threshold  = #             -- alignment threshold, default not set
      istoreK    = #             -- value for H5Pset_istore_k(), default not set
  ** mdc_config() values
+
+** alignment and threshold are set with H5Pset_alignment() on fapl
+** gpfsHints are for H5Pset_fapl_mpiposix(fapl, MPI_COMM, bool hints)
+** istoreK are for H5Pset_istore_k(fcpl, n) -- file creation property list -- must be specified when the file is created
+** H5Fcreate(name, flags, fcpl, fapl)
+** H5Fopen(name, flags, fapl)
+
+** Bits of wisdom from NERSC:
+
+   /* create the file in parallel */
+     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+     H5Pset_fapl_mpio(fapl_id, mpi_comm, mpi_info);
+     file_id = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+
+   /* write data using Collective XFER */
+     dxpl_id = H5Pcreate(H5P_DATASET_XFER);
+     H5Pset_dxpl_mpio(dxpl_id, H5FD_MPIO_COLLECTIVE);
+     /* describe a 1D array of elements on this processor */
+     memspace = H5Screate_simple(1, count, NULL);
+     /* map this processor's elements into the shared file */
+     filespace = H5Screate_simple(1, mpi_size*count, NULL);
+     offset = mpi_rank * count;
+     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, &offset, NULL, &count, NULL);
+     H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, dxpl_id, somedata0);
+
+   /* create file with given alignment and 0 threshold */
+     fapl = H5Pcreate(H5P_FILE_ACCESS);
+     H5Pset_alignment(fapl, 0, stripe_size);
+     file = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+
+   /* create data in chunks */
+     dcpl = H5Pcreate(H5P_DATASET_CREATE);
+     H5Pset_chunk(dcpl, 3, chunk_dims);
+     H5Dcreate(file, "mydataset", type, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+
+   /* set istore_k value */
+     btree_ik = (stripe_size - 4096) / 96;
+     fcpl = H5Pcreate(H5P_FILE_CREATE);
+     H5Pset_istore_k(fcpl, btree_ik);
+     file = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, fcpl, fapl);
+
+   /* setting mdc values */
+     mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
+     H5Pget_mdc_config(file, &mdc_config)
+     mdc_config.evictions_enabled = FALSE;
+     mdc_config.incr_mode = H5C_incr__off;
+     mdc_config.decr_mode = H5C_decr__off;
+     H5Pset_mdc_config(file, &mdc_config);
+
+**** call the option for mdc: metadata = "auto" | "deferred"
 
  
 * lattice writers:
