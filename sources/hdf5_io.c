@@ -348,31 +348,33 @@ qh5_get_opts(lua_State *L, int idx)
   return opts;
 }
 
-static QH5Opts
-qh5_process_opts(lua_State *L, int idx, mHdf5File *b)
+static void
+qh5_process_opts(lua_State *L, QH5Opts *opts, mHdf5File *b, mLattice *S, int Sidx)
 {
-  QH5Opts opts = qh5_get_opts(L, idx);
-  if (opts.wsize == WS_Default) opts.wsize = b->opts.wsize;
-  if (opts.shaopt == SHA_Default) opts.shaopt = b->opts.shaopt;
-  if (opts.method == M_Default) opts.method = b->opts.method;
-  if (opts.transfer == T_Default) opts.transfer = b->opts.transfer;
-  if (opts.chunkopt == CNK_Default) {
-    opts.chunkopt = b->opts.chunkopt;
-    if (opts.chunkopt == CNK_Explicit) {
-      opts.rank = b->opts.rank;
-      opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
-      memcpy(opts.chunk, b->opts.chunk, opts.rank * sizeof (hsize_t));
+  if (opts->wsize == WS_Default) opts->wsize = b->opts.wsize;
+  if (opts->shaopt == SHA_Default) opts->shaopt = b->opts.shaopt;
+  if (opts->method == M_Default) opts->method = b->opts.method;
+  if (opts->transfer == T_Default) opts->transfer = b->opts.transfer;
+  if (opts->chunkopt == CNK_Default) {
+    opts->chunkopt = b->opts.chunkopt;
+    if (opts->chunkopt == CNK_Explicit) {
+      opts->rank = b->opts.rank;
+      opts->chunk = qlua_malloc(L, opts->rank * sizeof (hsize_t));
+      memcpy(opts->chunk, b->opts.chunk, opts->rank * sizeof (hsize_t));
     }
   }
-  if ((opts.chunkopt == CNK_Natural) && (opts.S != NULL)) {
-    opts.chunkopt = CNK_Explicit;
-    opts.rank = opts.S->rank;
-    opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
-    int i;
-    for (i = 0; i < opts.rank; i++)
-      opts.chunk[i] = opts.S->dim[i] / opts.S->net[i];
+  if (opts->S == NULL) {
+    opts->S = S;
+    opts->Sidx = Sidx;
   }
-  return opts;
+  if ((opts->chunkopt == CNK_Natural) && (opts->S != NULL)) {
+    opts->chunkopt = CNK_Explicit;
+    opts->rank = opts->S->rank;
+    opts->chunk = qlua_malloc(L, opts->rank * sizeof (hsize_t));
+    int i;
+    for (i = 0; i < opts->rank; i++)
+      opts->chunk[i] = opts->S->dim[i] / opts->S->net[i];
+  }
 }
 
 static void
@@ -2091,6 +2093,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
   sha256_destroy(ctx);
   return 1;
 }
+#endif /* XXX */
 
 static void
 w_latint(lua_State *L, mHdf5File *b, mLattice *S,
@@ -2128,6 +2131,7 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
   *memtype  = get_int_type(L, b, 0);
 }
 
+#if 0 /* XXX */
 static int
 r_latint(lua_State *L, mHdf5File *b, const char *path,
          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
@@ -2168,6 +2172,7 @@ r_latint(lua_State *L, mHdf5File *b, const char *path,
   qlua_free(L, ptr);
   return 1;
 }
+#endif  /* XXX */
 
 static void
 w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
@@ -2233,6 +2238,7 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 }
 
+#if 0 /* XXX */
 static int
 r_latreal(lua_State *L, mHdf5File *b, const char *path,
           QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
@@ -2299,6 +2305,7 @@ r_latreal(lua_State *L, mHdf5File *b, const char *path,
   }
   return 1;
 }
+#endif /* XXX */
 
 static void
 w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
@@ -2368,6 +2375,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 }
 
+#if 0 /* XXX */
 static int
 r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
              QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
@@ -2879,9 +2887,10 @@ r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-#if 0 /* XXX */
+  QH5Opts wopts = qh5_get_opts(L, 4);
   mLattice *S = qlua_ObjLattice(L, 3);
-  QH5Opts wopts = qh5_process_opts(L, 4, b); /* XXX include S into option processing */
+  int Sidx = lua_gettop(L);
+  qh5_process_opts(L, &wopts, b, S, Sidx);
   struct laddr_s laddr;
   laddr.rank = S->rank;
   laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
@@ -2926,17 +2935,12 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   hid_t filespace = H5Screate_simple(S->rank, hlatdim, NULL);
   qlua_free(L, hlatdim);
   CHECK_H5(L, filespace, "Screate_simple() file space");
-  hid_t dcpl;
-  /* XXX set chunks according to wopts -- switch on wopts.chunkopt */
+  hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+  CHECK_H5(L, dcpl, "Pcreate(dcpl) failed");
   if (wopts.rank > 0) {
     if (wopts.rank != S->rank)
       luaL_error(L, "hdf5:write() chunk rank mismatch: %d, lattice rank is %d", wopts.rank, S->rank);
-    dcpl = H5Pcreate(H5P_DATASET_CREATE);
-    CHECK_H5(L, dcpl, "Pcreate() dcpl in write_lat()");
     CHECK_H5(L, H5Pset_chunk(dcpl, wopts.rank, wopts.chunk), "Pset_chunk() in write_lat()");
-  } else {
-    dcpl = H5Pcopy(H5P_DEFAULT);
-    CHECK_H5(L, dcpl, "Pcopy() dcpl in write_lat()");
   }
   hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
   CHECK_H5(L, H5Pclose(dcpl), "Pclose() dcpl in write_lat()");
@@ -2947,34 +2951,44 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   if (wdir != b->cwd)
     CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
   hid_t memspace = H5Screate_simple(S->rank, block, NULL);
-  CHECK_H5(L, memspace, "Screate_simple() mem space");
+  CHECK_H5(L, memspace, "Screate(memspace) failed");
   filespace =  H5Dget_space(dataset);
   CHECK_H5(L, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block), "Sselect_hyperslab()");
   qlua_free(L, block);
   qlua_free(L, offset);
   qlua_free(L, stride);
   qlua_free(L, count);
-  /* XXX set transfter mode according to wopts -- call it dxpl, switch between Collective and Independent */
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  CHECK_H5(L, plist, "Pcreate() xfter plist");
-  CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
-  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
-  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
-  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
-  CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
+  hid_t dxpl =  H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, dxpl, "Pcreate(dxpl) failed");
+  switch (wopts.transfer) {
+  case T_Default: case T_Independent:
+    CHECK_H5(L, H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_INDEPENDENT), "Pset_dxpl_mpio(dxpl) failed");
+    break;
+  case T_Collective:
+    CHECK_H5(L, H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_COLLECTIVE), "Pset_dxpl_mpio(dxpl) failed");
+    break;
+  default:
+    QLUA_ABORT("Unknown transfer value");
+    break;
+  }
+  CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, dxpl, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(dxpl), "Pclose(dxpl) failed");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose(filespace) failed");
+  CHECK_H5(L, H5Sclose(memspace), "Sclose(memspace) failed");
+  CHECK_H5(L, H5Tclose(memtype), "Tclose(memtype) failed");
   qlua_free(L, data);
   write_attrs(L, b, dataset, &sum, kind, qlua_timeofday());
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
+  CHECK_H5(L, H5Dclose(dataset), "Dclose(dataset) failed");
   qlua_Hdf5_leave();
   qh5_fini_opts(L, &wopts);
-#endif /* XXX */
   return 0;
 }
 
 static int
 write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  QH5Opts wopts = qh5_process_opts(L, 4, b);
+  QH5Opts wopts = qh5_get_opts(L, 4);
+  qh5_process_opts(L, &wopts, b, NULL, 0);
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
@@ -3029,46 +3043,38 @@ static struct {
   { qVecComplex,             0,  w_veccomplex    },
   { qMatReal,                0,  w_matreal       },
   { qMatComplex,             0,  w_matcomplex    },
-#if 0 /* XXX */
   { qLatInt,                 1,  w_latint        },
   { qLatReal,                1,  w_latreal       },
   { qLatComplex,             1,  w_latcomplex    },
-#endif /* XXX */
 #if USE_Nc2
   { qSeqColVec2,             0,  w_colvec2       },
   { qSeqColMat2,             0,  w_colmat2       },
   { qSeqDirFerm2,            0,  w_dirferm2      },
   { qSeqDirProp2,            0,  w_dirprop2      },
-#if 0 /* XXX */
   { qLatColVec2,             1,  w_latcolvec2    },
   { qLatColMat2,             1,  w_latcolmat2    },
   { qLatDirFerm2,            1,  w_latdirferm2   },
   { qLatDirProp2,            1,  w_latdirprop2   },
-#endif /* XXX */
 #endif
 #if USE_Nc3
   { qSeqColVec3,             0,  w_colvec3       },
   { qSeqColMat3,             0,  w_colmat3       },
   { qSeqDirFerm3,            0,  w_dirferm3      },
   { qSeqDirProp3,            0,  w_dirprop3      },
-#if 0 /* XXX */
   { qLatColVec3,             1,  w_latcolvec3    },
   { qLatColMat3,             1,  w_latcolmat3    },
   { qLatDirFerm3,            1,  w_latdirferm3   },
   { qLatDirProp3,            1,  w_latdirprop3   },
-#endif /* XXX */
 #endif
 #if USE_NcN
   { qSeqColVecN,             0,  w_colvecN       },
   { qSeqColMatN,             0,  w_colmatN       },
   { qSeqDirFermN,            0,  w_dirfermN      },
   { qSeqDirPropN,            0,  w_dirpropN      },
-#if 0 /* XXX */
   { qLatColVecN,             1,  w_latcolvecN    },
   { qLatColMatN,             1,  w_latcolmatN    },
   { qLatDirFermN,            1,  w_latdirfermN   },
   { qLatDirPropN,            1,  w_latdirpropN   },
-#endif /* XXX */
 #endif
   { qNoType,                 0,  NULL            }
 };

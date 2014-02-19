@@ -1,0 +1,105 @@
+
+c1 = complex(2,3)
+c2 = complex(4,5.25)
+c3 = complex(2.25,1.125)
+c4 = c2 + 3 * c3
+cx = complex(1.1231, -15.12451)
+
+--------------------------------------------------------
+dtab = {
+   { "/serial/string",         "hello",                                   Pstd,  str_cmp },
+   { "/serial/str2",           "there",                                   Pstd,  str_cmp },
+   { "/serial/real-D",         1.125,                                     Pd,    real_cmp },
+   { "/serial/real-F",         3451.25,                                   Pf,    real_cmp },
+   { "/serial/complex-D",      c1,                                        Pd,    complex_cmp },
+   { "/serial/complex-F",      c2,                                        Pf,    complex_cmp },
+   { "/serial/ivec-1",         vfill(vector.int(7), 543, 61),             Pstd,  ivec_cmp},
+   { "/serial/ivec-2",         vfill(vector.int(12), 3, -6),              Pstd,  ivec_cmp},
+   { "/serial/realvec-D",      vfill(vector.real(12), 3, -6),             Pd,    rvec_cmp},
+   { "/serial/realvec-F",      vfill(vector.real(5), 6.5, -1.25),         Pf,    rvec_cmp},
+   { "/serial/cvec-D",         vfill(vector.complex(12), c3, c4),         Pd,    cvec_cmp},
+   { "/serial/cvec-F",         vfill(vector.complex(7), c4, c2),          Pf,    cvec_cmp},
+   { "/serial/rmat-D",         mfill(matrix.real{3,4}, 1, 2, 3),          Pd,    rmat_cmp},
+   { "/serial/rmat-F",         mfill(matrix.real{5,2}, 1.5, 2.25, 3.25),  Pf,    rmat_cmp},
+   { "/serial/cmat-D",         mfill(matrix.complex{3,4}, c1, c2, c3),    Pd,    cmat_cmp},
+   { "/serial/cmat-F",         mfill(matrix.complex{5,2}, c2, c3, c4),    Pf,    cmat_cmp},
+   { "/lattice/int",           lint,                                      Pl,    latint_cmp},
+   { "/lattice/real-D",        S:gaussian_Real() * 1.2341,                Pld,   latint_cmp},
+   { "/lattice/real-F",        S:gaussian_Real() * 0.14561,               Plf,   latint_cmp},
+   { "/lattice/complex-D",     S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
+   { "/lattice/complex-F",     S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp},
+--   -- color vectors
+   { "/color/seq/vec6-D",      s:gaussian_ColorVectorN(6) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec6-F",      s:gaussian_ColorVectorN(6) * cx,           Pf,    seq_cmp},
+   { "/color/seq/vec2-D",      s:gaussian_ColorVectorN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/vec2-F",      s:gaussian_ColorVectorN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/vec7-D",      S:gaussian_ColorVectorN(7) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec7-F",      S:gaussian_ColorVectorN(7) * cx,           Plf,   latx_cmp},
+   { "/color/lat/vec2-D",      S:gaussian_ColorVectorN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/vec2-F",      S:gaussian_ColorVectorN(2) * cx,           Plf,   latx_cmp},
+--   -- color matrices
+   { "/color/seq/mat4-D",      s:gaussian_ColorMatrixN(4) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat4-F",      s:gaussian_ColorMatrixN(4) * cx,           Pf,    seq_cmp},
+   { "/color/seq/mat2-D",      s:gaussian_ColorMatrixN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/mat2-F",      s:gaussian_ColorMatrixN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/mat5-D",      S:gaussian_ColorMatrixN(5) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat5-F",      S:gaussian_ColorMatrixN(5) * cx,           Plf,   latx_cmp},
+   { "/color/lat/mat2-D",      S:gaussian_ColorMatrixN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/mat2-F",      S:gaussian_ColorMatrixN(2) * cx,           Plf,   latx_cmp},
+--   -- dirac fermions
+   { "/color/seq/dirferm4-D",  s:gaussian_DiracFermionN(4) * cx,           Pd,    seq_cmp},
+   { "/color/seq/dirferm4-F",  s:gaussian_DiracFermionN(4) * cx,           Pf,    seq_cmp},
+   { "/color/seq/dirferm2-D",  s:gaussian_DiracFermionN(2) * cx,           Pd,    seq_cmp},
+   { "/color/seq/dirferm2-F",  s:gaussian_DiracFermionN(2) * cx,           Pf,    seq_cmp},
+   { "/color/lat/dirferm5-D",  S:gaussian_DiracFermionN(5) * cx,           Pld,   latx_cmp},
+   { "/color/lat/dirferm5-F",  S:gaussian_DiracFermionN(5) * cx,           Plf,   latx_cmp},
+   { "/color/lat/dirferm2-D",  S:gaussian_DiracFermionN(2) * cx,           Pld,   latx_cmp},
+   { "/color/lat/dirferm2-F",  S:gaussian_DiracFermionN(2) * cx,           Plf,   latx_cmp},
+--   -- dirac propagators
+   { "/color/seq/dirprop4-D",  s:gaussian_DiracPropagatorN(4) * cx,        Pd,    seq_cmp},
+   { "/color/seq/dirprop4-F",  s:gaussian_DiracPropagatorN(4) * cx,        Pf,    seq_cmp},
+   { "/color/seq/dirprop2-D",  s:gaussian_DiracPropagatorN(2) * cx,        Pd,    seq_cmp},
+   { "/color/seq/dirprop2-F",  s:gaussian_DiracPropagatorN(2) * cx,        Pf,    seq_cmp},
+   { "/color/lat/dirprop5-D",  S:gaussian_DiracPropagatorN(5) * cx,        Pld,   latx_cmp},
+   { "/color/lat/dirprop5-F",  S:gaussian_DiracPropagatorN(5) * cx,        Plf,   latx_cmp},
+   { "/color/lat/dirprop2-D",  S:gaussian_DiracPropagatorN(2) * cx,        Pld,   latx_cmp},
+   { "/color/lat/dirprop2-F",  S:gaussian_DiracPropagatorN(2) * cx,        Plf,   latx_cmp},
+
+   { "/final",             "DONE",                                    Pstd,  str_cmp},
+   { "/final2",            "DONE",                                    Pstd,  str_cmp}
+}
+
+os.remove(fname)
+printf("Writing to %s:\n", fname)
+if Pcreat then
+   printf("........ writer with method=%q\n", Pcreat.method)
+   x = qcd.hdf5.Writer(fname, Pcreat)
+else
+   printf("........ default writer\n")
+   x = qcd.hdf5.Writer(fname)
+end
+
+for i = 1, #dtab do
+   local el = dtab[i]
+   printf("  %s\n", el[1])
+   x:write(el[1], el[2], el[3])
+end
+printf("hdf5 writer %s has type %s\n", tostring(x), type(x));
+x:close()
+printf("hdf5 writer %s has type %s when closed\n", tostring(x), type(x));
+
+if false then
+   printf("Reading from %s:\n", fname)
+   x = qcd.hdf5.Reader(fname)
+   for i = 1, #dtab do
+      local el = dtab[i]
+      local a, st = x:read(el[1], el[3])
+      local f = el[4](a, el[2])
+      printf(" %-30s %10s %s\n", el[1], st, f)
+   end
+   printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
+   x:close()
+   printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
+end
+
+printf("DONE\n")
