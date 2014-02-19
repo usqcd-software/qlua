@@ -224,7 +224,6 @@ typedef int (*InUnpacker_H5)(lua_State *L, mHdf5File *b, const char *path,
                              SHA256_Sum *sum, struct laddr_s *laddr);
 
 /* common helpers */
-#if 0 /* XXXX */
 static const char *
 kind2name(KindOfH k)
 {
@@ -236,7 +235,6 @@ kind2name(KindOfH k)
   QLUA_ABORT("Unknown hdf5 kind");
   return knUnknown;
 }
-#endif /* XXX */
 
 static KindOfH
 name2kind(lua_State *L, const char *name)
@@ -1028,7 +1026,6 @@ qlua_newHdf5Writer(lua_State *L)
   return h;
 }
 
-#if 0 /* XXX */
 static mHdf5File *
 qlua_newHdf5Reader(lua_State *L)
 {
@@ -1036,7 +1033,7 @@ qlua_newHdf5Reader(lua_State *L)
 
   h->master = (QDP_this_node == qlua_master_node);
   h->writer = 0;
-  h->parallel = 0;
+  h->parallel = 1;
   h->file = -1;
   h->cwd = -1;
 
@@ -1045,7 +1042,6 @@ qlua_newHdf5Reader(lua_State *L)
 
   return h;
 }
-#endif /* XXXX */
 
 mHdf5File *
 qlua_checkHdf5Writer(lua_State *L, int idx)
@@ -1186,18 +1182,15 @@ qhdf5_mkpath(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
 static herr_t
 get_list(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
 {
   lua_State *L = opdata;
   int k = luaL_checkinteger(L, -1);
-
   lua_pushstring(L, name);
   lua_rawseti(L, -3, k);
   lua_pop(L, 1);
   lua_pushinteger(L, k + 1);
-
   return 0;
 }
 
@@ -1206,7 +1199,6 @@ qhdf5_list(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *p = luaL_checkstring(L, 2);
-
   check_file(L, b);
   qlua_Hdf5_enter(L);
   hid_t dh = H5Gopen(p[0] == '/'? b->file: b->cwd, p, H5P_DEFAULT);
@@ -1312,7 +1304,6 @@ get_h5_type_name(lua_State *L, mHdf5File *b, hid_t obj, char **ptr)
   }
   return present;
 }
-#endif /* XXX */
 
 static int
 qhdf5_cwd(lua_State *L)
@@ -1438,7 +1429,6 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Sclose(dspace), "Sclose() in write_attrs()");
 }
 
-#if 0 /* XXX */
 static int
 read_sha256(lua_State *L, mHdf5File *b, hid_t obj, SHA256_Sum *sum)
 {
@@ -1452,7 +1442,6 @@ read_sha256(lua_State *L, mHdf5File *b, hid_t obj, SHA256_Sum *sum)
   }
   return status;
 }
-#endif /* XXX */
 
 #if USE_Nc2
 #define QNc  '2'
@@ -3290,6 +3279,7 @@ qhdf5_read(lua_State *L)
 #endif /* XXX */
   return 2;
 }
+#endif /* XXX */
 
 static int
 qhdf5_stat(lua_State *L)
@@ -3360,7 +3350,6 @@ qhdf5_stat(lua_State *L)
   qlua_Hdf5_leave();
   return 1;
 }
-#endif /* XXXX */
 
 static int
 q_hdf5_writer(lua_State *L)
@@ -3436,50 +3425,51 @@ q_hdf5_writer(lua_State *L)
   return 1;
 }
 
-#if 0 /* XXXX */
 static int
 q_hdf5_reader(lua_State *L)
 {
   const char *name = luaL_checkstring(L, 1);
   QH5Opts opts = qh5_get_opts(L, 2);
   mHdf5File *w = qlua_newHdf5Reader(L);
-  MPI_Comm comm = MPI_COMM_WORLD;
-  MPI_Info info = MPI_INFO_NULL;
-  hid_t acc_tpl1;
-
   w->opts = opts;
-
-  /* XXX opening the reader */
-  /* XXX open with a given method, promote M_Default to M_POSIX */
-  /* XXX set up alignment and threshold */
-  /* XXX set gpfsHints */
   qlua_Hdf5_enter(L);
-
-  acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
-  CHECK_H5(L, acc_tpl1, "Pcreate() failed");
-  CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
-
-  w->file = H5Fopen(name, H5F_ACC_RDONLY, acc_tpl1);
+  hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+  switch (w->opts.method) {
+  case M_Default: case M_POSIX:
+    break;
+  case M_pHDF5: {
+    CHECK_H5(L, H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL), "Pset_mpio() failed");
+  } break;
+  case M_MPIPOSIX: {
+    CHECK_H5(L, H5Pset_fapl_mpiposix(fapl, MPI_COMM_WORLD, (opts.gpfsHints > 0) ? 1 : 0), "Pset_mpiposix() failed");
+  } break;
+  default:
+    QLUA_ABORT("Unknown hdf5 access method");
+    break;
+  }
+  CHECK_H5(L, fapl, "Pinit(fapl) failed");
+  if (opts.alignment >= 0) {
+    if (opts.threshold < 0) opts.threshold = 1;
+    CHECK_H5(L, H5Pset_alignment(fapl, opts.threshold, opts.alignment), "Pset_alignment() failed");
+  }
+  w->file = H5Fopen(name, H5F_ACC_RDONLY, fapl);
   CHECK_H5(L, w->file, "qcd.hdf5.Reader failed");
-  CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
+  CHECK_H5(L, H5Pclose(fapl), "Pclose(fapl) failed");
   w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
   CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
-
   qlua_Hdf5_leave();
-
   return 1;
 }
-#endif /* XXX */
 
 /* metatables */
 static const struct luaL_Reg mtFileReader[] = {
   { "__tostring",       qhdf5_fmt     },
   { "__gc",             qhdf5_gc      },
-#if 0 /* XXX */
   { "list",             qhdf5_list    },
   { "stat",             qhdf5_stat    },
   { "cwd",              qhdf5_cwd     },
   { "chpath",           qhdf5_chpath  },
+#if 0 /* XXX */
   { "read",             qhdf5_read    },
 #endif /* XXX */
   { "close",            qhdf5_close   },
@@ -3501,9 +3491,7 @@ static const struct luaL_Reg mtFileWriter[] = {
 
 /* names and routines for qcd.hdf5 table */
 static const struct luaL_Reg fHDF5io[] = {
-#if 0 /* XXXX */
   { "Reader",   q_hdf5_reader  },
-#endif /* XXXX */
   { "Writer",   q_hdf5_writer  },
   { NULL,       NULL           }
 };

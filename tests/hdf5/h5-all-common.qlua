@@ -88,18 +88,19 @@ printf("hdf5 writer %s has type %s\n", tostring(x), type(x));
 x:close()
 printf("hdf5 writer %s has type %s when closed\n", tostring(x), type(x));
 
+printf("Reading from %s:\n", fname)
+x = qcd.hdf5.Reader(fname)
+show_lR(x)
+
 if false then
-   printf("Reading from %s:\n", fname)
-   x = qcd.hdf5.Reader(fname)
    for i = 1, #dtab do
       local el = dtab[i]
       local a, st = x:read(el[1], el[3])
       local f = el[4](a, el[2])
       printf(" %-30s %10s %s\n", el[1], st, f)
    end
-   printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
-   x:close()
-   printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
 end
 
-printf("DONE\n")
+printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
+x:close()
+printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
