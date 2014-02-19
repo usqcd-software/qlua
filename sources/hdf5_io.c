@@ -3355,6 +3355,7 @@ qhdf5_stat(lua_State *L)
   return 1;
 }
 #endif /* XXXX */
+
 static int
 q_hdf5_writer(lua_State *L)
 {
@@ -3363,23 +3364,23 @@ q_hdf5_writer(lua_State *L)
   mHdf5File *w = qlua_newHdf5Writer(L);
   w->opts = opts;
   qlua_Hdf5_enter(L);
-  hid_t fcpl = H5P_DEFAULT; /* creation properties list */
-  hid_t fapl = H5P_DEFAULT; /* access properties list */
+  hid_t fcpl = H5Pcreate(H5P_FILE_CREATE);
+  hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
   int is_opener = 0;
   switch (w->opts.method) {
   case M_Default: case M_POSIX: {
     w->parallel = 0;
     is_opener = w->master;
-    fcpl = H5Pcreate(H5P_FILE_CREATE);
-    fapl = H5Pcreate(H5P_FILE_ACCESS);
   } break;
   case M_pHDF5: {
-    /* XXX open/create phdf5 file */
-    QLUA_ABORT("phdf5 access method");
+    w->parallel = 1;
+    is_opener = 1;
+    CHECK_H5(L, H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL), "Pset_mpio() failed");
   } break;
   case M_MPIPOSIX: {
-    /* XXX open/create mpiposix file */
-    QLUA_ABORT("mpiposix access method");
+    w->parallel = 1;
+    is_opener = 1;
+    CHECK_H5(L, H5Pset_fapl_mpiposix(fapl, MPI_COMM_WORLD, (opts.gpfsHints > 0) ? 1 : 0), "Pset_mpiposix() failed");
   } break;
   default:
     QLUA_ABORT("Unknown hdf5 access method");
@@ -3387,6 +3388,13 @@ q_hdf5_writer(lua_State *L)
   }
   CHECK_H5(L, fcpl, "Pinit(fcpl) failed");
   CHECK_H5(L, fapl, "Pinit(fapl) failed");
+  if (opts.alignment >= 0) {
+    if (opts.threshold < 0) opts.threshold = 1;
+    CHECK_H5(L, H5Pset_alignment(fapl, opts.threshold, opts.alignment), "Pset_alignment() failed");
+  }
+  if (opts.istoreK >= 0) {
+    CHECK_H5(L, H5Pset_istore_k(fcpl, opts.istoreK), "Pset_istore_k() failed");
+  }
   if (is_opener) {
     struct stat st;
     int status = stat(name, &st);
@@ -3398,6 +3406,21 @@ q_hdf5_writer(lua_State *L)
       w->file = H5Fcreate(name, H5F_ACC_TRUNC, fcpl, fapl);
     }
     CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
+    switch (opts.metadata) {
+    case MDC_Default: case MDC_Auto:
+      break;
+    case MDC_Deferred: {
+      H5AC_cache_config_t mdc_config;
+      mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
+      CHECK_H5(L, H5Pget_mdc_config(w->file, &mdc_config), "Pget_mdc_config() failed");
+      mdc_config.evictions_enabled = 0;
+      mdc_config.incr_mode = H5C_incr__off;
+      mdc_config.decr_mode = H5C_decr__off;
+      CHECK_H5(L, H5Pset_mdc_config(w->file, &mdc_config), "Pset_mdc_config() failed");
+    } break;
+    default:
+      QLUA_ABORT("Unknown value of metadata option");
+    }
     w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
     CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
   }

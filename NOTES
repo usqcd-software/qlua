@@ -135,29 +135,18 @@ If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....
 
    /* create the file in parallel */
      fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+     MPI_Comm comm = MPI_COMM_WORLD;
+     MPI_Info info = MPI_INFO_NULL;
      H5Pset_fapl_mpio(fapl_id, mpi_comm, mpi_info);
      file_id = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 
-   /* write data using Collective XFER */
-     dxpl_id = H5Pcreate(H5P_DATASET_XFER);
-     H5Pset_dxpl_mpio(dxpl_id, H5FD_MPIO_COLLECTIVE);
-     /* describe a 1D array of elements on this processor */
-     memspace = H5Screate_simple(1, count, NULL);
-     /* map this processor's elements into the shared file */
-     filespace = H5Screate_simple(1, mpi_size*count, NULL);
-     offset = mpi_rank * count;
-     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, &offset, NULL, &count, NULL);
-     H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, dxpl_id, somedata0);
+   /* create file with mpiposix method */
+     H5Pset_fapl_mpiposix(fapl, MPI_Comm comm, hbool_t use_gpfs_hints);
 
    /* create file with given alignment and 0 threshold */
      fapl = H5Pcreate(H5P_FILE_ACCESS);
      H5Pset_alignment(fapl, 0, stripe_size);
      file = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
-
-   /* create data in chunks */
-     dcpl = H5Pcreate(H5P_DATASET_CREATE);
-     H5Pset_chunk(dcpl, 3, chunk_dims);
-     H5Dcreate(file, "mydataset", type, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
 
    /* set istore_k value */
      btree_ik = (stripe_size - 4096) / 96;
@@ -172,6 +161,23 @@ If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....
      mdc_config.incr_mode = H5C_incr__off;
      mdc_config.decr_mode = H5C_decr__off;
      H5Pset_mdc_config(file, &mdc_config);
+
+   /* write data using Collective XFER */
+     dxpl_id = H5Pcreate(H5P_DATASET_XFER);
+     H5Pset_dxpl_mpio(dxpl_id, H5FD_MPIO_COLLECTIVE);
+     /* describe a 1D array of elements on this processor */
+     memspace = H5Screate_simple(1, count, NULL);
+     /* map this processor's elements into the shared file */
+     filespace = H5Screate_simple(1, mpi_size*count, NULL);
+     offset = mpi_rank * count;
+     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, &offset, NULL, &count, NULL);
+     H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, dxpl_id, somedata0);
+
+   /* create data in chunks */
+     dcpl = H5Pcreate(H5P_DATASET_CREATE);
+     H5Pset_chunk(dcpl, 3, chunk_dims);
+     H5Dcreate(file, "mydataset", type, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+
 
 **** call the option for mdc: metadata = "auto" | "deferred"
 
