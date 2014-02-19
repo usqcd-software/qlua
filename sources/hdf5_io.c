@@ -3363,62 +3363,47 @@ q_hdf5_writer(lua_State *L)
   mHdf5File *w = qlua_newHdf5Writer(L);
   w->opts = opts;
   qlua_Hdf5_enter(L);
+  hid_t fcpl = H5P_DEFAULT; /* creation properties list */
+  hid_t fapl = H5P_DEFAULT; /* access properties list */
+  int is_opener = 0;
   switch (w->opts.method) {
   case M_Default: case M_POSIX: {
     w->parallel = 0;
-    if (w->master) {
-      struct stat st;
-      int status = stat(name, &st);
-      if (status == 0) {
-        w->file = H5Fopen(name, H5F_ACC_RDWR, H5P_DEFAULT);
-      } else {
-        w->file = H5Fcreate(name, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
-      }
-      CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
-      w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
-      CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
-    }
+    is_opener = w->master;
+    fcpl = H5Pcreate(H5P_FILE_CREATE);
+    fapl = H5Pcreate(H5P_FILE_ACCESS);
   } break;
   case M_pHDF5: {
     /* XXX open/create phdf5 file */
+    QLUA_ABORT("phdf5 access method");
   } break;
   case M_MPIPOSIX: {
     /* XXX open/create mpiposix file */
+    QLUA_ABORT("mpiposix access method");
   } break;
   default:
     QLUA_ABORT("Unknown hdf5 access method");
     break;
   }
-#if 0
-  MPI_Comm comm = MPI_COMM_WORLD;
-  MPI_Info info = MPI_INFO_NULL;
-  int status = 0;
-  struct stat st;
-  hid_t acc_tpl1;
-  /* XXX opening the writer */
-  /* XXX check requested method, promote M_Default to M_POSIX */
-  /* XXX set up alignment and threshold */
-  /* XXX set gpfsHints */
-  acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
-  CHECK_H5(L, acc_tpl1, "Pcreate() failed");
-  CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
-
-  /* possible fs race condition here */
-  status = stat(name, &st);
- /* all nodes must agree on the file existance */
-  QMP_sum_int(&status);
-  if (status == 0) {
-    /* open existing file */
-    w->file = H5Fopen(name, H5F_ACC_RDWR, acc_tpl1);
-  } else {
-    /* create a new file. If it was created after stat() returned, truncate it */
-    w->file = H5Fcreate(name, H5F_ACC_TRUNC, H5P_DEFAULT, acc_tpl1);
+  CHECK_H5(L, fcpl, "Pinit(fcpl) failed");
+  CHECK_H5(L, fapl, "Pinit(fapl) failed");
+  if (is_opener) {
+    struct stat st;
+    int status = stat(name, &st);
+    if (w->parallel)
+      QMP_sum_int(&status);
+    if (status == 0) {
+      w->file = H5Fopen(name, H5F_ACC_RDWR, fapl);
+    } else {
+      w->file = H5Fcreate(name, H5F_ACC_TRUNC, fcpl, fapl);
+    }
+    CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
+    w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
+    CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
   }
-  CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
-#endif
-
+  CHECK_H5(L, H5Pclose(fapl), "Pclose(fapl) failed");
+  CHECK_H5(L, H5Pclose(fcpl), "Pclose(fcpl) failed");
   qlua_Hdf5_leave();
-
   return 1;
 }
 
