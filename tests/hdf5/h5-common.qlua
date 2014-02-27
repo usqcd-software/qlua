@@ -1,19 +1,3 @@
-require "stdlib"
-
-Lgeom = {12,12,15}
-chunk = {4,3,5} 
-L = qcd.lattice(Lgeom)
-fname = "h5-test.h5"
-Pstd = {}
-Pd = { precision = "double", sha256 = "ignore"  }
-Pf = { precision = "float", sha256 = "ignore"  }
-Pl = { lattice = L, sha256 = "ignore" }
-Pld = { lattice = L, sha256 = "ignore", precision = "double", chunk = chunk }
-Plf = { lattice = L, sha256 = "ignore", precision = "float", chunk = chunk }
-
-seed_A = 367458
-seed_B = 587642
-
 do
    local x = L:Int(seed_B)
    local i
@@ -220,69 +204,63 @@ function cmat_cmp(a,b)
    return "eq"
 end
 
-
-
-c1 = complex(2,3)
-c2 = complex(4,5.25)
-c3 = complex(2.25,1.125)
-c4 = c2 + 3 * c3
-cx = complex(1.1231, -15.12451)
-
---------------------------------------------------------
-dtab = {
-   { "/serial/string",         "hello",                                   Pstd,  str_cmp },
-   { "/lattice/int",           lint,                                      Pl,    latint_cmp},
-   { "/lattice/real-D",        S:gaussian_Real() * 1.2341,                Pld,   latint_cmp},
-   { "/lattice/real-F",        S:gaussian_Real() * 0.14561,               Plf,   latint_cmp},
-   { "/lattice/complex-D",     S:gaussian_Complex() * cx,                 Pld,   latx_cmp},
-   { "/lattice/comlpex-F",     S:gaussian_Complex() * (cx + c4),          Plf,   latx_cmp},
-   -- color vectors
-   { "/color/lat/vec7-D",      S:gaussian_ColorVectorN(7) * cx,           Pld,   latx_cmp},
-   { "/color/lat/vec7-F",      S:gaussian_ColorVectorN(7) * cx,           Plf,   latx_cmp},
-   { "/color/lat/vec2-D",      S:gaussian_ColorVectorN(2) * cx,           Pld,   latx_cmp},
-   { "/color/lat/vec2-F",      S:gaussian_ColorVectorN(2) * cx,           Plf,   latx_cmp},
-   -- color matrices
-   { "/color/lat/mat5-D",      S:gaussian_ColorMatrixN(5) * cx,           Pld,   latx_cmp},
-   { "/color/lat/mat5-F",      S:gaussian_ColorMatrixN(5) * cx,           Plf,   latx_cmp},
-   { "/color/lat/mat2-D",      S:gaussian_ColorMatrixN(2) * cx,           Pld,   latx_cmp},
-   { "/color/lat/mat2-F",      S:gaussian_ColorMatrixN(2) * cx,           Plf,   latx_cmp},
-   -- dirac fermions
-   { "/color/lat/dirferm5-D",  S:gaussian_DiracFermionN(5) * cx,           Pld,   latx_cmp},
-   { "/color/lat/dirferm5-F",  S:gaussian_DiracFermionN(5) * cx,           Plf,   latx_cmp},
-   { "/color/lat/dirferm2-D",  S:gaussian_DiracFermionN(2) * cx,           Pld,   latx_cmp},
-   { "/color/lat/dirferm2-F",  S:gaussian_DiracFermionN(2) * cx,           Plf,   latx_cmp},
-   -- dirac propagators
-   { "/color/lat/dirprop5-D",  S:gaussian_DiracPropagatorN(5) * cx,        Pld,   latx_cmp},
-   { "/color/lat/dirprop5-F",  S:gaussian_DiracPropagatorN(5) * cx,        Plf,   latx_cmp},
-   { "/color/lat/dirprop2-D",  S:gaussian_DiracPropagatorN(2) * cx,        Pld,   latx_cmp},
-   { "/color/lat/dirprop2-F",  S:gaussian_DiracPropagatorN(2) * cx,        Plf,   latx_cmp},
-
-
-   { "/final",             "DONE",                                    Pstd,  str_cmp}
-}
-
-os.remove(fname)
-printf("Writing to %s:\n", fname)
-x = qcd.hdf5.Writer(fname)
-for i = 1, #dtab do
-   local el = dtab[i]
-   printf("  %s\n", el[1])
-   x:write(el[1], el[2], el[3])
+function show_lR(x)
+   local function fmt_geometry(g)
+      local t = type(g)
+      if t == "string" then
+         return g
+      end
+      if t == "table" then
+         local r = ""
+         local sep = "{"
+         for i = 1, #g do
+            r = string.format("%s%s%d", r, sep, g[i])
+            sep = ", "
+         end
+         return r .. "}"
+      end
+      return ""
+   end
+   local function fmt_time(t)
+      if type(t) == "number" then
+         return os.ctime(t * 1e-6)
+      end
+      return ""
+   end
+   local function fmt_type(t)
+      if t then
+         return t
+      end
+      return ""
+   end
+   local function fmt_sha(t)
+      if t then
+         return t
+      end
+      return "-"
+   end
+   local function process_list(dir, nm)
+      printf("ls %s:\n", dir)
+      local ls = x:list(dir)
+      local subs = {}
+      for i,v in pairs(ls) do
+         if true then
+            local stat = x:stat(string.format("%s/%s", nm, v))
+            if stat then
+               local geom = fmt_geometry(stat.geometry)
+               local tx = fmt_time(stat.time)
+               printf(" %-64s %-24s %-16s %-28s %26s  %s\n",
+                       fmt_sha(stat.sha256), stat.kind, geom, fmt_type(stat.type), tx, v)
+            end
+            if stat.kind == "Group" then
+               subs[#subs + 1] = v
+            end
+         end
+      end
+      for i = 1, #subs do
+         local g = string.format("%s/%s", nm, subs[i])
+         process_list(g,g)
+      end
+   end
+   process_list("/", "")
 end
-printf("hdf5 writer %s has type %s\n", tostring(x), type(x));
-x:close()
-printf("hdf5 writer %s has type %s when closed\n", tostring(x), type(x));
-
-printf("Reading from %s:\n", fname)
-x = qcd.hdf5.Reader(fname)
-for i = 1, #dtab do
-   local el = dtab[i]
-   local a, st = x:read(el[1], el[3])
-   local f = el[4](a, el[2])
-   printf(" %-30s %10s %s\n", el[1], st, f)
-end
-printf("hdf5 reader %s has type %s\n", tostring(x), type(x));
-x:close()
-printf("hdf5 reader %s has type %s when closed\n", tostring(x), type(x));
-
-printf("DONE\n")

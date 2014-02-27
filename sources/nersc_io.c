@@ -173,29 +173,6 @@ site2coord(int *coord, long long site, int nd, const int *dim)
 }
 
 static void
-send_string(lua_State *L, int idx)
-{
-    const char *str = lua_tostring(L, idx);
-    int len = strlen(str) + 1;
-
-    QMP_broadcast(&len, sizeof (len));
-    QMP_broadcast((void *)str, len);
-}
-
-static int
-receive_string(lua_State *L, char **str)
-{
-    int len;
-    *str = 0;
-    QMP_broadcast(&len, sizeof (len));
-    if (len == 0)
-        return 0;
-    *str = qlua_malloc(L, len);
-    QMP_broadcast(*str, len);
-    return 1;
-}
-
-static void
 normalize_int(lua_State *L, int idx, const char *key, char *fmt)
 {
     lua_getfield(L, idx, key);
@@ -616,8 +593,8 @@ eoh:
     {
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
-            send_string(L, -2); /* key */
-            send_string(L, -1); /* value */
+            qlua_send_string(L, -2); /* key */
+            qlua_send_string(L, -1); /* value */
             lua_pop(L, 1);
         }
         int zero = 0;
@@ -681,9 +658,9 @@ nersc_read_slave(lua_State *L,
     /* NB: This may cause a slave node to run out of memory out of sync with the master */
     for (;;) {
         char *key, *value;
-        if (receive_string(L, &key) == 0)
+        if (qlua_receive_string(L, &key) == 0)
             break;
-        receive_string(L, &value);
+        qlua_receive_string(L, &value);
         lua_pushstring(L, value);
         lua_setfield(L, -2, key);
         qlua_free(L, key);

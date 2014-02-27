@@ -1,0 +1,20 @@
+require "stdlib"
+
+fname = "h5-test-seq.h5"
+
+Lgeom = {2,3,5}
+L = qcd.lattice(Lgeom)
+Pstd = {}
+Pd = { precision = "double", sha256 = "ignore"  }
+Pf = { precision = "float", sha256 = "ignore"  }
+Pl = { lattice = L, sha256 = "ignore" }
+Pld = { lattice = L, sha256 = "ignore", precision = "double" }
+Plf = { lattice = L, sha256 = "ignore", precision = "float" }
+
+seed_A = 367458
+seed_B = 587642
+
+require "tests/hdf5/h5-common"
+require "tests/hdf5/h5-global-common"
+
+printf("DONE\n")
