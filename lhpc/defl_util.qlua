@@ -27,7 +27,7 @@ function deflator_read_espace(
         printf('read evec pair #%d\n', i)
         ss_v1, ss_v2 = latvec_eopc_single_to_pair(
                           L:Subset("even"),
-                          qdp_r_espace:DiracFermion(1)[1]) -- sic! a workaround
+                          qdp_r_espace:DiracFermion())
         assert(0. < latvec_norm2(ss_v1))  -- sanity check
         df:add_vector(ss_v1)
         assert(0. < latvec_norm2(ss_v2))  -- sanity check
@@ -38,7 +38,7 @@ function deflator_read_espace(
     end
   else
     for i = 0, l_nev - 1 do
-      local ss_v = qdp_r_espace:DiracFermion(1)[1] -- sic! a workaround
+      local ss_v = qdp_r_espace:DiracFermion()
       assert(0. < latvec_norm2(ss_v))
       df:add_vector(ss_v)
     end
