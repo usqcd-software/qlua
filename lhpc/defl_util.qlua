@@ -120,11 +120,11 @@ function deflator_save_espace(
       else
         vec_pack = df:get_vector(2*i)
       end 
-      qdp_w:DiracFermion(evec_qio_prec, vec_pack, "")
+      qdp_w_espace:DiracFermion(evec_qio_prec, vec_pack, "")
     end
   else
     for i = 0, df_dim - 1 do
-      qdp_w:DiracFermion(evec_qio_prec, df:get_vector(i), "")
+      qdp_w_espace:DiracFermion(evec_qio_prec, df:get_vector(i), "")
     end
   end
   force_gc('deflator_save_espace_d5|')
@@ -164,11 +164,11 @@ function deflator_save_espace_d5(
         vec_pack = df:get_vector(2*i)
       end 
       assert(L5 == #vec_pack)
-      qdp_w:DiracFermion(evec_qio_prec, vec_pack, "")
+      qdp_w_espace:DiracFermion(evec_qio_prec, vec_pack, "")
     end
   else
     for i = 0, df_dim - 1 do
-      qdp_w:DiracFermion(evec_qio_prec, df:get_vector(i), "")
+      qdp_w_espace:DiracFermion(evec_qio_prec, df:get_vector(i), "")
     end
   end
   force_gc('deflator_save_espace_d5|')
