@@ -278,14 +278,14 @@ qh5_get_opts(lua_State *L, int idx)
       opts.method = M_MPIPOSIX;
     else if (method)
       luaL_error(L, "Unknown access method \"%s\"", method);
-    const char *trans = qlua_tabkey_stringopt(L, idx, "tranfer", NULL);
+    const char *trans = qlua_tabkey_stringopt(L, idx, "transfer", NULL);
     if (trans && !strcmp(trans, "independent"))
       opts.transfer = T_Independent;
     else if (trans && !strcmp(trans, "collective"))
       opts.transfer = T_Collective;
     else if (trans)
       luaL_error(L, "Unknown transfer mode \"%s\"", trans);
-    const char *meta = qlua_tabkey_stringopt(L, idx, "metdata", NULL);
+    const char *meta = qlua_tabkey_stringopt(L, idx, "metadata", NULL);
     if (meta && !strcmp(meta, "auto"))
       opts.metadata = MDC_Auto;
     else if (meta && !strcmp(meta, "deferred"))
