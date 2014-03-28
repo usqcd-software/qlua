@@ -48,11 +48,26 @@ function gauge_transform_P(g, P)
   return g * P * g:adjoin()
 end
 
--- compute ij plaquette on each lattice site
+-- compute ij plaquette on each lattice site, i,j=0..(dim-1)
 function plaquette(U,i,j)
    return U[i+1] *
           U[j+1]:shift(i, "from_forward") *
           U[i+1]:shift(j, "from_forward"):adjoin() *
           U[j+1]:adjoin()
+end
+-- compute clover term in (i,j) plane, i,j=0..(dim-1)
+function clover_term(U, i, j)
+  local Ujp   = U[1+j]:shift(i, "from_forward")
+  local Uipx  = U[1+i]:shift(j, "from_forward"):adjoin()
+  local Sl    = U[1+j]:adjoin() * U[1+i] * Ujp
+  local C01   = Sl * Uipx  -- at (0,1)
+  local C11   = Uipx * Sl  -- at (1,1)
+  local Su    = Ujp * Uipx * U[1+j]:adjoin()
+  local C00   = U[1+i] * Su -- at (0,0)
+  local C10   = Su * U[1+i] -- at (1,0)
+  local F = C00 +
+            C01:shift(j, "to_forward") +
+            (C10 + C11:shift(j, "to_forward")):shift(i, "to_forward")
+  return (F - F:adjoin()) / complex(0,8)
 end
 
