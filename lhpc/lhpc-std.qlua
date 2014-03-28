@@ -29,7 +29,7 @@ do
   show_timers = function(n)
     local dt = os.time() - tstart
     printf("ALL TIMERS %q -----------------------\n", n);
-	local ws, we, wn, wt = 0,0,0,0;
+    local ws, we, wn, wt = 0,0,0,0;
     for s,x in pairs(tt) do
        ws = update_len(ws, s);
 	   for e,r in pairs(x) do
@@ -43,8 +43,8 @@ do
 	  for e, r in pairs(x) do
 	    printf(fmt, s, e, r.n, r.t, r.t * 100 / dt);
       end
-	end
-	printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
+    end
+    printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
   end
 end
 
@@ -88,7 +88,8 @@ end
 
 
 function print_network_settings()
-  local ms, s = qcd.network()
+  local ms, s 
+  ms, s = qcd.network()
   local s_str=''
   if s[1] then
     s_str = string.format('%3d', s[1])

@@ -25,7 +25,8 @@
 #include "qmp.h"
 
 static const char hdf5_io[] = "hdf5";
-static const char mtnFile[] = "qcd.hdf5.mtFile";
+static const char mtnFileReader[] = "qcd.hdf5.mtFileReader";
+static const char mtnFileWriter[] = "qcd.hdf5.mtFileWriter";
 
 static const char csum_attr_name[] = ".sha256";
 static const char kind_attr_name[] = ".kind";
@@ -70,7 +71,8 @@ typedef enum {
   kAttribute,
   kFile,
   kUnknown,
-  kNoKind
+  kNoKind,
+  kDefault
 } KindOfH;
 
 static const char knString[]                  = "String";
@@ -140,13 +142,6 @@ typedef struct {
   float im;
 } machine_complex_float;
 
-struct mHdf5File_s {
-  hid_t file;
-  hid_t cwd;
-  int master;
-  int writer;
-};
-
 struct laddr_s {
   int rank;  /* lattice rank */
   int volume; /* local volume */
@@ -155,31 +150,77 @@ struct laddr_s {
 };
 
 typedef enum {
+  WS_Default,
   WS_Double,
   WS_Float
 } WriteSize;
 
-struct wopts_s {
-  WriteSize wsize;
-  int rank;
-  hsize_t *chunk;
-};
+typedef enum {
+  CNK_Default,
+  CNK_Contiguous,
+  CNK_Natural,
+  CNK_Explicit
+} ChunkOpt;
 
-struct ropts_s {
-  KindOfH kind;
-  mLattice *S;
-  int Sidx;
-  int forced_p;
-  int check_p;
+typedef enum {
+  SHA_Default,
+  SHA_Check,
+  SHA_Ignore
+} ShaOpt;
+
+typedef enum {
+  M_Default,
+  M_POSIX,
+  M_pHDF5,
+  M_MPIPOSIX
+} QH5Method;
+
+typedef enum {
+  MDC_Default,
+  MDC_Auto,
+  MDC_Deferred
+} QH5Metadata;
+
+typedef enum {
+  T_Default,
+  T_Independent,
+  T_Collective
+} QH5Trans;
+
+typedef struct {
+  QH5Method   method;      /* .method = "posix" | "phdf5" | "mpiposix"           */
+  QH5Metadata metadata;    /* .metadata = "auto" | "deferred"                    */
+  QH5Trans    transfer;    /* .transfer = "independent" | "collective"           */
+  int         alignment;   /* .alignment = # (defaults to 1)                     */
+  int         threshold;   /* .threshold = # (defaults to 1)                     */
+  int         istoreK;     /* .istoreK = # (defaults to -1)                      */
+  int         gpfsHints;   /* .gpfsHints = # (defaults to -1)                    */
+  WriteSize   wsize;       /* .precision = "double" | "float"                    */
+  ShaOpt      shaopt;      /* .sha256 = "ignore" | "check"                       */
+  KindOfH     kind;        /* .kind = string                                     */
+  mLattice   *S;           /* .lattice = Lat                                     */
+  int         Sidx;        /* lua stack index of S, only if S is not NULL        */
+  ChunkOpt    chunkopt;    /* .chunk = "contiguous" | "natural" | { n, ... }     */
+  int         rank;        /* rank of chunks, only if chunkopts == CNK_Explicit  */
+  hsize_t    *chunk;       /* chunk dimensions or NULL                           */
+} QH5Opts;
+
+struct mHdf5File_s {
+  hid_t   file;
+  hid_t   cwd;
+  int     master;
+  int     writer;
+  int     parallel;
+  QH5Opts opts;
 };
 
 typedef void (*OutPacker_H5)(lua_State *L, mHdf5File *b, mLattice *S,
-                             struct wopts_s *opts, struct laddr_s *laddr,
+                             QH5Opts *opts, struct laddr_s *laddr,
                              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
                              const char **kind);
 
 typedef int (*InUnpacker_H5)(lua_State *L, mHdf5File *b, const char *path,
-                             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+                             QH5Opts *opts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
                              SHA256_Sum *sum, struct laddr_s *laddr);
 
 /* common helpers */
@@ -196,15 +237,152 @@ kind2name(KindOfH k)
 }
 
 static KindOfH
-name2kind(const char *name)
+name2kind(lua_State *L, const char *name)
 {
   int i;
   for (i = 0; knTable[i].name; i++) {
     if (strcmp(knTable[i].name, name) == 0)
       return knTable[i].kind;
   }
-  QLUA_ABORT("Unknown hdf5 kind");
+  luaL_error(L, "Unknown hdf5 record kind \"%s\"", name);
   return kUnknown;
+}
+
+static QH5Opts
+qh5_get_opts(lua_State *L, int idx)
+{
+  QH5Opts opts;
+
+  opts.wsize = WS_Default;
+  opts.shaopt = SHA_Default;
+  opts.chunkopt = CNK_Default;
+  opts.method = M_Default;
+  opts.transfer = T_Default;
+  opts.metadata = MDC_Default;
+  opts.kind = kDefault;
+  opts.rank = 0;
+  opts.chunk = NULL;
+  opts.S = NULL;
+  opts.alignment = -1;
+  opts.threshold = -1;
+  opts.istoreK = -1;
+  opts.gpfsHints = -1;
+
+  if (qlua_checkopt_table(L, idx)) {
+    const char *method = qlua_tabkey_stringopt(L, idx, "method", NULL);
+    if (method && !strcmp(method, "posix"))
+      opts.method = M_POSIX;
+    else if (method && !strcmp(method, "phdf5"))
+      opts.method = M_pHDF5;
+    else if (method && !strcmp(method, "mpiposix"))
+      opts.method = M_MPIPOSIX;
+    else if (method)
+      luaL_error(L, "Unknown access method \"%s\"", method);
+    const char *trans = qlua_tabkey_stringopt(L, idx, "tranfer", NULL);
+    if (trans && !strcmp(trans, "independent"))
+      opts.transfer = T_Independent;
+    else if (trans && !strcmp(trans, "collective"))
+      opts.transfer = T_Collective;
+    else if (trans)
+      luaL_error(L, "Unknown transfer mode \"%s\"", trans);
+    const char *meta = qlua_tabkey_stringopt(L, idx, "metdata", NULL);
+    if (meta && !strcmp(meta, "auto"))
+      opts.metadata = MDC_Auto;
+    else if (meta && !strcmp(meta, "deferred"))
+      opts.metadata = MDC_Deferred;
+    else if (meta)
+      luaL_error(L, "Unknown metadata value \"%s\"", meta);
+    opts.alignment = qlua_tabkey_intopt(L, idx, "alignment", -1);
+    opts.threshold = qlua_tabkey_intopt(L, idx, "threshold", -1);
+    opts.istoreK = qlua_tabkey_intopt(L, idx, "istoreK", -1);
+    opts.gpfsHints = qlua_tabkey_intopt(L, idx, "gpfsHints", -1);
+    const char *prec = qlua_tabkey_stringopt(L, idx, "precision", NULL);
+    if (prec && !strcmp(prec, "double"))
+      opts.wsize = WS_Double;
+    else if (prec && !strcmp(prec, "float"))
+      opts.wsize = WS_Float;
+    else if (prec)
+      luaL_error(L, "Unknown precision option \"%s\"", prec);
+    const char *sha = qlua_tabkey_stringopt(L, idx, "sha256", NULL);
+    if (sha && !strcmp(sha, "ignore"))
+      opts.shaopt = SHA_Ignore;
+    else if (sha && !strcmp(sha, "check"))
+      opts.shaopt = SHA_Check;
+    else if (sha)
+      luaL_error(L, "Unknown sha256 option \"%s\"", sha);
+    const char *kind = qlua_tabkey_stringopt(L, idx, "kind", NULL);
+    if (kind)
+      opts.kind = name2kind(L, kind);
+    if (qlua_tabpushopt_key(L, idx, "chunk")) {
+      switch (qlua_qtype(L, -1)) {
+      case qString: {
+        const char *chunk = luaL_checkstring(L, -1);
+        if (!strcmp(chunk, "contiguous"))
+          opts.chunkopt = CNK_Contiguous;
+        else if (!strcmp(chunk, "natural"))
+          opts.chunkopt = CNK_Natural;
+        else goto bad_chunk;
+      } break;
+      case qTable: {
+        int *dims = qlua_intarray(L, -1, &opts.rank);
+        int i;
+        opts.chunk = qlua_malloc(L, opts.rank * sizeof (hsize_t));
+        for (i = 0; i < opts.rank; i++)
+          opts.chunk[i] = dims[i];
+        qlua_free(L, dims);
+        opts.chunkopt = CNK_Explicit;
+      } break;
+      default:
+      bad_chunk:
+        luaL_error(L, "Unexpected value for chunk option");
+        break;
+      }
+      lua_pop(L, 1);
+    }
+    if (qlua_tabpushopt_key(L, idx, "lattice")) {
+      opts.S = qlua_checkLattice(L, -1);
+      opts.Sidx = lua_gettop(L);
+    }
+  }
+  return opts;
+}
+
+static void
+qh5_process_opts(lua_State *L, QH5Opts *opts, mHdf5File *b, mLattice *S, int Sidx)
+{
+  if (opts->wsize == WS_Default) opts->wsize = b->opts.wsize;
+  if (opts->wsize == WS_Default) opts->wsize = WS_Double;
+  if (opts->shaopt == SHA_Default) opts->shaopt = b->opts.shaopt;
+  if (opts->method == M_Default) opts->method = b->opts.method;
+  if (opts->transfer == T_Default) opts->transfer = b->opts.transfer;
+  if (opts->chunkopt == CNK_Default) {
+    opts->chunkopt = b->opts.chunkopt;
+    if (opts->chunkopt == CNK_Explicit) {
+      opts->rank = b->opts.rank;
+      opts->chunk = qlua_malloc(L, opts->rank * sizeof (hsize_t));
+      memcpy(opts->chunk, b->opts.chunk, opts->rank * sizeof (hsize_t));
+    }
+  }
+  if (opts->S == NULL) {
+    opts->S = S;
+    opts->Sidx = Sidx;
+  }
+  if ((opts->chunkopt == CNK_Natural) && (opts->S != NULL)) {
+    opts->chunkopt = CNK_Explicit;
+    opts->rank = opts->S->rank;
+    opts->chunk = qlua_malloc(L, opts->rank * sizeof (hsize_t));
+    int i;
+    for (i = 0; i < opts->rank; i++)
+      opts->chunk[i] = opts->S->dim[i] / opts->S->net[i];
+  }
+}
+
+static void
+qh5_fini_opts(lua_State *L, QH5Opts *opts)
+{
+  if (opts->chunkopt == CNK_Explicit)
+    qlua_free(L, opts->chunk);
+  opts->chunkopt = CNK_Default;
 }
 
 static void
@@ -348,15 +526,13 @@ get_real_type(lua_State *L, mHdf5File *b, WriteSize wsize, int ftype_p)
 {
   hid_t v = -1;
   if (ftype_p) {
-    switch (wsize) {
-    case WS_Double: v = H5T_IEEE_F64BE; break;
-    case WS_Float: v = H5T_IEEE_F32BE; break;
-    }
+    v = H5T_IEEE_F64BE;
+    if (wsize == WS_Float)
+      v = H5T_IEEE_F32BE;
   } else {
-    switch (wsize) {
-    case WS_Double: v = H5T_NATIVE_DOUBLE; break;
-    case WS_Float: v = H5T_NATIVE_FLOAT; break;
-    }
+    v = H5T_NATIVE_DOUBLE;
+    if (wsize == WS_Float)
+      v = H5T_NATIVE_FLOAT;
   }
   CHECK_H5(L, v, "real_type(): unknown wsize");
   v = H5Tcopy(v);
@@ -783,8 +959,6 @@ check_file(lua_State *L, mHdf5File *b)
 static void
 check_writer(lua_State *L, mHdf5File *w)
 {
-  if (! w->writer)
-    luaL_error(L, "expecting hdf5 writer");
   if (w->file < 0)
     luaL_error(L, "closed hdf5 writer");
 }
@@ -818,10 +992,11 @@ qlua_newHdf5Writer(lua_State *L)
 
   h->master = (QDP_this_node == qlua_master_node);
   h->writer = 1;
+  h->parallel = 0;
   h->file = -1;
   h->cwd = -1;
 
-  luaL_getmetatable(L, mtnFile);
+  luaL_getmetatable(L, mtnFileWriter);
   lua_setmetatable(L, -2);
 
   return h;
@@ -834,33 +1009,43 @@ qlua_newHdf5Reader(lua_State *L)
 
   h->master = (QDP_this_node == qlua_master_node);
   h->writer = 0;
+  h->parallel = 1;
   h->file = -1;
   h->cwd = -1;
 
-  luaL_getmetatable(L, mtnFile);
+  luaL_getmetatable(L, mtnFileReader);
   lua_setmetatable(L, -2);
 
   return h;
 }
 
-static mHdf5File *
-qlua_checkHdf5File(lua_State *L, int idx)
+mHdf5File *
+qlua_checkHdf5Writer(lua_State *L, int idx)
 {
-  void *v = luaL_checkudata(L, idx, mtnFile);
-
-  luaL_argcheck(L, v != 0 , idx, "qcd.hdf5.File expected");
-
+  mHdf5File *v = luaL_checkudata(L, idx, mtnFileWriter);
   return v;
 }
 
 mHdf5File *
-qlua_checkHdf5Writer(lua_State *L, int idx)
+qlua_checkHdf5Reader(lua_State *L, int idx)
 {
-  mHdf5File *v = qlua_checkHdf5File(L, idx);
-
-  luaL_argcheck(L, v->writer , idx, "qcd.hdf5.Writer expected");
-
+  mHdf5File *v = luaL_checkudata(L, idx, mtnFileReader);
   return v;
+}
+
+static mHdf5File *
+qlua_checkHdf5File(lua_State *L, int idx)
+{
+  switch (qlua_qtype(L, idx)) {
+  case qHdf5Reader:
+    return qlua_checkHdf5Reader(L, idx);
+  case qHdf5Writer:
+    return qlua_checkHdf5Writer(L, idx);
+  default:
+    luaL_argcheck(L, 0 , idx, "qcd.hdf5.File expected");
+    break;
+  }
+  return NULL;
 }
 
 static int
@@ -882,17 +1067,15 @@ static int
 do_close(lua_State *L, mHdf5File *b)
 {
   int status = 0;
-
   qlua_Hdf5_enter(L);
-
   if (b->cwd >= 0)
     H5Gclose(b->cwd);
   b->cwd = -1;
   if (b->file >= 0)
     status = H5Fclose(b->file);
   b->file = -1;
-
   qlua_Hdf5_leave();
+  qh5_fini_opts(L, &b->opts);
   return status;
 }
 
@@ -909,11 +1092,13 @@ static int
 qhdf5_close(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
+  int is_closing = b->parallel? 1: b->master;
 
-  check_file(L, b);
-  CHECK_H5(L, do_close(L, b), "close error");
-  //do_close(L, b);
-  lua_pushnil(L);
+  if (is_closing) {
+    check_file(L, b);
+    CHECK_H5(L, do_close(L, b), "close error");
+    lua_pushnil(L);
+  }
   return 1;
 }
 
@@ -922,34 +1107,34 @@ qhdf5_chpath(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *p = luaL_checkstring(L, 2);
+  int is_writer = b->parallel? 1: b->master;
 
-  check_file(L, b);
-  qlua_Hdf5_enter(L);
-
-  char *dpath = qlua_strdup(L, p);
-  char *dname = p[0] == '/' ? &dpath[1] : dpath;
-  char *buf = dname;
-  hid_t dhandle = p[0] == '/' ? H5Gopen2(b->file, "/", H5P_DEFAULT) : b->cwd;
-  int isused = p[0] != '/';
-
-  while (buf) {
-    strsep(&buf, "/");
-    if (dname[0] == 0)
-      break;
-    hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
-    CHECK_H5(L, dnext, "chpath failed");
-    if (isused == 0)
-      H5Gclose(dhandle);
-    isused = 0;
-    dhandle = dnext;
-    dname = buf;
+  if (is_writer) {
+    check_file(L, b);
+    qlua_Hdf5_enter(L);
+    char *dpath = qlua_strdup(L, p);
+    char *dname = p[0] == '/' ? &dpath[1] : dpath;
+    char *buf = dname;
+    hid_t dhandle = p[0] == '/' ? H5Gopen2(b->file, "/", H5P_DEFAULT) : b->cwd;
+    int isused = p[0] != '/';
+    while (buf) {
+      strsep(&buf, "/");
+      if (dname[0] == 0)
+        break;
+      hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
+      CHECK_H5(L, dnext, "chpath failed");
+      if (isused == 0)
+        H5Gclose(dhandle);
+      isused = 0;
+      dhandle = dnext;
+      dname = buf;
+    }
+    qlua_free(L, dpath);
+    if (dhandle != b->cwd)
+      H5Gclose(b->cwd);
+    b->cwd = dhandle;
+    qlua_Hdf5_leave();
   }
-  qlua_free(L, dpath);
-  if (dhandle != b->cwd)
-    H5Gclose(b->cwd);
-  b->cwd = dhandle;
-
-  qlua_Hdf5_leave();
   return 0;
 }
 
@@ -958,17 +1143,18 @@ qhdf5_mkpath(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5Writer(L, 1);
   const char *p = luaL_checkstring(L, 2);
+  int is_writer = b->parallel? 1: b->master;
 
-  check_writer(L, b);
-  qlua_Hdf5_enter(L);
-
-  char *dpath = qlua_strdup(L, p);
-  hid_t dh = make_hdf5_path(L, b->file, b->cwd, dpath);
-  qlua_free(L, dpath);
-  if (dh != b->cwd)
-    H5Gclose(dh);
-
-  qlua_Hdf5_leave();
+  if (is_writer) {
+    check_writer(L, b);
+    qlua_Hdf5_enter(L);
+    char *dpath = qlua_strdup(L, p);
+    hid_t dh = make_hdf5_path(L, b->file, b->cwd, dpath);
+    qlua_free(L, dpath);
+    if (dh != b->cwd)
+      H5Gclose(dh);
+    qlua_Hdf5_leave();
+  }
   return 0;
 }
 
@@ -977,12 +1163,10 @@ get_list(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
 {
   lua_State *L = opdata;
   int k = luaL_checkinteger(L, -1);
-
   lua_pushstring(L, name);
   lua_rawseti(L, -3, k);
   lua_pop(L, 1);
   lua_pushinteger(L, k + 1);
-
   return 0;
 }
 
@@ -991,7 +1175,6 @@ qhdf5_list(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   const char *p = luaL_checkstring(L, 2);
-
   check_file(L, b);
   qlua_Hdf5_enter(L);
   hid_t dh = H5Gopen(p[0] == '/'? b->file: b->cwd, p, H5P_DEFAULT);
@@ -1027,7 +1210,7 @@ get_h5_kind(lua_State *L, mHdf5File *b, hid_t obj)
         CHECK_H5(L, H5Aread(a, mtype, val), "Aread() failed");
         CHECK_H5(L, H5Tclose(mtype), "Tclose() failed");
         val[len] = 0;
-        kind = name2kind(val);
+        kind = name2kind(L, val);
         qlua_free(L, val);
       }
       CHECK_H5(L, H5Aclose(a), "Aclose() failed");
@@ -1103,16 +1286,32 @@ qhdf5_cwd(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   int res = 0;
-  check_file(L, b);
-  qlua_Hdf5_enter(L);
-  int len = H5Iget_name(b->cwd, NULL, 0);
-  if (len > 0) {
-    char *path = qlua_malloc(L, len + 1);
-    H5Iget_name(b->cwd, path, len + 1);
-    lua_pushstring(L, path);
-    res = 1;
+  int is_writer = b->parallel? 1: b->master;
+
+  if (is_writer) {
+    check_file(L, b);
+    qlua_Hdf5_enter(L);
+    int len = H5Iget_name(b->cwd, NULL, 0);
+    if (len > 0) {
+      char *path = qlua_malloc(L, len + 1);
+      H5Iget_name(b->cwd, path, len + 1);
+      lua_pushstring(L, path);
+      res = 1;
+    }
+    qlua_Hdf5_leave();
   }
-  qlua_Hdf5_leave();
+  if (!b->parallel) {
+    QMP_broadcast(&res, sizeof (int));
+    if (res) {
+      if (b->master)
+        qlua_send_string(L, -1);
+      else {
+        char *cwd;
+        qlua_receive_string(L, &cwd);
+        lua_pushstring(L, cwd);
+      }
+    }
+  }
   return res;
 }
 
@@ -1121,40 +1320,43 @@ qhdf5_remove(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5Writer(L, 1);
   const char *path = luaL_checkstring(L, 2);
+  int is_writer = b->parallel? 1: b->master;
 
-  check_writer(L, b);
-  qlua_Hdf5_enter(L);
-  char *dpath = qlua_strdup(L, path);
-  char *ename = strrchr(dpath, '/');
-  hid_t wdir = b->cwd;
-  if (ename == NULL) {
-    ename = dpath;
-  } else {
-    ename[0] = 0;
-    ename = ename + 1;
-    char *dname = path[0] == '/'? &dpath[1]: dpath;
-    char *buf = dname;
-    hid_t dhandle = path[0] == '/'? H5Gopen2(b->file, "/", H5P_DEFAULT): b->cwd;
-    while (buf && buf[0]) {
-      strsep(&buf, "/");
-      hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
-      if (dhandle != b->cwd)
-        CHECK_H5(L, H5Gclose(dhandle), "Gclose() failed");
-      if (dnext >= 0) {
-        dhandle = dnext;
-        dname = buf;
-        continue;
+  if (is_writer) {
+    check_writer(L, b);
+    qlua_Hdf5_enter(L);
+    char *dpath = qlua_strdup(L, path);
+    char *ename = strrchr(dpath, '/');
+    hid_t wdir = b->cwd;
+    if (ename == NULL) {
+      ename = dpath;
+    } else {
+      ename[0] = 0;
+      ename = ename + 1;
+      char *dname = path[0] == '/'? &dpath[1]: dpath;
+      char *buf = dname;
+      hid_t dhandle = path[0] == '/'? H5Gopen2(b->file, "/", H5P_DEFAULT): b->cwd;
+      while (buf && buf[0]) {
+        strsep(&buf, "/");
+        hid_t dnext = H5Gopen2(dhandle, dname, H5P_DEFAULT);
+        if (dhandle != b->cwd)
+          CHECK_H5(L, H5Gclose(dhandle), "Gclose() failed");
+        if (dnext >= 0) {
+          dhandle = dnext;
+          dname = buf;
+          continue;
+        }
+        qlua_free(L, dpath);
+        return 0;
       }
-      qlua_free(L, dpath);
-      return 0;
+      wdir = dhandle;
     }
-    wdir = dhandle;
+    H5Ldelete(wdir, ename, H5P_DEFAULT);
+    if (wdir != b->cwd)
+      CHECK_H5(L, H5Gclose(wdir), "Gclose() failed after delete");
+    qlua_free(L, dpath);
+    qlua_Hdf5_leave();
   }
-  H5Ldelete(wdir, ename, H5P_DEFAULT);
-  if (wdir != b->cwd)
-    CHECK_H5(L, H5Gclose(wdir), "Gclose() failed after delete");
-  qlua_free(L, dpath);
-  qlua_Hdf5_leave();
   return 0;
 }
 
@@ -1162,20 +1364,22 @@ static int
 qhdf5_flush(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5Writer(L, 1);
+  int is_writer = b->parallel? 1: b->master;
 
-  check_writer(L, b);
-  qlua_Hdf5_enter(L);
-  CHECK_H5(L, H5Fflush(b->file, H5F_SCOPE_GLOBAL), "Fflush() failed");
-  qlua_Hdf5_leave();
+  if (is_writer) {
+    check_writer(L, b);
+    qlua_Hdf5_enter(L);
+    CHECK_H5(L, H5Fflush(b->file, H5F_SCOPE_GLOBAL), "Fflush() failed");
+    qlua_Hdf5_leave();
+  }
   return 0;
 }
 
 static void
-write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind)
+write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const char *kind, double wtime)
 {
   hid_t dspace = H5Screate(H5S_SCALAR);
   CHECK_H5(L, dspace, "Screate() in write_attrs()");
-
   hsize_t klen = strlen(kind);
   hid_t ktype = get_string_type(L, b, klen + 1, 0);
   hid_t kattr = H5Acreate2(dset, kind_attr_name, ktype, dspace, H5P_DEFAULT, H5P_DEFAULT);
@@ -1183,24 +1387,21 @@ write_attrs(lua_State *L, mHdf5File *b, hid_t dset, const SHA256_Sum *sum, const
   CHECK_H5(L, H5Awrite(kattr, ktype, kind), "Awrite(kind) in write_attrs()");
   CHECK_H5(L, H5Aclose(kattr), "Aclose(kind) in write_attrs()");
   CHECK_H5(L, H5Tclose(ktype), "Tclose(kind) in write_attrs()");
-
   hid_t stype = get_sha256_type(L, b, 1);
   hid_t sattr = H5Acreate2(dset, csum_attr_name, stype, dspace, H5P_DEFAULT, H5P_DEFAULT);
   CHECK_H5(L, sattr, "Acreate(sum) in write_attrs()");
   CHECK_H5(L, H5Awrite(sattr, stype, sum->v), "Awrite(sum) in write_attrs()");
   CHECK_H5(L, H5Aclose(sattr), "Aclose(sum) in write_attrs()");
   CHECK_H5(L, H5Tclose(stype), "Tclose(sum) in write_attrs()");
-
   hid_t tftype = get_time_type(L, b, 1);
   hid_t tmtype = get_time_type(L, b, 0);
-  long long now = (long long)(1e6 * qlua_timeofday());
   hid_t tattr = H5Acreate2(dset, time_attr_name, tftype, dspace, H5P_DEFAULT, H5P_DEFAULT);
   CHECK_H5(L, tattr, "Acreate(time) in write_attrs()");
+  long long now = 1e6 * wtime;
   CHECK_H5(L, H5Awrite(tattr, tmtype, &now), "Awrite(time) in write_attrs()");
   CHECK_H5(L, H5Aclose(tattr), "Aclose(time) in write_attrs()");
   CHECK_H5(L, H5Tclose(tftype), "Tclose(time file type) in write_attrs()");
   CHECK_H5(L, H5Tclose(tmtype), "Tclose(time mem type) in write_attrs()");
-
   CHECK_H5(L, H5Sclose(dspace), "Sclose() in write_attrs()");
 }
 
@@ -1250,49 +1451,9 @@ read_sha256(lua_State *L, mHdf5File *b, hid_t obj, SHA256_Sum *sum)
 
 /* writers */
 
-static struct wopts_s
-process_wopts(lua_State *L) /* XXX */
-{
-  struct wopts_s wopts;
-  wopts.wsize = WS_Double;
-  wopts.rank = 0;
-  wopts.chunk = NULL;
-  if (qlua_checkopt_table(L, 4)) {
-    const char *prec = qlua_tabkey_stringopt(L, 4, "precision", "double");
-    if (strcmp(prec, "double") == 0)
-      wopts.wsize = WS_Double;
-    else if (strcmp(prec, "float") == 0)
-      wopts.wsize = WS_Float;
-    else
-      luaL_error(L, "Unknown precision value \"%s\"", prec);
-  }
-  if (qlua_tabkey_tableopt(L, 4, "chunk")) {
-    int rank = 0;
-    int *dims = qlua_intarray(L, -1, &rank);
-    if (dims) {
-      wopts.rank = rank;
-      wopts.chunk = qlua_malloc(L, wopts.rank * sizeof (hsize_t));
-      int i;
-      for (i = 0; i < wopts.rank; i++)
-        wopts.chunk[i] = dims[i];
-      qlua_free(L, dims);
-    }
-    lua_pop(L, 1);
-  }
-  return wopts;
-}
-
-static void
-close_wopts(lua_State *L, struct wopts_s *wopts)
-{
-  if (wopts->chunk)
-    qlua_free(L, wopts->chunk);
-  wopts->chunk = NULL;
-}
-
 static void
 w_string(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1309,7 +1470,7 @@ w_string(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_string(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1331,13 +1492,12 @@ r_string(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_real(lua_State *L, mHdf5File *b, mLattice *S,
-       struct wopts_s *opts, struct laddr_s *laddr,
+       QH5Opts *opts, struct laddr_s *laddr,
        SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
        const char **kind)
 {
   double val = luaL_checknumber(L, 3);
   SHA256_Context *ctx = sha256_create(L);
-
   switch (opts->wsize) {
   case WS_Double:
     *data = qlua_malloc(L, sizeof (double));
@@ -1361,7 +1521,7 @@ w_real(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_real(lua_State *L, mHdf5File *b, const char *path,
-       struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+       QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
        SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -1400,13 +1560,12 @@ r_real(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_complex(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
   QLA_D_Complex *v = qlua_checkComplex(L, 3);
   SHA256_Context *ctx = sha256_create(L);
-
   switch (opts->wsize) {
   case WS_Double: {
     machine_complex_double *cv = qlua_malloc(L, sizeof (machine_complex_double));
@@ -1434,7 +1593,7 @@ w_complex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_complex(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -1476,7 +1635,7 @@ r_complex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1484,7 +1643,6 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
   SHA256_Context *ctx = sha256_create(L);
   int *vec = qlua_malloc(L, v->size * sizeof (int));
   int i;
-
   for (i = 0; i < v->size; i++)
     vec[i] = v->val[i];
   sha256_sum_add_ints(ctx, v->val, v->size);
@@ -1498,7 +1656,7 @@ w_vecint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1524,14 +1682,13 @@ r_vecint(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
   mVecReal *v = qlua_checkVecReal(L, 3);
   SHA256_Context *ctx = sha256_create(L);
   int i;
-
   switch (opts->wsize) {
   case WS_Double: {
     double *vec= qlua_malloc(L, v->size * sizeof (double));
@@ -1559,7 +1716,7 @@ w_vecreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_vecreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1603,14 +1760,13 @@ r_vecreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
   mVecComplex *v = qlua_checkVecComplex(L, 3);
   SHA256_Context *ctx = sha256_create(L);
   int i;
-
   switch (opts->wsize) {
   case WS_Double: {
     machine_complex_double *vec= qlua_malloc(L, v->size * sizeof (machine_complex_double));
@@ -1642,7 +1798,7 @@ w_veccomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int len;
@@ -1690,7 +1846,7 @@ r_veccomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
-          struct wopts_s *opts, struct laddr_s *laddr,
+          QH5Opts *opts, struct laddr_s *laddr,
           SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
           const char **kind)
 {
@@ -1733,7 +1889,7 @@ w_matreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
@@ -1785,7 +1941,7 @@ r_matreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -1832,7 +1988,7 @@ w_matcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int llen, rlen;
@@ -1890,7 +2046,7 @@ r_matcomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latint(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -1899,7 +2055,6 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
   int volume = laddr->volume;
   int rank = laddr->rank;
   int i;
-
   int *ptr = qlua_malloc(L, volume * sizeof (int));
   CALL_QDP(L);
   mLatInt *m = qlua_checkLatInt(L, 3, S);
@@ -1918,7 +2073,6 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
   }
   QDP_reset_I(m->ptr);
   *data = ptr;
-
   sha256_destroy(ctx);
   qlua_free(L, local_x);
   *kind = knLatticeInt;
@@ -1928,7 +2082,7 @@ w_latint(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latint(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   if (!check_int_type(L, path, tobj))
@@ -1969,7 +2123,7 @@ r_latint(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
-         struct wopts_s *opts, struct laddr_s *laddr,
+         QH5Opts *opts, struct laddr_s *laddr,
          SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
          const char **kind)
 {
@@ -2033,7 +2187,7 @@ w_latreal(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latreal(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -2100,7 +2254,7 @@ r_latreal(lua_State *L, mHdf5File *b, const char *path,
 
 static void
 w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
-             struct wopts_s *opts, struct laddr_s *laddr,
+             QH5Opts *opts, struct laddr_s *laddr,
              SHA256_Sum *sum, void **data, hid_t *filetype, hid_t *memtype,
              const char **kind)
 {
@@ -2168,7 +2322,7 @@ w_latcomplex(lua_State *L, mHdf5File *b, mLattice *S,
 
 static int
 r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   WriteSize wsize;
@@ -2241,7 +2395,7 @@ r_latcomplex(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_colvec(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2294,7 +2448,7 @@ r_colvec(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
-            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2349,7 +2503,7 @@ r_latcolvec(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_colmat(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
          SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2402,7 +2556,7 @@ r_colmat(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
-            struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+            QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
             SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2457,7 +2611,7 @@ r_latcolmat(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_dirferm(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2510,7 +2664,7 @@ r_dirferm(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2565,7 +2719,7 @@ r_latdirferm(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_dirprop(lua_State *L, mHdf5File *b, const char *path,
-          struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+          QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
           SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int nc;
@@ -2618,7 +2772,7 @@ r_dirprop(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
-             struct ropts_s *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
+             QH5Opts *ropts, hid_t obj, hid_t tobj, hid_t memspace, hid_t filespace,
              SHA256_Sum *sum, struct laddr_s *laddr)
 {
   int volume = laddr->volume;
@@ -2675,8 +2829,10 @@ r_latdirprop(lua_State *L, mHdf5File *b, const char *path,
 static int
 write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts = process_wopts(L);
+  QH5Opts wopts = qh5_get_opts(L, 4);
   mLattice *S = qlua_ObjLattice(L, 3);
+  int Sidx = lua_gettop(L);
+  qh5_process_opts(L, &wopts, b, S, Sidx);
   struct laddr_s laddr;
   laddr.rank = S->rank;
   laddr.low = qlua_malloc(L, laddr.rank * sizeof (int));
@@ -2686,7 +2842,6 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   hsize_t *count = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
   hsize_t *block = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
   hsize_t *hlatdim = qlua_malloc(L, laddr.rank * sizeof (hsize_t));
-  
   qlua_sublattice(laddr.low, laddr.high, QDP_this_node, S);
   int volume, j;
   for (volume = 1, j = 0; j < laddr.rank; j++) {
@@ -2699,7 +2854,6 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
     hlatdim[j] = S->dim[j];
   }
   laddr.volume = volume;
-
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
@@ -2709,9 +2863,7 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   qlua_free(L, laddr.low);
   qlua_free(L, laddr.high);
   combine_checksums(&sum, 1);
-
   qlua_Hdf5_enter(L);
-
   char *dpath = qlua_strdup(L, path);
   char *ename = strrchr(dpath, '/');
   hid_t wdir = b->cwd;
@@ -2725,16 +2877,12 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   hid_t filespace = H5Screate_simple(S->rank, hlatdim, NULL);
   qlua_free(L, hlatdim);
   CHECK_H5(L, filespace, "Screate_simple() file space");
-  hid_t dcpl;
+  hid_t dcpl = H5Pcreate(H5P_DATASET_CREATE);
+  CHECK_H5(L, dcpl, "Pcreate(dcpl) failed");
   if (wopts.rank > 0) {
     if (wopts.rank != S->rank)
       luaL_error(L, "hdf5:write() chunk rank mismatch: %d, lattice rank is %d", wopts.rank, S->rank);
-    dcpl = H5Pcreate(H5P_DATASET_CREATE);
-    CHECK_H5(L, dcpl, "Pcreate() dcpl in write_lat()");
     CHECK_H5(L, H5Pset_chunk(dcpl, wopts.rank, wopts.chunk), "Pset_chunk() in write_lat()");
-  } else {
-    dcpl = H5Pcopy(H5P_DEFAULT);
-    CHECK_H5(L, dcpl, "Pcopy() dcpl in write_lat()");
   }
   hid_t dataset = H5Dcreate2(wdir, ename, filetype, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
   CHECK_H5(L, H5Pclose(dcpl), "Pclose() dcpl in write_lat()");
@@ -2745,44 +2893,52 @@ write_lat(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   if (wdir != b->cwd)
     CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
   hid_t memspace = H5Screate_simple(S->rank, block, NULL);
-  CHECK_H5(L, memspace, "Screate_simple() mem space");
+  CHECK_H5(L, memspace, "Screate(memspace) failed");
   filespace =  H5Dget_space(dataset);
   CHECK_H5(L, H5Sselect_hyperslab(filespace, H5S_SELECT_SET, offset, stride, count, block), "Sselect_hyperslab()");
   qlua_free(L, block);
   qlua_free(L, offset);
   qlua_free(L, stride);
   qlua_free(L, count);
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  CHECK_H5(L, plist, "Pcreate() xfter plist");
-  CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, plist, data), "Dwrite() data");
-  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
-  CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
-  CHECK_H5(L, H5Sclose(memspace), "Sclose() mem space");
-  CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
+  hid_t dxpl =  H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, dxpl, "Pcreate(dxpl) failed");
+  switch (wopts.transfer) {
+  case T_Default: case T_Independent:
+    CHECK_H5(L, H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_INDEPENDENT), "Pset_dxpl_mpio(dxpl) failed");
+    break;
+  case T_Collective:
+    CHECK_H5(L, H5Pset_dxpl_mpio(dxpl, H5FD_MPIO_COLLECTIVE), "Pset_dxpl_mpio(dxpl) failed");
+    break;
+  default:
+    QLUA_ABORT("Unknown transfer value");
+    break;
+  }
+  CHECK_H5(L, H5Dwrite(dataset, memtype, memspace, filespace, dxpl, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(dxpl), "Pclose(dxpl) failed");
+  CHECK_H5(L, H5Sclose(filespace), "Sclose(filespace) failed");
+  CHECK_H5(L, H5Sclose(memspace), "Sclose(memspace) failed");
+  CHECK_H5(L, H5Tclose(memtype), "Tclose(memtype) failed");
   qlua_free(L, data);
-
-  write_attrs(L, b, dataset, &sum, kind);
-  CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
-
+  write_attrs(L, b, dataset, &sum, kind, qlua_timeofday());
+  CHECK_H5(L, H5Dclose(dataset), "Dclose(dataset) failed");
   qlua_Hdf5_leave();
-  close_wopts(L, &wopts);
+  qh5_fini_opts(L, &wopts);
   return 0;
 }
 
 static int
 write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
 {
-  struct wopts_s wopts = process_wopts(L);
-
+  QH5Opts wopts = qh5_get_opts(L, 4);
+  qh5_process_opts(L, &wopts, b, NULL, 0);
   hid_t filetype, memtype;
   void *data;
   SHA256_Sum sum;
   const char *kind;
   (*repack)(L, b, NULL, &wopts, NULL, &sum, &data, &filetype, &memtype, &kind);
-  combine_checksums(&sum, b->master);
-
+  if (b->parallel)
+    combine_checksums(&sum, b->master);
   qlua_Hdf5_enter(L);
-
   char *dpath = qlua_strdup(L, path);
   char *ename = strrchr(dpath, '/');
   hid_t wdir = b->cwd;
@@ -2802,20 +2958,17 @@ write_seq(lua_State *L, mHdf5File *b, const char *path, OutPacker_H5 repack)
   CHECK_H5(L, H5Sclose(filespace), "Sclose() file space");
   if (wdir != b->cwd)
     CHECK_H5(L, H5Gclose(wdir), "Gclose() write dir");
-  hid_t plist = H5Pcreate(H5P_DATASET_XFER);
-  CHECK_H5(L, plist, "Pcreate() xfter plist");
+  hid_t dxpl = H5Pcreate(H5P_DATASET_XFER);
+  CHECK_H5(L, dxpl, "Pcreate() xfter plist");
   if (b->master)
-    CHECK_H5(L, H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, plist, data), "Dwrite() data");
-  CHECK_H5(L, H5Pclose(plist), "Pclose() xfer plist");
+    CHECK_H5(L, H5Dwrite(dataset, memtype, H5S_ALL, H5S_ALL, dxpl, data), "Dwrite() data");
+  CHECK_H5(L, H5Pclose(dxpl), "Pclose() xfer plist");
   CHECK_H5(L, H5Tclose(memtype), "Tclose() mem type");
   qlua_free(L, data);
-
-  write_attrs(L, b, dataset, &sum, kind);
+  write_attrs(L, b, dataset, &sum, kind, qlua_nodetime());
   CHECK_H5(L, H5Dclose(dataset), "Dclose() data set");
-
   qlua_Hdf5_leave();
-  close_wopts(L, &wopts);
-
+  qh5_fini_opts(L, &wopts);
   return 0;
 }
 
@@ -2874,17 +3027,29 @@ qhdf5_write(lua_State *L)
   mHdf5File *b = qlua_checkHdf5Writer(L, 1);
   const char *p = luaL_checkstring(L, 2);
   QLUA_Type kind = qlua_qtype(L, 3);
-  int count;
+  int is_writer = b->parallel? 1: b->master;
+  int count = 0;
   int i;
 
-  check_writer(L, b);
-  for (i = 0; qowtable[i].qtype != qNoType; i++) {
-    if (qowtable[i].qtype == kind)
-      break;
+  if (is_writer) {
+    check_writer(L, b);
+    for (i = 0; qowtable[i].qtype != qNoType; i++) {
+      if (qowtable[i].qtype == kind)
+        break;
+    }
+    if (qowtable[i].repack == NULL)
+      luaL_error(L, "unwritable data");
+    if (b->parallel) {
+      count = (qowtable[i].is_parallel? write_lat: write_seq)(L, b, p, qowtable[i].repack);
+    } else {
+      if (qowtable[i].is_parallel)
+        luaL_error(L, "no writing lattice data into serial file");
+      if (b->master)
+        count = write_seq(L, b, p, qowtable[i].repack);
+      else
+        count = 0;
+    }
   }
-  if (qowtable[i].repack == NULL)
-    luaL_error(L, "unwritable data");
-  count = (qowtable[i].is_parallel? write_lat: write_seq)(L, b, p, qowtable[i].repack);
   return count;
 }
 
@@ -2916,40 +3081,13 @@ static struct {
   { kNoKind,                  0,  NULL            }
 };
 
-static struct ropts_s
-process_ropts(lua_State *L)
-{
-  struct ropts_s ropts;
-  ropts.kind = kNoKind;
-  ropts.S = NULL;
-  ropts.forced_p = 0;
-  ropts.check_p = 1;
-  if (qlua_checkopt_table(L, 3)) {
-    const char *check = qlua_tabkey_stringopt(L, 3, "sha256", "check");
-    if (strcmp(check, "ignore") == 0)
-      ropts.check_p = 0;
-    else if (strcmp(check, "check") != 0)
-      luaL_error(L, "unknown check value \"%s\"", check);
-    const char *forced = qlua_tabkey_stringopt(L, 3, "kind", NULL);
-    if (forced) {
-      ropts.forced_p = 1;
-      ropts.kind = name2kind(forced);
-    }
-    if (qlua_tabpushopt_key(L, 3, "lattice")) {
-      ropts.S = qlua_checkLattice(L, -1);
-      ropts.Sidx = lua_gettop(L);
-    }
-  }
-  return ropts;
-}
-
 typedef int (*TheReader)(lua_State *L, mHdf5File *b, const char *path,
-                         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+                         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t dspace,
                          InUnpacker_H5 unpacker, SHA256_Sum *sum);
 
 static int
 read_seq(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t dspace,
+         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t dspace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
   if (!H5Sis_simple(dspace) || (H5Sget_simple_extent_ndims(dspace) != 0))
@@ -2959,11 +3097,15 @@ read_seq(lua_State *L, mHdf5File *b, const char *path,
 
 static int
 read_lat(lua_State *L, mHdf5File *b, const char *path,
-         struct ropts_s *ropts, hid_t obj, hid_t dtype, hid_t filespace,
+         QH5Opts *ropts, hid_t obj, hid_t dtype, hid_t filespace,
          InUnpacker_H5 unpacker, SHA256_Sum *sum)
 {
+  if (b->parallel != 1)
+    luaL_error(L, "reading parallel data from sequential hdf5.reader");
   if (!H5Sis_simple(filespace) || (ropts->S == NULL))
     return 0;
+  if (ropts->S == NULL)
+    luaL_error(L, "lattice option must be set");
   int rank = H5Sget_simple_extent_ndims(filespace);
   if (rank != ropts->S->rank)
     return 0;
@@ -3022,7 +3164,7 @@ read_lat(lua_State *L, mHdf5File *b, const char *path,
  */
 static int
 try_reader(lua_State *L, mHdf5File *b, const char *path,
-           struct ropts_s *ropts, hid_t obj, KindOfH kind)
+           QH5Opts *ropts, hid_t obj, KindOfH kind)
 {
   int i;
   for (i = 0; qortable[i].unpacker; i++) {
@@ -3044,12 +3186,12 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
     return 0;
   SHA256_Sum f_sum;
   if (!read_sha256(L, b, obj, &f_sum)) {
-    if (ropts->check_p)
+    if (ropts->shaopt != SHA_Ignore)
       luaL_error(L, "missing checksum in read(\"%s\")", path);
     lua_pushstring(L, "missing");
   } else {
     if (sha256_cmp(&r_sum, &f_sum) != 0) {
-      if (ropts->check_p)
+      if (ropts->shaopt != SHA_Ignore)
         luaL_error(L, "mismatched checksum in read(\"%s\")", path);
       lua_pushstring(L, "mismatched");
     } else {
@@ -3062,15 +3204,15 @@ try_reader(lua_State *L, mHdf5File *b, const char *path,
 static int
 qhdf5_read(lua_State *L)
 {
-  mHdf5File *b = qlua_checkHdf5File(L, 1);
+  mHdf5File *b = qlua_checkHdf5Reader(L, 1);
   const char *path = luaL_checkstring(L, 2);
-  struct ropts_s ropts = process_ropts(L);
-  check_file(L, b);
+  QH5Opts ropts = qh5_get_opts(L, 3);
+  qh5_process_opts(L, &ropts, b, NULL, -1);
   qlua_Hdf5_enter(L);
   hid_t obj = H5Dopen(path[0] == '/'? b->file: b->cwd, path, H5P_DEFAULT);
   CHECK_H5p(L, obj, "no object for read(\"%s\")", path);
   int status;
-  if (ropts.forced_p) {
+  if (ropts.kind != kDefault) {
     status = try_reader(L, b, path, &ropts, obj, ropts.kind);
   } else {
     KindOfH kind = get_h5_kind(L, b, obj);
@@ -3079,6 +3221,7 @@ qhdf5_read(lua_State *L)
   CHECK_H5p(L, H5Dclose(obj), "Dclose() failed in read(\"%s\")", path);
   if (!status)
     luaL_error(L, "no suitable reader for read(\"%s\")", path);
+  qh5_fini_opts(L, &ropts);
   return 2;
 }
 
@@ -3156,37 +3299,73 @@ static int
 q_hdf5_writer(lua_State *L)
 {
   const char *name = luaL_checkstring(L, 1);
+  QH5Opts opts = qh5_get_opts(L, 2);
   mHdf5File *w = qlua_newHdf5Writer(L);
-  MPI_Comm comm = MPI_COMM_WORLD;
-  MPI_Info info = MPI_INFO_NULL;
-  int status = 0;
-  struct stat st;
-  hid_t acc_tpl1;
-
+  w->opts = opts;
   qlua_Hdf5_enter(L);
-
-  acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
-  CHECK_H5(L, acc_tpl1, "Pcreate() failed");
-  CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
-
-  /* possible fs race condition here */
-  status = stat(name, &st);
- /* all nodes must agree on the file existance */
-  QMP_sum_int(&status);
-  if (status == 0) {
-    /* open existing file */
-    w->file = H5Fopen(name, H5F_ACC_RDWR, acc_tpl1);
-  } else {
-    /* create a new file. If it was created after stat() returned, truncate it */
-    w->file = H5Fcreate(name, H5F_ACC_TRUNC, H5P_DEFAULT, acc_tpl1);
+  hid_t fcpl = H5Pcreate(H5P_FILE_CREATE);
+  hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+  int is_opener = 0;
+  switch (w->opts.method) {
+  case M_Default: case M_POSIX: {
+    w->parallel = 0;
+    is_opener = w->master;
+  } break;
+  case M_pHDF5: {
+    w->parallel = 1;
+    is_opener = 1;
+    CHECK_H5(L, H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL), "Pset_mpio() failed");
+  } break;
+  case M_MPIPOSIX: {
+    w->parallel = 1;
+    is_opener = 1;
+    CHECK_H5(L, H5Pset_fapl_mpiposix(fapl, MPI_COMM_WORLD, (opts.gpfsHints > 0) ? 1 : 0), "Pset_mpiposix() failed");
+  } break;
+  default:
+    QLUA_ABORT("Unknown hdf5 access method");
+    break;
   }
-  CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
-  CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
-  w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
-  CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
-
+  CHECK_H5(L, fcpl, "Pinit(fcpl) failed");
+  CHECK_H5(L, fapl, "Pinit(fapl) failed");
+  if (opts.alignment >= 0) {
+    if (opts.threshold < 0) opts.threshold = 1;
+    CHECK_H5(L, H5Pset_alignment(fapl, opts.threshold, opts.alignment), "Pset_alignment() failed");
+  }
+  if (opts.istoreK >= 0) {
+    CHECK_H5(L, H5Pset_istore_k(fcpl, opts.istoreK), "Pset_istore_k() failed");
+  }
+  if (is_opener) {
+    struct stat st;
+    int status = stat(name, &st);
+    if (w->parallel)
+      QMP_sum_int(&status);
+    if (status == 0) {
+      w->file = H5Fopen(name, H5F_ACC_RDWR, fapl);
+    } else {
+      w->file = H5Fcreate(name, H5F_ACC_TRUNC, fcpl, fapl);
+    }
+    CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
+    switch (opts.metadata) {
+    case MDC_Default: case MDC_Auto:
+      break;
+    case MDC_Deferred: {
+      H5AC_cache_config_t mdc_config;
+      mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
+      CHECK_H5(L, H5Pget_mdc_config(w->file, &mdc_config), "Pget_mdc_config() failed");
+      mdc_config.evictions_enabled = 0;
+      mdc_config.incr_mode = H5C_incr__off;
+      mdc_config.decr_mode = H5C_decr__off;
+      CHECK_H5(L, H5Pset_mdc_config(w->file, &mdc_config), "Pset_mdc_config() failed");
+    } break;
+    default:
+      QLUA_ABORT("Unknown value of metadata option");
+    }
+    w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
+    CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
+  }
+  CHECK_H5(L, H5Pclose(fapl), "Pclose(fapl) failed");
+  CHECK_H5(L, H5Pclose(fcpl), "Pclose(fcpl) failed");
   qlua_Hdf5_leave();
-
   return 1;
 }
 
@@ -3194,39 +3373,58 @@ static int
 q_hdf5_reader(lua_State *L)
 {
   const char *name = luaL_checkstring(L, 1);
+  QH5Opts opts = qh5_get_opts(L, 2);
   mHdf5File *w = qlua_newHdf5Reader(L);
-  MPI_Comm comm = MPI_COMM_WORLD;
-  MPI_Info info = MPI_INFO_NULL;
-  hid_t acc_tpl1;
-
+  w->opts = opts;
   qlua_Hdf5_enter(L);
-
-  acc_tpl1 = H5Pcreate(H5P_FILE_ACCESS);
-  CHECK_H5(L, acc_tpl1, "Pcreate() failed");
-  CHECK_H5(L, H5Pset_fapl_mpio(acc_tpl1, comm, info), "Pset_fapl_mpio() failed");
-
-  w->file = H5Fopen(name, H5F_ACC_RDONLY, acc_tpl1);
+  hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+  switch (w->opts.method) {
+  case M_Default: case M_POSIX:
+    break;
+  case M_pHDF5: {
+    CHECK_H5(L, H5Pset_fapl_mpio(fapl, MPI_COMM_WORLD, MPI_INFO_NULL), "Pset_mpio() failed");
+  } break;
+  case M_MPIPOSIX: {
+    CHECK_H5(L, H5Pset_fapl_mpiposix(fapl, MPI_COMM_WORLD, (opts.gpfsHints > 0) ? 1 : 0), "Pset_mpiposix() failed");
+  } break;
+  default:
+    QLUA_ABORT("Unknown hdf5 access method");
+    break;
+  }
+  CHECK_H5(L, fapl, "Pinit(fapl) failed");
+  if (opts.alignment >= 0) {
+    if (opts.threshold < 0) opts.threshold = 1;
+    CHECK_H5(L, H5Pset_alignment(fapl, opts.threshold, opts.alignment), "Pset_alignment() failed");
+  }
+  w->file = H5Fopen(name, H5F_ACC_RDONLY, fapl);
   CHECK_H5(L, w->file, "qcd.hdf5.Reader failed");
-  CHECK_H5(L, H5Pclose(acc_tpl1), "Pclose(template) failed");
+  CHECK_H5(L, H5Pclose(fapl), "Pclose(fapl) failed");
   w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
   CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
-
   qlua_Hdf5_leave();
-
   return 1;
 }
 
 /* metatables */
-static const struct luaL_Reg mtFile[] = {
+static const struct luaL_Reg mtFileReader[] = {
   { "__tostring",       qhdf5_fmt     },
   { "__gc",             qhdf5_gc      },
   { "list",             qhdf5_list    },
-  { "flush",            qhdf5_flush   },
   { "stat",             qhdf5_stat    },
   { "cwd",              qhdf5_cwd     },
   { "chpath",           qhdf5_chpath  },
-  { "mkpath",           qhdf5_mkpath  },
   { "read",             qhdf5_read    },
+  { "close",            qhdf5_close   },
+  { NULL,               NULL          }
+};
+
+static const struct luaL_Reg mtFileWriter[] = {
+  { "__tostring",       qhdf5_fmt     },
+  { "__gc",             qhdf5_gc      },
+  { "flush",            qhdf5_flush   },
+  { "cwd",              qhdf5_cwd     },
+  { "chpath",           qhdf5_chpath  },
+  { "mkpath",           qhdf5_mkpath  },
   { "write",            qhdf5_write   },
   { "remove",           qhdf5_remove  },
   { "close",            qhdf5_close   },
@@ -3235,7 +3433,7 @@ static const struct luaL_Reg mtFile[] = {
 
 /* names and routines for qcd.hdf5 table */
 static const struct luaL_Reg fHDF5io[] = {
-  { "Reader",   q_hdf5_reader },
+  { "Reader",   q_hdf5_reader  },
   { "Writer",   q_hdf5_writer  },
   { NULL,       NULL           }
 };
@@ -3250,7 +3448,8 @@ init_hdf5_io(lua_State *L)
   luaL_register(L, NULL, fHDF5io);
   lua_setfield(L, -2, hdf5_io);
   lua_pop(L, 1);
-  qlua_metatable(L, mtnFile, mtFile, qHdf5File);
+  qlua_metatable(L, mtnFileReader, mtFileReader, qHdf5Reader);
+  qlua_metatable(L, mtnFileWriter, mtFileWriter, qHdf5Writer);
 
   return 0;
 }

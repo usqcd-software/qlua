@@ -1,0 +1,36 @@
+package.path = package.path .. ';qlib-lhpc/?.qlua'
+
+require "stdlib"
+
+latsize = {4,4,4,8}
+rnd_seed= 1984
+L = qcd.lattice(latsize)
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+  
+function test_write_read(test_qio_file, prec)
+  local v1 = rnd:gaussian_DiracFermion()
+  local qdp_w = qcd.qdpc.Writer(L, test_qio_file, "", "single")
+  qdp_w:DiracFermion(prec, v1, "")
+  qdp_w:close()
+
+  local qdp_r, v2
+  -- read as an array of records
+  qdp_r = qcd.qdpc.Reader(L, test_qio_file)
+  v2 = qdp_r:DiracFermion(1)[1]
+  qdp_r:close()
+  printf('|v1-v2|^2=%e array %s\n', (v1 - v2):norm2(), prec)
+  -- read as a single element
+  qdp_r = qcd.qdpc.Reader(L, test_qio_file)
+  v2 = qdp_r:DiracFermion()
+  qdp_r:close()
+  printf('|v1-v2|^2=%e single %s\n', (v1 - v2):norm2(), prec)
+  os.remove(test_qio_file)
+end
+
+test_write_read('test_qio_double.qdpc', 'double')
+test_write_read('test_qio_float.qdpc', 'float')

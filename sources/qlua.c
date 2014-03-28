@@ -301,6 +301,29 @@ qlua_badindex(lua_State *L, const char *type)
     return luaL_error(L, "bad index for %s", type);
 }
 
+void
+qlua_send_string(lua_State *L, int idx)
+{
+  const char *str = lua_tostring(L, idx);
+  int len = strlen(str) + 1;
+  
+  QMP_broadcast(&len, sizeof (len));
+  QMP_broadcast((void *)str, len);
+}
+
+int
+qlua_receive_string(lua_State *L, char **str)
+{
+  int len;
+  *str = 0;
+  QMP_broadcast(&len, sizeof (len));
+  if (len == 0)
+    return 0;
+  *str = qlua_malloc(L, len);
+  QMP_broadcast(*str, len);
+  return 1;
+}
+
 int
 qlua_lookup(lua_State *L, int idx, const char *table)
 {
@@ -461,6 +484,19 @@ qlua_tabkey_int(lua_State *L, int idx, const char *key)
 
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting integer in { %s = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+int
+qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def)
+{
+  int v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
@@ -1185,63 +1221,63 @@ qlua_fini(lua_State *L)
 int
 main(int argc, char *argv[])
 {
-    int status = 1;
-    int i;
-    lua_State *L = NULL;
+  int status = 1;
+  int i;
+  lua_State *L = NULL;
+  
+  if (QDP_initialize(&argc, &argv)) {
+    fprintf(stderr, "QDP initialization failed\n");
+    return 1;
+  }
+  QDP_profcontrol(0);
+  double node = QDP_this_node;
+  QMP_min_double(&node);
+  qlua_master_node = node;
 
-    if (QDP_initialize(&argc, &argv)) {
-        fprintf(stderr, "QDP initialization failed\n");
-        return 1;
+  L = lua_open();
+  if (L == NULL) {
+    message("can not create Lua state");
+    goto end;
+  }
+  qlua_init(L, argc, argv);  /* open libraries */
+
+  if (argc < 2) {
+    message("QLUA component versions:\n");
+    for (i = 0; versions[i].name; i++)
+      message(" %10s: %s\n", versions[i].name, versions[i].value);
+  } else {
+
+    for (i = 1; i < argc; i++) {
+      char *source;
+      if(strcmp(argv[i],"-e")==0) { // process command
+        const char *chunk = argv[i] + 2;
+        if (*chunk == '\0') {
+          if (++i >= argc) {
+            message("missing argument to -e");
+            goto end;
+          }
+          chunk = argv[i];
+        }
+        QLUA_ASSERT(chunk != NULL);
+        status = dostring(L, chunk);
+        source = "=(command line)";
+      } else {
+        status = dofile(L, argv[i]);
+        source = argv[i];
+      }
+      report(L, source, status);
+      if (status) {
+        qlua_fini(L);
+        fflush(stdout);
+        fflush(stderr);
+        QDP_abort(1);
+        break;
+      }
     }
-    QDP_profcontrol(0);
-    double node = QDP_this_node;
-    QMP_min_double(&node);
-    qlua_master_node = node;
-
-    L = lua_open();
-    if (L == NULL) {
-        message("can not create Lua state");
-        goto end;
-    }
-    qlua_init(L, argc, argv);  /* open libraries */
-
-    if (argc < 2) {
-        message("QLUA component versions:\n");
-        for (i = 0; versions[i].name; i++)
-            message(" %10s: %s\n", versions[i].name, versions[i].value);
-    } else {
-
-                for (i = 1; i < argc; i++) {
-                        char *source;
-                        if(strcmp(argv[i],"-e")==0) { // process command
-                                const char *chunk = argv[i] + 2;
-                                if (*chunk == '\0') {
-                                        if (++i >= argc) {
-                                                message("missing argument to -e");
-                                                goto end;
-                                        }
-                                        chunk = argv[i];
-                                }
-                                QLUA_ASSERT(chunk != NULL);
-                                status = dostring(L, chunk);
-                                source = "=(command line)";
-                        } else {
-                                status = dofile(L, argv[i]);
-                                source = argv[i];
-                        }
-                        report(L, source, status);
-                        if (status) {
-                                fflush(stdout);
-                                fflush(stderr);
-                                qlua_fini(L);
-                                QDP_abort(1);
-                                break;
-                        }
-                }
-    }
-    qlua_fini(L);
-    lua_close(L);
-end:
-    QDP_finalize();
-    return status;
+  }
+  qlua_fini(L);
+  lua_close(L);
+ end:
+  QDP_finalize();
+  return status;
 }

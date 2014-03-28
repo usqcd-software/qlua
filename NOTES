@@ -1,3 +1,105 @@
+* Approaches:
+** single file / phdf file
+   -- it seems considerably slower than multifile QIO
+** LQCD driver
+   -- complicated
+   -- hdf5 design may lack necessary machinery
+** format on top of hdf5:
+   -- extra layer of indirection (is it cheap?)
+
+* Build qhdf5 library with open interface, lua agnostic memory management
+
+* Separate reader and writer vs versatile writer?
+
+* No delete for the writer ?
+
+* Only create writer? E.g., no updating existing files?
+
+* Read/write vs. write only?
+
+* generic options parser
+* store default options in the HDF5File object, use write and read options to override the defaults.
+
+* options:
+    name         input             internal          meaning
+F   method       --                M_Default          same as M_POSIX
+                 "posix"           M_POSIX           use serial I/O from the head for writing, no parallel data can be written
+                 "phdf5"           M_pHDF5           use pHDF5 driver
+                 "mpiposix"        M_MPIPOSIX        use mpiposix driver
+DW  transfer     --                T_Default          same as T_Independent
+                 "independent"     T_Independent     use XFER independent
+                 "collective"      T_Collective      use XFER collective
+F   alignment    --                -1                do not set alignment and threshold
+                 n                 n                 set alignment and threshold
+F   threshold    --                -1                use default threshold of 1
+                 n                 n                 threshold value
+F   istoreK      --                -1                do not set istore_K
+                 n                 n                 use specified value of istore_K
+F   gpfsHints    --                -1                do not set GPFS hints
+                 n                 n                 set the GPFS hints
+F   metadata     --                MDC_Default         same as MD_Auto
+                 "auto"            MDC_Auto          use default mdc settings
+                 "deferred"        MDC_Deferred      write metadata to store on flush and close only
+DW  wsize        --                WS_Default         same as WS_Double
+                 "double"          WS_Double         write double precision data
+                 "float"           WS_Float          write single precision data
+DR  lattice      --                NULL
+                 S                 S, Sidx           lattice object for parallel reads
+DW  chunk        --                CNK_Default        same as CNK_Contiguous
+                 "contiguous"      CNK_Contiguous    do not use chunks
+                 "natural"         CNK_Natural       use L[i]/N[i] for chunk size, this is promoted to CNK_Explicit
+                 {n, ...}          CNK_Explicit      use chunks of rank and chunk[]
+DR  sha256       --                SHA_Default        same as SHA_Check
+                 "check"           SHA_Check         report error if sha256 is missing or mismatched
+                 "ignore"          SHA_Ignore        return sha265 check value as the second result
+DR  kind         --                kDefault          expect to see .kind attribute
+                 <string>          kXXX              assume data is of a given kind
+
+
+-----------------------------------------------------------
+master file:
+   /.qcd/master/id = sha256
+   /.qcd/master/count = number-of-nodes
+   /.qcd/master/format = format string for node names
+   /.qcd/master/format-kind = int kind of format string
+   /.qcd/types/.... -- all types are stored here
+data file:
+   /.qcd/data/id = sha256
+   /.qcd/data/number = uint32
+   /.qcd/types/....
+single file:
+   /.qcd/single/id = sha256
+   /.qcd/types/....
+
+All global data is stored in the master file
+All lattice data is spread accross data files (or stored in the single file)
+    the master file contains a header under the same path.
+ Keys:
+     key              master           data            single             Comment
+     .kind            "parallel"       <obj kind>      <obj kind>         there is no "parallel" kind
+     .subkind         <obj kind>       ----            ----               to speedup lookup ops
+     .type            <name of type>   ----            ----               to speedup lookup ops
+     .time            int64            int64           int64              must be the same everywhere
+     .sha256          <global sum>     <local sum>     <global sum>
+     .lattice         {Sx,...}         {Sx,...}        {Sx,...}           (1)
+     .low             {Lx,...}         {Lx,...}        {Lx,...}           (2)
+     .high            {Hx,...}         {Hx,...}        {Hx,...}           (2)
+     .sublattice      ----             {Nx,...}        ----               start of local block
+  Data:               I[...]           T[...]          T[...]             (3)
+
+ (1) master: lattice size defines the lattice object size
+     data:   lattice size must match that in the master
+     single: lattice size must agree with dataspace rank and dimensions
+ (2) for sliced data, both low and high attributes must be present.
+ (3) master: stores a 1-d map node -> (lo,hi) where lo and hi are vectors of ints
+     data:   array of data elements local to the node, no object if no data
+     single: all data for the object
+ (*) low is always inclusive, high is exclusive
+
+If there is no data for a node, it stores kind "none" and sets lo = hi = {0,....}
+
+-----------------------------------------------------------
+
 * Better handling of failed type writes ?
 
 * Do better message if write() is attempted into an existing dataset
@@ -7,3 +109,112 @@
 * Guard against user's writing /.* ?
 
 * Keep sha -> object map in /.sha256 ?
+
+* qcd.hdf5.Reader(filename)
+    independent at hdf5 level, only uses QMP for global checksums on lattice objects
+
+* qcd.hdf5.Writer(filename, opts)
+   opts:
+     driver     = "posix"       -- only sequential data may be written from the master   DEFAULT
+     driver     = "phdf5"       -- all nodes write using pHDF5 driver
+     driver     = "qcd"         -- ? if we are going to implement it
+     driver     = "mpiposix"    -- MPI posix fapl
+     gpfsHints  = #             -- gpfs_hints for mpiposix
+     align      = #             -- data alignment, default not set
+     threshold  = #             -- alignment threshold, default not set
+     istoreK    = #             -- value for H5Pset_istore_k(), default not set
+ ** mdc_config() values
+
+** alignment and threshold are set with H5Pset_alignment() on fapl
+** gpfsHints are for H5Pset_fapl_mpiposix(fapl, MPI_COMM, bool hints)
+** istoreK are for H5Pset_istore_k(fcpl, n) -- file creation property list -- must be specified when the file is created
+** H5Fcreate(name, flags, fcpl, fapl)
+** H5Fopen(name, flags, fapl)
+
+** Bits of wisdom from NERSC:
+
+   /* create the file in parallel */
+     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+     MPI_Comm comm = MPI_COMM_WORLD;
+     MPI_Info info = MPI_INFO_NULL;
+     H5Pset_fapl_mpio(fapl_id, mpi_comm, mpi_info);
+     file_id = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+
+   /* create file with mpiposix method */
+     H5Pset_fapl_mpiposix(fapl, MPI_Comm comm, hbool_t use_gpfs_hints);
+
+   /* create file with given alignment and 0 threshold */
+     fapl = H5Pcreate(H5P_FILE_ACCESS);
+     H5Pset_alignment(fapl, 0, stripe_size);
+     file = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+
+   /* set istore_k value */
+     btree_ik = (stripe_size - 4096) / 96;
+     fcpl = H5Pcreate(H5P_FILE_CREATE);
+     H5Pset_istore_k(fcpl, btree_ik);
+     file = H5Fcreate("myparfile.h5", H5F_ACC_TRUNC, fcpl, fapl);
+
+   /* setting mdc values */
+     mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
+     H5Pget_mdc_config(file, &mdc_config)
+     mdc_config.evictions_enabled = FALSE;
+     mdc_config.incr_mode = H5C_incr__off;
+     mdc_config.decr_mode = H5C_decr__off;
+     H5Pset_mdc_config(file, &mdc_config);
+
+   /* write data using Collective XFER */
+     dxpl_id = H5Pcreate(H5P_DATASET_XFER);
+     H5Pset_dxpl_mpio(dxpl_id, H5FD_MPIO_COLLECTIVE);
+     /* describe a 1D array of elements on this processor */
+     memspace = H5Screate_simple(1, count, NULL);
+     /* map this processor's elements into the shared file */
+     filespace = H5Screate_simple(1, mpi_size*count, NULL);
+     offset = mpi_rank * count;
+     H5Sselect_hyperslab(filespace, H5S_SELECT_SET, &offset, NULL, &count, NULL);
+     H5Dwrite(dset_id, H5T_NATIVE_FLOAT, memspace, filespace, dxpl_id, somedata0);
+
+   /* create data in chunks */
+     dcpl = H5Pcreate(H5P_DATASET_CREATE);
+     H5Pset_chunk(dcpl, 3, chunk_dims);
+     H5Dcreate(file, "mydataset", type, filespace, H5P_DEFAULT, dcpl, H5P_DEFAULT);
+
+
+**** call the option for mdc: metadata = "auto" | "deferred"
+
+ 
+* lattice writers:
+     H:write(path, obj, opts)
+     opts:
+       chunk = "contiguous"          -- plain flat address space
+               "natural"             -- L[i]/n[i]                   DEFAULT
+               { n, ...}             -- explicit chunking
+       transfer = "independent"      -- non-collective          DEFAULT
+                  "collective"       --  ? do we need the transfter mode at all?
+       chunk_opt = "one"
+                 = "multi"
+       subset = "all"                --  DEFAULT
+              = "even"               -- only even sublattice
+              = "odd"                -- only odd sublattice
+              = { low = { n, ...},   -- hyperslice
+                  high = { n,...}}
+
+* Each object has the following attributes:
+    .kind = "string"      -- kind of the object as defined at present
+    .sha265 = int8[32]    -- the checksum
+
+** for lattice objects, there are also
+     .lattice = int32[]   -- if present, should not contradict the dataspace
+     .low = int32[]       -- only for sliced data
+     .high = int32[]      -- both .low and .high must be present
+
+* reader:
+    H:read(path, opts)
+     opts:
+        kind = "string"     -- assume kind of the object
+        sha265 = "ignore"   -- allow mismatched or missing checksum
+               = "check"    -- abort on missing or mismatched checksum DEFAULT
+        lattice = L         -- if the object is non-scalar, this is the lattice to read into
+        low = { n, .... }   -- slice to read to. dataspace must agree with low and high options
+        high = { n, ... }   -- must be present if low is present.
+
+    lattice, low, and high are ignored for scalars

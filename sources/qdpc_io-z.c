@@ -27,12 +27,27 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         /* one colored object */
         QDP_String *info = QDP_string_create();
         Qs(m) *X = Qs(qlua_newZero)(L, Sidx, nc);
-        int status = Qop(read)(reader->ptr, info, X->ptr);
-        if (status == 0) {
+        if (get_prec(reader->ptr) == 'F') {
+#if QNc == 'N'
+          Stype *tt = SopL(create)(nc, S->lat);
+#else
+          Stype *tt = SopL(create)(S->lat);
+#endif
+          int status = Sop(read)(reader->ptr, info, tt);
+          if (status == 0) {
+            FtoD(X->ptr, tt, S->all);
+            Sop(destroy)(tt);
+            lua_pushstring(L, QDP_string_ptr(info));
+            QDP_string_destroy(info);
+            return 2;
+          }
+        } else {
+          if (Qop(read)(reader->ptr, info, X->ptr) == 0) {
             /* read successful -- convert to LUA */
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
             return 2;
+          }
         }
         /* read failed */
         QDP_string_destroy(info);
