@@ -41,3 +41,13 @@ ENSEMBLE_LABEL = test
 SEQUENCE_NUMBER = 4540</info></usqcdPropFile>]],
             proptype_str, srctype_str, ens_id, ens_label, seq_number)
 end
+
+function scidac_propagator_header(id)
+  return string.format([[<?xml version="1.0"?>
+<propagator>
+  <id>%s</id>
+</propagator>
+]], 
+        id)
+end
+require 'chroma_xmlheader'

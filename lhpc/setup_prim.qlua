@@ -14,3 +14,14 @@ function mom3d_list_norm2max(mom2_max)
   end
   return mom_list
 end
+
+function rnd_init(L, x)
+  local l_s = 1
+  local l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  return L:RandomState(x, l_id)
+end
+
