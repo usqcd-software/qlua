@@ -21,14 +21,20 @@ do
   end
   -- tables
   local xS = {
+    ["proton_1"]        = gamma{mu=0} * gamma{mu=2},
     ["proton_3"]        = gamma{mu=0} * gamma{mu=2} * (1 + gamma{mu=3}) / 2,
     ["proton_negpar_3"] = gamma{mu=0} * gamma{mu=2} * (1 - gamma{mu=3}) / 2
   }
   local xT = {
+    ["proton_1"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
     ["proton_3"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
     ["proton_negpar_3"] = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
   }
   local qbuilder = {
+    ["proton_1"] = {
+      ["U"] = nucleon_seqsource_u,
+      ["D"] = nucleon_seqsource_d
+    },
     ["proton_3"] = {
       ["U"] = nucleon_seqsource_u,
       ["D"] = nucleon_seqsource_d
