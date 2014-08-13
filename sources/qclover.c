@@ -1400,6 +1400,42 @@ q_CL_Dx(lua_State *L)
   return q_CL_operator(L, "Dx", QNc(QOP_D, _CLOVER_D_operator_conjugated));
 }
 
+static void
+q_CL_P_writer_full(const int p[], int a, int i, int b, int j,
+		   int re_im, double v, void *e)
+{
+    qCL_P_env *env = e;
+    int x = QDP_index_L(env->lat, p);
+
+    if (re_im == 0) {
+        QLA_real(QLA_elem_P(env->out[x], a, i, b, j)) = v;
+    } else {
+        QLA_imag(QLA_elem_P(env->out[x], a, i, b, j)) = v;
+    }
+}
+
+static int
+q_CL_inv_clovterm(lua_State *L)
+{
+    mClover *c = qlua_checkClover(L, 1, NULL, 1);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
+
+    QNz(mLatDirProp) *eta = QNz(qlua_newLatDirProp)(L, Sidx, QLUA_CLOVER_NC);
+    qCL_P_env env;
+
+    CALL_QDP(L);
+
+    env.lat = S->lat;
+    env.out = QNc(QDP_D, _expose_P)(eta->ptr);
+
+    QNc(QOP_D, _CLOVER_export_inv_clover)(q_CL_P_writer_full, &env, c->gauge);
+
+    QNc(QDP_D, _reset_P)(eta->ptr);
+
+    return 1;
+}
+
 /* the standard clover solver */
 static int
 q_CL_std_solver(lua_State *L,
@@ -1678,6 +1714,7 @@ static struct luaL_Reg mtClover[] = {
     { "solver",                     q_CL_make_solver },
     { "mixed_solver",               q_CL_make_mixed_solver },
     { "eig_deflator",               q_CL_make_deflator },
+    { "inv_clovterm",               q_CL_inv_clovterm },
 #ifdef HAS_ARPACK
     { "eig_deflator_lanczos",       q_CL_make_deflator_lanczos      },
 #endif /* HAS_ARPACK */
