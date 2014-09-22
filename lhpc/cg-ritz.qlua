@@ -1,0 +1,100 @@
+require "stdlib"
+
+function cg_ritz(op_k, op_m, x0, eps, do_max)
+  -- find the largest/smallest Ritz value [(x,op_k(x)) / (x,op_m(x))]
+  -- applying conjugate gradient to [(x,op_k(x)) / (x,op_m(x))]
+  -- for real-valued vectors, see [M.Geradin, 'The computational efficiency 
+  -- of a new minimization algorithm for eigenvalue analysis', Journal of Sound 
+  -- and Vibration 19(3), 319-331 (1971)]
+  --    op_k        operator, op_k(x) = y
+  --    op_m        operator, op_m(x) = y
+  --    scal_prod   scal_prod(x,y) = (x^H.y) ; must return a complex
+  --    x0          initial vector
+  --    do_max      if True, find maximal Ritz value; if False, find min
+  local s, m_s, k_s, x, m_x, k_x, gr
+  local s_k_s, s_k_x, x_k_x, s_m_s, s_m_x, x_m_x
+  local u, v_re, v_im, v, w, sq_d, a1, a2, l1, l2, beta
+  local gr_n2, gr_k_s, gr_m_s, xnew_m_s
+  local aopt, lopt, lopt_prev, cnt
+  local cmp_fact = 1                -- find min eval
+  if do_max then cmp_fact = -1 end  -- find max eval
+
+  x     = x0
+  m_x   = op_m(x)
+  x_m_x = latvec_vdot(x, m_x):real()
+  k_x   = op_k(x)
+  x_k_x = latvec_vdot(x, k_x):real()
+  lopt  = x_k_x / x_m_x
+  printf("# xkx=%e\txmx=%e\tlopt=%e\n", x_k_x, x_m_x, lopt)
+
+  s     = latvec_scalsum_left(-1. / x_m_x, k_x,  lopt / x_m_x, m_x)
+  s_m_x = latvec_vdot(s, m_x)
+  s_k_x = latvec_vdot(s, k_x)
+  m_s   = op_m(s)
+  s_m_s = latvec_vdot(s, m_s):real()
+  k_s   = op_k(s)
+  s_k_s = latvec_vdot(s, k_s):real()
+
+  lopt_prev = 0.
+  cnt = 0
+  while (eps * lopt_prev < math.abs(lopt_prev - lopt)) do
+    printf("%d\t%f\t%f\t%e\n", cnt, lopt, x_k_x/x_m_x, (lopt_prev - lopt)*cmp_fact)
+    printf("# |x| =%e\t|s| =%e\n", math.sqrt(latvec_norm2(x)), math.sqrt(latvec_norm2(s)))
+    printf("# |Kx|=%e\t|Ks|=%e\n", math.sqrt(latvec_norm2(k_x)), math.sqrt(latvec_norm2(k_s)))
+    printf("# |Mx|=%e\t|Ms|=%e\n", math.sqrt(latvec_norm2(m_x)), math.sqrt(latvec_norm2(m_s)))
+    print_latvec_cmp(x, s, "# x<->s")
+    lopt_prev = lopt  
+    cnt = cnt + 1
+
+    -- equation for a^* : u*(a^*)^2 + v*(a^*) + w = 0
+    u     = (s_k_s * s_m_x - s_k_x * s_m_s)
+    v_re  = (s_k_s * x_m_x - x_k_x * s_m_s)
+    v_im  = (s_k_x:conj() * s_m_x - s_k_x * s_m_x:conj())
+    v     =  complex(v_re, v_im:imag())
+    w     = (s_k_x:conj() * x_m_x - x_k_x * s_m_x:conj())
+    printf("# u=%s, v=%s, w=%s\n", tostring(u), tostring(v), tostring(w))
+
+    sq_d  = (v * v - 4. * u * w):sqrt()
+    a1    = ((-v + sq_d) / 2. / u):conj()
+    a2    = ((-v - sq_d) / 2. / u):conj()
+    l1    = ( (x_k_x + a1 * s_k_x:conj() + a1:conj() * s_k_x + a1*a1:conj() * s_k_s)
+            / (x_m_x + a1 * s_m_x:conj() + a1:conj() * s_m_x + a1*a1:conj() * s_m_s) ):real()
+    l2    = ( (x_k_x + a2 * s_k_x:conj() + a2:conj() * s_k_x + a2*a2:conj() * s_k_s)
+            / (x_m_x + a2 * s_m_x:conj() + a2:conj() * s_m_x + a2*a2:conj() * s_m_s) ):real()
+    if 0 < (l2 - l1) * cmp_fact then
+      aopt  = a1
+      lopt  = l1
+    else
+      aopt  = a2
+      lopt  = l2
+    end
+    printf("# sq_d=%s, a1=%s, a2=%s, l1=%s, l2=%s\n", 
+            tostring(sq_d), tostring(a1), tostring(a2), tostring(l1), tostring(l2))
+    printf("# new lopt=%e\n", lopt)
+
+    -- update x
+    x     = latvec_scalsum_left(1., x, aopt, s)
+    m_x   = latvec_scalsum_left(1., m_x, aopt, m_s) 
+    x_m_x = latvec_vdot(x, m_x):real()
+    k_x   = latvec_scalsum_left(1., k_x, aopt, k_s)
+    x_k_x = latvec_vdot(x, k_x):real()
+    printf("# %e =?= %e\n", lopt, x_k_x / x_m_x)
+    gr    = latvec_scalsum_left(1., k_x, -lopt, m_x) / x_m_x
+    gr_n2 = latvec_norm2(gr)
+    gr_k_s= latvec_vdot(gr, k_s)
+    gr_m_s= latvec_vdot(gr, m_s)
+    xnew_m_s = latvec_vdot(s, m_x):conj()
+    beta  = (gr_k_s - lopt * gr_m_s - gr_n2 * xnew_m_s) / (s_k_s - lopt * s_m_s)
+    -- update s
+    s     = latvec_scalsum_left(-1., gr, beta, s)
+    s_k_x = latvec_vdot(s, k_x)
+    s_m_x = latvec_vdot(s, m_x)
+    m_s   = op_m(s)
+    s_m_s = latvec_vdot(s, m_s):real()
+    k_s   = op_k(s)
+    s_k_s = latvec_vdot(s, k_s):real()
+
+  end
+
+  return lopt, x
+end

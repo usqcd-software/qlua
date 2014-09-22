@@ -214,7 +214,7 @@ end
 -- site-hopping part of the Wilson operator (mind the sign)
 --    d       fermion
 --    u       gauge field
-function latvec_op_xwilson(d, u)
+function latvec_op_xwilson(d, u, is_dag)
   local res
   if 'table' == type(d) then
     res = {}
@@ -224,8 +224,13 @@ function latvec_op_xwilson(d, u)
   else
     res = nil
     for mu=0, #L - 1 do
-      local y = (  .5*(1. - gamma{mu=mu}) * (u[1+mu] * d:shift(mu, "from_forward"))
-                 + .5*(1. + gamma{mu=mu}) * (u[1+mu]:adjoin() * d):shift(mu, "from_backward"))
+      local y 
+      if is_dag 
+      then y = (  .5*(1. + gamma{mu=mu}) * (u[1+mu] * d:shift(mu, "from_forward"))
+                + .5*(1. - gamma{mu=mu}) * (u[1+mu]:adjoin() * d):shift(mu, "from_backward"))
+      else y = (  .5*(1. - gamma{mu=mu}) * (u[1+mu] * d:shift(mu, "from_forward"))
+                + .5*(1. + gamma{mu=mu}) * (u[1+mu]:adjoin() * d):shift(mu, "from_backward"))
+      end
       if nil == res then res = y else res = res + y end
     end
   end
@@ -248,10 +253,10 @@ end
 -- Wilson Dslash 
 -- XXX check conventions for the Mw sign; 
 -- XXX agree up to a factor with qcd.Clover(..):D (== 2*kappa*latvec_op_wilson, 2*kappa=1/(4+Mw) )
-function latvec_op_wilson(d, u, Mw)
-  return latvec_dscal_sum(
+function latvec_op_wilson(d, u, Mw, is_dag)
+  return latvec_scalsum_left(
             4. + Mw,  d,
-            -1.,      latvec_op_xwilson(d, u))
+            -1.,      latvec_op_xwilson(d, u, is_dag))
 end
 
 -- DWF Dslash 
