@@ -38,7 +38,8 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
   lopt_prev = 0.
   cnt = 0
   while (eps * lopt_prev < math.abs(lopt_prev - lopt)) do
-    printf("%d\t%f\t%f\t%e\n", cnt, lopt, x_k_x/x_m_x, (lopt_prev - lopt)*cmp_fact)
+    printf("%d\t%21.13e\t%21.13e\t%21.13e\n", cnt, lopt, x_k_x/x_m_x, 
+           (lopt_prev - lopt) * cmp_fact / (lopt_prev + lopt) * 2.)
     printf("# |x| =%e\t|s| =%e\n", math.sqrt(latvec_norm2(x)), math.sqrt(latvec_norm2(s)))
     printf("# |Kx|=%e\t|Ks|=%e\n", math.sqrt(latvec_norm2(k_x)), math.sqrt(latvec_norm2(k_s)))
     printf("# |Mx|=%e\t|Ms|=%e\n", math.sqrt(latvec_norm2(m_x)), math.sqrt(latvec_norm2(m_s)))
@@ -96,5 +97,5 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
 
   end
 
-  return lopt, x
+  return lopt, x, cnt
 end

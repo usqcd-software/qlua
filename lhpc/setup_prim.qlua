@@ -66,3 +66,16 @@ function make_mom_list_4d(mom2_max, mom_t)
   end
   return mom_list
 end
+
+
+function gauge_set_bc(u, bc)
+  -- modify gauge field links u to have bc
+  --  u   array of gauge link fields
+  --  bc  array of bc factors (applied from left)
+  local L = u[1].lattice
+  for mu = 0, #L-1 do
+    L:Subset{axis=mu, position=L[mu]-1}:where(function()
+      u[1+mu]:set(bc[1+mu] * u[1+mu])
+    end)
+  end
+end
