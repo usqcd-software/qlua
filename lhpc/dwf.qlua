@@ -25,7 +25,7 @@ end
 --* compute propagator including Dminus, i.e with action 
 --* S_fermion = \bar q [ Dminus^{-1} DMoebiusSlash ] q
 function calc_mdwf_prop(mdwf_solver, gauge_u, mdwf_L5, mdwf_M5, 
-                        mdwf_b5_list, mdwf_c5_list, src,
+                        mdwf_b5_s, mdwf_c5_s, src,
                         is_relaxed, is_verbose)
   if 'table' ~= type(mdwf_b5_s) then 
     mdwf_b5_s = make_list_const(mdwf_b5_s, mdwf_L5) 
