@@ -76,6 +76,32 @@ gen_laplace_P(lua_State *L,
               QDP_D3_DiracPropagator *source,
               int skip_axis);
 
+const char *
+extra_lat_fourier_qla(lua_State *L,
+                      mLattice *S, 
+                      QLA_D_Complex *qla_y, 
+                      QLA_D_Complex *qla_x,
+                      int rec_len, 
+                      int ft_sign, 
+                      int ft_dir);
+
+const char *
+extra_lat_fourier_qla_onedim(lua_State *L,
+                             mLattice *S, 
+                             QLA_D_Complex *qla_y, 
+                             QLA_D_Complex *qla_x,
+                             int rec_len, 
+                             int ft_sign, 
+                             int ft_dir);
+
+const char *
+extra_lat_fourier_qla_full(lua_State *L,
+                           mLattice *S, 
+                           QLA_D_Complex *qla_y, 
+                           QLA_D_Complex *qla_x,
+                           int rec_len, 
+                           int ft_sign);
+
 int init_extras(lua_State *L);
 int fini_extras(lua_State *L);
 

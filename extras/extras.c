@@ -179,9 +179,104 @@ q_laplacian(lua_State *L)
     return 1;
 }
 
+/* (latcomplex x, sign, dir)
+    dir     (= 0 .. (NDIM-1)) : FT direction
+            nil : do all directions
+    sign    +1: y_k = \sum_x exp(+ikx) x_k
+            -1: y_k = \sum_x exp(-ikx) x_k
+
+    RETURN latcomplex y on the same lattice
+ */
+static int
+q_fourier_transf(lua_State *L)
+{
+    const char *status = NULL;
+    mLattice *S = qlua_ObjLattice(L, 1);
+    int ndim = QDP_ndim_L(S->lat);
+    int Sidx = lua_gettop(L);
+    int ft_sign = luaL_checkint(L, 2);
+    int ft_dir = -1;    /* all directions by default */
+    if (4 <= Sidx)
+        ft_dir  = luaL_checkint(L, 3);
+    if (ndim <= ft_dir) {
+        luaL_error(L, "bad direction in arg #3");
+    }
+    
+    CALL_QDP(L);
+    /* XXX the code relies on particular organization of QLA structures: 
+       for each site, an array of double complex numbers, no padding */
+    switch (qlua_qtype(L, 1)) {
+    case qLatComplex: {
+        mLatComplex *x = qlua_checkLatComplex(L, 1, S);
+        mLatComplex *r = qlua_newLatComplex(L, Sidx);
+        QLA_D_Complex *qla_x = QDP_D_expose_C(x->ptr),
+                      *qla_r = QDP_D_expose_C(r->ptr);
+        CALL_QDP(L);
+        status = extra_lat_fourier_qla(L, S, qla_r, qla_x, 1, ft_sign, ft_dir);
+        QDP_D_reset_C(x->ptr);
+        QDP_D_reset_C(r->ptr);
+        break;
+    }
+    case qLatColVec3: {
+        mLatColVec3 *x = qlua_checkLatColVec3(L, 1, S, 3);
+        mLatColVec3 *r = qlua_newLatColVec3(L, Sidx, 3);
+        QLA_D_Complex *qla_x = QDP_D_expose_V(x->ptr),
+                      *qla_r = QDP_D_expose_V(r->ptr);
+        CALL_QDP(L);
+        status = extra_lat_fourier_qla(L, S, (QLA_D_Complex *)qla_r, qla_x, 3, ft_sign, ft_dir);
+        QDP_D_reset_V(x->ptr);
+        QDP_D_reset_V(r->ptr);
+        break;
+    }
+    case qLatColMat3: {
+        mLatColMat3 *x = qlua_checkLatColMat3(L, 1, S, 3);
+        mLatColMat3 *r = qlua_newLatColMat3(L, Sidx, 3);
+        QLA_D_Complex *qla_x = QDP_D_expose_M(x->ptr),
+                      *qla_r = QDP_D_expose_M(r->ptr);
+        CALL_QDP(L);
+        status = extra_lat_fourier_qla(L, S, qla_r, qla_x, 9, ft_sign, ft_dir);
+        QDP_D_reset_M(x->ptr);
+        QDP_D_reset_M(r->ptr);
+        break;
+    }
+    case qLatDirFerm3: {
+        mLatDirFerm3 *x = qlua_checkLatDirFerm3(L, 1, S, 3);
+        mLatDirFerm3 *r = qlua_newLatDirFerm3(L, Sidx, 3);
+        QLA_D_Complex *qla_x = QDP_D_expose_D(x->ptr),
+                      *qla_r = QDP_D_expose_D(r->ptr);
+        CALL_QDP(L);
+        status = extra_lat_fourier_qla(L, S, qla_r, qla_x, 12, ft_sign, ft_dir);
+        QDP_D_reset_D(x->ptr);
+        QDP_D_reset_D(r->ptr);
+        break;
+    }
+    case qLatDirProp3: {
+        mLatDirProp3 *x = qlua_checkLatDirProp3(L, 1, S, 3);
+        mLatDirProp3 *r = qlua_newLatDirProp3(L, Sidx, 3);
+        QLA_D_Complex *qla_x = QDP_D_expose_P(x->ptr),
+                      *qla_r = QDP_D_expose_P(r->ptr);
+        CALL_QDP(L);
+        status = extra_lat_fourier_qla(L, S, qla_r, qla_x, 144, ft_sign, ft_dir);
+        QDP_D_reset_P(x->ptr);
+        QDP_D_reset_P(r->ptr);
+        break;
+    }
+    default: 
+        return luaL_error(L, "arg #1 must be complex");
+    }
+
+    if (NULL != status)
+        return luaL_error(L, status);
+    return 1;
+
+}
+
+
+
 static struct luaL_Reg fExtra[] = {
     { "save_bb",    q_save_bb },
     { "laplacian",  q_laplacian },
+    { "fourier_transf", q_fourier_transf },
 #ifdef HAS_GSL
 	{ "baryon_duu", q_baryon_duu },
 #endif /* defined(HAS_GSL) */

@@ -1,0 +1,6 @@
+package.path = package.path .. ';../../lhpc/?.qlua'
+
+latsize = {4,4,4,8}
+rnd_seed = 1984
+
+

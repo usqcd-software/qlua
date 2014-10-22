@@ -137,7 +137,8 @@ ifeq ("@use_nc3@", "1")
 ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
-              gen_laplace.c
+              gen_laplace.c \
+	      lat_ft.c
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
 endif
