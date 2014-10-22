@@ -278,14 +278,14 @@ qh5_get_opts(lua_State *L, int idx)
       opts.method = M_MPIPOSIX;
     else if (method)
       luaL_error(L, "Unknown access method \"%s\"", method);
-    const char *trans = qlua_tabkey_stringopt(L, idx, "tranfer", NULL);
+    const char *trans = qlua_tabkey_stringopt(L, idx, "transfer", NULL);
     if (trans && !strcmp(trans, "independent"))
       opts.transfer = T_Independent;
     else if (trans && !strcmp(trans, "collective"))
       opts.transfer = T_Collective;
     else if (trans)
       luaL_error(L, "Unknown transfer mode \"%s\"", trans);
-    const char *meta = qlua_tabkey_stringopt(L, idx, "metdata", NULL);
+    const char *meta = qlua_tabkey_stringopt(L, idx, "metadata", NULL);
     if (meta && !strcmp(meta, "auto"))
       opts.metadata = MDC_Auto;
     else if (meta && !strcmp(meta, "deferred"))
@@ -3334,6 +3334,22 @@ q_hdf5_writer(lua_State *L)
   if (opts.istoreK >= 0) {
     CHECK_H5(L, H5Pset_istore_k(fcpl, opts.istoreK), "Pset_istore_k() failed");
   }
+  switch (opts.metadata) {
+  case MDC_Default: case MDC_Auto:
+    break;
+  case MDC_Deferred: {
+    H5AC_cache_config_t mdc_config;
+    mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
+    CHECK_H5(L, H5Pget_mdc_config(fapl, &mdc_config), "Pget_mdc_config() failed");
+    mdc_config.evictions_enabled = 0;
+    mdc_config.incr_mode = H5C_incr__off;
+    mdc_config.decr_mode = H5C_decr__off;
+    mdc_config.flash_incr_mode = H5C_flash_incr__off;
+    CHECK_H5(L, H5Pset_mdc_config(fapl, &mdc_config), "Pset_mdc_config() failed");
+  } break;
+  default:
+    QLUA_ABORT("Unknown value of metadata option");
+  }
   if (is_opener) {
     struct stat st;
     int status = stat(name, &st);
@@ -3345,21 +3361,6 @@ q_hdf5_writer(lua_State *L)
       w->file = H5Fcreate(name, H5F_ACC_TRUNC, fcpl, fapl);
     }
     CHECK_H5(L, w->file, "qcd.hdf5.Writer failed");
-    switch (opts.metadata) {
-    case MDC_Default: case MDC_Auto:
-      break;
-    case MDC_Deferred: {
-      H5AC_cache_config_t mdc_config;
-      mdc_config.version = H5AC__CURR_CACHE_CONFIG_VERSION;
-      CHECK_H5(L, H5Pget_mdc_config(w->file, &mdc_config), "Pget_mdc_config() failed");
-      mdc_config.evictions_enabled = 0;
-      mdc_config.incr_mode = H5C_incr__off;
-      mdc_config.decr_mode = H5C_decr__off;
-      CHECK_H5(L, H5Pset_mdc_config(w->file, &mdc_config), "Pset_mdc_config() failed");
-    } break;
-    default:
-      QLUA_ABORT("Unknown value of metadata option");
-    }
     w->cwd = H5Gopen2(w->file, "/", H5P_DEFAULT);
     CHECK_H5(L, w->cwd, "Gopen2(\"/\") failed");
   }
@@ -3442,6 +3443,7 @@ int
 init_hdf5_io(lua_State *L)
 {
   H5open();
+  /* Switch HDF5 error reporting off */
   H5Eset_auto2(H5E_DEFAULT, NULL, NULL);
   lua_getglobal(L, qcdlib);
   lua_newtable(L);

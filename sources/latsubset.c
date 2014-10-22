@@ -145,7 +145,7 @@ subset_join(lua_State *L,
             mLattice *S,  /* use S->lss as src1 */
             const mLatSubset *b) /* src2 */
 {
-    int refine = b->mask ? 1: 0;
+    int refine = ((b->mask != NULL) || (S->lss.mask != NULL))? 1: 0;
     QLA_D_Real count = 0;
     sjArg arg;
 

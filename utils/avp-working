@@ -1,10 +1,10 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20140122-rc1
+PACKTOP=$HOME/Local/packages/macosx-20140305
 Nc=3
 # noNc=3
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$HOME/Local/packages/qlua-su-$Nc
+TARGET=$HOME/Local/packages/qlua-working
 
 # XXX Nc specific clover installation location
 
@@ -23,12 +23,12 @@ LIBS='-lz' \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-hdf5=$HOME/Local/packages/hdf5-1.8.11-parallel   \
-   --with-nc=N                                             \
-   --with-nc=3                                             \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-mdwf=$PACKTOP/mdwf                               \
-   --with-clover=$HOME/Local/packages/clover-working       \
+   --with-clover=$PACKTOP/clover                           \
+   --with-hdf5=$PACKTOP/hdf5                               \
+   --with-nc=N                                             \
+   --with-nc=3                                             \
    --clover-nc=$Nc                                         \
    $*
 
