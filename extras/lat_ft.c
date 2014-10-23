@@ -163,7 +163,8 @@ extra_lat_fourier_qla_onedim(lua_State *L,
             c_ind += c_ind_mul[mu] * (c[mu] - subvol_lo[mu]);
         for (int i = 0 ; i < rec_len ; i++) {
             QLA_D_Complex pz = qla_x[ind * rec_len + i]; /* XXX ind != c_ind */
-            send_b[(c_ind * rec_len + i) * ft_len + c_ft] = QLA_real(pz) + I*QLA_imag(pz);
+            send_b[(c_ind * rec_len + i) * ft_len + c_ft] 
+                            = QLA_real(pz) + I*QLA_imag(pz);
         }
     }
     
@@ -172,7 +173,8 @@ extra_lat_fourier_qla_onedim(lua_State *L,
             & receive(recvbuf, neighbor_down[ft_dir]) 
        2) add res_ft += dot(src_co, mat_ft^T)
        3) if not the last iter, 
-          * scale mat_ft[m,n] *= exp(2*pi*i *(kLo[ft_dir]+m) *subvol_ls[ft_dir] / L[ft_dir])
+          * scale mat_ft[m,n] *= (exp(2*pi*i *(kLo[ft_dir]+m) 
+                        *subvol_ls[ft_dir] / L[ft_dir]))
           * wait for recv&send to finish; 
           * copy recv->send
      */ 
@@ -184,10 +186,9 @@ extra_lat_fourier_qla_onedim(lua_State *L,
     QMP_status_t qmp_st;
     for (int imesh = 0 ; imesh < mesh_ft ; imesh++) {
         if (imesh < mesh_ft - 1) { /* not the last iter */
-            /*qmp_msg[0] = QMP_declare_send_relative(qmp_msg_sendrecv[0], ft_dir, +1, 0);*/
-            /*qmp_msg[1] = QMP_declare_receive_relative(qmp_msg_sendrecv[1], ft_dir, -1, 0);*/
-            qmp_msg[0] = QMP_declare_send_to(qmp_msg_sendrecv[0], node_frw, 0);
-            qmp_msg[1] = QMP_declare_receive_from(qmp_msg_sendrecv[1], node_bkw, 0);
+            /* cyclic data exchange: send to backward, receive from forward */
+            qmp_msg[0] = QMP_declare_send_to(qmp_msg_sendrecv[0], node_bkw, 0);
+            qmp_msg[1] = QMP_declare_receive_from(qmp_msg_sendrecv[1], node_frw, 0);
             if (QMP_SUCCESS != (qmp_st = QMP_start(qmp_msg[0]))) {
                 status = QMP_error_string(qmp_st);
                 goto clearerr_1;
@@ -211,8 +212,8 @@ extra_lat_fourier_qla_onedim(lua_State *L,
                 gsl_vector_complex_view gsl_mat_ft_m = gsl_matrix_complex_row(
                             &gsl_mat_ft.matrix, m);
                 gsl_complex z = gsl_complex_polar(1.,
-                            2 * M_PI * (c0_ft + m) * ft_len / (double)(ls[ft_dir]) 
-                            * ft_sign);
+                            2 * M_PI * (c0_ft + m) * ft_len 
+                              / (double)(ls[ft_dir]) * ft_sign);
                 gsl_vector_complex_scale(&gsl_mat_ft_m.vector, z);
             }
 

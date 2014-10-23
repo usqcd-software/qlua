@@ -6,7 +6,7 @@ require "strict"
 
 tot_timer = timer("total")
 
-L = qcd.lattice(latsize, {network={2,2,2,2}})
+L = qcd.lattice(latsize, {network=network})
 
 rnd = L:RandomState(rnd_seed, 
         L:pcoord(0) + L[0] * (
@@ -15,12 +15,20 @@ rnd = L:RandomState(rnd_seed,
         L:pcoord(3) ) ) ) )
 
 
+ft_dir=1
+c     = rnd:gaussian_Complex()
+c_ft  = qcd.fourier_transf(c, 1, ft_dir)
+c2    = qcd.fourier_transf(c_ft, -1, ft_dir) / L[ft_dir]
+print_latvec_cmp(c, c2, 
+                 string.format(
+                 'Complex, [%d]: c <-> ~FT1d(FT1d(c))', ft_dir))
 ft_dir=3
 c     = rnd:gaussian_Complex()
 c_ft  = qcd.fourier_transf(c, 1, ft_dir)
 c2    = qcd.fourier_transf(c_ft, -1, ft_dir) / L[ft_dir]
 print_latvec_cmp(c, c2, 
-                 'Complex: c <-> ~FT1d(FT1d(c))     ')
+                 string.format(
+                 'Complex, [%d]: c <-> ~FT1d(FT1d(c))', ft_dir))
 
 c     = rnd:gaussian_Complex()
 c_ft  = qcd.fourier_transf(c, 1)
