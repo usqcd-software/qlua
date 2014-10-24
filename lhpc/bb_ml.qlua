@@ -1,0 +1,293 @@
+-- TODO need qcd.momentum_project(field, momentum, t_axis)
+-- better to have single function for fields = real, complex, color&Dirac vectors&matrices
+-- and for 3d & 4d mom projections:
+--    d=3 if t_axis is present; momentum[t_axis+1] is ignored; return vector.<whatever>
+--    d=4 if no t_axis given; return scalar; required for NPR implementation
+
+-- intended to be drop-in replacement for usual calc_bb, but use multi-lattice
+function calc_bb(
+    L,
+    aff_w,              -- aff writer
+    aff_kpath_prefix,   -- keypath prefix
+    lpath_min,          -- minimum linkpath length to save (makes sense for separate l=3 with q=0)
+    lpath_max,          -- maximum linkpath length
+    fw_p,               -- forward propagator
+    bw_p_adj, U,        -- backward propagator, Dslash^-1 * g5 * SeqSrc^\dag *g5
+    csrc,               -- source coord: x,y,z,t
+    tsnk, psnk,         -- sink timeslice, sink momentum
+    t_axis,             -- axis; currently works for t_axis ==3
+    qlist,              -- list of insertion momenta {q}; each q be with #q = #L
+    time_rev,           -- whether to reverse time (true for proton_negpar_3)
+    bc_quark_t,         -- BC for quarks, only in t dir? FIXME need general?
+    bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
+    )
+
+  local lt = L[t_axis]
+  local tsrc = csrc[1+t_axis]
+  -- calc source-sink separation
+  local src_snk_dt = nil
+  if not time_rev then
+    if tsrc < tsnk then src_snk_dt = tsnk - tsrc
+    else src_snk_dt = lt + tsnk - tsrc end
+  else
+    if tsnk < tsrc then src_snk_dt = tsrc - tsnk
+    else src_snk_dt = lt + tsrc - tsnk end
+  end
+
+  -- init subgrid
+  local Lb = qcd.lattice{L[0],L[1],L[2],src_snk_dt+1+2*lpath_max}
+  local scoord = {}
+  for i=0,#L-1 do
+     scoord[1+i]=Lb:pcoord(i)
+  end
+  print_subgrid_settings(Lb)
+
+  -- prepare scatter
+  local sub_csrc = {}
+  for icoord,coord in pairs(csrc) do sub_csrc[icoord]=coord end
+  local sub_tsnk = nil
+  local wrap_bc_quark_t = 1
+  do
+     local ti = nil
+     local tf = nil
+     if not time_rev then
+	ti = (csrc[1+t_axis] - lpath_max + lt) % lt
+	tf = (tsnk + lpath_max) % lt
+     else
+	ti = (tsnk - lpath_max + lt) % lt
+	tf = (csrc[1+t_axis] + lpath_max) % lt
+     end
+     local wraparound = (tf < ti)
+     if not wraparound then
+	scoord[1+t_axis] = (Lb:pcoord(t_axis) + ti) % lt
+	sub_csrc[1+t_axis] = csrc[1+t_axis] - ti
+	sub_tsnk = tsnk - ti
+     else
+	if tsnk < tf then sub_tsnk = tsnk
+	else sub_tsnk = tsnk - ti + (tf+1) end
+	if csrc[1+t_axis] < tf then sub_csrc[1+t_axis] = csrc[1+t_axis]
+	else sub_csrc[1+t_axis] = csrc[1+t_axis] - ti + (tf+1) end
+	local remap = vector.int(Lb[t_axis])
+	for i=0,tf do remap[i]=i end
+	for i=tf+1,Lb[t_axis]-1 do remap[i]=i-(tf+1)+ti end
+	scoord[1+t_axis] = remap[(Lb:pcoord(t_axis))]
+     end
+     if wraparound then
+	wrap_bc_quark_t = bc_quark_t
+     end
+  end
+  local scatt = qcd.scatter(Lb, L, scoord)
+  -- scatter gauge field
+  local sub_U = {}
+  for igauge,gauge in pairs(U) do
+     sub_U[igauge] = scatt(gauge)
+  end
+  -- scatter forward prop
+  local sub_fw_p = scatt(fw_p)
+  -- scatter bkw prop
+  local sub_bw_p = scatt(bw_p_adj)
+
+  calc_bb_std(Lb,
+	      aff_w,
+	      aff_kpath_prefix,
+	      lpath_min, lpath_max, -- [min, max] links
+	      sub_fw_p, sub_bw_p, sub_U,
+	      sub_csrc, csrc, sub_tsnk, tsnk, psnk, t_axis,
+	      qlist,
+	      time_rev,
+	      wrap_bc_quark_t, bc_2pt_t)
+end
+
+function calc_bb_std(
+    L,
+    aff_w,              -- aff writer
+    aff_kpath_prefix,   -- keypath prefix
+    lpath_min,          -- minimum linkpath length to save (makes sense for separate l=3 with q=0)
+    lpath_max,          -- maximum linkpath length
+    fw_p,               -- forward propagator
+    bw_p_adj, gauge_u_, -- backward propagator, Dslash^-1 * g5 * SeqSrc^\dag *g5
+    csrc, real_csrc,              -- source coord: x,y,z,t
+    tsnk, real_tsnk, psnk,         -- sink timeslice, sink momentum
+    t_axis,             -- axis; currently works for t_axis ==3
+    qlist,              -- list of insertion momenta {q}; each q be with #q = #L
+    time_rev,           -- whether to reverse time (true for proton_negpar_3)
+    bc_quark_t,         -- BC for quarks, only in t dir? FIXME need general?
+    bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
+    )
+  -- handy function to copy tables
+  local function copy_table(tab) 
+    local a = {}; for i,v in pairs(tab) do a[i] = v end
+    return a
+  end
+  
+  -- multiply gauge links in [t] direction, at [Lt-1], by BC
+  local gauge_u = copy_table(gauge_u_)
+  gauge_u[1+t_axis] = L:ColorMatrix(gauge_u[1+t_axis])
+  L:Subset{axis=t_axis, position=L[t_axis]-1}:where(
+    function()
+      gauge_u[1+t_axis]:set(gauge_u[1+t_axis] * bc_quark_t)
+    end
+    )
+  -- correct bw_p -> gamma{n=15} * bw_p:adjoin() * gamma{n=15}
+  -- XXX here backward is not conjugated here; instead, it's done in save_bb, dot
+  local bw_p = gamma{n=15} * bw_p_adj * gamma{n=15}
+  local lt = L[t_axis]
+  local tsrc = csrc[1+t_axis]
+  -- calc source-sink separation
+  local src_snk_dt = nil
+  if not time_rev then
+    if tsrc < tsnk then src_snk_dt = tsnk - tsrc
+    else src_snk_dt = lt + tsnk - tsrc end
+  else
+    if tsnk < tsrc then src_snk_dt = tsrc - tsnk
+    else src_snk_dt = lt + tsrc - tsnk end
+  end
+  -- append '/' to kpath prefix if non-empty
+  if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+  
+  -- init plane waves for each momentum
+  qlist_pw = {}
+  for i,q in pairs(qlist) do
+    q_cp = copy_table(q)
+    q_cp[1+t_axis] = 0
+    qlist_pw[i] = L:planewave(csrc, q_cp)
+  end
+  time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+  if not time_rev then
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt - tsrc + L:pcoord(t_axis)) % lt)
+  else
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt + tsrc - L:pcoord(t_axis)) % lt)
+  end
+  
+  -- XXX test mset
+--  printf('t_axis=%d, tsrc=%d\n', t_axis, tsrc)
+--  r_index = L:Real(L:pcoord(t_axis))
+--  rs = r_index:sum(mset_src_snk)
+--  V3 = 1
+--  for i = 0, #L-1 do
+--    if not (i == t_axis) then V3 = V3 * L[i] end
+--  end
+--  printf('#rs = %d\n', #rs)
+--  for t = 0, #rs - 1 do
+--    printf('[%d] = %f\n', t, rs[t] / V3)
+--  end
+--  ii1 = (L:pcoord(t_axis) + tsrc) % lt
+--  ii2 = (tsrc + lt - L:pcoord(t_axis)) % lt
+--  for t = 0, L[t_axis]-1 do
+--    printf('ii1[%d]=%d\tii2[%d]=%d\n', t, ii1[{0,0,0,t}], t, ii2[{0,0,0,t}])
+--  end
+  -- XXX end test
+
+  -- make standard layout of bb vector: [0 .. src_snk_dt]
+  local function make_bb_standard(bb)
+    local bb_std = vector.complex(src_snk_dt + 1)
+    if not time_rev then
+      for i = 0, src_snk_dt do
+        bb_std[i] = bb[(tsrc + i) % lt]
+      end
+    else 
+      for i = 0, src_snk_dt do
+        bb_std[i] = bb[(lt + tsrc - i) % lt]
+      end
+    end
+    return bb_std
+  end
+
+  -- make lpath string
+  local function lpath_string(lpath)
+    local s = string.format('l%d_', #lpath)
+    local ltab = {'x', 'y', 'z', 't', 'X', 'Y', 'Z', 'T'}
+    if time_rev then
+      ltab[1 + t_axis], ltab[1 + t_axis + #L] = ltab[1 + t_axis + #L], ltab[1 + t_axis]
+    end
+--    printf('#lpath = %d\n', #lpath)
+    for i = 0, #lpath - 1 do
+--      printf('i=%d', i)
+--      printf(', lpath[i] = %d', lpath[1+i])
+--      printf(', ltab[i]=%s\n', ltab[1+lpath[1+i]])
+      s = s .. string.format('%s', ltab[1+lpath[1+i]])
+    end
+    return s
+  end
+
+  -- make keypath
+  local function bb_keypath(lpath_str, gn, qext)
+    if not (t_axis == 3) then return nil end    -- general case is involved
+    return string.format(
+        "%sx%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d_T%d/%s/g%d/qx%d_qy%d_qz%d",
+        aff_kpath_prefix, 
+        csrc[1], csrc[2], csrc[3], csrc[4], 
+        psnk[1], psnk[2], psnk[3], tsnk,
+        lpath_str, gn, qext[1], qext[2], qext[3])
+  end
+
+  -- XXX testing vector
+  local bb_test = vector.complex(L[t_axis])
+  -- compute contractions with 16 gammas, project on momenta, save bb
+  local function save_bb(fw_p, lpath)
+    local lpath_str = lpath_string(lpath)
+    local fw_times_bw = fw_p * bw_p:adjoin()
+    for gn = 0, qcd.Ns *qcd.Ns - 1 do
+      -- XXX bw_p is conjugated to do dot(backward, forward)
+--      local bb = qcd.dot(bw_p, gamma{n=gn} * fw_p)
+      local bb = (gamma{n=gn} * fw_times_bw):trace()
+      -- XXX Chroma signs [sic!]; 
+      -- note that in general can be bc_2pt_t != -1
+      if time_rev then
+        if (gn < 8) then bb = bb * bc_2pt_t
+        else bb = bb * (-bc_2pt_t) end
+      end
+      for iq = 1, #qlist do
+        aff_w:write(bb_keypath(lpath_str, gn, qlist[iq]),
+--                    make_bb_standard(bb_test)
+--                    make_bb_standard((qlist_pw[iq] * bb):sum(time_mset))
+                    bb:project(qlist_pw[iq], mset_src_snk)
+--                    bb_test
+--                    make_bb_standard(L:momentum_project(bb, csrc, qlist[iq], t_axis))
+--                    L:momentum_project(bb, csrc, qlist[iq], t_axis)
+                    )
+      end
+    end
+  end
+
+  -- function to generate linkpaths
+  local function search_linkpath_depthfirst(
+      fw_p,    -- forward-prop * adjoint(U_linkpath)
+      lpath    -- linkpath(array of: dir for +1 shift, Nd+dir for -1 shift)
+    )
+    if lpath_min <= #lpath then 
+--      save_bb(fw_p, lpath) 
+      -- micro hack
+      local time_rev_int = 0
+      if time_rev then time_rev_int = 1 end
+      qcd.save_bb(aff_w,
+                  string.format('%sx%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d_T%d/%s',
+                                aff_kpath_prefix,
+                                real_csrc[1], real_csrc[2], real_csrc[3], real_csrc[4],
+                                psnk[1], psnk[2], psnk[3], real_tsnk,
+                                lpath_string(lpath)),
+                  fw_p, bw_p, 
+                  csrc, tsnk,
+                  qlist, time_rev_int, -- replace with normal boolean
+                  t_axis, bc_2pt_t)
+    end
+    if lpath_max <= #lpath then return end
+
+    local lpath_new = copy_table(lpath)
+    for dir = 0, #L - 1 do
+      if (0 == #lpath) or not (dir + #L == lpath[#lpath]) then
+        lpath_new[#lpath + 1] = dir       -- forward direction
+        local fw_p_new = (gauge_u[1+dir]:adjoin() * fw_p):shift(dir, "from_backward")
+        search_linkpath_depthfirst(fw_p_new, lpath_new)
+      end
+      if (0 == #lpath) or not (dir == lpath[#lpath]) then
+        lpath_new[#lpath + 1] = dir + #L  -- backward direction
+        local fw_p_new = gauge_u[1+dir] * fw_p:shift(dir, "from_forward")
+        search_linkpath_depthfirst(fw_p_new, lpath_new)
+      end
+    end
+  end
+
+  -- call to linkpath walk
+  search_linkpath_depthfirst(fw_p, {})
+end
