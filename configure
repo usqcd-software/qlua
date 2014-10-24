@@ -27,6 +27,8 @@ show_help() {
      --with-nc=all            include all special Nc cases
      --without-nc=any         exclude all special Nc cases
      --with-arpack            build ARPACK-dependent code (libs in \$ARPACK var)
+     --fortran-post-underscore FORTAN lib object names have post-underscore
+                              [default=no]
 
    Supported packages:
      clover                   SciDAC L3 clover inverter
@@ -103,6 +105,7 @@ process_args() {
       --clover-nc=*)      clover_nc=$(echo $1 | sed -e 's/--clover-nc=//') ;;
       --with-arpack)      arpack=1 ;;
       --with-arpack=*)    arpack=1 ; arpack_libs=$(echo "$1" | sed -e 's/--with-arpack=//') ;;
+      --fortran-post-underscore) fortran_post_uscore=1 ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
       --with-nc=N)        use_ncN=1 ;;
@@ -359,6 +362,9 @@ build_modules() {
   echo "#define USE_NcN $use_ncN"
   if [ ! -z "$arpack" ] ; then
     echo "#define HAS_ARPACK"
+  fi
+  if [ ! -z $fortran_post_uscore ] ; then
+    echo "#define FORTRAN_POST_USCORE"
   fi
 }
 

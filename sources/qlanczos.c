@@ -13,6 +13,10 @@
 
 /* use aliases to avoid FORTRAN symbol renaming */
 #ifdef HAS_ARPACK
+#  ifdef FORTRAN_POST_USCORE
+#    define pcnaupd pcnaupd_
+#    define pcneupd pcneupd_
+#  endif
 extern int 
 pcnaupd(int             *COMM,
         int             *IDO, 
