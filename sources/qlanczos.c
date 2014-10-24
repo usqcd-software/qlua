@@ -16,6 +16,9 @@
 #  ifdef FORTRAN_POST_USCORE
 #    define pcnaupd pcnaupd_
 #    define pcneupd pcneupd_
+#    define initlog initlog_
+#    define finilog finilog_
+#    define pmcinitdebug pmcinitdebug_ 
 #  endif
 extern int 
 pcnaupd(int             *COMM,
