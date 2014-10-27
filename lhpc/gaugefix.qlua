@@ -1,0 +1,143 @@
+require "strict"
+require "stdlib"
+
+require "gauge"
+
+-- 4d gauge fixing: minimize 
+--    u_orig      input gauge field : ColorMatrix[Nd] ; const
+--    gf_accu     gauge fixing accuracy
+--    gf_max      max iterations
+--    aniso       anisotropy parameters { xi_i } ; a_i = a / xi_i; ignored if nil
+--    or_param    overrelaxation parameter; ignored (no OR) if nil
+--    RETURN      { gauge fixed links : ColorMatrix[Nd], 
+--                  gauge fix transform : ColorMatrix,
+--                  number of iterations,
+--                  the final value of the gauge fixing functional }
+function sun_gaugefix_landau(u_orig, gf_accu, gf_max_iter, aniso, or_param, verbose)
+  local L   = u_orig[1].lattice
+  local Nc  = u_orig[1]:colors()
+  local Nd  = #L
+  local norm= 0. 
+  if (nil == aniso) then 
+    norm = Nc * Nd * L:volume()
+    aniso = {}
+    for mu = 0, Nd - 1 do aniso[1+mu] = 1. end
+  else 
+    norm = 0.
+    for mu = 0, Nd - 1 do norm = norm + (aniso[1+mu]*aniso[1+mu]) end
+    norm = norm * Nc * L:volume()
+  end
+  -- relaxation loop
+  local g   = L:ColorMatrix(1.)
+  local n_iter = 0
+  local gf_func_val = -1.
+  local gf_func_val_old = -1.
+  local conver = 1.
+  while n_iter < gf_max_iter and gf_accu <= conver do
+    -- (over)relaxation sweep
+    for i_lss, lss in pairs({L:Subset("even"), L:Subset("odd")}) do
+      for ic = 0, Nc - 2 do 
+        for jc = ic + 1, Nc - 1 do
+          sun_gaugefix_landau_relax(g, u_orig, ic,jc, lss, aniso, or_param)
+        end
+      end
+    end
+    -- this should be a cheap step: g is always almost-SU(N)
+    g = g:proj(1e-8,150)
+    -- calc gaugefixing functional
+    gf_func_val_old = gf_func_val
+    gf_func_val = 0.
+    for mu = 0, Nd - 1 do
+      -- FIXME gauge transformation is performed twice: here and in sun_gaugefix_landau_relax
+      gf_func_val = (gf_func_val + (aniso[1+mu]*aniso[1+mu] / norm) * 
+                                   gauge_transform_U_dir(g, u_orig[1+mu], mu):trace():real():sum())
+    end
+    conver = math.abs(gf_func_val - gf_func_val_old) / gf_func_val
+
+    n_iter = n_iter + 1
+    if (verbose) then print(n_iter, gf_func_val, conver) end
+  end
+
+  return gauge_transform_U(g, u_orig), g, n_iter, gf_func_val
+end
+
+-- perform 1 step relaxation over an SU(2) submatrix of `g'
+--    u         orig gauge field
+--    g         current gauge rotation
+--    lss       lattice subset
+--    ic,jc     SU(2) submatrix to perform relaxation over
+-- upon return, `g' is updated
+function sun_gaugefix_landau_relax(g, u, ic, jc, lss, aniso, or_param)
+  local L   = g.lattice
+  local Nd  = #L
+  local ug  = gauge_transform_U(g, u)
+  local v   = L:ColorMatrix()
+  
+  if (nil == aniso) then
+    aniso = {}
+    for mu = 0, Nd - 1 do aniso[1+mu] = 1. end
+  end
+  local norm_tol  = 1e-10
+  -- update
+  lss:where(function()
+    for mu = 0, Nd - 1 do 
+      v = v + (ug[1+mu] + ug[1+mu]:shift(mu, "from_backward"):adjoin()) *(aniso[1+mu]*aniso[1+mu])
+    end
+    local r = su2extract(v, ic,jc)
+    local rnorm = (r[1]*r[1] + r[2]*r[2] + r[3]*r[3] + r[4]*r[4]):sqrt()
+    local rnorm_inv = 1. / (rnorm + (1. - rnorm) * L:Real(qcd.lt(rnorm, norm_tol)))
+    local a = { L:Real(1.), L:Real(0), L:Real(0), L:Real(0) }
+    -- set to min : su2(a) = su2(r)^\dag
+    L:Subset(qcd.le(norm_tol, rnorm)):where(function() 
+      a[1] = r[1] / rnorm
+      a[2] =-r[2] / rnorm
+      a[3] =-r[3] / rnorm
+      a[4] =-r[4] / rnorm
+    end)
+    -- overrelaxation su2(a) <- [su2(a)]^{or} = [su2(r)]^{-or}; usually 1<or<2
+    if not(nil == or_param) then
+      local theta   = a[1]:acos()
+      local theta_n = theta * or_param
+
+      local sin_th  = theta:sin()
+      local sin_th_n= theta_n:sin()
+      local sin_scal= L:Real(0.)
+      L:Subset(qcd.le(norm_tol, sin_th)):where(function()
+        sin_scal:set(sin_th_n / sin_th)
+      end)
+      a[1]  = theta_n:cos()
+      a[2]  = a[2] * sin_scal
+      a[3]  = a[3] * sin_scal
+      a[4]  = a[4] * sin_scal
+    end
+    -- g <- [su2(r)]^{-or} . g
+    g:set(sun_from_su2(a, ic,jc) * g)
+  end)
+end
+
+-- extract [a,b] SU(2) components from an SU(N) matrix
+function su2extract(cm, ic,jc)
+  assert(not (ic==jc))
+  return { (cm[{a=ic,b=ic}] + cm[{a=jc,b=jc}]):real(),
+           (cm[{a=ic,b=jc}] + cm[{a=jc,b=ic}]):imag(),
+           (cm[{a=ic,b=jc}] - cm[{a=jc,b=ic}]):real(),
+           (cm[{a=ic,b=ic}] - cm[{a=jc,b=jc}]):imag() }
+end
+-- put [ic,jc] components into an SU(N) matrix
+function su2fill(cm, su2, ic,jc)
+  assert(not(ic==jc))
+  local L = cm.lattice
+  cm[{a=ic,b=ic}] = L:Complex( su2[1], su2[4])
+  cm[{a=ic,b=jc}] = L:Complex( su2[3], su2[2])
+  cm[{a=jc,b=ic}] = L:Complex(-su2[3], su2[2])
+  cm[{a=jc,b=jc}] = L:Complex( su2[1],-su2[4])
+end
+-- create SU(N) rotation matrix from SU(2) matrix (i.e. extend SU(2) -> SU(N))
+-- the rest of the result is identity (diag{1,1,..,1})
+function sun_from_su2(su2, ic,jc)
+  assert(not(ic==jc))
+  local L   = su2[1].lattice
+  local cm  = L:ColorMatrix(1.)
+  su2fill(cm, su2, ic,jc)
+  return cm
+end
