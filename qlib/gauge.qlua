@@ -39,6 +39,13 @@ function gauge_transform_U(g, U)
    end
    return V
 end
+-- gauge transformation of one-dim gauge link
+--    g         gauge transformation
+--    U         gauge link
+--    mu        = 0 .. (Nd-1) direction of the gauge link U
+function gauge_transform_U_dir(g, U, mu)
+  return g * U * g:shift(mu, "from_forward"):adjoin()
+end
 
 function gauge_transform_D(g, F)
   return g * F
