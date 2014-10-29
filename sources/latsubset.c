@@ -7,6 +7,18 @@
 static const char LatSubsetName[] = "lattice.Subset";
 
 static int
+q_U_gc(lua_State *L)
+{
+    mLatSubset *m = qlua_checkLatSubset(L, 1, NULL);
+
+    if (m->mask)
+        QDP_destroy_I(m->mask);
+    m->mask = 0;
+
+    return 0;
+}
+
+static int
 q_U_fmt(lua_State *L)
 {
     mLatSubset *m = qlua_checkLatSubset(L, 1, NULL);
@@ -331,6 +343,7 @@ q_subset(lua_State *L)
 }
 
 static struct luaL_Reg mtLatSubset[] = {
+    { "__gc",           q_U_gc        },
     { "__tostring",     q_U_fmt       },
     { "__newindex",     qlua_nowrite  },
     { "where",          q_U_where     },
