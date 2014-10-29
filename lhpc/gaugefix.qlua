@@ -1,6 +1,6 @@
 require "strict"
 require "stdlib"
-
+require 'lhpc-std'
 require "gauge"
 
 -- 4d gauge fixing: minimize 
@@ -55,7 +55,8 @@ function sun_gaugefix_landau(u_orig, gf_accu, gf_max_iter, aniso, or_param, verb
     conver = math.abs(gf_func_val - gf_func_val_old) / gf_func_val
 
     n_iter = n_iter + 1
-    if (verbose) then print(n_iter, gf_func_val, conver) end
+    if (verbose) then printf("%d\t%13.8f\t%13.8f\n",  n_iter, gf_func_val, conver) end
+    force_gc('sun_gaugefix_landau')
   end
 
   return gauge_transform_U(g, u_orig), g, n_iter, gf_func_val
@@ -85,14 +86,16 @@ function sun_gaugefix_landau_relax(g, u, ic, jc, lss, aniso, or_param)
     end
     local r = su2extract(v, ic,jc)
     local rnorm = (r[1]*r[1] + r[2]*r[2] + r[3]*r[3] + r[4]*r[4]):sqrt()
-    local rnorm_inv = 1. / (rnorm + (1. - rnorm) * L:Real(qcd.lt(rnorm, norm_tol)))
+--    local rnorm_inv = L:Real(1.)
+--    L:Subset(qcd.le(norm_tol, rnorm)):where(function() rnorm_inv:set(1./rnorm) end)
+    
     local a = { L:Real(1.), L:Real(0), L:Real(0), L:Real(0) }
     -- set to min : su2(a) = su2(r)^\dag
     L:Subset(qcd.le(norm_tol, rnorm)):where(function() 
-      a[1] = r[1] / rnorm
-      a[2] =-r[2] / rnorm
-      a[3] =-r[3] / rnorm
-      a[4] =-r[4] / rnorm
+      a[1]:set(r[1] / ( rnorm))
+      a[2]:set(r[2] / (-rnorm))
+      a[3]:set(r[3] / (-rnorm))
+      a[4]:set(r[4] / (-rnorm))
     end)
     -- overrelaxation su2(a) <- [su2(a)]^{or} = [su2(r)]^{-or}; usually 1<or<2
     if not(nil == or_param) then
