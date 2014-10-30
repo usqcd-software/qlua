@@ -8,3 +8,4 @@ modules.h
 *.h5
 *.o
 .DS_Store
+qlua.dSYM
