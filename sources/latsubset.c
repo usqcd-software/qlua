@@ -265,6 +265,9 @@ q_U_where(lua_State *L)
         return luaL_error(L, lua_tostring(L, -1));
     resc = lua_gettop(L) - 1;
     switch_subset(L, S, &old_subset);
+    if (new_subset.mask)
+        QDP_destroy_I(new_subset.mask);
+
 
     return resc;
 }
