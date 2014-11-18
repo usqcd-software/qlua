@@ -1,0 +1,40 @@
+package.path = package.path .. ';../../qlib/?.qlua;../../lhpc/?.qlua'
+require "strict"
+require "gaugefix"
+require "stdlib"
+require "latvec"
+
+latsize = {4,4,4,8}
+gauge_file = "gauge_disord_4c8.NERSC"
+
+L   = qcd.lattice(latsize)
+Nd  = #L
+--u   = qcd.qdpc.Reader(L, "gauge_disord_4c8.qdpcc"):ColorMatrix()
+u   = qcd.nersc.read_gauge(L, "gauge_disord_4c8.NERSC")
+vol = L:volume()
+Nc  = u[1]:colors()
+
+gf_accu=1e-8
+gf_maxiter=1000
+
+
+for mu = 0, Nd - 1 do
+  printf("# [%d]\t%e\t%e\n", 
+         mu, u[1+mu]:norm2() /(Nc * vol), u[1+mu]:trace():real():sum() /(Nc * vol))
+end
+
+-- Fourier-accelerated (nonlinear) CG
+g, iter, tol = gaugefix_facg(u, gaugefix_landau_func, gaugefix_landau_grad, gf_accu, gf_maxiter, true)
+
+-- Fourier-accelerated steepest descent
+--g, iter, tol = gaugefix_fasd(u, gaugefix_landau_func, gaugefix_landau_grad, gf_accu, gf_maxiter, true)
+
+ufix  = gauge_transform_U(g, u)
+
+printf("### maxiter=%d   gf_accu=%e\n", gf_maxiter, gf_accu)
+printf("### iter=%d    gfix=%e   ReTr(g)=%e\n", 
+       iter, tol, g:trace():real():sum()/(Nc * vol))
+for mu = 0, Nd - 1 do
+  printf("# [%d]\t%e\t%e\n", 
+         mu, ufix[1+mu]:norm2() /(Nc * vol), ufix[1+mu]:trace():real():sum() /(Nc * vol))
+end
