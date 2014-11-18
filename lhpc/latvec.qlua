@@ -172,12 +172,16 @@ end
 function latvec_cosangle_abs(a, b)
   local ca = latvec_cosangle(a,b)
   if nil == ca then return nil end
-  return ca:abs()
+  if type(ca) == 'number' then return math.abs(ca)
+  else return ca:abs() end
 end
 function latvec_cosangle_arg(a, b)
   local ca = latvec_cosangle(a,b)
   if nil == ca then return nil end
-  return math.atan2(ca:imag(), ca:real())
+  if type(ca) == 'number' then 
+    if ca < 0 then return math.pi
+    else return 0. end
+  else return math.atan2(ca:imag(), ca:real()) end
 end
 function latvec_cosangle_cosarg(a, b)
   local ca = latvec_cosangle(a,b)

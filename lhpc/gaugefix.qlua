@@ -47,16 +47,24 @@ function sun_gaugefix_landau(u_orig, gf_accu, gf_max_iter, aniso, or_param, verb
     -- calc gaugefixing functional
     gf_func_val_old = gf_func_val
     gf_func_val = 0.
+    local gf_func_grad = L:ColorMatrix(0.)
     for mu = 0, Nd - 1 do
       -- FIXME gauge transformation is performed twice: here and in sun_gaugefix_landau_relax
+      local u_g = gauge_transform_U(g, u_orig)
       gf_func_val = (gf_func_val + (aniso[1+mu]*aniso[1+mu] / norm) * 
-                                   gauge_transform_U_dir(g, u_orig[1+mu], mu):trace():real():sum())
+                                   u_g[1+mu]:trace():real():sum())
+      local x = (aniso[1+mu]*aniso[1+mu] / norm) * (u_g[1+mu] 
+                  + u_g[1+mu]:shift(mu, "from_backward"):adjoin())
+      gf_func_grad = gf_func_grad + complex(0, .5) * (x - x:adjoin())
     end
     conver = math.abs(gf_func_val - gf_func_val_old) / gf_func_val
 
     n_iter = n_iter + 1
-    if (verbose) then printf("%d\t%13.8f\t%13.8f\n",  n_iter, gf_func_val, conver) end
-    force_gc('sun_gaugefix_landau')
+    if (verbose) then 
+        printf("%d\t%13.8f\t%13.8f\t%13.8e\n",  
+                n_iter, gf_func_val, 
+                gf_func_grad:norm2() * norm, conver) end
+--    force_gc('sun_gaugefix_landau')
   end
 
   return gauge_transform_U(g, u_orig), g, n_iter, gf_func_val
@@ -143,4 +151,243 @@ function sun_from_su2(su2, ic,jc)
   local cm  = L:ColorMatrix(1.)
   su2fill(cm, su2, ic,jc)
   return cm
+end
+
+
+
+------------------------------------------------------------------------------
+-- nonlinear CG & steepest descent with Fourier acceleration
+------------------------------------------------------------------------------
+
+gaugefix_facg = nil
+gaugefix_fasd = nil
+
+do -- hide aux functions
+  -- aux functions
+  local function max_cubic_spline(y0p, x1, y1, x2, y2)
+    -- find maximum point in [0,x2] of cubic spline :
+    --      f(x) = a * x**3 + b * x**2 + c * x, f(0)=0, 
+    --      such that f'(0)=f0p, f(x1)=y1, f(x2)=y2
+    -- (0, x1, x2) must be distinct and asc.ordered
+    assert (0 < x1)
+    assert (x1 < x2)
+    local a, b, c, r1, r2, disc, xdef, xopt
+    c   = y0p
+    r1  = (y1 - c*x1) / x1 / x1
+    r2  = (y2 - c*x2) / x2 / x2
+    a   = (r1 - r2) / (x1 - x2)
+    b   = (r1*x2 - r2*x1) / (x2 - x1)
+    disc= b*b - 3*a*c
+    -- solve f'(x) = 3*a*x**2 + 2*b*x + c = 0 for max spline
+    if 0 < y2 then xdef = x2
+    else xdef = 0. end
+    if disc <= 0 then -- full cubic (a!=0) w/o local extrema || a==0 && b==0
+      return xdef
+    elseif (0 == a) then -- FIXME relax condition to include very small a?
+      if (0 <= b) then -- no local max
+        return xdef
+      elseif c <= 0 then -- && b < 0
+        -- max from cubic spline cannot be located
+        return xdef
+      else -- b<0 && c>0
+        if c < x2 * (-2*b) then return c / (-2*b)
+        else return xdef end
+      end
+    else -- a!=0 && disc > 0: full cubic with 2 extrema
+      xopt = (-b - math.sqrt(disc)) / (3*a)  -- for both pos. and neg. a
+      if 0 < xopt and xopt < x2 then return xopt
+      else return xdef end
+    end
+  end
+  local function fourier_acc_coeff(L)
+    -- return field p2max/p2 for Fourier acceleration
+    local p2 = L:Real(0.)
+    local p2max = 16  -- true for even L, approx for odd L
+    for mu = 0, #L-1 do
+      local k = (2 * math.pi * L:Real(L:pcoord(mu))) / L[mu]
+      p2    = p2 + 2 * (1. - k:cos())
+    end
+    L:Subset(qcd.le(p2, 0)):where(function() p2:set(L:Real(1.)) end) -- avoid zeros
+    return L:Real(p2max) / p2
+  end
+  local function field_fa(x, fa_coeff)
+    local y = qcd.fourier_transf(x, -1)
+    return qcd.fourier_transf(fa_coeff * y / x.lattice:volume(), 1)
+  end
+
+
+  gaugefix_facg = function(u, gf_func, grad_func, tol, maxiter, verbose, verb_nrm)
+    -- implementation follows arXiv:1405.5812[hep-lat]
+    -- find gauge MAXIMIZING gf_func, going in grad_func direction
+    -- non-linear CG optimization
+    --    gf_func       functional : u[mu] -> real
+    --                  e.g. for Landau gauge, gf_func(U) = Sum_{x,mu} Re Tr U_{x,mu}
+    --    grad_func     algebra gradient: u[mu] -> algebra matrix 
+    --                  = d(gf_func(gf_transf(e^{ia}, u[mu]))) / d(ia)
+    --                  e.g. for Landau gauge, grad_func(U) = Sum_{x,mu} Re Tr[U_{x,mu} - U_{x-mu,mu}^\dag]/2i
+    --    tol           tolerance on gradient:norm2() / Nc / vol
+    --    maxiter       max number of iterations
+    --
+    --    RETURN        g_fix, tol, iter
+    --                  to get gauge-fixed fields, call gauge_transform_U(g_fix, u)
+    -- FIXME speedup ColorMatrix:exp() by doing linear + reunit
+    --
+    
+    local alpha0 = 0.08
+    local alpha1 = 0.15
+    local alpha2 = 0.30
+    local alpha_tab = {0.00, 0.001, 0.002, 0.01, 0.02, 0.03, 0.04, .05, .10, .15, .20, .25, .30}
+    local tol_switch_fletcher = 1e-6
+
+    local Nd = #u
+    local Nc = u[1]:colors()
+    local L  = u[1].lattice
+    local vol = L:volume()
+    if nil == verb_nrm then verb_nrm = 1. / (Nc * Nd * vol) end
+    local fa_coeff = fourier_acc_coeff(L) -- Fourier momenta squared for acceleration
+
+    -- initial gauge rotation (1 step of FA steepest descent)
+    local deriv0    = grad_func(u)
+    local grad0     = field_fa(deriv0, fa_coeff)
+    local grad0_n2  = grad0:norm2()
+    local s0        = grad0
+    local gcur      = (s0 * complex(0, alpha0)):exp()
+    local f0        = gf_func(gauge_transform_U(gcur, u))
+    local u_g, s1, deriv1, grad1, grad1_n2, s1, beta1, f0p, f1, f2, f_opt
+    if verbose then 
+      print(string.format("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)", 
+            0, f0 * verb_nrm, grad0_n2 * verb_nrm)) 
+    end
+    
+    local cnt       = 1
+    while f0 * tol < grad0_n2 and cnt < maxiter do
+      u_g       = gauge_transform_U(gcur, u)
+      deriv1    = grad_func(u_g)
+      grad1     = field_fa(deriv1, fa_coeff)
+      grad1_n2  = grad1:norm2()
+      if f0 * tol_switch_fletcher < grad0_n2 then
+        -- grad0, grad1, s0, s1 are always herm
+        beta1   = qcd.dot(grad1, grad1 - grad0):sum():real() / grad0_n2  
+        if beta1 < 0 then beta1 = 0. end
+      else
+        beta1 = grad1_n2 / grad0_n2
+      end
+      s1 = grad1 + beta1 * s0
+
+      local f0p = qcd.dot(s1, deriv1):sum():real()  -- a-deriv. along g -> exp(i*a*s1)*g
+      local f1  = gf_func(gauge_transform_U((s1 * complex(0, alpha1)):exp(), u_g))
+      local f2  = gf_func(gauge_transform_U((s1 * complex(0, alpha2)):exp(), u_g))
+      local alpha_opt = max_cubic_spline(f0p, alpha1, f1 - f0, alpha2, f2 - f0)
+
+      gcur  = (s1 * complex(0, alpha_opt)):exp() * gcur
+      local f0_new= gf_func(gauge_transform_U(gcur, u))
+      local conver = math.abs(f0_new - f0) / f0_new
+
+      f0        = f0_new
+      deriv0    = deriv1
+      grad0     = grad1
+      grad0_n2  = grad1_n2
+      s0        = s1
+      cnt       = cnt + 1
+      
+      if verbose then
+        print(string.format("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p*norm=%13.8e", 
+                    cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
+                    beta1, alpha_opt, f0p * verb_nrm))
+      end
+    end
+
+    return gcur, cnt, grad0_n2
+  end
+  
+
+  gaugefix_fasd = function(u, gf_func, grad_func, tol, maxiter, verbose, verb_nrm)
+    -- the steepest descent version of the above
+    local alpha0 = 0.08
+    local alpha1 = 0.15
+    local alpha2 = 0.30
+    local alpha_tab = {0.00, 0.001, 0.002, 0.01, 0.02, 0.03, 0.04, .05, .10, .15, .20, .25, .30}
+    local tol_switch_fletcher = 1e-6
+
+    local Nd = #u
+    local Nc = u[1]:colors()
+    local L  = u[1].lattice
+    local vol = L:volume()
+    if nil == verb_nrm then verb_nrm = 1. / (Nc * Nd * vol) end
+    local fa_coeff = fourier_acc_coeff(L) -- Fourier momenta squared for acceleration
+
+    -- initial gauge rotation (1 step of FA steepest descent)
+    local deriv0    = grad_func(u)
+    local grad0     = field_fa(deriv0, fa_coeff)
+    local grad0_n2  = grad0:norm2()
+    local gcur      = (deriv0 * complex(0, alpha0)):exp()
+    local f0        = gf_func(gauge_transform_U(gcur, u))
+    local u_g, deriv1, grad1, grad1_n2, beta1, f0p, f1, f2, f_opt
+    if verbose then 
+      print(string.format("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)", 
+            0, f0 * verb_nrm, grad0_n2 * verb_nrm)) 
+    end
+    
+    local cnt       = 1
+    while f0 * tol < grad0_n2 and cnt < maxiter do
+      u_g       = gauge_transform_U(gcur, u)
+      deriv1    = grad_func(u_g)
+      grad1     = field_fa(deriv1, fa_coeff)
+      grad1_n2  = grad1:norm2()
+
+      local f0p = qcd.dot(grad1, deriv1):sum():real()  -- a-deriv. along g -> exp(i*a*grad1)*g
+      local f1  = gf_func(gauge_transform_U((grad1 * complex(0, alpha1)):exp(), u_g))
+      local f2  = gf_func(gauge_transform_U((grad1 * complex(0, alpha2)):exp(), u_g))
+      local alpha_opt = max_cubic_spline(f0p, alpha1, f1 - f0, alpha2, f2 - f0)
+
+      gcur  = (grad1 * complex(0, alpha_opt)):exp() * gcur
+      local f0_new= gf_func(gauge_transform_U(gcur, u))
+      local conver = math.abs(f0_new - f0) / f0_new
+
+      f0        = f0_new
+      deriv0    = deriv1
+      grad0     = grad1
+      grad0_n2  = grad1_n2
+      cnt       = cnt + 1
+      if verbose then
+        print(string.format("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_fasd : aopt=%e  f0p*norm=%13.8e", 
+                    cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
+                    alpha_opt, f0p * verb_nrm))
+      end
+    end
+
+    return gcur, cnt, grad0_n2
+  end
+end -- do
+
+
+function gaugefix_landau_func(u)
+  local Nd  = #u
+  local Nc  = u[1]:colors()
+  local L   = u[1].lattice
+  local vol = L:volume()
+
+  local gf  = 0.
+  for mu = 0, Nd-1 do
+    gf = gf + u[1+mu]:trace():real():sum()
+  end
+  return gf
+end
+-- define gradient of a functional F[g] on gauge fields as
+-- F[transf(e^{ia}, g)] = F[g] + Tr[a*gradF[g]] + O(a^2), a->0
+-- then gradF[g]_{ij} = [ (1/i) (d / d a_ji) F[transf(e^{ia}, g)] ]|_{a=0}
+function gaugefix_landau_grad(u)
+  -- compute gradient for landau gaugefix (algebra)
+  -- no normalization 1/Nc 1/Vol : local elements must be ~O(1) at the start
+  local Nd  = #u
+  local Nc  = u[1]:colors()
+  local L   = u[1].lattice
+  local vol = L:volume()
+
+  local gr  = L:ColorMatrix(0.)
+  for mu=0, Nd-1 do
+    local x = u[1+mu] + u[1+mu]:shift(mu, "from_backward"):adjoin()
+    gr = gr + (x - x:adjoin()) * complex(0, .5) 
+  end
+  return gr - gr:trace() * L:ColorMatrix(1./ Nc)
 end
