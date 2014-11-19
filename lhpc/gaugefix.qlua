@@ -255,8 +255,8 @@ do -- hide aux functions
     local f0        = gf_func(gauge_transform_U(gcur, u))
     local u_g, s1, deriv1, grad1, grad1_n2, s1, beta1, f0p, f1, f2, f_opt
     if verbose then 
-      print(string.format("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)", 
-            0, f0 * verb_nrm, grad0_n2 * verb_nrm)) 
+      printf("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)\n", 
+            0, f0 * verb_nrm, grad0_n2 * verb_nrm)
     end
     
     local cnt       = 1
@@ -291,9 +291,9 @@ do -- hide aux functions
       cnt       = cnt + 1
       
       if verbose then
-        print(string.format("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p*norm=%13.8e", 
+        printf("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p*norm=%13.8e\n",
                     cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
-                    beta1, alpha_opt, f0p * verb_nrm))
+                    beta1, alpha_opt, f0p * verb_nrm)
       end
     end
 
@@ -324,8 +324,8 @@ do -- hide aux functions
     local f0        = gf_func(gauge_transform_U(gcur, u))
     local u_g, deriv1, grad1, grad1_n2, beta1, f0p, f1, f2, f_opt
     if verbose then 
-      print(string.format("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)", 
-            0, f0 * verb_nrm, grad0_n2 * verb_nrm)) 
+      printf("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)\n", 
+            0, f0 * verb_nrm, grad0_n2 * verb_nrm)
     end
     
     local cnt       = 1
@@ -350,9 +350,9 @@ do -- hide aux functions
       grad0_n2  = grad1_n2
       cnt       = cnt + 1
       if verbose then
-        print(string.format("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_fasd : aopt=%e  f0p*norm=%13.8e", 
+        printf("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_fasd : aopt=%e  f0p*norm=%13.8e\n", 
                     cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
-                    alpha_opt, f0p * verb_nrm))
+                    alpha_opt, f0p * verb_nrm)
       end
     end
 
