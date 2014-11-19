@@ -411,6 +411,62 @@ qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
     return idx;
 }
 
+double
+qlua_checknumber(lua_State *L, int idx, const char *fmt, ...)
+{
+    if (!lua_isnumber(L, idx)) {
+        char buf[72];
+        va_list va;
+        va_start(va, fmt);
+        vsnprintf(buf, sizeof (buf) - 1, fmt, va);
+        va_end(va);
+        luaL_error(L, "expected number, %s", buf);
+    }
+    return (double)luaL_checknumber(L, idx);
+}
+
+double *
+qlua_numberarray(lua_State *L, int n, int *dim)
+{
+    int d, i;
+    double *idx;
+
+    if (lua_type(L, n) != LUA_TTABLE)
+        return NULL;
+
+    d = lua_objlen(L, n);
+    idx = qlua_malloc(L, d * sizeof (double));
+    for (i = 0; i < d; i++) {
+        lua_pushnumber(L, i + 1);
+        lua_gettable(L, n);
+        if (lua_type(L, -1) != LUA_TNUMBER) {
+            qlua_free(L, idx);
+            return NULL;
+        }
+        idx[i] = qlua_checknumber(L, -1, "array element %d", i + 1);
+        lua_pop(L, 1);
+    }
+    *dim = d;
+    return idx;
+}
+
+double *
+qlua_checknumberarray(lua_State *L, int n, int dim, int *out_dim)
+{
+    int d_dim;
+    double *idx = qlua_numberarray(L, n, &d_dim);
+
+    if (idx == 0)
+        luaL_error(L, "table of numbers expected");
+
+    if (out_dim)
+        *out_dim = d_dim;
+    else if (d_dim != dim)
+        luaL_error(L, "table of number has wrong size");
+
+    return idx;
+}
+
 const char *
 qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
 {

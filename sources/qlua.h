@@ -174,7 +174,9 @@ int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
 double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
 void qlua_checktable(lua_State *L, int idx, const char *fmt, ...);
 int *qlua_intarray(lua_State *L, int idx, int *out_dim);
+double *qlua_numberarray(lua_State *L, int idx, int *out_dim);
 int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
+double *qlua_checknumberarray(lua_State *L, int idx, int dim, int *out_dim);
 
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);

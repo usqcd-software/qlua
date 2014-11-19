@@ -218,7 +218,7 @@ q_latnet(lua_State *L)
 
 typedef struct {
     int *s;
-    int *p;
+    double *p;
     int rank;
     int *dim;
 } PW_arg;
@@ -243,7 +243,7 @@ q_planewave(lua_State *L)
     mLattice *S = qlua_checkLattice(L, 1);
     QDP_Subset *qCurrent = S->qss;
     int *s = qlua_checklatcoord(L, 2, S);
-    int *p = qlua_checkintarray(L, 3, S->rank, NULL);
+    double *p = qlua_checknumberarray(L, 3, S->rank, NULL);
     mLatComplex *w = qlua_newLatComplex(L, 1);
     PW_arg arg;
 
