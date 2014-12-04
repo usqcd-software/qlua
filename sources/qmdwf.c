@@ -1900,6 +1900,48 @@ q_mdwf(lua_State *L)
     return c;
 }
 
+
+
+static void
+q_mdwf_generic_check_complex_or_number(double *r, double *r_im, 
+        lua_State *L, int pos)
+{
+    if (lua_type(L, pos) == LUA_TNUMBER) {
+        *r = luaL_checknumber(L, pos);
+        *r_im = 0.;
+    } else {
+        QLA_D_Complex *z = qlua_checkComplex(L, pos);
+        *r = QLA_real(*z);
+        *r_im = QLA_imag(*z);
+    }
+}
+/* parse coefficients (b5 or c5) that can be a (table of) real or 
+ * complex numbers
+ * `r' an `r_im' must be pre-allocated to hold at least `n' numbers each 
+ * the function either returns successfully or crashes in a Lua error
+ */
+static void
+q_mdwf_generic_check_coeff_table(int n, double *r, double *r_im, 
+        lua_State *L, int pos)
+{
+    int i;
+    double a, a_im;
+    if (lua_type(L, pos) == LUA_TTABLE) {
+        for (i = 0 ; i < n ; i++) {
+            lua_pushnumber(L, i + 1); /* [sic] lua indexing */
+            lua_gettable(L, pos);
+            q_mdwf_generic_check_complex_or_number(r + i, r_im + i, L, -1);
+            lua_pop(L, 1);
+        }
+    } else {
+        q_mdwf_generic_check_complex_or_number(&a, &a_im, L, pos);
+        for (i = 0 ; i < n ; i++) {
+            r[i] = a;
+            r_im[i] = a_im;
+        }
+    }
+}
+
 /*
  * qcd.MDWF.generic(U[4],          -- [1] Gauge, gauge field
  *                  ubc[4],        -- [2] double[4], gauge boundary conditions
@@ -1918,28 +1960,40 @@ q_mdwf_generic(lua_State *L)
     double mf = luaL_checknumber(L, 5);
     double *b5 = qlua_malloc(L, Ls * sizeof (double)); /* [6] */
     double *c5 = qlua_malloc(L, Ls * sizeof (double)); /* [7] */
+    double *b5_im = qlua_malloc(L, Ls * sizeof (double)); /* [6] */
+    double *c5_im = qlua_malloc(L, Ls * sizeof (double)); /* [7] */
     int i;
-
-    for (i = 0; i < Ls; i++) {
-        lua_pushnumber(L, i + 1); /* [sic] lua indexing */
-        lua_gettable(L, 6);
-        b5[i] = luaL_checknumber(L, -1);
-        lua_pushnumber(L, i + 1); /* [sic] lua indexing */
-        lua_gettable(L, 7);
-        c5[i] = luaL_checknumber(L, -1);
-        lua_pop(L, 2);
+    int have_cplx, st;
+    /* TODO support case with b5,c5=double/complex/table */
+    q_mdwf_generic_check_coeff_table(Ls, b5, b5_im, L, 6);
+    q_mdwf_generic_check_coeff_table(Ls, c5, c5_im, L, 7);
+    
+    for (i = 0, have_cplx = 0; i < Ls; i++) {
+        if (0. != b5_im[i] || 0. != c5_im[i])
+            have_cplx = 1;
+        /**/printf("[%3d]\t(%+13.8e+j*%+13.8e)\t(%+13.8e+j*%+13.8e)\n", 
+                i, b5[i], b5_im[i], c5[i], c5_im[i]);
     }
 
     M->name = "generic";
     M->type = DW_generic;
-    if (QOP_MDWF_set_generic(&M->params, M->state, b5, c5, -M5, mf)) {
-                qlua_free(L, b5);
-                qlua_free(L, c5);
-        return luaL_error(L, "Not enough space");
-        }
+    if (have_cplx)
+        st = QOP_MDWF_set_complex(&M->params, M->state, b5, b5_im, c5, c5_im, -M5, mf);
 
+    else
+        st = QOP_MDWF_set_generic(&M->params, M->state, b5, c5, -M5, mf);
+    if (st) {
         qlua_free(L, b5);
         qlua_free(L, c5);
+        qlua_free(L, b5_im);
+        qlua_free(L, c5_im);
+        return luaL_error(L, "Not enough space");
+    }
+
+    qlua_free(L, b5);
+    qlua_free(L, c5);
+    qlua_free(L, b5_im);
+    qlua_free(L, c5_im);
     return 1;
 }
 
