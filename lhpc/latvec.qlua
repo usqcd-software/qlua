@@ -278,14 +278,20 @@ end
 --- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
 --    d     5d fermion = table{DiracFermion,...}
 --    u       gauge field
-function latvec_op_dslash_moebius(d, u, M5, mf, b5, c5)
+function latvec_op_dslash_moebius(d, u, M5, mf, b5_s, c5_s)
+  local L5 = #d
   local x5_d = latvec_op_x5(d, mf)
-  local xw_bpcx5_d = latvec_op_xwilson(
-          latvec_scalsum_left(b5, d, c5, x5_d), u)
-  return latvec_scalsum_left(
-            b5 * (4 - M5) + 1.,   d,
-            c5 * (4 - M5) - 1.,   x5_d,
-            -1.,                  xw_bpcx5_d)
+  local res = {}
+  for s = 0, L5 - 1 do
+    local b5, c5
+    if 'table' == type(b5_s) then b5 = b5_s[1+s] else b5 = b5_s end
+    if 'table' == type(c5_s) then c5 = c5_s[1+s] else c5 = c5_s end
+    local xw_bpcx5_d = latvec_op_xwilson(b5 * d[1+s] + c5 * x5_d[1+s], u)
+    res[1+s] = ((b5 * (4 - M5) + 1.) * d[1+s] 
+              + (c5 * (4 - M5) - 1.) * x5_d[1+s] 
+              - xw_bpcx5_d)
+  end
+  return res
 end
 
 require "dwf" -- definitions for DWF
