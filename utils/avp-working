@@ -8,13 +8,17 @@ TARGET=$HOME/Local/packages/qlua-working
 
 # XXX Nc specific clover installation location
 
-WOPTS='-Wno-unused-but-set-variable -Wno-unused-local-typedefs'
+# WOPTS='-Wno-unused-but-set-variable -Wno-unused-local-typedefs'
+WOPTS='-Wunused-const-variable'
 
 ARPACK_LIBS="-L$PACKTOP/arpack/lib -lparpack -larpack"
 LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 
+#LD='mpicc -m64 -fno-underscoring' \
+#
+
 CC='mpicc -m64 -std=c99' \
-LD='mpif77 -m64 -fno-underscoring' \
+LD='mpicc -m64' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
 COPTS='-g' \
 LIBS='-lz' \
@@ -23,14 +27,14 @@ LIBS='-lz' \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
-   --with-mdwf=$PACKTOP/mdwf                               \
    --with-clover=$PACKTOP/clover                           \
-   --with-hdf5=$PACKTOP/hdf5                               \
    --with-nc=N                                             \
    --with-nc=3                                             \
    --clover-nc=$Nc                                         \
    $*
 
+#   --with-mdwf=$PACKTOP/mdwf                               \
+#   --with-hdf5=$PACKTOP/hdf5                               \
+#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
