@@ -1971,8 +1971,8 @@ q_mdwf_generic(lua_State *L)
     for (i = 0, have_cplx = 0; i < Ls; i++) {
         if (0. != b5_im[i] || 0. != c5_im[i])
             have_cplx = 1;
-        /**/printf("[%3d]\t(%+13.8e+j*%+13.8e)\t(%+13.8e+j*%+13.8e)\n", 
-                i, b5[i], b5_im[i], c5[i], c5_im[i]);
+        /*printf("[%3d]\t(%+13.8e+j*%+13.8e)\t(%+13.8e+j*%+13.8e)\n", 
+                i, b5[i], b5_im[i], c5[i], c5_im[i]);*/
     }
 
     M->name = "generic";

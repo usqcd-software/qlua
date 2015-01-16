@@ -1,3 +1,0 @@
-require "stdlib"
-printf("'setup_prim.qlua' is deprecated; use 'setup_util.qlua'\n")
-require "setup_util"
