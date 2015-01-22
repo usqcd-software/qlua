@@ -27,10 +27,14 @@ mdwf_b5 = {
       complex(2.7,  0.0),
       complex(3.4,  0.0),
       complex(3.9,  0.0)
-}
-mdwf_c5={}
-for s = 0, mdwf_L5-1 do
-  mdwf_c5[1+s] = mdwf_b5[1+s] - 1
-end
+};
 
 
+mdwf_c5 = {
+      complex(1.3642,  0.0),
+      complex(1.7451,  0.0),
+      complex(2.4565,  0.0),
+      complex(2.2347,  0.0),
+      complex(3.4978,  0.0),
+      complex(3.2349,  0.0)
+};
