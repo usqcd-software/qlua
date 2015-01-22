@@ -80,6 +80,7 @@ function plaquette(U,i,j)
           U[i+1]:shift(j, "from_forward"):adjoin() *
           U[j+1]:adjoin()
 end
+
 -- compute clover term in (i,j) plane, i,j=0..(dim-1)
 function clover_term(U, i, j)
   local Ujp   = U[1+j]:shift(i, "from_forward")
@@ -95,4 +96,3 @@ function clover_term(U, i, j)
             (C10 + C11:shift(j, "to_forward")):shift(i, "to_forward")
   return (F - F:adjoin()) / complex(0,8)
 end
-

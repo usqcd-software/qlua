@@ -1,10 +1,11 @@
 #!/bin/sh
 PACKTOP=$HOME/Local/packages/macosx-20140305
+DEVTOP=$HOME/Local/packages
 Nc=3
 # noNc=3
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$HOME/Local/packages/qlua-working
+TARGET=$DEVTOP/qlua-working
 
 # XXX Nc specific clover installation location
 
@@ -18,7 +19,7 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 #
 
 CC='mpicc -m64 -std=c99' \
-LD='mpicc -m64' \
+LD='mpif77 -m64 -fno-underscoring' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
 COPTS='-g' \
 LIBS='-lz' \
@@ -27,14 +28,18 @@ LIBS='-lz' \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-clover=$PACKTOP/clover                           \
-   --with-nc=N                                             \
+   --with-mdwf=$DEVTOP/mdwf-working                        \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+   --without-nc=N                                          \
    --with-nc=3                                             \
-   --clover-nc=$Nc                                         \
    $*
 
+#   --with-clover=$PACKTOP/clover                           \
 #   --with-mdwf=$PACKTOP/mdwf                               \
 #   --with-hdf5=$PACKTOP/hdf5                               \
 #   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
+#   --with-nc=N                                             \
+#   --with-nc=3                                             \
+#   --clover-nc=$Nc                                         \
