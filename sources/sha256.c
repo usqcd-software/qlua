@@ -221,25 +221,25 @@ void
 sha256_sum_add_doubles(SHA256_Context *ctx, const double *ptr, unsigned int count)
 {
   int i;
-  QLUA_ASSERT(sizeof (double) <= sizeof (unsigned long long));
+  QLUA_ASSERT(sizeof (double) == sizeof (uint64_t));
 
   for (i = 0; i < count; i++) {
     union {
       double d;
-      unsigned long long u;
+      uint64_t u;
     } v;
-    unsigned long long u;
-    unsigned char c[sizeof (unsigned long long)];
+    uint64_t u;
+    unsigned char c[sizeof (uint64_t)];
     int j;
 
     v.u = 0;
     v.d = ptr[i];
     u = v.u;
-    for (j = 0; j < sizeof (unsigned long long); j++) {
+    for (j = 0; j < sizeof (uint64_t); j++) {
       c[j] = (unsigned char)u;
       u >>= 8;
     }
-    sha256_update(ctx, c, sizeof (unsigned long long));
+    sha256_update(ctx, c, sizeof (uint64_t));
   }
 }
 
@@ -247,25 +247,25 @@ void
 sha256_sum_add_floats(SHA256_Context *ctx, const float *ptr, unsigned int count)
 {
   int i;
-  QLUA_ASSERT(sizeof (float) <= sizeof (unsigned long long));
+  QLUA_ASSERT(sizeof (float) == sizeof (uint32_t));
 
   for (i = 0; i < count; i++) {
     union {
       float d;
-      unsigned long long u;
+      uint32_t u;
     } v;
-    unsigned long long u;
-    unsigned char c[sizeof (unsigned long long)];
+    uint32_t u;
+    unsigned char c[sizeof (uint32_t)];
     int j;
 
     v.u = 0;
     v.d = ptr[i];
     u = v.u;
-    for (j = 0; j < sizeof (unsigned long long); j++) {
+    for (j = 0; j < sizeof (uint32_t); j++) {
       c[j] = (unsigned char)u;
       u >>= 8;
     }
-    sha256_update(ctx, c, sizeof (unsigned long long));
+    sha256_update(ctx, c, sizeof (uint32_t));
   }
 }
 
