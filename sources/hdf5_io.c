@@ -1085,11 +1085,8 @@ qhdf5_gc(lua_State *L)
   mHdf5File *b = qlua_checkHdf5File(L, 1);
   int is_closing = b->parallel? 1: b->master;
 
-  if (is_closing) {
-    check_file(L, b);
+  if (is_closing)
     do_close(L, b);
-    lua_pushnil(L);
-  }
   return 0;
 }
 
