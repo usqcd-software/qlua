@@ -1,0 +1,12 @@
+require "stdlib"
+
+h5r  = qcd.hdf5.Reader('b.h5')
+h5r:chpath('/a/b')
+
+a,b,c= h5r:read('d', {kind='String', sha256='ignore'})
+printf('a="%s"  b="%s"  c="%s"\n', tostring(a), tostring(b), tostring(c))
+
+a,b,c= h5r:read('c', {kind='Complex', sha256='ignore'})
+printf('a="%s"  b="%s"  c="%s"\n', tostring(a), tostring(b), tostring(c))
+
+--h5r:close() -- not closing a file should not cause hdf5 errors.
