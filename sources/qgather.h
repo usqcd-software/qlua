@@ -6,7 +6,7 @@ typedef struct {
 } mGather;
 
 int init_gather(lua_State *L);
-int fini_gather(lua_State *L);
+void fini_gather(void);
 
 mGather *qlua_checkGather(lua_State *L, int idx);
 

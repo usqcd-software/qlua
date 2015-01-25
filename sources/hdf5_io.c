@@ -1083,8 +1083,13 @@ static int
 qhdf5_gc(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
+  int is_closing = b->parallel? 1: b->master;
 
-  do_close(L, b);
+  if (is_closing) {
+    check_file(L, b);
+    do_close(L, b);
+    lua_pushnil(L);
+  }
   return 0;
 }
 
@@ -3456,9 +3461,8 @@ init_hdf5_io(lua_State *L)
   return 0;
 }
 
-int
-fini_hdf5_io(lua_State *L)
+void
+fini_hdf5_io(void)
 {
   H5close();
-  return 0;
 }

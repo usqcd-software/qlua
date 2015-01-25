@@ -398,8 +398,7 @@ init_latsubset(lua_State *L)
     return 0;
 }
 
-int
-fini_latsubset(lua_State *L)
+void
+fini_latsubset(void)
 {
-    return 0;
 }

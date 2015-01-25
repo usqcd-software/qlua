@@ -472,8 +472,7 @@ init_lattice(lua_State *L)
     return 0;
 }
 
-int
-fini_lattice(lua_State *L)
+void
+fini_lattice(void)
 {
-    return 0;
 }

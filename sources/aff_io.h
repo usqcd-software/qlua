@@ -13,7 +13,7 @@ typedef struct {
 } mAffWriter;
 
 int init_aff_io(lua_State *L);
-int fini_aff_io(lua_State *L);
+void fini_aff_io(void);
 
 mAffReader *qlua_checkAffReader(lua_State *L, int idx);
 mAffWriter *qlua_checkAffWriter(lua_State *L, int idx);

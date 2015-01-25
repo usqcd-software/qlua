@@ -1004,8 +1004,7 @@ init_gamma(lua_State *L)
     return 0;
 }
 
-int
-fini_gamma(lua_State *L)
+void
+fini_gamma(void)
 {
-    return 0;
 }

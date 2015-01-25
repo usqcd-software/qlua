@@ -677,12 +677,11 @@ init_qlua_io(lua_State *L)
     return 0;
 }
 
-int
-fini_qlua_io(lua_State *L)
+void
+fini_qlua_io(void)
 {
     if (rf) {
         fclose(rf);
         rf = 0;
     }
-    return 0;
 }

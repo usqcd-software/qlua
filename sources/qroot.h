@@ -7,6 +7,6 @@
 #include "gsl/gsl_multiroots.h"
 
 int init_root(lua_State *L);
-int fini_root(lua_State *L);
+void fini_root(void);
 
 #endif /* defined(MARK_968348DF_41CD_4236_BF8E_38B4F285E1F0) */

@@ -135,8 +135,7 @@ init_ddpairs_io(lua_State *L)
     return 0;
 }
 
-int
-fini_ddpairs_io(lua_State *L)
+void
+fini_ddpairs_io(void)
 {
-    return 0;
 }

@@ -126,8 +126,7 @@ init_seqdirferm(lua_State *L)
     return 0;
 }
 
-int
-fini_seqdirferm(lua_State *L)
+void
+fini_seqdirferm(void)
 {
-    return 0;
 }

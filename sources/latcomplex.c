@@ -1199,8 +1199,7 @@ init_latcomplex(lua_State *L)
     return 0;
 }
 
-int
-fini_latcomplex(lua_State *L)
+void
+fini_latcomplex(void)
 {
-    return 0;
 }

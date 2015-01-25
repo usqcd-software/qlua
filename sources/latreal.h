@@ -6,7 +6,7 @@ typedef struct {
 } mLatReal;
 
 int init_latreal(lua_State *L);
-int fini_latreal(lua_State *L);
+void fini_latreal(void);
 
 mLatReal *qlua_checkLatReal(lua_State *L, int idx, mLattice *S);
 mLatReal *qlua_newLatReal(lua_State *L, int Sidx);

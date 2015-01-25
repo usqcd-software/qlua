@@ -6,7 +6,7 @@ typedef struct {
 } mLatInt;
 
 int init_latint(lua_State *L);
-int fini_latint(lua_State *L);
+void fini_latint(void);
 
 mLatInt *qlua_checkLatInt(lua_State *L, int idx, mLattice *S);
 mLatInt *qlua_newLatInt(lua_State *L, int S_idx);

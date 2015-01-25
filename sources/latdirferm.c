@@ -213,9 +213,8 @@ init_latdirferm(lua_State *L)
     return 0;
 }
 
-int
-fini_latdirferm(lua_State *L)
+void
+fini_latdirferm(void)
 {
-    return 0;
 }
 

@@ -1127,8 +1127,7 @@ init_matrix(lua_State *L)
     return 0;
 }
 
-int
-fini_matrix(lua_State *L)
+void
+fini_matrix(void)
 {
-    return 0;
 }

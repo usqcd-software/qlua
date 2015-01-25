@@ -319,8 +319,7 @@ init_latdirprop(lua_State *L)
     return 0;
 }
 
-int
-fini_latdirprop(lua_State *L)
+void
+fini_latdirprop(void)
 {
-    return 0;
 }

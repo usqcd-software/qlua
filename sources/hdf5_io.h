@@ -4,7 +4,7 @@
 typedef struct mHdf5File_s mHdf5File;
 
 int init_hdf5_io(lua_State *L);
-int fini_hdf5_io(lua_State *L);
+void fini_hdf5_io(void);
 
 mHdf5File *qlua_checkHDF5Reader(lua_State *L, int idx);
 mHdf5File *qlua_checkHDF5Writer(lua_State *L, int idx);

@@ -259,8 +259,7 @@ init_root(lua_State *L)
   return 0;
 }
 
-int
-fini_root(lua_State *L)
+void
+fini_root(void)
 {
-  return 0;
 }

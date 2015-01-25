@@ -129,8 +129,7 @@ init_seqdirprop(lua_State *L)
     return 0;
 }
 
-int
-fini_seqdirprop(lua_State *L)
+void
+fini_seqdirprop(void)
 {
-    return 0;
 }
