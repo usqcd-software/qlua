@@ -1335,6 +1335,9 @@ qhdf5_remove(lua_State *L)
     hid_t wdir = b->cwd;
     if (ename == NULL) {
       ename = dpath;
+    } else if (ename == dpath) {
+      wdir = H5Gopen2(b->file, "/", H5P_DEFAULT);
+      ename = ename + 1;
     } else {
       ename[0] = 0;
       ename = ename + 1;
