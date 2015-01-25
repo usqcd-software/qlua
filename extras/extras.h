@@ -103,6 +103,6 @@ extra_lat_fourier_qla_full(lua_State *L,
                            int ft_sign);
 
 int init_extras(lua_State *L);
-int fini_extras(lua_State *L);
+void fini_extras(void;
 
 #endif /* !defined(MARK_E390D5B2_478D_48BF_B753_64072003402B) */

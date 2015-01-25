@@ -1,7 +1,7 @@
 #!/bin/sh -f
 
 ## version ID. 
-version='X.XX.XX-post-0.38.00'
+version='X.XX.XX-post-0.38.02'
 
 # show_help exit_code
 show_help() {

@@ -290,8 +290,7 @@ init_extras(lua_State *L)
     return 0;
 }
 
-int
-fini_extras(lua_State *L)
+void
+fini_extras(void)
 {
-    return 0;
 }
