@@ -272,6 +272,8 @@ q_lattice(lua_State *L)
   int *lat_dims = qlua_intarray(L, 1, &lat_rank);
   int net_forced = 0;
   int *net_dim = NULL;
+  if (lat_rank == 0)
+    luaL_error(L, "expecting lattice size");
   if (qlua_checkopt_table(L, 2) && qlua_tabpushopt_key(L, 2, "network")) {
     int net_idx = lua_gettop(L);
     net_dim = qlua_checkintarray(L, net_idx, lat_rank, NULL);
