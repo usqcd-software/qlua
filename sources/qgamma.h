@@ -26,6 +26,6 @@ mMatComplex *gamma2matrix(lua_State *L, int idx);
 #endif
 
 int init_gamma(lua_State *L);
-int fini_gamma(lua_State *L);
+void fini_gamma(void);
 
 #endif /* !defined(MARK_F1F13269_3CC9_4F26_8140_EF8422F7ADE6) */

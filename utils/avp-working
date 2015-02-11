@@ -28,18 +28,19 @@ LIBS='-lz' \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
+   --with-clover=$DEVTOP/clover-working                    \
+   --clover-nc=$Nc                                         \
    --with-mdwf=$DEVTOP/mdwf-working                        \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
-   --without-nc=N                                          \
+   --with-hdf5=$PACKTOP/hdf5                               \
+   --with-nc=N                                             \
    --with-nc=3                                             \
+   --with-nc=2                                             \
    $*
 
-#   --with-clover=$PACKTOP/clover                           \
 #   --with-mdwf=$PACKTOP/mdwf                               \
-#   --with-hdf5=$PACKTOP/hdf5                               \
 #   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
 #   --with-nc=N                                             \
 #   --with-nc=3                                             \
-#   --clover-nc=$Nc                                         \

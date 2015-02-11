@@ -33,7 +33,7 @@ mSeqColMatN *qlua_newZeroSeqColMatN(lua_State *L, int nc);
 #endif
 
 int init_seqcolmat(lua_State *L);
-int fini_seqcolmat(lua_State *L);
+void fini_seqcolmat(void);
 
 int q_m_gaussian_N(lua_State *L);
 

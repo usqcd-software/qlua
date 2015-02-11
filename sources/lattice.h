@@ -52,6 +52,6 @@ QDP_Shift qlua_checkShift(lua_State *L, int idx, mLattice *S);
 QDP_ShiftDir qlua_checkShiftDir(lua_State *L, int idx);
 
 int init_lattice(lua_State *L);
-int fini_lattice(lua_State *L);
+void fini_lattice(void);
 
 #endif /* !defined(MARK_B3A3A85C_2C48_4B4C_B926_440CBD0CB411) */

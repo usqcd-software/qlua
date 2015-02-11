@@ -33,7 +33,7 @@ mLatDirFermN *qlua_newZeroLatDirFermN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latdirferm(lua_State *L);
-int fini_latdirferm(lua_State *L);
+void fini_latdirferm(void);
 
 int q_D_gaussian(lua_State *L);
 int q_D_gaussian_N(lua_State *L);

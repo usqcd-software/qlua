@@ -250,8 +250,7 @@ init_scatter(lua_State *L)
     return 0;
 }
 
-int
-fini_scatter(lua_State *L)
+void
+fini_scatter(void)
 {
-    return 0;
 }

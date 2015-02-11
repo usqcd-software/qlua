@@ -1,0 +1,170 @@
+require "stdlib"
+require "gauge"
+
+L = qcd.lattice{4,4,4,8}
+--kappa = 1.4235
+-- c_sw = 2.3344
+kappa = 0.3
+c_sw = 1.2
+
+
+Leven = L:Subset("even")
+Lodd  = L:Subset("odd")
+
+-- Check that QLUA does the Right Thing when building the clover operator.
+
+-------------------------------------------------------------------------------
+function printf(fmt, ...)
+  io.stdout:write(string.format(fmt, ...))
+end
+
+local function clovF(i,j)
+  local Ujp = U[j]:shift(i - 1, "from_forward")
+  local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
+  local Sl = U[j]:adjoin() * U[i] * Ujp
+  local C01 = Sl * Uipx  -- at (0,1)
+  local C11 = Uipx * Sl  -- at (1,1)
+  local Su = Ujp * Uipx * U[j]:adjoin()
+  local C00 = U[i] * Su -- at (0,0)
+  local C10 = Su * U[i] -- at (1,0)
+  local F = C00 +
+            C01:shift(j - 1, "to_forward") +
+            (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward")
+  return (F - F:adjoin()) / complex(0,8)
+end
+
+function B(U, kappa, F)
+  local X = L:DiracFermion()
+
+  for i = 0, #L - 2 do
+    X = X - kappa * 
+         ((1-gamma{mu=i}) * (U[i+1] * (F:shift(i, "from_forward"))) +
+          (1+gamma{mu=i}) * ((U[i+1]:adjoin() * F):shift(i, "from_backward")))
+  end
+
+  -- antiperiodic bc in d=3 !!!
+  local U4 = U[4]:copy()
+  L:Subset{axis=3, position=L[3]-1}:where(function () U4:set(-U[4]) end)
+  X = X - kappa * 
+       ((1-gamma{mu=3}) * (U4 * (F:shift(3, "from_forward"))) +
+        (1+gamma{mu=3}) * ((U4:adjoin() * F):shift(3, "from_backward")))
+
+  return X
+end
+
+function A(U, kappa, c_sw, F)
+  local X = L:DiracFermion(F)
+
+  for i = 1, #L do
+    for j = i + 1, #L do
+       X = X - kappa * c_sw * clovF(i,j) * 
+               ((gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
+    end
+  end
+
+  return X
+end
+
+function dirprop_mul(P, D)
+  local res = L:DiracFermion()
+  for c=0,2 do
+     for d=0,3 do
+	res = res + P[{c=c,d=d}] * D[{c=c,d=d}]
+     end
+  end
+  return res
+end
+
+function M(U, kappa, c_sw, Ainv, F)
+  local X = L:DiracFermion()
+  local Y = L:DiracFermion()
+
+  local Z = A(U,kappa,c_sw,F)
+  Leven:where(function() X:set(Z) end)
+
+  Z = B(U,kappa,F)
+  Lodd :where(function() Y:set(Z) end)
+  Lodd :where(function() Y:set(dirprop_mul(Ainv,Y)) end)
+  Z = B(U,kappa,Y)
+  Leven:where(function() X:set(X - Z) end)
+
+  return X
+end
+
+function D_eoprec(U, kappa, c_sw, Ainv, F)
+  local X = M(U, kappa, c_sw, Ainv, F)
+  local Y = L:DiracFermion()
+
+  local Z = B(U,kappa,F)
+  local W = A(U,kappa,c_sw,F)
+  Lodd :where(function() X:set(W + Z) end)
+  Lodd :where(function() Y:set(dirprop_mul(Ainv,X)) end)
+  Z = B(U,kappa,Y)
+  Leven:where(function() X:set(X + Z) end)
+
+  return X
+end
+
+ix = L:Int(0)
+for i = 0, #L - 1 do
+  ix = ix * L[i] + L:pcoord(i)
+end
+
+S = L:RandomState(12345, ix)
+
+U = {}
+for i = 1, #L do
+ U[i] = toSUn(S:gaussian_ColorMatrix())
+ -- U[i] = S:gaussian_ColorMatrix()
+end
+
+CL = qcd.Clover(U, kappa, c_sw, {1, 1, 1, -1})
+
+Ainv = CL:inv_clovterm()
+
+lhs = S:gaussian_DiracFermion()
+
+Lodd :where(function() lhs:set(L:DiracFermion()) end)
+
+Leven:where(function() enorm = lhs:norm2() end)
+Lodd :where(function() onorm = lhs:norm2() end)
+printf("lhs : even %g, odd %g\n", enorm, onorm)
+
+
+diff = CL:D(lhs) - (A(U, kappa, c_sw, lhs) + B(U, kappa, lhs))
+Leven:where(function() enorm = diff:norm2() end)
+Lodd :where(function() onorm = diff:norm2() end)
+printf("\ntest D\n");
+printf("diff: even %g, odd %g\n", enorm, onorm)
+
+
+diff = CL:D(lhs) - D_eoprec(U, kappa, c_sw, Ainv, lhs)
+Leven:where(function() enorm = diff:norm2() end)
+Lodd :where(function() onorm = diff:norm2() end)
+printf("\ntest even/odd preconditioned D\n");
+printf("diff: even %g, odd %g\n", enorm, onorm)
+
+
+printf("\ntest MxM solver\n")
+
+-- M^dagger M = (gamma_5 M)^2
+rhs = gamma{n=15}*M(U, kappa, c_sw, Ainv, lhs)
+rhs = gamma{n=15}*M(U, kappa, c_sw, Ainv, rhs)
+
+Leven:where(function() enorm = rhs:norm2() end)
+Lodd :where(function() onorm = rhs:norm2() end)
+printf("rhs : even %g, odd %g\n", enorm, onorm)
+
+solver = CL:mxm_solver(1e-20,10000)
+
+soln = solver(rhs, false)
+
+Leven:where(function() enorm = soln:norm2() end)
+Lodd :where(function() onorm = soln:norm2() end)
+printf("soln: even %g, odd %g\n", enorm, onorm)
+
+diff = lhs - soln
+
+Leven:where(function() enorm = diff:norm2() end)
+Lodd :where(function() onorm = diff:norm2() end)
+printf("diff: even %g, odd %g\n", enorm, onorm)

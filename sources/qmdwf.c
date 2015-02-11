@@ -2193,8 +2193,7 @@ init_mdwf(lua_State *L)
 }
 #endif /* USE_Nc3 */
 
-int
-fini_mdwf(lua_State *L)
+void
+fini_mdwf(void)
 {
-    return 0;
 }

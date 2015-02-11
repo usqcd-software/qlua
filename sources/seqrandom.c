@@ -137,8 +137,7 @@ init_seqrandom(lua_State *L)
     return 0;
 }
 
-int
-fini_seqrandom(lua_State *L)
+void
+fini_seqrandom(void)
 {
-    return 0;
 }

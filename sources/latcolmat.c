@@ -222,8 +222,7 @@ init_latcolmat(lua_State *L)
     return 0;
 }
 
-int
-fini_latcolmat(lua_State *L)
+void
+fini_latcolmat(void)
 {
-    return 0;
 }

@@ -33,7 +33,7 @@ mSeqColVecN *qlua_newZeroSeqColVecN(lua_State *L, int nc);
 #endif
 
 int init_seqcolvec(lua_State *L);
-int fini_seqcolvec(lua_State *L);
+void fini_seqcolvec(void);
 
 int q_v_gaussian_N(lua_State *L);
 

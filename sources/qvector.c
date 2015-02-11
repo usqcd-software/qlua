@@ -468,8 +468,7 @@ init_vector(lua_State *L)
     return 0;
 }
 
-int
-fini_vector(lua_State *L)
+void
+fini_vector(void)
 {
-    return 0;
 }

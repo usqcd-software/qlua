@@ -21,7 +21,7 @@ extern const char mtnVecReal[];
 extern const char mtnVecComplex[];
 
 int init_vector(lua_State *L);
-int fini_vector(lua_State *L);
+void fini_vector(void);
 
 mVecInt *qlua_checkVecInt(lua_State *L, int idx);
 mVecInt *qlua_newVecInt(lua_State *L, int size);

@@ -33,7 +33,7 @@ mLatDirPropN *qlua_newZeroLatDirPropN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latdirprop(lua_State *L);
-int fini_latdirprop(lua_State *L);
+void fini_latdirprop(void);
 
 int q_P_gaussian(lua_State *L);
 int q_P_gaussian_N(lua_State *L);

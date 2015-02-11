@@ -127,8 +127,7 @@ init_seqcolvec(lua_State *L)
     return 0;
 }
 
-int
-fini_seqcolvec(lua_State *L)
+void
+fini_seqcolvec(void)
 {
-    return 0;
 }

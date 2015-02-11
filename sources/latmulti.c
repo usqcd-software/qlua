@@ -110,8 +110,7 @@ init_latmulti(lua_State *L)
     return 0;
 }
 
-int
-fini_latmulti(lua_State *L)
+void
+fini_latmulti(void)
 {
-    return 0;
 }

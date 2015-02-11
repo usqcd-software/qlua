@@ -162,8 +162,7 @@ init_latrandom(lua_State *L)
     return 0;
 }
 
-int
-fini_latrandom(lua_State *L)
+void
+fini_latrandom(void)
 {
-    return 0;
 }

@@ -747,8 +747,7 @@ init_gather(lua_State *L)
     return 0;
 }
 
-int
-fini_gather(lua_State *L)
+void
+fini_gather(void)
 {
-    return 0;
 }

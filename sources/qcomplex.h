@@ -5,7 +5,7 @@
 extern const char mtnComplex[];
 
 int init_complex(lua_State *L);
-int fini_complex(lua_State *L);
+void fini_complex(void);
 
 QLA_D_Complex *qlua_checkComplex(lua_State *L, int idx);
 QLA_D_Complex *qlua_newComplex(lua_State *L);
