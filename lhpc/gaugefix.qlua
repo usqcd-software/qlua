@@ -2,6 +2,8 @@ require "strict"
 require "stdlib"
 require 'lhpc-std'
 require "gauge"
+require "algo_optimize"
+
 
 -- 4d gauge fixing: minimize 
 --    u_orig      input gauge field : ColorMatrix[Nd] ; const
@@ -214,9 +216,25 @@ do -- hide aux functions
     local y = qcd.fourier_transf(x, -1)
     return qcd.fourier_transf(fa_coeff * y / x.lattice:volume(), 1)
   end
+  local function report_gauge_transf(g, u)
+    local L  = g.lattice
+    local Nd = #L
+    assert(#u == Nd)
+    local Nc = u[1]:colors()
+    local vol = L:volume()
+
+    local ucur = gauge_transform_U(g, u)
+    local sum_tr_Usq = 0.
+    for mu = 0, Nd - 1 do
+      sum_tr_Usq = sum_tr_Usq + ucur[1+mu]:norm2()
+    end
+    printf("# SumTr|U|^2/vol/Nd/Nc = %13.8e  SumTr|g|^2/vol/Nc=%13.8e\n", 
+           sum_tr_Usq / vol / Nd / Nc, g:norm2() / vol / Nc)
+  end
+  
 
 
-  gaugefix_facg = function(u, gf_func, grad_func, tol, maxiter, verbose, verb_nrm)
+  gaugefix_facg = function(u, gf_func, grad_func, tol, maxiter, verbose, tol_switch_fletcher)
     -- implementation follows arXiv:1405.5812[hep-lat]
     -- find gauge MAXIMIZING gf_func, going in grad_func direction
     -- non-linear CG optimization
@@ -237,51 +255,80 @@ do -- hide aux functions
     local alpha1 = 0.15
     local alpha2 = 0.30
     local alpha_tab = {0.00, 0.001, 0.002, 0.01, 0.02, 0.03, 0.04, .05, .10, .15, .20, .25, .30}
-    local tol_switch_fletcher = 1e-6
+    if nil == tol_switch_fletcher then tol_switch_fletcher = 1e-6 end
 
     local Nd = #u
     local Nc = u[1]:colors()
+    local Nadj = Nc*Nc - 1
     local L  = u[1].lattice
     local vol = L:volume()
-    if nil == verb_nrm then verb_nrm = 1. / (Nc * Nd * vol) end
     local fa_coeff = fourier_acc_coeff(L) -- Fourier momenta squared for acceleration
 
     -- initial gauge rotation (1 step of FA steepest descent)
     local deriv0    = grad_func(u)
+    local deriv0_n2 = deriv0:norm2()
     local grad0     = field_fa(deriv0, fa_coeff)
     local grad0_n2  = grad0:norm2()
     local s0        = grad0
     local gcur      = (s0 * complex(0, alpha0)):exp()
     local f0        = gf_func(gauge_transform_U(gcur, u))
-    local u_g, s1, deriv1, grad1, grad1_n2, s1, beta1, f0p, f1, f2, f_opt
-    if verbose then 
-      printf("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)\n", 
-            0, f0 * verb_nrm, grad0_n2 * verb_nrm)
-    end
+
+    local u_g, s1, deriv1, deriv1_n2, grad1, grad1_n2, s1
+    local beta1, f0p, f1, f2, f_opt, alpha_opt
     
     local cnt       = 1
-    while f0 * tol < grad0_n2 and cnt < maxiter do
+    if verbose then
+      printf("# <1.iter>  <2.func/vol/Nd/Nc>  <3.|acc.grad1|^2/vol/Nadj)>  <4.|grad|^2/vol/Nadj>  <5.conver>\n")
+      printf("%d\t%13.8e\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p/vol/Nd/Nc=%13.8e final=%s\n",
+                  cnt, f0 / vol / Nd / Nc, grad0_n2 / vol / Nadj, 
+                  deriv0_n2 / vol / Nadj, 0,
+                  0, 0, 0, '')
+    end
+    while tol < grad0_n2 / vol / Nadj and cnt < maxiter do
+      local opt_method = 'none'
       u_g       = gauge_transform_U(gcur, u)
       deriv1    = grad_func(u_g)
+      deriv1_n2 = deriv1:norm2()
       grad1     = field_fa(deriv1, fa_coeff)
       grad1_n2  = grad1:norm2()
-      if f0 * tol_switch_fletcher < grad0_n2 then
+      local lin_search = (tol_switch_fletcher < deriv1_n2 / vol / Nadj)
+      if lin_search then
         -- grad0, grad1, s0, s1 are always herm
-        beta1   = qcd.dot(grad1, grad1 - grad0):sum():real() / grad0_n2  
+        beta1   = qcd.dot(grad1, grad1 - grad0):sum():real() / grad0_n2
         if beta1 < 0 then beta1 = 0. end
       else
         beta1 = grad1_n2 / grad0_n2
       end
-      s1 = grad1 + beta1 * s0
 
+      s1 = grad1 + beta1 * s0
       local f0p = qcd.dot(s1, deriv1):sum():real()  -- a-deriv. along g -> exp(i*a*s1)*g
-      local f1  = gf_func(gauge_transform_U((s1 * complex(0, alpha1)):exp(), u_g))
-      local f2  = gf_func(gauge_transform_U((s1 * complex(0, alpha2)):exp(), u_g))
-      local alpha_opt = max_cubic_spline(f0p, alpha1, f1 - f0, alpha2, f2 - f0)
+
+      if lin_search then -- look for max
+        local f1  = gf_func(gauge_transform_U((s1 * complex(0, alpha1)):exp(), u_g))
+        local f2  = gf_func(gauge_transform_U((s1 * complex(0, alpha2)):exp(), u_g))
+        if false and (f0 < f1 and f2 < f1) then -- switch off Brent opt.
+          local func_brent = function(a)
+            return -gf_func(gauge_transform_U((s1 * complex(0, a)):exp(), u_g))
+          end
+          local f, brent_iter
+          alpha_opt, f, brent_iter = optimize_brent(0, alpha1, alpha2, func_brent, 1e-6, 15)
+          opt_method = string.format('brent(iter=%d)', brent_iter)
+        else
+          alpha_opt = max_cubic_spline(f0p, alpha1, f1 - f0, alpha2, f2 - f0)
+          opt_method = 'cub.spline'
+        end
+        if verbose then 
+          printf("# cubic.spline(opt,f0p,f1-f0,f2-f0)=%13.8e\t%13.8e\t%13.8e\t%13.8e\n", 
+                 alpha_opt, f0p, f1 - f0, f2 - f0)
+        end
+      else
+        opt_method = 'fix.step'
+        alpha_opt = alpha0
+      end
 
       gcur  = (s1 * complex(0, alpha_opt)):exp() * gcur
       local f0_new= gf_func(gauge_transform_U(gcur, u))
-      local conver = math.abs(f0_new - f0) / f0_new
+      local conver = math.abs(1. - f0 / f0_new)
 
       f0        = f0_new
       deriv0    = deriv1
@@ -291,9 +338,11 @@ do -- hide aux functions
       cnt       = cnt + 1
       
       if verbose then
-        printf("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p*norm=%13.8e\n",
-                    cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
-                    beta1, alpha_opt, f0p * verb_nrm)
+        report_gauge_transf(gcur, u)
+        printf("%d\t%13.8e\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : beta1=%e  aopt=%e  f0p/vol/Nd/Nc=%13.8e opt=%s\n",
+                    cnt, f0 / vol / Nd / Nc, grad1_n2 / vol / Nadj, 
+                    deriv1_n2 / vol / Nadj, conver,
+                    beta1, alpha_opt, f0p / vol / Nd / Nc, tostring(opt_method))
       end
     end
 
@@ -301,7 +350,7 @@ do -- hide aux functions
   end
   
 
-  gaugefix_fasd = function(u, gf_func, grad_func, tol, maxiter, verbose, verb_nrm)
+  gaugefix_fasd = function(u, gf_func, grad_func, tol, maxiter, verbose)
     -- the steepest descent version of the above
     local alpha0 = 0.08
     local alpha1 = 0.15
@@ -313,25 +362,29 @@ do -- hide aux functions
     local Nc = u[1]:colors()
     local L  = u[1].lattice
     local vol = L:volume()
-    if nil == verb_nrm then verb_nrm = 1. / (Nc * Nd * vol) end
     local fa_coeff = fourier_acc_coeff(L) -- Fourier momenta squared for acceleration
 
     -- initial gauge rotation (1 step of FA steepest descent)
     local deriv0    = grad_func(u)
+    local deriv0_n2 = deriv0:norm2()
     local grad0     = field_fa(deriv0, fa_coeff)
     local grad0_n2  = grad0:norm2()
     local gcur      = (deriv0 * complex(0, alpha0)):exp()
     local f0        = gf_func(gauge_transform_U(gcur, u))
-    local u_g, deriv1, grad1, grad1_n2, beta1, f0p, f1, f2, f_opt
-    if verbose then 
-      printf("%d\t%13.8e\t%13.8e\t#gaugefix_facg(start)\n", 
-            0, f0 * verb_nrm, grad0_n2 * verb_nrm)
-    end
-    
+    local u_g, deriv1, deriv1_n2, grad1, grad1_n2, beta1, f0p, f1, f2, f_opt
+
     local cnt       = 1
+    if verbose then
+      printf("# <1.iter>  <2.func/vol/Nd/Nc>  <3.|acc.grad1|^2/vol/Nadj)>  <4.|grad|^2/vol/Nadj>  <5.conver>\n")
+      printf("%d\t%13.8e\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_facg : aopt=%e  f0p/vol/Nd/Nc=%13.8e\n",
+                  cnt, f0 / vol / Nd / Nc, grad0_n2 / vol / Nadj, 
+                  deriv0_n2 / vol / Nadj, 0,
+                  0, 0, 0, '')
+    end
     while f0 * tol < grad0_n2 and cnt < maxiter do
       u_g       = gauge_transform_U(gcur, u)
       deriv1    = grad_func(u_g)
+      deriv1_n2 = deriv1:norm2()
       grad1     = field_fa(deriv1, fa_coeff)
       grad1_n2  = grad1:norm2()
 
@@ -350,9 +403,11 @@ do -- hide aux functions
       grad0_n2  = grad1_n2
       cnt       = cnt + 1
       if verbose then
-        printf("%d\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_fasd : aopt=%e  f0p*norm=%13.8e\n", 
-                    cnt, f0 * verb_nrm, grad1_n2 * verb_nrm, conver,
-                    alpha_opt, f0p * verb_nrm)
+        report_gauge_transf(gcur, u)
+        printf("%d\t%13.8e\t%13.8e\t%13.8e\t%13.8e\t#gaugefix_fasd : aopt=%e  f0p/vol/Nd/Nc=%13.8e\n", 
+                    cnt, f0 / vol / Nd / Nc, grad1_n2 / vol / Nadj, 
+                    deriv1_n2 / vol / Nadj, conver,
+                    alpha_opt, f0p / vol / Nd / Nc)
       end
     end
 
