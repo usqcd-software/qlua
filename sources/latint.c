@@ -1085,8 +1085,7 @@ init_latint(lua_State *L)
     return 0;
 }
 
-int
-fini_latint(lua_State *L)
+void
+fini_latint(void)
 {
-    return 0;
 }

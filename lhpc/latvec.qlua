@@ -50,6 +50,15 @@ function latvec_norm2(v)
     return v:norm2()
   end
 end
+function latvec_conj(v)
+  if 'table' == type(v) then
+    local c = {}
+    for i = 0, #v-1 do
+      c[1+i] = latvec_conj(v[1+i])
+    end
+    return c
+  else return (v:conj()) end
+end
 function latvec_shift(v, mu, dir)
   if 'table' == type(v) then
     local res = {}
@@ -243,14 +252,24 @@ end
 -- flavor-hopping part of the domain wall operator
 --    d     5d fermion = table{DiracFermion,...}
 --    mf    chiral fermion mass
-function latvec_op_x5(d, mf)
+--    dag   if not nil, apply 
+function latvec_op_x5(d, mf, is_dag)
   assert('table' == type(d))
   local res = {}
-  res[1] = .5*(1 - gamma{mu=5}) * d[2]  - mf * .5*(1 + gamma{mu=5}) * d[#d]
-  for s = 1, #d - 2 do
-    res[1+s] = .5*(1 - gamma{mu=5}) * d[2+s] + .5*(1 + gamma{mu=5}) * d[s]
+  if is_dag
+  then
+    res[1] = .5*(1 + gamma{mu=5}) * d[2]  - mf * .5*(1 - gamma{mu=5}) * d[#d]
+    for s = 1, #d - 2 do
+      res[1+s] = .5*(1 + gamma{mu=5}) * d[2+s] + .5*(1 - gamma{mu=5}) * d[s]
+    end
+    res[#d] = -mf * .5*(1 + gamma{mu=5}) * d[1]  + .5*(1 - gamma{mu=5}) * d[#d-1]
+  else
+    res[1] = .5*(1 - gamma{mu=5}) * d[2]  - mf * .5*(1 + gamma{mu=5}) * d[#d]
+    for s = 1, #d - 2 do
+      res[1+s] = .5*(1 - gamma{mu=5}) * d[2+s] + .5*(1 + gamma{mu=5}) * d[s]
+    end
+    res[#d] = -mf * .5*(1 - gamma{mu=5}) * d[1]  + .5*(1 + gamma{mu=5}) * d[#d-1]
   end
-  res[#d] = -mf * .5*(1 - gamma{mu=5}) * d[1]  + .5*(1 + gamma{mu=5}) * d[#d-1]
   return res
 end
 
@@ -267,25 +286,49 @@ end
 --- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
 --    d     5d fermion = table{DiracFermion,...}
 --    u       gauge field
-function latvec_op_dslash_dwf(d, u, M5, mf)
+function latvec_op_dslash_dwf(d, u, M5, mf, is_dag)
   return latvec_scalsum_left(
             5 - M5,   d,
-            -1.,      latvec_op_xwilson(d, u),
-            -1.,      latvec_op_x5(d, mf))
+            -1.,      latvec_op_xwilson(d, u, is_dag),
+            -1.,      latvec_op_x5(d, mf, is_dag))
 end
 
 -- Moebius Dslash
 --- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
 --    d     5d fermion = table{DiracFermion,...}
 --    u       gauge field
-function latvec_op_dslash_moebius(d, u, M5, mf, b5, c5)
-  local x5_d = latvec_op_x5(d, mf)
-  local xw_bpcx5_d = latvec_op_xwilson(
-          latvec_scalsum_left(b5, d, c5, x5_d), u)
-  return latvec_scalsum_left(
-            b5 * (4 - M5) + 1.,   d,
-            c5 * (4 - M5) - 1.,   x5_d,
-            -1.,                  xw_bpcx5_d)
+function latvec_op_dslash_moebius(d, u, M5, mf, b5_s, c5_s, is_dag)
+  local L5 = #d
+  if is_dag then
+    local y1 = {}
+    local y2 = {}
+    for t = 0, L5 - 1 do
+      local b5, c5
+      if 'table' == type(b5_s) then b5 = b5_s[1+t] else b5 = b5_s end
+      if 'table' == type(c5_s) then c5 = c5_s[1+t] else c5 = c5_s end
+      if 'complex' == type(b5) then b5 = b5:conj() end
+      if 'complex' == type(c5) then c5 = c5:conj() end
+      local xw_d = latvec_op_xwilson(d[1+t], u, is_dag)
+      y1[1+t] = (b5 * (4 - M5) + 1) * d[1+t] - b5 * xw_d
+      y2[1+t] = (c5 * (4 - M5) - 1) * d[1+t] - c5 * xw_d
+    end
+    return latvec_scalsum_left(
+              1., y1, 
+              1., latvec_op_x5(y2, mf, is_dag))
+  else
+    local x5_d = latvec_op_x5(d, mf, is_dag)
+    local res = {}
+    for s = 0, L5 - 1 do
+      local b5, c5
+      if 'table' == type(b5_s) then b5 = b5_s[1+s] else b5 = b5_s end
+      if 'table' == type(c5_s) then c5 = c5_s[1+s] else c5 = c5_s end
+        local xw_bpcx5_d = latvec_op_xwilson(b5 * d[1+s] + c5 * x5_d[1+s], u, is_dag)
+        res[1+s] = ((b5 * (4 - M5) + 1.) * d[1+s] 
+                  + (c5 * (4 - M5) - 1.) * x5_d[1+s] 
+                  - xw_bpcx5_d)
+    end
+    return res
+  end
 end
 
 require "dwf" -- definitions for DWF

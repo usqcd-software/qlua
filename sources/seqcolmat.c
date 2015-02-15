@@ -131,8 +131,7 @@ init_seqcolmat(lua_State *L)
     return 0;
 }
 
-int
-fini_seqcolmat(lua_State *L)
+void
+fini_seqcolmat(void)
 {
-    return 0;
 }

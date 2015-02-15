@@ -313,8 +313,7 @@ init_min(lua_State *L)
   return 0;
 }
 
-int
-fini_min(lua_State *L)
+void
+fini_min(void)
 {
-  return 0;
 }

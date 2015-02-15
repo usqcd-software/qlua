@@ -6,7 +6,7 @@ typedef struct {
 } mScatter;
 
 int init_scatter(lua_State *L);
-int fini_scatter(lua_State *L);
+void fini_scatter(void);
 
 mScatter *qlua_checkScatter(lua_State *L, int idx);
 

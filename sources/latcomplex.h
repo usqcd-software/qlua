@@ -6,7 +6,7 @@ typedef struct {
 } mLatComplex;
 
 int init_latcomplex(lua_State *L);
-int fini_latcomplex(lua_State *L);
+void fini_latcomplex(void);
 
 mLatComplex *qlua_checkLatComplex(lua_State *L, int idx, mLattice *S);
 mLatComplex *qlua_newLatComplex(lua_State *L, int S_idx);

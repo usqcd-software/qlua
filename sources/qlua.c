@@ -1210,9 +1210,10 @@ qlua_assert(int status, const char *msg)
 
 /* cleanup (mostly housekeeping to make various tools happy */
 void
-qlua_fini(lua_State *L)
+qlua_fini(void)
 {
-    const static lua_CFunction qcd_finis[] = {
+  typedef void (*finiFunc)(void);
+  const static finiFunc qcd_finis[] = {
         /* ZZZ add other packages here */
 #ifdef HAS_EXTRAS
         fini_extras,
@@ -1268,8 +1269,7 @@ qlua_fini(lua_State *L)
     int i;
 
     for (i = 0; qcd_finis[i]; i++) {
-        lua_pushcfunction(L, qcd_finis[i]);
-        lua_call(L, 0, 0);
+      qcd_finis[i]();
     }
 }
 
@@ -1280,6 +1280,7 @@ main(int argc, char *argv[])
   int status = 1;
   int i;
   lua_State *L = NULL;
+  int qlua_inited = 0;
   
   if (QDP_initialize(&argc, &argv)) {
     fprintf(stderr, "QDP initialization failed\n");
@@ -1296,6 +1297,7 @@ main(int argc, char *argv[])
     goto end;
   }
   qlua_init(L, argc, argv);  /* open libraries */
+  qlua_inited = 1;
 
   if (argc < 2) {
     message("QLUA component versions:\n");
@@ -1323,7 +1325,8 @@ main(int argc, char *argv[])
       }
       report(L, source, status);
       if (status) {
-        qlua_fini(L);
+	lua_close(L);
+        qlua_fini();
         fflush(stdout);
         fflush(stderr);
         QDP_abort(1);
@@ -1331,9 +1334,10 @@ main(int argc, char *argv[])
       }
     }
   }
-  qlua_fini(L);
-  lua_close(L);
  end:
+  lua_close(L);
+  if (qlua_inited)
+    qlua_fini();
   QDP_finalize();
   return status;
 }

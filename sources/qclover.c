@@ -1996,8 +1996,7 @@ init_clover(lua_State *L)
     return 0;
 }
 
-int
-fini_clover(lua_State *L)
+void
+fini_clover(void)
 {
-    return 0;
 }

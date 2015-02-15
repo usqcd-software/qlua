@@ -872,8 +872,7 @@ init_xml(lua_State *L)
     return 0;
 }
 
-int
-fini_xml(lua_State *L)
+void
+fini_xml(void)
 {
-    return  0;
 }

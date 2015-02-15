@@ -1,0 +1,36 @@
+require "stdlib"
+
+L = qcd.lattice {3, 4, 2, 5}
+
+
+SubA = L:Subset("all")
+SubE = L:Subset("even")
+
+m1 = qcd.lt(L:pcoord(3), 3)
+m2 = qcd.lt(L:pcoord(1), 1)
+
+Sub1 = L:Subset(m1)
+Sub2 = L:Subset(m2)
+
+printf("SubA = %s\n", tostring(SubA))
+printf("SubE = %s\n", tostring(SubE))
+printf("Sub1 = %s\n", tostring(Sub1))
+printf("Sub2 = %s\n", tostring(Sub2))
+
+
+printf("all     : %5d sites\n", L:Int(1):sum())
+printf("even    : %5d sites\n", SubE:where(function () return L:Int(1):sum() end))
+printf("s1      : %5d sites (expect %d)\n",
+       Sub1:where(function () return L:Int(1):sum() end),
+       m1:sum());
+printf("s2      : %5d sites (expect %d)\n",
+       Sub2:where(function () return L:Int(1):sum() end),
+       m2:sum())
+printf("s1 x s2 : %5d sites (expect %d)\n",
+       Sub1:where(function ()
+                     return Sub2:where(function ()
+                                          return L:Int(1):sum()
+                                       end)
+                  end),
+       (m1 * m2):sum())
+os.exit(0)

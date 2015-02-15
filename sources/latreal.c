@@ -1280,8 +1280,7 @@ init_latreal(lua_State *L)
     return 0;
 }
 
-int
-fini_latreal(lua_State *L)
+void
+fini_latreal(void)
 {
-    return 0;
 }

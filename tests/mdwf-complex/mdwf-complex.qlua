@@ -1,0 +1,63 @@
+do
+   local ix = L:Int(0)
+   for i = 0, #L - 1 do
+      ix = ix * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(rnd_seed, ix)
+end
+
+U = {}
+for i = 0, #L - 1 do
+   U[i+1] = toSUn(4.123 * S:gaussian_ColorMatrix())
+end
+F = {}
+F2 = {}
+for i = 0, mdwf_L5 - 1 do
+   F[i+1] = S:gaussian_DiracFermion()
+   F2[i+1] = S:gaussian_DiracFermion()
+end
+
+-- init MDWF lib 
+DW = qcd.MDWF.generic(U, bc, mdwf_L5, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+-- gauge field for "gold MDWF"
+bc_U = gauge_copy(U) ; gauge_apply_boundary(bc_U, bc)
+
+-- Op test
+d_F     = DW:D(F)
+dgold_F = latvec_op_dslash_moebius(F, bc_U, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+--print_latvec_cmp(d_F, dgold_F, "Op : D(F) <-> Dgold(F)")
+printf(">>>> D  test: |a-b| %25.15e\n", latvec_norm2(latvec_sub(d_F, dgold_F)));
+
+-- OpX test
+dX_F    = DW:Dx(F)
+dXgold_F= latvec_op_dslash_moebius(F, bc_U, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, 1)
+--print_latvec_cmp(dX_F, dXgold_F, "OpX : Dx(F) <-> Dxgold(F)")
+printf(">>>> D* test: |a-b| %25.15e\n", latvec_norm2(latvec_sub(dX_F, dXgold_F)));
+
+-- direct Hermitian conj test
+dX_F2   = DW:Dx(F2)
+F2_d_F  = latvec_vdot(F2, d_F)
+dX_F2_F = latvec_vdot(dX_F2, F)
+--printf('Direct Hermiticity test : (F2,D(F)) <-> (Dx(F2),F) : %s =?= %s, diff=%s\n', 
+--      tostring(F2_d_F), tostring(dX_F2_F), tostring(F2_d_F - dX_F2_F))
+printf(">>>> Hermiticity test: |a-b| %25.15e\n", (F2_d_F - dX_F2_F):abs());
+
+-- compare Dx(F) to D(F)
+--print_latvec_cmp(dX_F, d_F, "(this should FAIL) Dx(F) <-> D(F)")
+
+
+
+-- solver test
+solver = DW:solver(1e-16, 50000)
+--dinv_F = solver(F, true, true)
+dinv_F = solver(F)
+d_dinv_F = latvec_op_dslash_moebius(dinv_F, bc_U, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+printf("|F| = %25.15e\n", latvec_norm2(F))
+--printf("|dinv_F|  = %25.15e\n", latvec_norm2(dinv_F))
+--printf("|d_dinv_F| = %25.15e\n", latvec_norm2(d_dinv_F))
+--printf("|d_dinv_F - F| = %25.15e\n", 
+--        latvec_norm2(latvec_scalsum_left(1., d_dinv_F, -1., F)))
+--print_latvec_cmp(F, d_dinv_F, "F <-> Dgold(Dinv(F))")
+printf(">>>> solver : |a-b| %25.15e\n", latvec_norm2(latvec_sub(d_dinv_F, F)));
+
+printf("DONE\n")

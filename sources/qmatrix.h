@@ -28,7 +28,7 @@ extern const char mtnMatReal[];
 extern const char mtnMatComplex[];
 
 int init_matrix(lua_State *L);
-int fini_matrix(lua_State *L);
+void fini_matrix(void);
 
 mMatReal *qlua_checkMatReal(lua_State *L, int idx);
 mMatReal *qlua_newMatReal(lua_State *L, int sl, int sr);

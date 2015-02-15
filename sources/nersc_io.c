@@ -731,8 +731,7 @@ init_nersc_io(lua_State *L)
 }
 #endif /* USE_Nc3 == 0 */
 
-int
-fini_nersc_io(lua_State *L)
+void
+fini_nersc_io(void)
 {
-    return 0;
 }

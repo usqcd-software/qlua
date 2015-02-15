@@ -1083,8 +1083,10 @@ static int
 qhdf5_gc(lua_State *L)
 {
   mHdf5File *b = qlua_checkHdf5File(L, 1);
+  int is_closing = b->parallel? 1: b->master;
 
-  do_close(L, b);
+  if (is_closing)
+    do_close(L, b);
   return 0;
 }
 
@@ -1330,6 +1332,9 @@ qhdf5_remove(lua_State *L)
     hid_t wdir = b->cwd;
     if (ename == NULL) {
       ename = dpath;
+    } else if (ename == dpath) {
+      wdir = H5Gopen2(b->file, "/", H5P_DEFAULT);
+      ename = ename + 1;
     } else {
       ename[0] = 0;
       ename = ename + 1;
@@ -3456,9 +3461,8 @@ init_hdf5_io(lua_State *L)
   return 0;
 }
 
-int
-fini_hdf5_io(lua_State *L)
+void
+fini_hdf5_io(void)
 {
   H5close();
-  return 0;
 }

@@ -1,0 +1,40 @@
+require "stdlib"
+
+
+L = qcd.lattice{4,6,3,8};
+
+Pcreat = { method = "phdf5" }
+Pwrite = { lattice = L, sha256 = "ignore", precision = "double"}
+
+function write_prop(h5_name, kpath, p)
+   local h5w  = qcd.hdf5.Writer(h5_name, Pcreat)
+   printf('remove %s[%s]\n', h5_name, kpath)
+   h5w:remove(kpath)
+   printf('write %s to %s[%s]\n', tostring(p), h5_name, kpath)
+   h5w:write(kpath, p, Pwrite)
+   h5w:flush()
+   h5w:close()
+end
+function h5_remove(h5_name, kpath)
+   local h5w  = qcd.hdf5.Writer(h5_name, Pcreat)
+   printf('remove %s[%s]\n', h5_name, kpath)
+   h5w:remove(kpath)
+   h5w:flush()
+   h5w:close()
+end
+
+
+p = L:Real(1.0);
+fname = 'a.h5'
+os.remove(fname)
+-- in non-root group: write & overwrite
+write_prop(fname, '/a/p', p)
+write_prop(fname, '/a/p', p)
+h5_remove(fname, '/a/p')
+
+-- in root group: write & fail when overwriting
+write_prop(fname, '/p', p)
+write_prop(fname, '/p', p)
+h5_remove(fname, '/p')
+
+printf("DOME\n");

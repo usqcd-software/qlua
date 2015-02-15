@@ -33,7 +33,7 @@ mSeqDirFermN *qlua_newZeroSeqDirFermN(lua_State *L, int nc);
 #endif
 
 int init_seqdirferm(lua_State *L);
-int fini_seqdirferm(lua_State *L);
+void fini_seqdirferm(void);
 
 int q_d_gaussian_N(lua_State *L);
 

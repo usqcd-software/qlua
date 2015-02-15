@@ -133,8 +133,7 @@ init_qdpcc_io(lua_State *L)
     return 0;
 }
 
-int
-fini_qdpcc_io(lua_State *L)
+void
+fini_qdpcc_io(void)
 {
-    return 0;
 }

@@ -374,8 +374,7 @@ init_complex(lua_State *L)
     return 0;
 }
 
-int
-fini_complex(lua_State *L)
+void
+fini_complex(void)
 {
-    return 0;
 }

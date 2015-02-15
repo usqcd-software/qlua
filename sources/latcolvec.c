@@ -206,8 +206,7 @@ init_latcolvec(lua_State *L)
     return 0;
 }
 
-int
-fini_latcolvec(lua_State *L)
+void
+fini_latcolvec(void)
 {
-    return 0;
 }
