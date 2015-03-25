@@ -72,6 +72,16 @@ function load_qdpc_colmat_list(L, name, n)
   qdp_r:close()
   return cm_list, finfo, rinfo_list
 end
+function load_qdpc_gauge(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local gauge, rinfo = qdp_r:ColorMatrix(4)
+  if not gauge then 
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return gauge, finfo, rinfo
+end
 -- ColorVector
 function load_qdpc_colvec(L, name)
   local qdp_r, finfo = open_qdpc_read(L, name)
