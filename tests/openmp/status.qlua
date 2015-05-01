@@ -1,3 +1,6 @@
+-- to run on MacOSX using gcc implementation of OpenMP:
+-- LD_LIBRARY_PATH=$HOME/Local/packages/gcc-5.1.0/lib ./qlua tests/openmp/status.qlua
+--
 require "stdlib";
 
 if openmp then
