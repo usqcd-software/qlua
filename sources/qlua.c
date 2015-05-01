@@ -58,6 +58,9 @@
 #ifdef HAS_HYPRE
 #include "qhp.h"                                                     /* DEPS */
 #endif
+#ifdef _OPENMP
+#include "qomp.h"                                                    /* DEPS */
+#endif
 
 /* ZZZ include other package headers here */
 
@@ -1106,6 +1109,9 @@ void
 qlua_init(lua_State *L, int argc, char *argv[])
 {
     static const lua_CFunction qcd_inits[] = {
+#ifdef _OPENMP
+        init_qomp,
+#endif
         init_qlua_io,
         init_complex,
         init_seqrandom,
@@ -1265,6 +1271,9 @@ qlua_fini(void)
         fini_seqrandom,
         fini_complex,
         fini_qlua_io,
+#ifdef _OPENMP
+        fini_qomp,
+#endif
         NULL };
     int i;
 

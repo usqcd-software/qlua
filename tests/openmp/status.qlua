@@ -1,0 +1,19 @@
+require "stdlib";
+
+if openmp then
+   printf("openmp present: %s\n", tostring(openmp));
+   for v, i in pairs(openmp) do
+      local k = type(i);
+      if not (k == "function") then
+         printf("  %-20s [%21s] : %s\n", tostring(v), k, tostring(i));
+      elseif v == "schedule" then
+         local knd, arg = openmp[v]();
+         printf("  %-20s [%10s %10s] : %s %s\n", tostring(v), type(knd), type(arg), tostring(knd), tostring(arg));
+      else
+         local w = openmp[v]();
+         printf("  %-20s [%21s] : %s\n", tostring(v), type(w), tostring(w));
+      end
+   end
+else
+   printf("NO OpenMP included\n");
+end

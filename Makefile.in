@@ -99,7 +99,8 @@ libsrc = fix.c \
 	 qio_utils.c \
          qdpc_io.c \
          ddpairs_io.c \
-         qdpcc_io.c
+         qdpcc_io.c \
+         qomp.c
 
 ###############################################################################
 ifneq ("$(AFF)", "")
