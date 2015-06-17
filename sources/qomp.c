@@ -15,11 +15,11 @@ static const char qomp_name[] = "openmp";
  *    nested   	              OMP_NESTED                  bool         r/w *_nested()
  *    num_threads	      OMP_NUM_THREADS             int          r/w *_{max,num}_threads()
  *    schedule		      OMP_SCHEDULE                string,int   r/w *_schedule()
- *    bind		      OMP_PROC_BIND               string       r/  *_proc_bind()
+ *X    bind		      OMP_PROC_BIND               string       r/  *_proc_bind()
  *    thread+limit	      OMP_THREAD_LIMIT            int          r/  *_thread_limit()
  *    max_active_levels	      OMP_MAX_ACTIVE_LEVELS       int          r/w *_max_active_levels()
- *    default-device	      OMP_DEFAULT_DEVICE          int          r/w *_default_device()
- *    num_devices             -                           int          r/  *_num_devices()
+ *X    default-device	      OMP_DEFAULT_DEVICE          int          r/w *_default_device()
+ *X    num_devices             -                           int          r/  *_num_devices()
  *    version                 -                           string       r/  _OPENMP
  *    
  */
@@ -120,6 +120,7 @@ qomp_thread_limit(lua_State *L)
   return 0;
 }
 
+#if 0 /* XXX */
 static int
 qomp_default_dev(lua_State *L)
 {
@@ -155,6 +156,7 @@ qomp_num_devices(lua_State *L)
   }
   return 0;
 }
+#endif /* XXX */
 
 static struct {
   omp_sched_t   sched;
@@ -211,6 +213,7 @@ qomp_schedule(lua_State *L)
   return 0;
 }
 
+#if 0 /* XXX */
 static struct {
   omp_proc_bind_t   bind;
   const char       *name;
@@ -259,6 +262,7 @@ qomp_bind(lua_State *L)
   }
   return 0;
 }
+#endif /* XXX */
 
 static const luaL_Reg mtOpenMP[] = {
   { "dynamic",              qomp_dynamic},       /*  bool         r/w */
@@ -266,10 +270,14 @@ static const luaL_Reg mtOpenMP[] = {
   { "num_threads",          qomp_num_threads},   /*  int          r/w */
   { "thread_limit",         qomp_thread_limit},  /*  int          r/- */
   { "levels",               qomp_levels},        /*  int          r/w */
+#if 0 /* XXX */
   { "default_dev",          qomp_default_dev},   /*  int          r/w */
   { "num_dev",              qomp_num_devices},   /*  int          r/- */
+#endif /* XXX */
   { "schedule",             qomp_schedule},      /*  string,int   r/w */
+#if 0 /* XXX */
   { "binding",              qomp_bind},          /*  string       r/- */
+#endif /* XXX */
   { NULL,                   NULL}
 };
 
