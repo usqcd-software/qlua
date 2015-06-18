@@ -61,6 +61,9 @@
 #ifdef _OPENMP
 #include "qomp.h"                                                    /* DEPS */
 #endif
+#ifdef HAS_QOPQDP
+#include "qqopqdp.h"                                                 /* DEPS */
+#endif
 
 /* ZZZ include other package headers here */
 
@@ -103,6 +106,9 @@ static struct {
 #endif
 #ifdef HAS_HYPRE
     {"hypre",    HYPRE_VERSION },
+#endif
+#ifdef HAS_QOPQDP
+    {"qopqdp", QOPQDP_VERSION },
 #endif
     {"colors",   (
 #if USE_Nc2
@@ -1159,6 +1165,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_MDWF
         init_mdwf,
 #endif
+#ifdef HAS_QOPQDP
+        init_qopqdp,
+#endif
 #ifdef HAS_EXTRAS
         init_extras,
 #endif
@@ -1223,6 +1232,9 @@ qlua_fini(void)
         /* ZZZ add other packages here */
 #ifdef HAS_EXTRAS
         fini_extras,
+#endif
+#ifdef HAS_QOPQDP
+        fini_qopqdp,
 #endif
 #ifdef HAS_MDWF
         fini_mdwf,

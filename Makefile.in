@@ -58,6 +58,11 @@ HYPRE_CF     = @hypre_cflags@
 HYPRE_LF     = @hypre_ldflags@
 HYPRE_LIBS   = @hypre_libs@
 
+QOPQDP       = @qopqdp@
+QOPQDP_CF    = @qopqdp_cflags@
+QOPQDP_LF    = @qopqdp_ldflags@
+QOPQDP_LIBS  = @qopqdp_libs@
+
 ARPACK       = @arpack@
 ARPACK_CF    = @arpack_cflags@
 ARPACK_LF    = @arpack_ldflags@
@@ -110,6 +115,10 @@ endif
 ifneq ("$(HDF5)", "")
   libsrc += hdf5_io.c \
             sha256.c
+endif
+
+ifneq ("$(QOPQDP)", "")
+	libsrc += qqopqdp.c
 endif
 
 ifneq ("$(CLOVER)", "")

@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-20140305
+PACKTOP=$HOME/Local/packages/macosx-working
 DEVTOP=$HOME/Local/packages
 Nc=3
 # noNc=3
@@ -32,9 +32,10 @@ LIBS='-lz' \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-hdf5=$PACKTOP/hdf5                               \
-   --with-nc=N                                             \
+   --with-qopqdp=$PACKTOP/qopqdp                           \
+   --without-nc=N                                          \
    --with-nc=3                                             \
-   --with-nc=2                                             \
+   --without-nc=2                                          \
    $*
 
 #   --with-clover=$DEVTOP/clover-working                    \
