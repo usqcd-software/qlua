@@ -1,11 +1,8 @@
+require "stdlib"
 require "gauge"
 
 
 -------------------------------------------------------------------------------
-function printf(fmt, ...)
-  io.stdout:write(string.format(fmt, ...))
-end
-
 local function clovF(U, i,j)
    local Ujp = U[j]:shift(i - 1, "from_forward")
    local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
@@ -21,23 +18,21 @@ local function clovF(U, i,j)
 return (F - F:adjoin()) / complex(0,8)
 end
 
-function clover_std(U, kappa, c_sw_space, c_sw_time, F)
+function clover_std(U, boundary, kappa, c_sw_space, c_sw_time, F)
+   local i, j;
+   local L = U[1].lattice;
+   
+   -- boundary conditions
    local X = F;
-   local L = U[1].lattice
-   
-   for i = 0, #L - 2 do
+
+   for i = 0, #L - 1 do
+      local Ui = U[i+1]:copy();
+      L:Subset{axis=i,position=L[i]-1}:where(function () Ui:set(Ui * boundary[i+1]) end);
       X = X - kappa * 
-         ((1-gamma{mu=i}) * (U[i+1] * (F:shift(i, "from_forward"))) + (
-             (1+gamma{mu=i}) * ((U[i+1]:adjoin() * F):shift(i, "from_backward"))))
+         ((1-gamma{mu=i}) * (Ui * (F:shift(i, "from_forward"))) + (
+             (1+gamma{mu=i}) * ((Ui:adjoin() * F):shift(i, "from_backward"))))
    end
-   
-   -- antiperiodic bc in d=3 !!!
-   local U4 = U[#L]:copy()
-   L:Subset{axis=#L-1, position=L[#L-1]-1}:where(function () U4:set(-U[#L]) end)
-   X = X - kappa * 
-      ((1-gamma{mu=#L-1}) * (U4 * (F:shift(#L-1, "from_forward"))) +
-       (1+gamma{mu=#L-1}) * ((U4:adjoin() * F):shift(#L-1, "from_backward")))
-   
+
    for i = 1, (#L - 1) do
       for j = i + 1, (#L - 1) do
          X = X - kappa * c_sw_space * clovF(U,i,j) * (

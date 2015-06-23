@@ -178,6 +178,7 @@ int *qlua_intarray(lua_State *L, int idx, int *out_dim);
 double *qlua_numberarray(lua_State *L, int idx, int *out_dim);
 int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 double *qlua_checknumberarray(lua_State *L, int idx, int dim, int *out_dim);
+int qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *a);
 
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
@@ -186,6 +187,7 @@ int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);
 int qlua_push_key_bool(lua_State *L, int idx, const char *key, int val);
 int qlua_push_key_number(lua_State *L, int idx, const char *key, double val);
 int qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val);
+int qlua_push_key_object(lua_State *L, int idx, const char *key);
 
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);
 int qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def);

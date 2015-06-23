@@ -1,0 +1,25 @@
+require "stdlib"
+lat = qcd.lattice{4,7};
+
+function show_latint(name, v)
+   local i, j;
+   local L = v.lattice;
+   printf("<<<< %s on lattice %s:\n", name, tostring(L));
+   for i = 0, L[0] - 1 do
+      printf("  [%3d,.] : ", i);
+      for j = 0, L[1] - 1 do
+         printf(" %5d", v[{i,j}]);
+      end
+      printf("\n");
+   end
+   printf(">>>>\n");
+end
+
+show_latint("pcoord(0)", lat:pcoord(0));
+show_latint("pcoord(1)", lat:pcoord(1));
+triangle = qcd.gt(lat:pcoord(1),lat:pcoord(0));
+s = lat:Subset(triangle);
+v = lat:Int(0);
+s:where(function() v:set(lat:Int(1)) end);
+show_latint("v", v);
+

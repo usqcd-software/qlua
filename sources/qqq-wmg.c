@@ -1,10 +1,12 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
-#include "latcolmat.h"                                               /* DEPS */
 #include "qqopqdp.h"                                                 /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
+
 #include <string.h>
-#ifdef USE_Nc3
+#if USE_Nc3
 #define QOP_PRECISION 'D'
 #define QOP_Colors 3
 #include <qdp.h>
@@ -15,9 +17,11 @@ static const char QOPwmgStateName[]         = "qop.WilsonMG";
 
 #define Nc 3       /* Only Nc = 3, see FIXED Nc comments */
 #define MG_DIM 4   /* Only dim = 4, see FIXED dim comments */
+#define Qs(a)   a ## 3
 
 /* default values -- borrowed from James's example */
-#define QQQ_RSQMIN_DEFAULT        1e-8
+#define QQQ_RSQMIN_DEFAULT        1e-8 /* 0 to ignore */
+#define QQQ_RELMIN_DEFAULT        0 /* 0 to ignore */
 #define QQQ_MAX_ITER_DEFAULT      600
 #define QQQ_RESTART_DEFAULT       200
 #define QQQ_MAX_RESTARTS_DEFAULT  5
@@ -27,13 +31,159 @@ typedef struct {
   char                       *name;
   int                         nc;
   int                         state;
+  double                      kappa;
   QOP_layout_t                layout;
   QOP_info_t                  info;
   QOP_invert_arg_t            inv_arg;
-  QOP_resid_arg_t             res_arg;
-  QOP_FermionLinksWilson     *flw;
-  QOP_WilsonMg               *wilmg;
+  QOP_resid_arg_t             res_in;
+  QOP_resid_arg_t             res_out;
+  QOP_D3_FermionLinksWilson  *flw;
+  QOP_3_WilsonMg             *wilmg;
 } mQOPwmgState;
+
+static int
+push_info(lua_State *L, QOP_info_t *info)
+{
+  lua_newtable(L);
+  qlua_push_key_number(L, -1, "final_sec", info->final_sec);
+  qlua_push_key_number(L, -1, "final_flops", info->final_flop);
+  qlua_push_key_number(L, -1, "count1", info->count1);
+  qlua_push_key_number(L, -1, "count2", info->count2);
+  return 1;
+}
+
+static int
+push_residual(lua_State *L, QOP_resid_arg_t *res)
+{
+  lua_newtable(L);
+  qlua_push_key_number(L, -1, "rsqmin", res->rsqmin);
+  qlua_push_key_number(L, -1, "final_rsq", res->final_rsq);
+  qlua_push_key_number(L, -1, "relmin", res->relmin);
+  qlua_push_key_number(L, -1, "final_rel", res->final_rel);
+  qlua_push_key_number(L, -1, "final_iter", res->final_iter);
+  qlua_push_key_number(L, -1, "final_restart", res->final_restart);
+  return 1;
+}
+
+static int
+load_residual_args(lua_State *L, int tidx, QOP_resid_arg_t *res)
+{
+  QOP_resid_arg_t resz = QOP_RESID_ARG_DEFAULT;
+  *res = resz;
+
+  if (qlua_tabkey_tableopt(L, tidx, "residual")) {
+    int ridx = lua_gettop(L);
+    res->rsqmin = qlua_tabkey_doubleopt(L, ridx, "rsqmin", QQQ_RSQMIN_DEFAULT);
+    res->relmin = qlua_tabkey_doubleopt(L, ridx, "relmin", QQQ_RELMIN_DEFAULT);
+    lua_pop(L, 1);
+    return 1;
+  }
+  return 0;
+}
+
+static int
+load_inverter_args(lua_State *L, int tidx, QOP_invert_arg_t *inv_arg)
+{
+  QOP_invert_arg_t invz = QOP_INVERT_ARG_DEFAULT;
+  *inv_arg = invz;
+
+  if (qlua_tabkey_tableopt(L, tidx, "inverter")) {
+    int iidx = lua_gettop(L);
+    inv_arg->max_iter = qlua_tabkey_intopt(L, iidx, "max_iter", QQQ_MAX_ITER_DEFAULT);
+    inv_arg->restart = qlua_tabkey_intopt(L, iidx, "restart", QQQ_RESTART_DEFAULT);
+    inv_arg->max_restarts = qlua_tabkey_intopt(L, iidx, "max_restarts", QQQ_MAX_RESTARTS_DEFAULT);
+    const char *eo = qlua_tabkey_stringopt(L, iidx, "evenodd", NULL);
+    if (eo) {
+      if (!strcmp(eo, "evenodd")) inv_arg->evenodd = QOP_EVENODD;
+      if (!strcmp(eo, "even")) inv_arg->evenodd = QOP_EVEN;
+      if (!strcmp(eo, "odd")) inv_arg->evenodd = QOP_ODD;
+    } else {
+      inv_arg->evenodd = QOP_EVENODD;
+    }
+    lua_pop(L, 1);
+    return 1;
+  }
+  return 0;
+}
+
+static int
+load_globals(lua_State *L, int tidx, mQOPwmgState *wmg)
+{
+  int verbose = qlua_tabkey_intopt(L, tidx, "verbose", 0);
+  int nlevels = 0;
+  int seen_kappa = 0;
+  if (qlua_tabkey_tableopt(L, tidx, "multigrid")) {
+    nlevels = lua_objlen(L, -1);
+    lua_pop(L, 1);
+  }
+  wmg->kappa = 0.0;
+  QOP_3_wilsonMgSet(wmg->wilmg, -1, "nlevels", nlevels);
+  QOP_3_wilsonMgSet(wmg->wilmg, -2, "verbose", verbose);
+  QOP_3_wilsonMgSet(wmg->wilmg, -1, "nc", wmg->nc);
+
+  /* insert all elements of arg[2].global */
+  if (qlua_tabkey_tableopt(L, tidx, "global")) {
+    int gidx = lua_gettop(L);
+    lua_pushnil(L);
+    while (lua_next(L, gidx)) {
+      const char *key = lua_tostring(L, -2);
+      double val = lua_tonumber(L, -1);
+      QOP_3_wilsonMgSet(wmg->wilmg, -1, (char *)key, val); /* drop const qualifier in the key */
+      if (strcmp(key, "kappa") == 0) {
+	wmg->kappa = val;
+	seen_kappa = 1;
+      }
+      lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+  }
+  if (!seen_kappa)
+    luaL_error(L, "WilsonMG(): global must define kappa");
+  return 0;
+}
+
+static int
+load_mglevel(lua_State *L, int tidx, int level,  mQOPwmgState *wmg)
+{
+  if (!qlua_tabpushopt_idx(L, tidx, level + 1))
+    luaL_error(L, "missing multigrid level %d", level);
+  int lidx = lua_gettop(L);
+  lua_pushnil(L);
+  while (lua_next(L, lidx)) {
+    const char *key = lua_tostring(L, -2);
+    if (strcmp(key, "lattice") == 0) {
+      int dim = 0;
+      double *sizes = qlua_numberarray(L, lua_gettop(L), &dim);
+      if (dim != MG_DIM)
+	luaL_error(L, "bad multigrid lattice rank %d at level %d", dim, level);
+      QOP_3_wilsonMgSetArray(wmg->wilmg, level, "lattice", sizes, dim);
+      qlua_free(L, sizes);
+    } else {
+      double val = lua_tonumber(L, lua_gettop(L));
+      QOP_3_wilsonMgSet(wmg->wilmg, level, (char *)key, val); /* drop const qualifier in the key */
+    }
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
+  return 0;
+}
+
+static void
+wmg_do_close(lua_State *L, mQOPwmgState *wmg)
+{
+  QLUA_ASSERT(wmg->state != 0);
+  if (wmg->wilmg)
+    QOP_3_wilsonMgFree(wmg->wilmg);
+  if (wmg->flw)
+    QOP_D3_wilson_destroy_L(wmg->flw);
+  if (wmg->layout.latsize)
+    qlua_free(L, wmg->layout.latsize);
+
+  wmg->layout.latsize = NULL;
+  wmg->flw = NULL;
+  wmg->wilmg = NULL;
+  wmg->state = 0;
+}
 
 static mQOPwmgState *
 qlua_checkQOPwmgState(lua_State *L, int idx, mLattice *S, int nc, int live)
@@ -59,13 +209,13 @@ qlua_checkQOPwmgState(lua_State *L, int idx, mLattice *S, int nc, int live)
 static int
 wmg_fmt(lua_State *L)
 {
-  mQOPwmgState *v = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
 
-  if (v->state) {
-    if (v->name) {
-      lua_pushfstring(L, "%s(%s)", QOPwmgStateName, v->name);
+  if (wmg->state) {
+    if (wmg->name) {
+      lua_pushfstring(L, "%s(%s)", QOPwmgStateName, wmg->name);
     } else {
-      lua_pushfstring(L, "%s(%p)", QOPwmgStateName, v);
+      lua_pushfstring(L, "%s(%p)", QOPwmgStateName, wmg);
     }
   } else {
     lua_pushfstring(L, "%s(closed)", QOPwmgStateName);
@@ -73,29 +223,12 @@ wmg_fmt(lua_State *L)
   return 1;
 }
 
-static void
-wmg_do_close(lua_State *L, mQOPwmgState *v)
-{
-  QLUA_ASSERT(v->state != 0);
-  if (v->wilmg)
-    QOP_wilsonMgFree(v->wilmg);
-  if (v->flw)
-    QOP_wilson_destroy_L(v->flw);
-  if (v->layout.latsize)
-    qlua_free(L, v->layout.latsize);
-
-  v->layout.latsize = NULL;
-  v->flw = NULL;
-  v->wilmg = NULL;
-  v->state = 0;
-}
-
 static int
 wmg_gc(lua_State *L)
 {
-  mQOPwmgState *v = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
-  if (v->state)
-    wmg_do_close(L, v);
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
+  if (wmg->state)
+    wmg_do_close(L, wmg);
   return 0;
 }
 
@@ -103,11 +236,7 @@ static int
 wmg_info(lua_State *L)
 {
   mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 1);
-  lua_newtable(L);
-  qlua_push_key_number(L, -1, "final_sec", wmg->info.final_sec);
-  qlua_push_key_number(L, -1, "final_flops", wmg->info.final_flop);
-  qlua_push_key_number(L, -1, "count1", wmg->info.count1);
-  qlua_push_key_number(L, -1, "count2", wmg->info.count2);
+  push_info(L, &wmg->info);
   return 1;
 }
 
@@ -132,40 +261,62 @@ wmg_inverter(lua_State *L)
 }
 
 static int
-wmg_result(lua_State *L)
-{
-  lua_pushstring(L, "XXX wmg method called result");
-  return 1;
-}
-
-static int
 wmg_status(lua_State *L)
 {
-  lua_pushstring(L, "XXX wmg method called status");
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
+
+  lua_newtable(L);
+  push_info(L, &wmg->info);
+  qlua_push_key_object(L, -2, "info");
+  push_residual(L, &wmg->res_out);
+  qlua_push_key_object(L, -2, "residual");
   return 1;
 }
 
 static int
 wmg_solve(lua_State *L)
 {
-  lua_pushstring(L, "XXX wmg method called solve");
-  return 1;
+  int narg = lua_gettop(L);
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 1);
+  mLattice *S = qlua_ObjLattice(L, 1);
+  int Sidx = lua_gettop(L);
+  Qs(mLatDirFerm) *rhs = Qs(qlua_checkLatDirFerm)(L, 2, S, wmg->nc);
+  Qs(mLatDirFerm) *lhs = Qs(qlua_newZeroLatDirFerm)(L, Sidx, wmg->nc);
+  QOP_invert_arg_t inv_arg = wmg->inv_arg;
+
+  wmg->res_out = wmg->res_in;
+  if (narg > 2) {
+    qlua_checktable(L, 3, "wilsonMG:solve()");
+    QOP_resid_arg_t res_c;
+    QOP_invert_arg_t inv_c;
+    if (load_residual_args(L, 3, &res_c)) wmg->res_out= res_c;
+    if (load_inverter_args(L, 3, &inv_c)) inv_arg = inv_c;
+  }
+  wmg->info.final_flop = 0;
+  wmg->info.final_sec = 0;
+  QOP_D3_wilsonMgSolve(&wmg->info, wmg->wilmg, wmg->flw, &inv_arg, &wmg->res_out, wmg->kappa, lhs->ptr, rhs->ptr);
+  lua_newtable(L);
+  push_info(L, &wmg->info);
+  qlua_push_key_object(L, -2, "info");
+  push_residual(L, &wmg->res_out);
+  qlua_push_key_object(L, -2, "residual");
+  return 2;
 }
 
 static int
 wmg_close(lua_State *L)
 {
-  mQOPwmgState *v = qlua_checkQOPwmgState(L, 1, NULL, -1, 1);
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 1);
 
-  wmg_do_close(L, v);
+  wmg_do_close(L, wmg);
   return 0;
 }
 
 static int
 wmg_colors(lua_State *L)
 {
-  mQOPwmgState *v = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
-  lua_pushnumber(L, v->nc);
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 0);
+  lua_pushnumber(L, wmg->nc);
   return 1;
 }
 
@@ -173,7 +324,6 @@ static const struct luaL_Reg mtQOPwmgState[] = {
   { "__tostring",       wmg_fmt       },
   { "__gc",             wmg_gc        },
   { "info",             wmg_info      },
-  { "result",           wmg_result    },
   { "inverter",         wmg_inverter  },
   { "status",           wmg_status    },
   { "solve",            wmg_solve     },
@@ -187,113 +337,33 @@ static const struct luaL_Reg mtQOPwmgState[] = {
 static mQOPwmgState *
 qlua_newQOPwmgState(lua_State *L, int Sidx)
 {
-    mQOPwmgState *c = lua_newuserdata(L, sizeof (mQOPwmgState));
+    mQOPwmgState *wmg = lua_newuserdata(L, sizeof (mQOPwmgState));
     QOP_layout_t layz = QOP_LAYOUT_ZERO;
     QOP_info_t infoz = QOP_INFO_ZERO;
     QOP_invert_arg_t invz = QOP_INVERT_ARG_DEFAULT;
     QOP_resid_arg_t resz = QOP_RESID_ARG_DEFAULT;
 
-    c->name = NULL;
-    c->nc = 0;
-    c->state = 0;
-    c->layout = layz;
-    c->info = infoz;
-    c->inv_arg = invz;
-    c->inv_arg.max_iter = QQQ_MAX_ITER_DEFAULT;
-    c->inv_arg.restart = QQQ_RESTART_DEFAULT;
-    c->inv_arg.max_restarts = QQQ_MAX_RESTARTS_DEFAULT;
-    c->inv_arg.evenodd = QQQ_EVENODD_DEFAULT;
-    c->res_arg = resz;
-    c->flw = NULL;
-    c->wilmg = NULL;
+    wmg->name = NULL;
+    wmg->nc = 0;
+    wmg->state = 0;
+    wmg->layout = layz;
+    wmg->info = infoz;
+    wmg->inv_arg = invz;
+    wmg->inv_arg.max_iter = QQQ_MAX_ITER_DEFAULT;
+    wmg->inv_arg.restart = QQQ_RESTART_DEFAULT;
+    wmg->inv_arg.max_restarts = QQQ_MAX_RESTARTS_DEFAULT;
+    wmg->inv_arg.evenodd = QQQ_EVENODD_DEFAULT;
+    wmg->res_in = resz;
+    wmg->res_out = resz;
+    wmg->flw = NULL;
+    wmg->wilmg = NULL;
 
     qlua_createLatticeTable(L, Sidx, mtQOPwmgState, qQOPwmgState, QOPwmgStateName);
     lua_setmetatable(L, -2);
 
-    return c;
+    return wmg;
 }
 
-static int
-load_inverter_args(lua_State *L, int tidx, QOP_invert_arg_t *inv_arg, QOP_resid_arg_t *res_arg)
-{
-  QOP_invert_arg_t invz = QOP_INVERT_ARG_DEFAULT;
-  QOP_resid_arg_t resz = QOP_RESID_ARG_DEFAULT;
-  
-  *inv_arg = invz;
-  *res_arg = resz;
-
-  res_arg->rsqmin = qlua_tabkey_doubleopt(L, tidx, "rsqmin", QQQ_RSQMIN_DEFAULT);
-
-  if (qlua_tabkey_tableopt(L, tidx, "inverter")) {
-    inv_arg->max_iter = qlua_tabkey_intopt(L, tidx, "max_iter", QQQ_MAX_ITER_DEFAULT);
-    inv_arg->restart = qlua_tabkey_intopt(L, tidx, "restart", QQQ_RESTART_DEFAULT);
-    inv_arg->max_restarts = qlua_tabkey_intopt(L, tidx, "max_restarts", QQQ_MAX_RESTARTS_DEFAULT);
-    const char *eo = qlua_tabkey_stringopt(L, tidx, "evenodd", NULL);
-    if (eo) {
-      if (!strcmp(eo, "evenodd")) inv_arg->evenodd = QOP_EVENODD;
-      if (!strcmp(eo, "even")) inv_arg->evenodd = QOP_EVEN;
-      if (!strcmp(eo, "odd")) inv_arg->evenodd = QOP_ODD;
-    } else {
-      inv_arg->evenodd = QOP_EVENODD;
-    }
-    lua_pop(L, 1);
-  }
-  return 0;
-}
-
-static int
-load_globals(lua_State *L, int tidx, mQOPwmgState *wmg)
-{
-  int verbose = qlua_tabkey_intopt(L, tidx, "verbose", 0);
-  int nlevels = 0;
-  if (qlua_tabkey_tableopt(L, tidx, "multigrid")) {
-    nlevels = lua_objlen(L, -1);
-    lua_pop(L, 1);
-  }
-  QOP_wilsonMgSet(wmg->wilmg, -1, "nlevels", nlevels);
-  QOP_wilsonMgSet(wmg->wilmg, -2, "verbose", verbose);
-  QOP_wilsonMgSet(wmg->wilmg, -1, "nc", wmg->nc);
-
-  /* insert all elements of arg[2].global */
-  if (qlua_tabkey_tableopt(L, tidx, "global")) {
-    int gidx = lua_gettop(L);
-    lua_pushnil(L);
-    while (lua_next(L, gidx)) {
-      const char *key = lua_tostring(L, -2);
-      double val = lua_tonumber(L, -1);
-      QOP_wilsonMgSet(wmg->wilmg, -1, (char *)key, val); /* drop const qualifier in the key */
-      lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
-  }
-  return 0;
-}
-
-static int
-load_mglevel(lua_State *L, int tidx, int level,  mQOPwmgState *wmg)
-{
-  if (!qlua_tabpushopt_idx(L, tidx, level + 1))
-    luaL_error(L, "missing multigrid level %d", level);
-  int lidx = lua_gettop(L);
-  lua_pushnil(L);
-  while (lua_next(L, lidx)) {
-    const char *key = lua_tostring(L, -2);
-    if (strcmp(key, "lattice") == 0) {
-      int dim = 0;
-      double *sizes = qlua_numberarray(L, lua_gettop(L), &dim);
-      if (dim != MG_DIM)
-	luaL_error(L, "bad multigrid lattice rank %d at level %d", dim, level);
-      QOP_wilsonMgSetArray(wmg->wilmg, level, "lattice", sizes, dim);
-      qlua_free(L, sizes);
-    } else {
-      double val = lua_tonumber(L, lua_gettop(L));
-      QOP_wilsonMgSet(wmg->wilmg, level, (char *)key, val); /* drop const qualifier in the key */
-    }
-    lua_pop(L, 1);
-  }
-  lua_pop(L, 1);
-  return 0;
-}
 
 int
 qqq_wmg(lua_State *L)
@@ -317,13 +387,11 @@ qqq_wmg(lua_State *L)
   int Sidx = lua_gettop(L);
   if (dim != S->rank)
     luaL_error(L, "Gauge table size=%d, lattice rank=%d", dim, S->rank);
-  QDP_F3_ColorMatrix *Ugauge[MG_DIM]; /* FIXED Nc, FIXED dim */
+  QDP_D3_ColorMatrix *Ugauge[MG_DIM]; /* FIXED Nc, FIXED dim */
   for (i = 0; i < MG_DIM; i++) {
     lua_pushnumber(L, i + 1);
     lua_gettable(L, 1);
-    QDP_D3_ColorMatrix *ui = qlua_checkLatColMat3(L, -1, S, Nc)->ptr;
-    Ugauge[i] = QDP_F3_create_M_L(S->lat);
-    QDP_FD3_M_eq_M(Ugauge[i], ui, S->all);
+    Ugauge[i] = qlua_checkLatColMat3(L, -1, S, Nc)->ptr;
     lua_pop(L, 1);
   }
   CALL_QDP(L);
@@ -345,16 +413,36 @@ qqq_wmg(lua_State *L)
     lua_pop(L,1);
   }
 
-  QOP_GaugeField *gf = QOP_create_G_from_qdp(Ugauge);
-  wmg->flw = QOP_wilson_create_L_from_G(&wmg->info, &coeffs, gf);
+  QOP_D3_GaugeField *gf = QOP_D3_create_G_from_qdp(Ugauge);
+  if (qlua_tabkey_tableopt(L, 2, "boundary")) {
+    int i;
+    int r0[MG_DIM];
+    QLA_D_Complex qla_phase[MG_DIM];
+    QOP_Complex phase[MG_DIM];
+    QOP_bc_t bc;
+    QOP_staggered_sign_t sign;
+
+    qlua_checkcomplexarray(L, -1, MG_DIM, qla_phase);
+    for (i = 0; i < MG_DIM; i++) {
+      r0[i] = 0;
+      phase[i].re = QLA_real(qla_phase[i]);
+      phase[i].im = QLA_imag(qla_phase[i]);
+    }
+    bc.phase = phase;
+    sign.signmask = NULL;
+    QOP_D3_rephase_G(gf, r0, &bc, &sign);
+    lua_pop(L, 1);
+  }
+  wmg->flw = QOP_D3_wilson_create_L_from_G(&wmg->info, &coeffs, gf);
   if (wmg->flw == NULL)
     luaL_error(L, "Wilson MG link create failed");
-  QOP_destroy_G(gf);
+  QOP_D3_destroy_G(gf);
 
   wmg->wilmg = QOP_3_wilsonMgNew(S->lat);
   if (wmg->wilmg == NULL)
     luaL_error(L, "Wilson MG new failed");
-  load_inverter_args(L, 2, &wmg->inv_arg, &wmg->res_arg);
+  load_residual_args(L, 2, &wmg->res_in);
+  load_inverter_args(L, 2, &wmg->inv_arg);
   load_globals(L, 2, wmg);
   if (qlua_tabkey_tableopt(L, 2, "multigrid")) {
     int nlevels = lua_objlen(L, -1);
@@ -363,8 +451,8 @@ qqq_wmg(lua_State *L)
       load_mglevel(L, -1, i, wmg);
     lua_pop(L, 1);
   }
-  QOP_wilsonMgSetLinks(wmg->wilmg, wmg->flw);
-  QOP_wilsonMgSetup(wmg->wilmg);
+  QOP_D3_wilsonMgSetLinks(wmg->wilmg, wmg->flw);
+  QOP_3_wilsonMgSetup(wmg->wilmg);
   const char *name = qlua_tabkey_stringopt(L, 2, "name", NULL);
   if (name)
     wmg->name = qlua_strdup(L, name);

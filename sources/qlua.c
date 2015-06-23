@@ -65,6 +65,9 @@
 #include "qqopqdp.h"                                                 /* DEPS */
 #endif
 
+
+#define NORMALIZE_INDEX(L, idx) do if (idx < 0) idx = lua_gettop(L) + 1 + idx; while (0)
+
 /* ZZZ include other package headers here */
 
 const static char *lattice_key = "lattice";
@@ -476,6 +479,33 @@ qlua_checknumberarray(lua_State *L, int n, int dim, int *out_dim)
     return idx;
 }
 
+int
+qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *arr)
+{
+  int i;
+
+  NORMALIZE_INDEX(L, idx);
+  for (i = 0; i < dim; i++) {
+    lua_pushnumber(L, i + 1);
+    lua_gettable(L, idx);
+    switch (qlua_qtype(L, -1)) {
+    case qReal: {
+      double v = luaL_checknumber(L, -1);
+      QLA_real(arr[i]) = v;
+      QLA_imag(arr[i]) = 0.0;
+    } break;
+    case qComplex: {
+      QLA_D_Complex *z = qlua_checkComplex(L, -1);
+      QLA_c_eq_c(arr[i], *z);
+    } break;
+    default:
+      luaL_error(L, "Unexpected element type in complex table");
+    }
+    lua_pop(L, 1);
+  }
+  return 0;
+}
+
 const char *
 qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
 {
@@ -576,10 +606,21 @@ qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val)
 }
 
 int
+qlua_push_key_object(lua_State *L, int idx, const char *key)
+{
+  NORMALIZE_INDEX(L, idx);
+  lua_pushstring(L, key);
+  lua_insert(L, -2);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
 qlua_tabkey_int(lua_State *L, int idx, const char *key)
 {
   int v;
-
+  
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting integer in { %s = ...}", key);
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -593,6 +634,7 @@ qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def)
 {
   int v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return def;
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -606,6 +648,7 @@ qlua_tabidx_int(lua_State *L, int idx, int key)
 {
   int v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting integer in { %s = ...}", key);
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -619,6 +662,7 @@ qlua_tabkey_double(lua_State *L, int idx, const char *key)
 {
   double v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting double in { %s = ...}", key);
   v = luaL_checknumber(L, -1);
@@ -632,6 +676,7 @@ qlua_tabkey_doubleopt(lua_State *L, int idx, const char *key, double def)
 {
   double v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return def;
   v = luaL_checknumber(L, -1);
@@ -645,6 +690,7 @@ qlua_tabidx_double(lua_State *L, int idx, int key)
 {
   double v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting double in { %s = ...}", key);
   v = luaL_checknumber(L, -1);
@@ -658,6 +704,7 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 {
   const char *v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting string in { %s = ...}", key);
   v = luaL_checkstring(L, -1);
@@ -669,6 +716,7 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 const char *
 qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def)
 {
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return def;
   const char *v = luaL_checkstring(L, -1);
@@ -682,6 +730,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 {
   const char *v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting string in { %s = ...}", key);
   v = luaL_checkstring(L, -1);
@@ -693,6 +742,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 int
 qlua_tabidx_tableopt(lua_State *L, int idx, int subidx)
 {
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, subidx))
     return 0;
   if (lua_type(L, -1) == LUA_TTABLE)
@@ -704,6 +754,7 @@ qlua_tabidx_tableopt(lua_State *L, int idx, int subidx)
 int
 qlua_tabkey_tableopt(lua_State *L, int idx, const char *key)
 {
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return 0;
   if (lua_type(L, -1) == LUA_TTABLE)
