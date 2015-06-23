@@ -543,6 +543,39 @@ qlua_tabpushopt_idx(lua_State *L, int idx, int subindex)
 }
 
 int
+qlua_push_key_bool(lua_State *L, int idx, const char *key, int val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushboolean(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
+qlua_push_key_number(lua_State *L, int idx, const char *key, double val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushnumber(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
+qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushstring(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
 qlua_tabkey_int(lua_State *L, int idx, const char *key)
 {
   int v;
@@ -595,6 +628,19 @@ qlua_tabkey_double(lua_State *L, int idx, const char *key)
 }
 
 double
+qlua_tabkey_doubleopt(lua_State *L, int idx, const char *key, double def)
+{
+  double v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+double
 qlua_tabidx_double(lua_State *L, int idx, int key)
 {
   double v;
@@ -642,6 +688,17 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
   lua_pop(L, 1); /* expect the user not to drop the object */
 
   return v;
+}
+
+int
+qlua_tabidx_tableopt(lua_State *L, int idx, int subidx)
+{
+  if (!qlua_tabpushopt_idx(L, idx, subidx))
+    return 0;
+  if (lua_type(L, -1) == LUA_TTABLE)
+    return 1;
+  lua_pop(L, 1);
+  return 0;
 }
 
 int

@@ -1,0 +1,94 @@
+require "stdlib"
+require "tests/wilsonmg/clover-def"
+require "tests/common/lattice"
+
+Lx = 8;
+Lt = 12;
+kappa = -0.0912356;
+c_sw_s = 0.53466;
+c_sw_t = 0.987234;
+seeds = { 25456, 456 };
+gaugeScale = 1.1245;
+max_error = 1e-10;
+block = {2, 2, 2, 2};
+
+latSize = {Lx,Lx,Lx,Lt};
+lat = qcd.lattice(latSize);
+
+-------- multigrid parameters
+mg_params = {
+   name = "mg-wilson-test",
+   verbose = 0, -- for -2
+   rsqmin = 1e-8,
+   clover = {
+      clov_s = 0.1,
+      clov_t = 0.1,
+   },
+   inverter = {
+      max_iter = 600,
+      restart = 200,
+      max_restarts = 5,
+      evenodd = "evenodd"
+   },
+   global = { -- for -1
+      -- nlevels is #multigrid
+      -- nc is U[1]:colors()
+      verbose = -1,
+      profile = 1,
+      kappa = 0.136,
+      kappanv = 0.136,
+      itmax = 50,
+      ngcr = 8,
+   },
+   multigrid = { -- start with 0
+      { lattice = vec_div(latSize, block),
+        -- verbose
+        nvecs = 8,
+        npre = npre, ----XXX
+        npost = npost, ---- XXX
+        scale = 1,
+        cres = 0.1,
+        itmax = 50,
+        ngcr = 8,
+        setup_res =  0.4,
+        setup_maxit = 100;
+        setup_change_fac = 0.5
+        --- setup_nvecs 
+     }
+   }
+};
+
+-------------- initialization
+printf("Running multigrid test with\n");
+show_object("  latSize", latSize);
+printf("-----\n");
+show_object("  mg_params", mg_params);
+printf("=====\n");
+
+rnd = random_gen(lat, seeds[1], seeds[2]);
+U = random_gauge(rnd, gaugeScale);
+F = random_fermion(rnd);
+show_object("F.lattice", F.lattice);
+show_object("F.colors", F.colors);
+show_object("F.a-type", F["a-type"]);
+rhs = clover_std(U, kappa, c_sw_s, c_sw_t, F);
+
+-------- test proper
+mg = qcd.qop.WilsonMG(U, mg_params);
+show_object("MG solver", mg);
+show_object("  mg.lattice", mg.lattice);
+show_object("  mg:colors()", mg:colors());
+show_object("MG info", mg:info());
+show_object("default inverter", mg:inverter());
+
+G,status = mg:solve(rhs);
+show_object("solver status", status);
+os.exit(777);
+delta = (G - F):norm2() / F:norm2();
+show_object("Solver error", delta);
+if (delta > max_error) then
+   printf("***** Error too large\n")
+   os.exit(1)
+else
+   printf("DONE OK\n");
+end
