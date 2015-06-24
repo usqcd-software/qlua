@@ -9,7 +9,7 @@ c_sw_s = 0.1;
 c_sw_t = 0.1;
 seeds = { 25456, 456 };
 gaugeScale = 1.1245;
-max_error = 1e-10;
+max_error = 1e-8;
 block = {2, 2, 2, 2};
 -- do not use to set hardwall boundary - clover term will be wrong.
 boundary = { 1, -- periodic in X
@@ -104,6 +104,11 @@ show_object("solve status", status);
 printf("-------------------- solver store status --------\n");
 show_object("solver status", mg:status());
 printf("--------------------\n");
+X = mg:operator(G);
+printf("   qop operator: %e\n", (X-rhs):norm2() / rhs:norm2());
+Y = clover_std(U, boundary, kappa, c_sw_s, c_sw_t, G);
+printf("   ref operator: %e\n", (Y-rhs):norm2() / rhs:norm2());
+
 gf2 = (G - F):norm2();
 f2 = F:norm2();
 delta = gf2 / f2;

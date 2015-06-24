@@ -274,6 +274,26 @@ wmg_status(lua_State *L)
 }
 
 static int
+wmg_operator(lua_State *L)
+{
+  mQOPwmgState *wmg = qlua_checkQOPwmgState(L, 1, NULL, -1, 1);
+  mLattice *S = qlua_ObjLattice(L, 1);
+  int Sidx = lua_gettop(L);
+  Qs(mLatDirFerm) *rhs = Qs(qlua_checkLatDirFerm)(L, 2, S, wmg->nc);
+  Qs(mLatDirFerm) *lhs = Qs(qlua_newZeroLatDirFerm)(L, Sidx, wmg->nc);
+
+  wmg->info.final_flop = 0;
+  wmg->info.final_sec = 0;
+  QMP_barrier();
+  QOP_D3_wilson_dslash_qdp(&wmg->info, wmg->flw, wmg->kappa, +1,
+			   lhs->ptr, rhs->ptr,
+			   QOP_EVENODD, QOP_EVENODD);
+  QMP_barrier();
+
+  return 1;
+}
+
+static int
 wmg_solve(lua_State *L)
 {
   int narg = lua_gettop(L);
@@ -294,7 +314,10 @@ wmg_solve(lua_State *L)
   }
   wmg->info.final_flop = 0;
   wmg->info.final_sec = 0;
-  QOP_D3_wilsonMgSolve(&wmg->info, wmg->wilmg, wmg->flw, &inv_arg, &wmg->res_out, wmg->kappa, lhs->ptr, rhs->ptr);
+  QMP_barrier();
+  QOP_D3_wilsonMgSolve(&wmg->info, wmg->wilmg, wmg->flw, &inv_arg, &wmg->res_out, wmg->kappa,
+		       lhs->ptr, rhs->ptr);
+  QMP_barrier();
   lua_newtable(L);
   push_info(L, &wmg->info);
   qlua_push_key_object(L, -2, "info");
@@ -326,6 +349,7 @@ static const struct luaL_Reg mtQOPwmgState[] = {
   { "info",             wmg_info      },
   { "inverter",         wmg_inverter  },
   { "status",           wmg_status    },
+  { "operator",         wmg_operator  },
   { "solve",            wmg_solve     },
   { "close",            wmg_close     },
   { "colors",           wmg_colors    },

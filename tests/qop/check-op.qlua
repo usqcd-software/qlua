@@ -1,0 +1,136 @@
+require "stdlib"
+require "tests/qop/clover-def"
+require "tests/common/lattice"
+
+Lx = 8;
+Lt = 8;
+kappa =  0.145124;
+c_sw_s = 0.76235;
+c_sw_t = c_sw_s;
+seeds = { 25456, 456 };
+gaugeScale = 1.1245;
+max_error = 1e-10;
+block = {2, 2, 2, 2};
+-- do not use to set hardwall boundary - clover term will be wrong.
+boundary = { 1, -- periodic in X
+            -1, -- antiperiodic in Y
+            complex(3/5,4/5), -- funny phase in Z
+            complex(0,1) -- pi/2 phase in T
+};
+
+latSize = {Lx,Lx,Lx,Lt};
+lat = qcd.lattice(latSize);
+
+-------- multigrid parameters
+mg_params = {
+   name = "mg-wilson-test", -- optional for tostring()
+   verbose = 0, -- for -2
+   residual = {
+      rsqmin = 1e-8
+      -- relmin = 0
+   },
+   inverter = {
+      max_iter = 601,
+      restart = 202,
+      max_restarts = 5,
+      evenodd = "evenodd" -- or "odd" or "even"
+   },
+   boundary = boundary, -- boundary conditions XXX
+   clover = { -- should be together with kappas, but it's not how it is done in examples
+      clov_s = c_sw_s,
+      clov_t = c_sw_t,
+   },
+   global = { -- for -1
+      -- nlevels is #multigrid
+      -- nc is U[1]:colors()
+      verbose = -1,
+      profile = 1,
+      kappa = kappa,
+      kappanv = kappa,
+      itmax = 50,
+      ngcr = 8,
+   },
+   multigrid = { -- start with 0
+      { lattice = vec_div(latSize, block),
+        -- verbose
+        nvecs = 8,
+        npre =  0,
+        npost =  4,
+        scale = 1,
+        cres = 0.1,
+        itmax = 50,
+        ngcr = 8,
+        setup_res =  0.4,
+        setup_maxit = 100;
+        setup_change_fac = 0.5
+        --- setup_nvecs 
+     }
+   }
+};
+-------------- fermion dump
+function dump_fermion(name, X)
+   printf("(define fermion-%s '(\n", name);
+   local L = X.lattice;
+   local x, y, z, t, c, d;
+   for x = 0, L[0] - 1 do
+      for y = 0, L[1] - 1 do
+         for z = 0, L[2] - 1 do
+            for t = 0, L[3] - 1 do
+               local f = X[{x,y,z,t}];
+               for c = 0, 2 do
+                  for d = 0, 3 do
+                     local v = f[{c=c,d=d}];
+                     if v:norm2() > 1e-10 then
+                        printf("   ((%2d %2d %2d %2d %d %d) %20.10e  %20.10e)\n", x, y, z, t, c, d,
+                               v:real(), v:imag());
+                     end
+                  end
+               end
+            end
+         end
+      end
+   end
+   printf("))\n");
+end
+
+-------------- initialization
+-- printf("Running multigrid \n");
+-- show_object("  latSize", latSize);
+-- printf("-----\n");
+-- show_object("  mg_params", mg_params);
+printf("=====\n");
+
+rnd = random_gen(lat, seeds[1], seeds[2]);
+U = random_gauge(rnd, gaugeScale);
+F = lat:DiracFermion();
+f = qcd.DiracFermionN(3,complex(1,0),{c=0,d=0})
+F[{4,4,4,4}] = f;
+--------
+printf("-------------------- creating wilson MG----------\n");
+mg = qcd.qop.WilsonMG(U, mg_params);
+-- printf("-------------------- the solver object ----------\n");
+-- show_object("MG solver", mg);
+-- printf("-------------------- the solver's lattice -------\n");
+-- show_object("  mg.lattice", mg.lattice);
+-- printf("-------------------- solver's Nc ----------------\n");
+-- show_object("  mg:colors()", mg:colors());
+-- printf("-------------------- solver information ---------\n");
+-- show_object("MG info", mg:info());
+-- printf("-------------------- default inverter values ----\n");
+-- show_object("default inverter", mg:inverter());
+-- printf("-------------------- applying the MG solver -----\n");
+-- G,status = mg:solve(rhs);
+-- printf("-------------------- solve status ---------------\n");
+-- show_object("solve status", status);
+-- printf("-------------------- solver store status --------\n");
+-- show_object("solver status", mg:status());
+-- printf("--------------------\n");
+-- X = mg:operator(F); -- for c=0: /  3.6764706e+00  ;
+X = mg:operator(F);
+Y = clover_std(U, boundary, kappa, c_sw_s, c_sw_t, F);
+
+
+
+dump_fermion("input", F)
+dump_fermion("qop-result", X)
+dump_fermion("ref-result", Y)

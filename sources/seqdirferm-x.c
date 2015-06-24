@@ -353,7 +353,7 @@ Qs(q_seqdirferm_)(lua_State *L, int nc)
         return 1;
     }
     case 3: {
-        switch (qlua_qtype(L, 1)) {
+        switch (qlua_qtype(L, 2)) {
         case qComplex: {
             QLA_D_Complex *z = qlua_checkComplex(L, 2);
             int c = qlua_checkcolorindex(L, 3, nc);

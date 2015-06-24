@@ -33,15 +33,18 @@ function clover_std(U, boundary, kappa, c_sw_space, c_sw_time, F)
              (1+gamma{mu=i}) * ((Ui:adjoin() * F):shift(i, "from_backward"))))
    end
 
+   -- scaling of kappas
+   X = X / (2 * kappa)
+
    for i = 1, (#L - 1) do
       for j = i + 1, (#L - 1) do
-         X = X - kappa * c_sw_space * clovF(U,i,j) * (
+         X = X - (c_sw_space / 2) * clovF(U,i,j) * (
             (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
       end
    end
    for i = 1, (#L - 1) do
       for j = #L,#L do
-         X = X - kappa * c_sw_time * clovF(U,i,j) * (
+         X = X - (c_sw_time / 2) * clovF(U,i,j) * (
             (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
       end
    end
