@@ -4,6 +4,7 @@ require "tests/common/lattice"
 
 Lx = 8;
 Lt = 8;
+--- crazy numbers to check definitions
 kappa =  0.145124;
 c_sw_s = 0.76235;
 c_sw_t = c_sw_s;
@@ -17,6 +18,7 @@ boundary = { 1, -- periodic in X
             complex(3/5,4/5), -- funny phase in Z
             complex(0,1) -- pi/2 phase in T
 };
+position = {0,0,0,0};
 
 latSize = {Lx,Lx,Lx,Lt};
 lat = qcd.lattice(latSize);
@@ -94,42 +96,20 @@ function dump_fermion(name, X)
 end
 
 -------------- initialization
--- printf("Running multigrid \n");
--- show_object("  latSize", latSize);
--- printf("-----\n");
--- show_object("  mg_params", mg_params);
 printf("=====\n");
 
 rnd = random_gen(lat, seeds[1], seeds[2]);
 U = random_gauge(rnd, gaugeScale);
 F = lat:DiracFermion();
 f = qcd.DiracFermionN(3,complex(1,0),{c=0,d=0})
-F[{4,4,4,4}] = f;
+F[position] = f;
 --------
 printf("-------------------- creating wilson MG----------\n");
 mg = qcd.qop.WilsonMG(U, mg_params);
--- printf("-------------------- the solver object ----------\n");
--- show_object("MG solver", mg);
--- printf("-------------------- the solver's lattice -------\n");
--- show_object("  mg.lattice", mg.lattice);
--- printf("-------------------- solver's Nc ----------------\n");
--- show_object("  mg:colors()", mg:colors());
--- printf("-------------------- solver information ---------\n");
--- show_object("MG info", mg:info());
--- printf("-------------------- default inverter values ----\n");
--- show_object("default inverter", mg:inverter());
--- printf("-------------------- applying the MG solver -----\n");
--- G,status = mg:solve(rhs);
--- printf("-------------------- solve status ---------------\n");
--- show_object("solve status", status);
--- printf("-------------------- solver store status --------\n");
--- show_object("solver status", mg:status());
--- printf("--------------------\n");
--- X = mg:operator(F); -- for c=0: /  3.6764706e+00  ;
+
+
 X = mg:operator(F);
 Y = clover_std(U, boundary, kappa, c_sw_s, c_sw_t, F);
-
-
 
 dump_fermion("input", F)
 dump_fermion("qop-result", X)
