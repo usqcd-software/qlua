@@ -18,39 +18,41 @@ local function clovF(U, i,j)
 return (F - F:adjoin()) / complex(0,8)
 end
 
-function clover_std(U, boundary, kappa, c_sw_space, c_sw_time, F)
+function clover_std(U, action)
+   local boundary = action.boundary;
+   local kappa = action.kappa;
+   local c_sw = action.c_sw;
    local i, j;
    local L = U[1].lattice;
    
-   -- boundary conditions
-   local X = F;
-
-   for i = 0, #L - 1 do
-      local Ui = U[i+1]:copy();
-      L:Subset{axis=i,position=L[i]-1}:where(function () Ui:set(Ui * boundary[i+1]) end);
-      X = X - kappa * 
-         ((1-gamma{mu=i}) * (Ui * (F:shift(i, "from_forward"))) + (
-             (1+gamma{mu=i}) * ((Ui:adjoin() * F):shift(i, "from_backward"))))
-   end
-
-   for i = 1, (#L - 1) do
-      for j = i + 1, (#L - 1) do
-         X = X - (kappa * c_sw_space) * clovF(U,i,j) * (
-            (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
-      end
-   end
-   for i = 1, (#L - 1) do
-      for j = #L,#L do
-         X = X - (kappa * c_sw_time) * clovF(U,i,j) * (
-            (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
-      end
-   end
-
-   -- QOP scaling
-   X = X / (2 * kappa)
-
-  return X
+   return function(F)
+             local X = F;
+             
+             for i = 0, #L - 1 do
+                local Ui = U[i+1];
+                if boundary then
+                   Ui = Ui:copy();
+                   L:Subset{axis=i,position=L[i]-1}:where(function () Ui:set(Ui * boundary[i+1]) end);
+                end
+                X = X - kappa * 
+                   ((1-gamma{mu=i}) * (Ui * (F:shift(i, "from_forward"))) + (
+                       (1+gamma{mu=i}) * ((Ui:adjoin() * F):shift(i, "from_backward"))))
+             end
+             
+             if c_sw then
+                for i = 1, (#L - 1) do
+                   for j = i + 1, #L do
+                      X = X - (kappa * c_sw) * clovF(U,i,j) * (
+                         (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
+                   end
+                end
+             end
+             
+             -- QOP scaling
+             X = X / (2 * kappa)
+             return X
+          end
 end
 
 -------------------------------------------------------------------------------
-printf("defined reference clover operator clover_std(U, kappa, c_sw_space, s_sw_time, f)\n");
+printf("defined reference clover operator clover_std(U, action, f)\n");

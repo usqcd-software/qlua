@@ -15,8 +15,8 @@
 
 static const char QOPwmgStateName[]         = "qop.WilsonMG";
 
-#define Nc 3       /* Only Nc = 3, see FIXED Nc comments */
-#define MG_DIM 4   /* Only dim = 4, see FIXED dim comments */
+#define Nc 3       /* Only Nc = 3 is supported */
+#define MG_DIM 4   /* Only dim = 4 is supported */
 #define Qs(a)   a ## 3
 
 /* default values -- borrowed from James's example */
@@ -32,6 +32,10 @@ typedef struct {
   int                         nc;
   int                         state;
   double                      kappa;
+  double                      c_sw;
+  int                         has_bc;
+  QOP_Complex                 phase[MG_DIM];
+  QOP_wilson_coeffs_t         coeffs;
   QOP_layout_t                layout;
   QOP_info_t                  info;
   QOP_invert_arg_t            inv_arg;
@@ -107,16 +111,40 @@ load_inverter_args(lua_State *L, int tidx, QOP_invert_arg_t *inv_arg)
 }
 
 static int
+load_action(lua_State *L, int tidx, mQOPwmgState *wmg)
+{
+  if (!qlua_tabkey_tableopt(L, tidx, "action"))
+    luaL_error(L, "no action record found");
+
+  wmg->kappa = qlua_tabkey_double(L, -1, "kappa");
+  wmg->c_sw = qlua_tabkey_doubleopt(L, -1, "c_sw", 0.0);
+  wmg->coeffs.clov_s = wmg->c_sw;
+  wmg->coeffs.clov_t = wmg->c_sw;
+  wmg->coeffs.aniso = 1;
+  if (qlua_tabkey_tableopt(L, -1, "boundary")) {
+    int i;
+    QLA_D_Complex qla_phase[MG_DIM];
+    qlua_checkcomplexarray(L, -1, MG_DIM, qla_phase);
+    lua_pop(L, 1);
+    wmg->has_bc = 1;
+    for (i = 0; i < MG_DIM; i++) {
+      wmg->phase[i].re = QLA_real(qla_phase[i]);
+      wmg->phase[i].im = QLA_imag(qla_phase[i]);
+    }
+  }
+  lua_pop(L, 1);
+  return 0;
+}
+
+static int
 load_globals(lua_State *L, int tidx, mQOPwmgState *wmg)
 {
   int verbose = qlua_tabkey_intopt(L, tidx, "verbose", 0);
   int nlevels = 0;
-  int seen_kappa = 0;
   if (qlua_tabkey_tableopt(L, tidx, "multigrid")) {
     nlevels = lua_objlen(L, -1);
     lua_pop(L, 1);
   }
-  wmg->kappa = 0.0;
   QOP_3_wilsonMgSet(wmg->wilmg, -1, "nlevels", nlevels);
   QOP_3_wilsonMgSet(wmg->wilmg, -2, "verbose", verbose);
   QOP_3_wilsonMgSet(wmg->wilmg, -1, "nc", wmg->nc);
@@ -129,16 +157,12 @@ load_globals(lua_State *L, int tidx, mQOPwmgState *wmg)
       const char *key = lua_tostring(L, -2);
       double val = lua_tonumber(L, -1);
       QOP_3_wilsonMgSet(wmg->wilmg, -1, (char *)key, val); /* drop const qualifier in the key */
-      if (strcmp(key, "kappa") == 0) {
-	wmg->kappa = val;
-	seen_kappa = 1;
-      }
       lua_pop(L, 1);
     }
     lua_pop(L, 1);
   }
-  if (!seen_kappa)
-    luaL_error(L, "WilsonMG(): global must define kappa");
+  QOP_3_wilsonMgSet(wmg->wilmg, -1, "kappa", wmg->kappa);
+  QOP_3_wilsonMgSet(wmg->wilmg, -1, "kappanv", wmg->kappa);
   return 0;
 }
 
@@ -366,11 +390,16 @@ qlua_newQOPwmgState(lua_State *L, int Sidx)
     QOP_info_t infoz = QOP_INFO_ZERO;
     QOP_invert_arg_t invz = QOP_INVERT_ARG_DEFAULT;
     QOP_resid_arg_t resz = QOP_RESID_ARG_DEFAULT;
+    QOP_wilson_coeffs_t coeffz = QOP_WILSON_COEFFS_ZERO;
 
     wmg->name = NULL;
     wmg->nc = 0;
     wmg->state = 0;
+    wmg->kappa = 0.0;
+    wmg->c_sw = 0.0;
+    wmg->has_bc = 0;
     wmg->layout = layz;
+    wmg->coeffs = coeffz;
     wmg->info = infoz;
     wmg->inv_arg = invz;
     wmg->inv_arg.max_iter = QQQ_MAX_ITER_DEFAULT;
@@ -425,39 +454,24 @@ qqq_wmg(lua_State *L)
   wmg->layout.latdim = dim;
   wmg->layout.latsize = NULL;
   wmg->layout.machdim = -1;
+  load_action(L, 2, wmg);
   if (QOP_init(&wmg->layout) != QOP_SUCCESS)
     luaL_error(L, "QOP init failed");
   QOP_verbose(0);
 
-  QOP_wilson_coeffs_t coeffs = QOP_WILSON_COEFFS_ZERO;
-  if (qlua_tabkey_tableopt(L, 2, "clover")) {
-    coeffs.clov_s = qlua_tabkey_doubleopt(L, -1, "clov_s", 0.0);
-    coeffs.clov_t = qlua_tabkey_doubleopt(L, -1, "clov_t", coeffs.clov_s);
-    coeffs.aniso = 1;
-    lua_pop(L,1);
-  }
-
   QOP_D3_GaugeField *gf = QOP_D3_create_G_from_qdp(Ugauge);
-  if (qlua_tabkey_tableopt(L, 2, "boundary")) {
+  if (wmg->has_bc) {
     int i;
     int r0[MG_DIM];
-    QLA_D_Complex qla_phase[MG_DIM];
-    QOP_Complex phase[MG_DIM];
     QOP_bc_t bc;
     QOP_staggered_sign_t sign;
-
-    qlua_checkcomplexarray(L, -1, MG_DIM, qla_phase);
-    for (i = 0; i < MG_DIM; i++) {
+    for (i = 0; i < MG_DIM; i++)
       r0[i] = 0;
-      phase[i].re = QLA_real(qla_phase[i]);
-      phase[i].im = QLA_imag(qla_phase[i]);
-    }
-    bc.phase = phase;
+    bc.phase = wmg->phase;
     sign.signmask = NULL;
     QOP_D3_rephase_G(gf, r0, &bc, &sign);
-    lua_pop(L, 1);
   }
-  wmg->flw = QOP_D3_wilson_create_L_from_G(&wmg->info, &coeffs, gf);
+  wmg->flw = QOP_D3_wilson_create_L_from_G(&wmg->info, &wmg->coeffs, gf);
   if (wmg->flw == NULL)
     luaL_error(L, "Wilson MG link create failed");
   QOP_D3_destroy_G(gf);

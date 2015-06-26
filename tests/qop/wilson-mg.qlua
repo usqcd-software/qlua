@@ -5,8 +5,7 @@ require "tests/common/lattice"
 Lx = 8;
 Lt = 8;
 kappa =  0.136;
-c_sw_s = 0.1;
-c_sw_t = 0.1;
+c_sw = 0.1;
 seeds = { 25456, 456 };
 gaugeScale = 1.1245;
 max_error = 1e-8;
@@ -20,14 +19,18 @@ boundary = { 1, -- periodic in X
 
 latSize = {Lx,Lx,Lx,Lt};
 lat = qcd.lattice(latSize);
+action = { boundary = boundary,
+           kappa = kappa;
+           c_sw = c_sw
+        };
 
 -------- multigrid parameters
 mg_params = {
    name = "mg-wilson-test", -- optional for tostring()
    verbose = 0, -- for -2
    residual = {
-      rsqmin = 1e-8
-      -- relmin = 0
+      -- rsqmin = 1e-8
+      relmin = 1e-10
    },
    inverter = {
       max_iter = 601,
@@ -35,18 +38,19 @@ mg_params = {
       max_restarts = 5,
       evenodd = "evenodd" -- or "odd" or "even"
    },
-   boundary = boundary, -- boundary conditions XXX
-   clover = { -- should be together with kappas, but it's not how it is done in examples
-      clov_s = c_sw_s,
-      clov_t = c_sw_t,
-   },
+   action = action,
+   -- boundary = boundary, -- boundary conditions XXX
+   -- clover = { -- should be together with kappas, but it's not how it is done in examples
+   -- clov_s = c_sw,
+   -- clov_t = c_sw,
+   -- },
    global = { -- for -1
       -- nlevels is #multigrid
       -- nc is U[1]:colors()
       verbose = -1,
       profile = 1,
-      kappa = kappa,
-      kappanv = kappa,
+      -- kappa = kappa,
+      -- kappanv = kappa,
       itmax = 50,
       ngcr = 8,
    },
@@ -78,11 +82,12 @@ printf("=====\n");
 rnd = random_gen(lat, seeds[1], seeds[2]);
 U = random_gauge(rnd, gaugeScale);
 F = random_fermion(rnd);
+stdOp = clover_std(U, action);
 show_object("F.norm", F:norm2());
 show_object("F.lattice", F.lattice);
 show_object("F.colors", F.colors);
 show_object("F.a-type", F["a-type"]);
-rhs = clover_std(U, boundary, kappa, c_sw_s, c_sw_t, F);
+rhs = stdOp(F);
 
 -------- test proper
 printf("-------------------- creating wilson MG----------\n");
@@ -105,8 +110,9 @@ printf("-------------------- solver store status --------\n");
 show_object("solver status", mg:status());
 printf("--------------------\n");
 X = mg:operator(G);
+printf("relative error");
 printf("   qop operator: %e\n", (X-rhs):norm2() / rhs:norm2());
-Y = clover_std(U, boundary, kappa, c_sw_s, c_sw_t, G);
+Y = stdOp(G);
 printf("   ref operator: %e\n", (Y-rhs):norm2() / rhs:norm2());
 
 gf2 = (G - F):norm2();
