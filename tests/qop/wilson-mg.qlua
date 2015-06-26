@@ -39,18 +39,12 @@ mg_params = {
       evenodd = "evenodd" -- or "odd" or "even"
    },
    action = action,
-   -- boundary = boundary, -- boundary conditions XXX
-   -- clover = { -- should be together with kappas, but it's not how it is done in examples
-   -- clov_s = c_sw,
-   -- clov_t = c_sw,
-   -- },
    global = { -- for -1
       -- nlevels is #multigrid
       -- nc is U[1]:colors()
+      -- kappa and kappanv are from action
       verbose = -1,
       profile = 1,
-      -- kappa = kappa,
-      -- kappanv = kappa,
       itmax = 50,
       ngcr = 8,
    },
@@ -110,9 +104,10 @@ printf("-------------------- solver store status --------\n");
 show_object("solver status", mg:status());
 printf("--------------------\n");
 X = mg:operator(G);
-printf("relative error");
-printf("   qop operator: %e\n", (X-rhs):norm2() / rhs:norm2());
 Y = stdOp(G);
+printf("relative error\n");
+printf("   ref vs std  : %e\n", (Y-X):norm2() / X:norm2());
+printf("   qop operator: %e\n", (X-rhs):norm2() / rhs:norm2());
 printf("   ref operator: %e\n", (Y-rhs):norm2() / rhs:norm2());
 
 gf2 = (G - F):norm2();

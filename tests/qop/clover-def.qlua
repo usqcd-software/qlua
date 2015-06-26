@@ -47,9 +47,6 @@ function clover_std(U, action)
                    end
                 end
              end
-             
-             -- QOP scaling
-             X = X / (2 * kappa)
              return X
           end
 end
