@@ -56,7 +56,6 @@ push_info(lua_State *L, QOP_info_t *info)
   pnum[3] = info->count2;
   pnum[4] = 1.0;
   QMP_sum_double_array(pnum, 5);
-  /* XXX */
   lua_newtable(L);
   qlua_push_key_number(L, -1, "final_sec", pnum[0]);
   qlua_push_key_number(L, -1, "final_flop", pnum[1]);
