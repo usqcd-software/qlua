@@ -48,11 +48,21 @@ typedef struct {
 static int
 push_info(lua_State *L, QOP_info_t *info)
 {
+  double pnum[5];
+
+  pnum[0] = info->final_sec;
+  pnum[1] = info->final_flop;
+  pnum[2] = info->count1;
+  pnum[3] = info->count2;
+  pnum[4] = 1.0;
+  QMP_sum_double_array(pnum, 5);
+  /* XXX */
   lua_newtable(L);
-  qlua_push_key_number(L, -1, "final_sec", info->final_sec);
-  qlua_push_key_number(L, -1, "final_flops", info->final_flop);
-  qlua_push_key_number(L, -1, "count1", info->count1);
-  qlua_push_key_number(L, -1, "count2", info->count2);
+  qlua_push_key_number(L, -1, "final_sec", pnum[0]);
+  qlua_push_key_number(L, -1, "final_flop", pnum[1]);
+  qlua_push_key_number(L, -1, "count1", pnum[2]);
+  qlua_push_key_number(L, -1, "count2", pnum[3]);
+  qlua_push_key_number(L, -1, "nodes", pnum[4]);
   return 1;
 }
 
