@@ -1,24 +1,46 @@
 #!/bin/sh
-PACKTOP=/Users/avp/Local/packages/working-build
+PACKTOP=$HOME/Local/packages/macosx-20140305
+DEVTOP=$HOME/Local/packages
+Nc=3
+# noNc=3
 
 #TARGET=`(cd ..; pwd)`/install
-TARGET=$PACKTOP/qlua-1-xxx
-## for all colors. 
-QDP_TOP=$HOME/Local/packages/qdp-1.9.0-a7.mdir
+TARGET=$DEVTOP/qlua-working
 
-CC="gcc -g -std=c99 -DQDP_Nc=3"               \
-./configure                                   \
-   --with-qdp=$PACKTOP/qdp                    \
-   --with-lua=$PACKTOP/lua                    \
-   --with-gsl=$PACKTOP/gsl                    \
-   --with-lhpc-aff=$PACKTOP/aff               \
-   --with-clover=$PACKTOP/clover              \
-   --with-mdwf=$PACKTOP/mdwf                  \
-   --with-extras                              \
-   --prefix=$TARGET                           \
-   --without-nc=any                           \
-   --with-nc=3                                \
+# XXX Nc specific clover installation location
+
+# WOPTS='-Wno-unused-but-set-variable -Wno-unused-local-typedefs'
+WOPTS='-Wunused-const-variable'
+
+ARPACK_LIBS="-L$PACKTOP/arpack/lib -lparpack -larpack"
+LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
+
+#LD='mpicc -m64 -fno-underscoring' \
+#
+
+CC='mpicc -m64 -std=c99' \
+LD='mpif77 -m64 -fno-underscoring' \
+CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
+COPTS='-g' \
+LIBS='-lz' \
+./configure                                                \
+   --prefix=$TARGET                                        \
+   --with-qdp=$PACKTOP/qdp                                 \
+   --with-lua=$PACKTOP/lua                                 \
+   --with-gsl=$PACKTOP/gsl                                 \
+   --with-clover=$DEVTOP/clover-working                    \
+   --clover-nc=$Nc                                         \
+   --with-mdwf=$DEVTOP/mdwf-working                        \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+   --with-hdf5=$PACKTOP/hdf5                               \
+   --with-nc=N                                             \
+   --with-nc=3                                             \
+   --with-nc=2                                             \
    $*
 
-#
-#
+#   --with-mdwf=$PACKTOP/mdwf                               \
+#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+#   --without-nc=$noNc                                      \
+#   --without-nc=N                                          \
+#   --with-nc=N                                             \
+#   --with-nc=3                                             \

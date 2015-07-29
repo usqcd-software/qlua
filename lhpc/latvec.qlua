@@ -1,0 +1,334 @@
+function make_list_const(a, len)
+  local res = {}
+  for i=1, len do res[i] = a end
+  return res
+end
+
+function dw_random_latdirferm(L5, rnd)
+  local n = 0.
+  local res = {}
+  for i = 0, L5 - 1 do
+    res[1+i] = rnd:gaussian_DiracFermion()
+    n = n + res[1+i]:norm2()
+  end
+  n = math.sqrt(n)
+  for i = 0, L5 - 1 do
+    res[1+i] = res[1+i] / n
+  end
+  return res
+end
+
+-- create deep copy
+function latvec_copy(v, scal)
+  if nil == scal then scal = 1 end
+  if 'table' == type(v) then
+    local res = {}
+    for k, v_k in pairs(v) do
+      res[k] = latvec_copy(v_k, scal)
+    end
+    return res
+  elseif 'lattice.int'             == type(v) then return scal * (v.lattice):Int(v)
+  elseif 'lattice.real'            == type(v) then return scal * (v.lattice):Real(v) 
+  elseif 'lattice.complex'         == type(v) then return scal * (v.lattice):Complex(v)
+  elseif 'lattice.color.vector'    == type(v) then return scal * (v.lattice):ColorVector(v) 
+  elseif 'lattice.color.matrix'    == type(v) then return scal * (v.lattice):ColorMatrix(v)
+  elseif 'lattice.dirac.fermion'   == type(v) then return scal * (v.lattice):DiracFermion(v) 
+  elseif 'lattice.dirac.propagator'== type(v) then return scal * (v.lattice):DiracPropagator(v)
+  else return nil
+  end
+end
+
+-- generalize standard ops to tables, in which ops are applied to items
+function latvec_norm2(v)
+  if 'table' == type(v) then
+    local nr2 = 0.
+    for i = 0, #v-1 do 
+      nr2 = nr2 + latvec_norm2(v[1+i])
+    end
+    return nr2
+  else
+    return v:norm2()
+  end
+end
+function latvec_conj(v)
+  if 'table' == type(v) then
+    local c = {}
+    for i = 0, #v-1 do
+      c[1+i] = latvec_conj(v[1+i])
+    end
+    return c
+  else return (v:conj()) end
+end
+function latvec_shift(v, mu, dir)
+  if 'table' == type(v) then
+    local res = {}
+    for i = 0, #v-1 do
+      res[1+i] = latvec_shift(v[1+i], mu, dir)
+    end
+    return res
+  else return v:shift(mu, dir) end
+end
+function latvec_sub(a, b)
+  if 'table' == type(a) then
+    assert ('table' == type(b))
+    assert (#a == #b)
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_sub(a[1+i], b[1+i])
+    end
+    return c
+  else return (a - b) end
+end
+function latvec_scal_right(a, sc)    -- return a*sc
+  if 'table' == type(a) then
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_scal_right(a[1+i], sc)
+    end
+    return c
+  else return (a * sc) end
+end
+function latvec_scal_left(sc, a)     -- return sc*a
+  if 'table' == type(a) then
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_scal_left(sc, a[1+i])
+    end
+    return c
+  else return (sc * a) end
+end
+function latvec_axpy(a, x, y)     -- return a*x + y
+  if 'table' == type(x) then
+    assert ('table' == type(y))
+    assert (#x == #y)
+    local c = {}
+    for i = 0, #x-1 do
+      c[1+i] = latvec_axpy(a, x[1+i], y[1+i])
+    end
+    return c
+  else return (a*x + y) end
+end
+function latvec_scalsum_left(...) -- (a0,x0,a1,x1,...) -> a0*x0+a1*x1+... 
+  local ll = {...}
+  assert (0 == #ll % 2)
+  if #ll <= 0 then return 0 end
+  local res = latvec_scal_left(ll[1], ll[2])
+  for i = 1, #ll / 2 - 1 do
+    res = latvec_axpy(ll[1+2*i], ll[2+2*i], res)
+  end
+  return res
+end
+function latvec_vdot(x, y) 
+  if 'table' == type(x) then
+    assert ('table' == type(y))
+    assert (#x == #y)
+    local d = 0.
+    for i = 0, #x-1 do
+      d = d + latvec_vdot(x[1+i], y[1+i])
+    end
+    return d
+  else return qcd.dot(x, y):sum() end
+end
+function latvec_ortho(x, y_b) -- return ||x - (y_b . x)*y_b||
+  local d = latvec_vdot(y_b, x) / latvec_norm2(y_b)
+  local x1= latvec_axpy(-d, y_b, x)
+  return latvec_scal_left(math.sqrt(1. / latvec_norm2(x1)), x1)
+end
+
+function latvec_set(a, b)   -- set a <- b
+  if 'table' == type(a) then
+    assert ('table' == type(b))
+    assert (#a == #b)
+    for i = 0, #a - 1 do
+      latvec_set(a[1+i], b[1+i])
+    end
+  else a:set(b) end
+end
+--    ss            subset with meaningful information
+--    ss_v1, ss_v2  precond. vectors defined only on subsets
+--    res[ss] <- ss_v1, res[not ss] <- ss_v2
+
+eopc_shift2nd_mu = 0      -- TODO make external param?
+function latvec_eopc_pair_to_single(ss, ss_v1, ss_v2)
+  local res = latvec_shift(ss_v2, eopc_shift2nd_mu, "from_backward")
+  ss:where(latvec_set, res, ss_v1)
+  return res
+end
+function latvec_eopc_single_to_pair(ss, v12)
+  local ss_v1 = latvec_copy(v12, 0.)
+  ss:where(latvec_set, ss_v1, v12)
+  local ss_v2 = latvec_copy(v12, 0.)
+  local v12_sh = latvec_shift(v12, eopc_shift2nd_mu, "from_forward")
+  ss:where(latvec_set, ss_v2, v12_sh)
+  return ss_v1, ss_v2
+end
+function print_latvec_eo_norm2(v, title)      -- for debug
+  if nil == title then title = "#" end
+  printf("norm2(%s)=%e = %e[even] + %e[odd]\n", 
+         title, latvec_norm2(v),
+         L:Subset("even"):where(latvec_norm2, v),
+         L:Subset( "odd"):where(latvec_norm2, v))
+end
+
+
+
+function latvec_cosangle(a, b)
+  local a2 = latvec_norm2(a)
+  local b2 = latvec_norm2(b)
+  if a2 <= 0. or b2 <= 0. then return nil end
+  return latvec_vdot(a, b) / math.sqrt(a2 * b2)
+end
+function latvec_cosangle_abs(a, b)
+  local ca = latvec_cosangle(a,b)
+  if nil == ca then return nil end
+  if type(ca) == 'number' then return math.abs(ca)
+  else return ca:abs() end
+end
+function latvec_cosangle_arg(a, b)
+  local ca = latvec_cosangle(a,b)
+  if nil == ca then return nil end
+  if type(ca) == 'number' then 
+    if ca < 0 then return math.pi
+    else return 0. end
+  else return math.atan2(ca:imag(), ca:real()) end
+end
+function latvec_cosangle_cosarg(a, b)
+  local ca = latvec_cosangle(a,b)
+  if nil == ca then return nil end
+  return ca:real() / ca:abs()
+end
+function latvec_cosangle_sinarg(a, b)
+  local ca = latvec_cosangle(a, b)
+  if nil == ca then return nil end
+  return ca:imag() / ca:abs()
+end
+function print_latvec_cmp(a, b, title)
+  local ca = latvec_cosangle(a, b)
+  if nil == ca then 
+    printf('print_latvec_cmp: %s: nil\n', title)
+  else
+    printf('print_latvec_cmp: %s: |a/b|=%.10e  a^b=polar(%.10f,%.10f)\n',
+           tostring(title), math.sqrt(latvec_norm2(a) / latvec_norm2(b)), 
+           latvec_cosangle_abs(a, b),
+           latvec_cosangle_arg(a, b))
+  end
+end
+function latvec_rdiff(a,b) -- compute 2*|a - b| / (|a| + |b|)
+  local a_n2 = latvec_norm2(a)
+  local b_n2 = latvec_norm2(b)
+  local amb  = latvec_norm2(latvec_axpy(-1., a, b))
+  if 0. == a_n2 and 0. == b_n2 then return 0.
+  else return 2.*amb / (a_n2 + b_n2) end
+end
+  
+
+
+-- operator definitions
+-- site-hopping part of the Wilson operator (mind the sign)
+--    d       fermion
+--    u       gauge field
+function latvec_op_xwilson(d, u, is_dag)
+  local res
+  if 'table' == type(d) then
+    res = {}
+    for s = 0, #d - 1 do
+      res[1+s] = latvec_op_xwilson(d[1+s], u)
+    end
+  else
+    res = nil
+    for mu=0, #L - 1 do
+      local y 
+      if is_dag 
+      then y = (  .5*(1. + gamma{mu=mu}) * (u[1+mu] * d:shift(mu, "from_forward"))
+                + .5*(1. - gamma{mu=mu}) * (u[1+mu]:adjoin() * d):shift(mu, "from_backward"))
+      else y = (  .5*(1. - gamma{mu=mu}) * (u[1+mu] * d:shift(mu, "from_forward"))
+                + .5*(1. + gamma{mu=mu}) * (u[1+mu]:adjoin() * d):shift(mu, "from_backward"))
+      end
+      if nil == res then res = y else res = res + y end
+    end
+  end
+  return res
+end
+-- flavor-hopping part of the domain wall operator
+--    d     5d fermion = table{DiracFermion,...}
+--    mf    chiral fermion mass
+--    dag   if not nil, apply 
+function latvec_op_x5(d, mf, is_dag)
+  assert('table' == type(d))
+  local res = {}
+  if is_dag
+  then
+    res[1] = .5*(1 + gamma{mu=5}) * d[2]  - mf * .5*(1 - gamma{mu=5}) * d[#d]
+    for s = 1, #d - 2 do
+      res[1+s] = .5*(1 + gamma{mu=5}) * d[2+s] + .5*(1 - gamma{mu=5}) * d[s]
+    end
+    res[#d] = -mf * .5*(1 + gamma{mu=5}) * d[1]  + .5*(1 - gamma{mu=5}) * d[#d-1]
+  else
+    res[1] = .5*(1 - gamma{mu=5}) * d[2]  - mf * .5*(1 + gamma{mu=5}) * d[#d]
+    for s = 1, #d - 2 do
+      res[1+s] = .5*(1 - gamma{mu=5}) * d[2+s] + .5*(1 + gamma{mu=5}) * d[s]
+    end
+    res[#d] = -mf * .5*(1 - gamma{mu=5}) * d[1]  + .5*(1 + gamma{mu=5}) * d[#d-1]
+  end
+  return res
+end
+
+-- Wilson Dslash 
+-- XXX check conventions for the Mw sign; 
+-- XXX agree up to a factor with qcd.Clover(..):D (== 2*kappa*latvec_op_wilson, 2*kappa=1/(4+Mw) )
+function latvec_op_wilson(d, u, Mw, is_dag)
+  return latvec_scalsum_left(
+            4. + Mw,  d,
+            -1.,      latvec_op_xwilson(d, u, is_dag))
+end
+
+-- DWF Dslash 
+--- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
+--    d     5d fermion = table{DiracFermion,...}
+--    u       gauge field
+function latvec_op_dslash_dwf(d, u, M5, mf, is_dag)
+  return latvec_scalsum_left(
+            5 - M5,   d,
+            -1.,      latvec_op_xwilson(d, u, is_dag),
+            -1.,      latvec_op_x5(d, mf, is_dag))
+end
+
+-- Moebius Dslash
+--- XXX M5 sign conventions: Qlua(here and qcd.MDWF) == CPS != MDWF lib
+--    d     5d fermion = table{DiracFermion,...}
+--    u       gauge field
+function latvec_op_dslash_moebius(d, u, M5, mf, b5_s, c5_s, is_dag)
+  local L5 = #d
+  if is_dag then
+    local y1 = {}
+    local y2 = {}
+    for t = 0, L5 - 1 do
+      local b5, c5
+      if 'table' == type(b5_s) then b5 = b5_s[1+t] else b5 = b5_s end
+      if 'table' == type(c5_s) then c5 = c5_s[1+t] else c5 = c5_s end
+      if 'complex' == type(b5) then b5 = b5:conj() end
+      if 'complex' == type(c5) then c5 = c5:conj() end
+      local xw_d = latvec_op_xwilson(d[1+t], u, is_dag)
+      y1[1+t] = (b5 * (4 - M5) + 1) * d[1+t] - b5 * xw_d
+      y2[1+t] = (c5 * (4 - M5) - 1) * d[1+t] - c5 * xw_d
+    end
+    return latvec_scalsum_left(
+              1., y1, 
+              1., latvec_op_x5(y2, mf, is_dag))
+  else
+    local x5_d = latvec_op_x5(d, mf, is_dag)
+    local res = {}
+    for s = 0, L5 - 1 do
+      local b5, c5
+      if 'table' == type(b5_s) then b5 = b5_s[1+s] else b5 = b5_s end
+      if 'table' == type(c5_s) then c5 = c5_s[1+s] else c5 = c5_s end
+        local xw_bpcx5_d = latvec_op_xwilson(b5 * d[1+s] + c5 * x5_d[1+s], u, is_dag)
+        res[1+s] = ((b5 * (4 - M5) + 1.) * d[1+s] 
+                  + (c5 * (4 - M5) - 1.) * x5_d[1+s] 
+                  - xw_bpcx5_d)
+    end
+    return res
+  end
+end
+
+require "dwf" -- definitions for DWF

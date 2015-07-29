@@ -16,8 +16,11 @@ Qs(q_V_fmt)(lua_State *L)
 static int
 Qs(q_V_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatColVec) *b = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "ColorVector%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_V)(b->ptr);
     b->ptr = 0;
 
@@ -31,7 +34,9 @@ Qs(unpack_vec)(int nc, double *std, QLA_DN_ColorVector(nc, (*src)))
 Qs(unpack_vec)(int nc, double *std, Qx(QLA_D,_ColorVector) *src)
 #endif
 {
-    for (int c = 0; c < nc; c++) {
+    int c;
+
+    for (c = 0; c < nc; c++) {
         QLA_D_Complex *z = &Qx(QLA_D,_elem_V)(*src, c);
         std[2*c] = QLA_real(*z);
         std[2*c + 1] = QLA_imag(*z);
@@ -46,7 +51,9 @@ Qs(pack_vec)(int nc, Qx(QLA_D,_ColorVector) *dst, const double *std)
 #endif
 {
     QLA_D_Complex z;
-    for (int c = 0; c < nc; c++) {
+    int c;
+
+    for (c = 0; c < nc; c++) {
         QLA_c_eq_r_plus_ir(z, std[2 * c], std[2 * c + 1]);
         QLA_c_eq_c(Qx(QLA_D,_elem_V)(*dst, c), z);
     }
@@ -362,10 +369,11 @@ Qs(q_V_sum)(lua_State *L)
         int size = m->size;
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
-
         Vtype **vv = qlua_malloc(L, size * sizeof (Vtype *));
+        int i, k, c;
+
         lua_createtable(L, size, 0);
-        for (int i = 0; i < size; i++) {
+        for (i = 0; i < size; i++) {
             Qs(mSeqColVec) *vi = Qs(qlua_newZeroSeqColVec)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
@@ -373,7 +381,7 @@ Qs(q_V_sum)(lua_State *L)
         CALL_QDP(L);
         Vtype *xx = Qx(QDP_D,_expose_V)(a->ptr);
         
-        for (int k = 0; k < sites; k++, xx++, ii++) {
+        for (k = 0; k < sites; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
@@ -381,23 +389,23 @@ Qs(q_V_sum)(lua_State *L)
         }
         Qx(QDP_D,_reset_V)(a->ptr);
         QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * sizeof (QLA_D_Real));
-        for (int i = 0; i < size; i++) {
-            for (int c = 0; c < nc; c++) {
+        for (i = 0; i < size; i++) {
+            for (c = 0; c < nc; c++) {
                 QLA_D_Complex *z = &Qx(QLA_D,_elem_V)(*vv[i], c);
                 rr[2 * (c + i * nc)] = QLA_real(*z);
                 rr[2 * (c + i * nc) + 1] = QLA_imag(*z);
             }
         }
         QMP_sum_double_array(rr, 2 * size * nc);
-        for (int i = 0; i < size; i++) {
-            for (int c = 0; c < nc; c++) {
+        for (i = 0; i < size; i++) {
+            for (c = 0; c < nc; c++) {
                 QLA_D_Complex z;
                 QLA_c_eq_r_plus_ir(z, rr[2 *(c+i*nc)], rr[2*(c+i*nc)+1]);
                 QLA_c_eq_c(Qx(QLA_D,_elem_V)(*vv[i], c), z);
             }
         }
-		qlua_free(L, rr);
-		qlua_free(L, vv);
+                qlua_free(L, rr);
+                qlua_free(L, vv);
         return 1;
     }
     }
@@ -567,6 +575,7 @@ static struct luaL_Reg Qs(mtLatColVec)[] = {
 Qs(mLatColVec) *
 Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
 {
+    char qdp_name[72];
     mLattice *S = qlua_checkLattice(L, Sidx);
 #if QNc == 'N'
     Qx(QDP_D,_ColorVector) *v = Qx(QDP_D,_create_V_L)(nc, S->lat);
@@ -593,6 +602,8 @@ Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatColVec), Qs(qLatColVec),
                             Qs(LatColVecName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "ColorVector%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }
@@ -600,10 +611,10 @@ Qs(qlua_newLatColVec)(lua_State *L, int Sidx, int nc)
 Qs(mLatColVec) *
 Qs(qlua_newZeroLatColVec)(lua_State *L, int Sidx, int nc)
 {
-	Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, Sidx, nc);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	Qx(QDP_D,_V_eq_zero)(v->ptr, S->all);
-	return v;
+        Qs(mLatColVec) *v = Qs(qlua_newLatColVec)(L, Sidx, nc);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        Qx(QDP_D,_V_eq_zero)(v->ptr, S->all);
+        return v;
 }
 
 Qs(mLatColVec) *
@@ -651,7 +662,7 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
     }
     case 2: {
         Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 2 + off, S, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newZeroLatColVec)(L, 1, nc);
         
         CALL_QDP(L);
         Qx(QDP_D,_V_eq_V)(r->ptr, a->ptr, *S->qss);
@@ -661,7 +672,7 @@ Qs(q_latcolvec_)(lua_State *L, mLattice *S, int nc, int off)
     case 3: {
         mLatComplex *c = qlua_checkLatComplex(L, 2 + off, S);
         int a = qlua_checkcolorindex(L, 3 + off, nc);
-        Qs(mLatColVec) *r = Qs(qlua_newLatColVec)(L, 1, nc);
+        Qs(mLatColVec) *r = Qs(qlua_newZeroLatColVec)(L, 1, nc);
 
         CALL_QDP(L);
         Qx(QDP_D,_V_eq_elem_C)(r->ptr, c->ptr, a, *S->qss);

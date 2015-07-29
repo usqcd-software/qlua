@@ -1,9 +1,0 @@
-require("stdlib")
- 
-L = qcd.lattice{4,4,4}
-n, d = qcd.network()
- 
-printf("network: %d nodes total\n", n)
-for i = 1, #d  do
-  printf("network[%d] = %d\n", i, d[i])
-end

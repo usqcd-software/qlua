@@ -21,14 +21,20 @@ do
   end
   -- tables
   local xS = {
+    ["proton_1"]        = gamma{mu=0} * gamma{mu=2},
     ["proton_3"]        = gamma{mu=0} * gamma{mu=2} * (1 + gamma{mu=3}) / 2,
     ["proton_negpar_3"] = gamma{mu=0} * gamma{mu=2} * (1 - gamma{mu=3}) / 2
   }
   local xT = {
+    ["proton_1"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
     ["proton_3"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
     ["proton_negpar_3"] = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
   }
   local qbuilder = {
+    ["proton_1"] = {
+      ["U"] = nucleon_seqsource_u,
+      ["D"] = nucleon_seqsource_d
+    },
     ["proton_3"] = {
       ["U"] = nucleon_seqsource_u,
       ["D"] = nucleon_seqsource_d
@@ -39,7 +45,7 @@ do
     }
   }
   local function copy_table(tab)
-    tab_c = {}
+    local tab_c = {}
     for i,v in pairs(tab) do tab_c[i] = v end
     return tab_c
   end
@@ -53,7 +59,7 @@ do
       t_axis, 
       bc_2pt_t
       )
-    ss = L:DiracPropagator()
+    local ss = L:DiracPropagator()
     local bc_factor = 1
     -- XXX bc_factor sign is compatible with Chroma; note that for 'proton_negpar_3' 
     --     (with tsnk < tsrc without winding) the sign should be opposite

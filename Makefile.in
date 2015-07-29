@@ -32,6 +32,11 @@ AFF_CF       = @aff_cflags@
 AFF_LF       = @aff_ldflags@
 AFF_LIBS     = @aff_libs@
 
+HDF5          = @hdf5@
+HDF5_CF       = @hdf5_cflags@
+HDF5_LF       = @hdf5_ldflags@
+HDF5_LIBS     = @hdf5_libs@
+
 CLOVER       = @clover@
 CLOVER_CF    = @clover_cflags@
 CLOVER_LF    = @clover_ldflags@
@@ -53,6 +58,16 @@ HDF5_LIBS    = @hdf5_libs@
 
 CBLAS_LIBS   = @cblas_libs@
 
+HYPRE        = @hypre@
+HYPRE_CF     = @hypre_cflags@
+HYPRE_LF     = @hypre_ldflags@
+HYPRE_LIBS   = @hypre_libs@
+
+ARPACK       = @arpack@
+ARPACK_CF    = @arpack_cflags@
+ARPACK_LF    = @arpack_ldflags@
+ARPACK_LIBS  = @arpack_libs@
+
 ## ZZZ add other modules here
 
 #############################################################################
@@ -65,26 +80,28 @@ libsrc = fix.c \
          qcomplex.c \
          seqrandom.c \
          seqcolvec.c \
-		 seqcolmat.c \
+	 seqcolmat.c \
          seqdirferm.c \
          seqdirprop.c \
          qvector.c \
          qxml.c \
-		 qlayout.c \
+	 qlayout.c \
          lattice.c \
          latint.c \
-		 latmulti.c \
+	 latmulti.c \
          latreal.c \
          latrandom.c \
          latcomplex.c \
          latsubset.c \
          latcolvec.c \
-		 latcolmat.c \
+	 latcolmat.c \
          latdirferm.c \
          latdirprop.c \
+         qscatter.c \
+         qgather.c \
          qgamma.c \
-		 nersc_io.c \
-		 qio_utils.c \
+	 nersc_io.c \
+	 qio_utils.c \
          qdpc_io.c \
          ddpairs_io.c \
          qdpcc_io.c
@@ -94,18 +111,29 @@ ifneq ("$(AFF)", "")
   libsrc += aff_io.c
 endif
 
-ifeq ("@use_nc3@", "1")
+ifneq ("$(HDF5)", "")
+  libsrc += hdf5_io.c \
+            sha256.c
+endif
+
 ifneq ("$(CLOVER)", "")
   libsrc += qclover.c
 endif
 
+ifeq ("@use_nc3@", "1")
 ifneq ("$(MDWF)", "")
   libsrc += qmdwf.c
 endif
 endif
 
 ifneq ("$(GSL)", "")
-  libsrc += qmatrix.c
+  libsrc += qmatrix.c \
+            qroot.c \
+            qmin.c
+endif
+
+ifneq ("$(ARPACK)", "")
+  libsrc += qlanczos.c
 endif
 
 extrascr =
@@ -123,7 +151,7 @@ ifeq ("@extras@", "true")
 	      laph_common.c \
 	      save_npr.c \
 	      extras_common.c \
-
+	      lat_ft.c
 
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
@@ -131,11 +159,17 @@ endif
 endif
 endif
 
+hypresrc =
+ifneq ("$(HYPRE)", "")
+  include hypre/Makefile.inc
+endif
+
 ## ZZZ add other optional modules here
 ###############################################################################
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
 extraobj = $(extrasrc:%.c=%.o)
+hypreobj = $(hypresrc:%.c=%.o)
 program = $(driver:%.c=%)
 
 #############################################################################
@@ -148,12 +182,13 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(CLOVER_CF) $(MDWF_CF) \
-              $(GSL_CF) $(HDF5_CF)
-LCMD  = $(LD) $(COPTS) $(LDFALGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(CLOVER_LF) $(MDWF_LF) $(HDF5_LF)
-LLIBS = $(CLOVER_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(QDP_LIBS) \
-        $(GSL_LIBS) $(CBLAS_LIBS) $(HDF5_LIBS) \
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(CLOVER_CF) $(MDWF_CF)\
+              $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS)
+LCMD  = $(LD) $(COPTS) $(LDFLAGS) $(LUA:%=-L%/lib) \
+              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(MDWF_LF) $(HYPRE_LF) \
+	      $(ARPACK_LDFLAGS)
+LLIBS = $(CLOVER_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
+        $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) $(ARPACK_LIBS) \
         -llua $(LIBS)
 
 ###############################################################################
@@ -165,7 +200,7 @@ lib: $(library)
 
 clean:
 	$ECLEAN objects
-	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(library)
+	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(hypreobj) $(library)
 
 realclean: clean
 	$ECLEAN executables
@@ -181,8 +216,6 @@ install: all doc
 	$C cp $(docfiles) $(DOCDIR)/
 	$C mkdir -p $(DOCDIR)/examples
 	$C cp examples/* $(DOCDIR)/examples/
-	$C for f in tutorials/*; do \
-           mkdir -p $(DOCDIR)/$$f; cp $$f/* $(DOCDIR)/$$f; done
 
 ###############################################################################
 $(program): $(drvobj) $(library)
@@ -191,22 +224,26 @@ $(program): $(drvobj) $(library)
 
 $(drvobj) $(libobj): %.o: sources/%.c
 	$ECC $@
-	$C$(CCMD) -Isources -Iextras -o $@ $<
+	$C$(CCMD) -Isources -Iextras -Ihypre -o $@ $<
 
 $(extraobj): %.o: extras/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Iextras -o $@ $<
 
-$(library): $(libobj) $(extraobj)
+$(hypreobj): %.o: hypre/%.c
+	$ECC $@
+	$C$(CCMD) -Isources -Ihypre -o $@ $<
+
+$(library): $(libobj) $(extraobj) $(hypreobj)
 	$EAR $(library)
-	$C$(AR) cr $(library) $(libobj) $(extraobj)
+	$C$(AR) cr $(library) $(libobj) $(extraobj) $(hypreobj)
 	$C$(RANLIB) $(library)
 
 $(drvobj) $(libobj): Makefile deps
 qlua.o: modules.h
 
-# dependencies not discoverable by utils/get-deps
+# dependencies not discoverable by utils/mkdeps
 qdpc_io.o: sources/qdpc_io-z.c
 
-# dependences generated by utils/get-deps
+# dependences generated by utils/mkdeps
 include deps

@@ -1,0 +1,266 @@
+do
+   local x = L:Int(seed_B)
+   local i
+   lint = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+      lint = lint * 100 + L:pcoord(i)
+   end
+   S = L:RandomState(seed_A, x)
+end
+s = qcd.RandomState(3456,24513)
+
+function latint_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %5d %5d\n", x, y, z, a[{x,y,z}], b[{x,y,z}])
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = (d*d):sum()/(a*a):sum()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latx_cmp(a, b)
+   if false then
+      local x, y, z
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               printf("[%3d %3d %3d]  %s %s\n", x, y, z, tostring(a[{x,y,z}]), tostring(b[{x,y,z}]))
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function latc_cmp(a, b)
+   if true then
+      local x, y, z, i, j
+      for x = 0, L[0] - 1 do
+         for y = 0, L[1] - 1 do
+            for z = 0, L[2] - 1 do
+               for i = 0, a:colors() - 1 do
+                  for j = 0, a:colors() - 1 do
+                     printf("[%3d %3d %3d] [%d %d] %s %s\n", x, y, z, i, j,
+                            tostring(a[{x,y,z}][{a=i,b=j}]),
+                            tostring(b[{x,y,z}][{a=i,b=j}]))
+                  end
+               end
+            end
+         end
+      end
+   end
+   local d = a - b
+   local c = qcd.dot(d,d):sum():real()/qcd.dot(a,a):sum():real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function seq_cmp(a,b)
+   local d = a - b
+   local c = qcd.dot(d,d):real()/qcd.dot(a,a):real()
+   if c == 0 then
+      return "eq"
+   end
+   return string.format("difference %.1e", c)
+end
+
+function str_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return "different"
+end
+
+function real_cmp(a,b)
+   if a == b then
+      return "eq"
+   end
+   return string.format("different: %.1e", 2*math.abs(a-b)/(a+b))
+end
+
+function complex_cmp(a,b)
+   local ar = a:real()
+   local ai = a:imag()
+   local br = b:real()
+   local bi = b:imag()
+   if (ar == br) and (ai == bi) then
+      return "eq"
+   end
+   return string.format("different: %.1e", (2*(a-b)/(a+b)):abs())
+end
+
+function vfill(v,a,b)
+   local i
+   for i = 0, #v - 1 do
+      v[i] = a + b*i
+   end
+   return v
+end
+
+function mfill(m,a,b,c)
+   local i, j
+   local ml, mr = m:dims()
+   for i = 0, ml - 1 do
+      for j = 0, mr - 1 do 
+         m[{i,j}] = a + b * i + c * j
+      end
+   end
+   return m
+end
+
+function ivec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %d vs %d", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function rvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not (a[i] == b[i]) then
+         return string.format("differ at %d: %g vs %g", i, a[i], b[i])
+      end
+   end
+   return "eq"
+end
+
+function cvec_cmp(a,b)
+   local i
+   if not (#a == #b) then
+      return "different size"
+   end
+   for i = 0, #a - 1 do
+      if not ((a[i]:real() == b[i]:real()) and (a[i]:imag() == b[i]:imag())) then
+         return string.format("differ at %d: diff %.1e", i, 2*((a[i]-b[i])/(a[i]+b[i])):abs())
+      end
+   end
+   return "eq"
+end
+
+function rmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         if not (a[{i,j}] == b[{i,j}]) then
+            return string.format("differ at %d: %g vs %g", i, a[{i,j}], b[{i,j}])
+         end
+      end
+   end
+   return "eq"
+end
+
+function cmat_cmp(a,b)
+   local i, j
+   local al, ar = a:dims()
+   local bl, br = b:dims()
+   if not ((al == bl) and (ar == br)) then
+      return "different size"
+   end
+   local ok = true
+   for i = 0, al - 1 do
+      for j = 0, ar - 1 do 
+         local ax = a[{i,j}]
+         local bx = b[{i,j}]
+         if not ((ax:real() == bx:real()) and (ax:imag() == bx:imag())) then
+            return string.format("differ at %d: diff %.1e (%s vs %s)",
+                                 i, 2*((ax-bx)/(ax+bx)):abs(),
+                                 tostring(ax), tostring(bx))
+         end
+      end
+   end
+   return "eq"
+end
+
+function show_lR(x)
+   local function fmt_geometry(g)
+      local t = type(g)
+      if t == "string" then
+         return g
+      end
+      if t == "table" then
+         local r = ""
+         local sep = "{"
+         for i = 1, #g do
+            r = string.format("%s%s%d", r, sep, g[i])
+            sep = ", "
+         end
+         return r .. "}"
+      end
+      return ""
+   end
+   local function fmt_time(t)
+      if type(t) == "number" then
+         return os.ctime(t * 1e-6)
+      end
+      return ""
+   end
+   local function fmt_type(t)
+      if t then
+         return t
+      end
+      return ""
+   end
+   local function fmt_sha(t)
+      if t then
+         return t
+      end
+      return "-"
+   end
+   local function process_list(dir, nm)
+      printf("ls %s:\n", dir)
+      local ls = x:list(dir)
+      local subs = {}
+      for i,v in pairs(ls) do
+         if true then
+            local stat = x:stat(string.format("%s/%s", nm, v))
+            if stat then
+               local geom = fmt_geometry(stat.geometry)
+               local tx = fmt_time(stat.time)
+               printf(" %-64s %-24s %-16s %-28s %26s  %s\n",
+                       fmt_sha(stat.sha256), stat.kind, geom, fmt_type(stat.type), tx, v)
+            end
+            if stat.kind == "Group" then
+               subs[#subs + 1] = v
+            end
+         end
+      end
+      for i = 1, #subs do
+         local g = string.format("%s/%s", nm, subs[i])
+         process_list(g,g)
+      end
+   end
+   process_list("/", "")
+end

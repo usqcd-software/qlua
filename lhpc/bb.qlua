@@ -46,13 +46,14 @@ function calc_bb(
   if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
   
   -- init plane waves for each momentum
-  qlist_pw = {}
+  local qlist_pw = {}
   for i,q in pairs(qlist) do
-    q_cp = copy_table(q)
+    local q_cp = copy_table(q)
     q_cp[1+t_axis] = 0
     qlist_pw[i] = L:planewave(csrc, q_cp)
   end
-  time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+  local time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+  local mset_src_snk = nil
   if not time_rev then
      mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt - tsrc + L:pcoord(t_axis)) % lt)
   else

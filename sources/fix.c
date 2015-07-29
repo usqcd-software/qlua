@@ -2,9 +2,12 @@
 #include "qlua.h"                                                    /* DEPS */
 #include "fix.h"                                                     /* DEPS */
 #include "qmp.h"
+#include <time.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include <stdio.h>
+#include <sys/resource.h>
 
 static char self[72];
 
@@ -226,25 +229,71 @@ static int
 q_file(lua_State *L)
 {
     mFile *f = qlua_newFile(L);
-    int v;
+    const char *n = luaL_checkstring(L, 1);
+    const char *m = luaL_checkstring(L, 2);
 
-    if (QDP_this_node == qlua_master_node) {
-        const char *n = luaL_checkstring(L, 1);
-        const char *m = luaL_checkstring(L, 2);
+    if (!strcmp(m, "r") || !strcmp(m, "rb") || !strcmp(m, "rt")) {
+      double v;
+      /* read files are open everywhere */
+      f->file = fopen(n, m);
+      f->kind = qf_other;
+      v = (f->file != 0);
+      /* make sure all nodes manage to open the file */
+      QMP_min_double(&v);
+      if (v < 1)
+        if (v == 0)
+          return luaL_error(L, "file open failed");
+    } else {
+      /* other modes are write, open the file on the master node only */
+      int v;
+      if (QDP_this_node == qlua_master_node) {
         f->file = fopen(n, m);
         f->kind = qf_other;
-
         v = (f->file != 0);
-    } else {
-        f->file = (FILE *)1;
+      } else {
+        f->file = NULL;
         f->kind = qf_dummy;
-    }
-    XMP_dist_int_array(qlua_master_node, 1, &v);
-
-    if (v == 0)
+      }
+      XMP_dist_int_array(qlua_master_node, 1, &v);
+      if (v == 0)
         return luaL_error(L, "file open failed");
+    }
 
     return 1;
+}
+
+static int
+q_fexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+  int status = 0;
+
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISREG(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
+  return 1;
+}
+
+static int
+q_dexists(lua_State *L)
+{
+  const char *fname = luaL_checkstring(L, 1);
+  struct stat st;
+  int status = 0;
+
+  if (QDP_this_node == qlua_master_node) {
+    if ((stat(fname, &st) == 0) &&
+        S_ISDIR(st.st_mode))
+      status = 1;
+  }
+  XMP_dist_int_array(qlua_master_node, 1, &status);
+  lua_pushboolean(L, status);
+  return 1;
 }
 
 static int
@@ -286,20 +335,49 @@ qlua_exit(lua_State *L)
     return 0;
 }
 
-static int
-qlua_timeofday(lua_State *L)
+double
+qlua_timeofday(void)
 {
-    struct timeval t;
-    double v;
-    
-    if (QDP_this_node == qlua_master_node) {
-        gettimeofday(&t, NULL);
-        v = t.tv_sec + 1e-6 * t.tv_usec;
-    }
-    XMP_dist_double_array(qlua_master_node, 1, &v);
-    lua_pushnumber(L, v);
+  struct timeval t;
+  double v;
+  
+  if (QDP_this_node == qlua_master_node) {
+    gettimeofday(&t, NULL);
+    v = t.tv_sec + 1e-6 * t.tv_usec;
+  }
+  XMP_dist_double_array(qlua_master_node, 1, &v);
+  return v;
+}
 
-    return 1;
+double
+qlua_nodetime(void)
+{
+  struct timeval t;
+  double v;
+  
+  gettimeofday(&t, NULL);
+  v = t.tv_sec + 1e-6 * t.tv_usec;
+  return v;
+}
+
+static int
+qlua_time(lua_State *L)
+{
+  lua_pushnumber(L, qlua_timeofday());
+  return 1;
+}
+
+static int
+qlua_ctime(lua_State *L)
+{
+  double v = luaL_checknumber(L, 1);
+  time_t tv = (time_t) v;
+  char buf[72];
+
+  ctime_r(&tv, buf);
+  buf[24] = 0;
+  lua_pushstring(L, buf);
+  return 1;
 }
 
 static int
@@ -313,6 +391,110 @@ qlua_random(lua_State *L)
 
     return 1;
 }
+
+static int
+qlua_limit(lua_State *L)
+{
+  const char *name = luaL_checkstring(L, 1);
+  int resource = 0;
+
+  if (strcmp(name, "as") == 0)
+    resource = RLIMIT_AS;
+  else if (strcmp(name, "data") == 0)
+    resource = RLIMIT_DATA;
+  else if (strcmp(name, "rss") == 0)
+    resource = RLIMIT_RSS;
+  else if (strcmp(name, "stack") == 0)
+    resource  = RLIMIT_STACK;
+  else
+    luaL_error(L, "unknown resource name %s", name);
+  switch (lua_gettop(L)) {
+  case 1: {
+    struct rlimit rl;
+    if (getrlimit(resource, &rl))
+      luaL_error(L, "getrlimit(%s) failed", name);
+    lua_pushnumber(L, rl.rlim_cur / 1024.0);
+    lua_pushnumber(L, rl.rlim_max / 1024.0);
+    return 2;
+  }
+  case 2: {
+    double s = 1024.0 * luaL_checknumber(L, 2);
+    struct rlimit rl;
+    rl.rlim_cur = s;
+    rl.rlim_max = s;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  case 3: {
+    double s0 = 1024.0 * luaL_checknumber(L, 2);
+    double s1 = 1024.0 * luaL_checknumber(L, 3);
+    struct rlimit rl;
+    rl.rlim_cur = s0;
+    rl.rlim_max = s1;
+    if (setrlimit(resource, &rl))
+      luaL_error(L, "setrlimit(%s) failed", name);
+    return 0;
+  }
+  default:
+    break;
+  }
+  return luaL_error(L, "too many parameters");
+}
+
+static int
+qlua_node(lua_State *L)
+{
+  lua_pushnumber(L, QDP_this_node);
+  return 1;
+}
+
+typedef struct qcdmem_s {
+  char *name;
+  long long count;
+  struct qcdmem_s *next;
+} QCDMem;
+
+static QCDMem *qcdmem = NULL;
+
+static int
+qlua_qcdmem(lua_State *L)
+{
+  int n = 0;
+  QCDMem *p;
+
+  for (n = 0, p = qcdmem; p; p = p->next)
+    n++;
+  lua_createtable(L, 0, n);
+  for (p = qcdmem; p; p = p->next) {
+    if (p->count) {
+      lua_pushnumber(L, p->count);
+      lua_setfield(L, -2, p->name);
+    }
+  }
+  return 1;
+}
+
+void
+qlua_qdp_memuse(lua_State *L, const char *name, int count)
+{
+  QCDMem *p;
+
+  for (p = qcdmem; p; p = p-> next) {
+    if (strcmp(p->name, name) == 0)
+      break;
+  }
+  if (p == 0) {
+    p = qlua_malloc(L, sizeof (QCDMem));
+    p->name = qlua_malloc(L, strlen(name) + 1);
+    strcpy(p->name, name);
+    p->count = 0;
+    p->next = qcdmem;
+    qcdmem = p;
+  }
+  p->count += count;
+}
+
 
 static struct luaL_Reg mtFile[] = {
     { "__tostring", qf_fmt },
@@ -347,6 +529,53 @@ qlua_getmetatable(lua_State *L)
 }
 
 /* This should be a simple table, but for now this will do */
+static char *
+q_qtypename(lua_State *L, int idx, char *def)
+{
+    char *t = def;
+    QLUA_Type tp = qlua_qtype(L, idx);
+
+    switch (tp) {
+    case qComplex: t = "complex"; break;
+    case qGamma: t = "gamma"; break;
+    case qMatReal: t = "matrix.real"; break;
+    case qMatComplex: t = "matrix.complex"; break;
+    case qSeqColVec2: case qSeqColVec3: case qSeqColVecN: t = "color.vector"; break;
+    case qSeqColMat2: case qSeqColMat3: case qSeqColMatN: t = "color.matrix"; break;
+    case qSeqDirFerm2: case qSeqDirFerm3: case qSeqDirFermN: t = "dirac.fermion"; break;
+    case qSeqDirProp2: case qSeqDirProp3: case qSeqDirPropN: t = "dirac.propagator"; break;
+    case qLatInt: t = "lattice.int"; break;
+    case qLatReal: t = "lattice.real"; break;
+    case qLatComplex: t = "lattice.complex"; break;
+    case qLatColVec2: case qLatColVec3: case qLatColVecN: t = "lattice.color.vector"; break;
+    case qLatColMat2: case qLatColMat3: case qLatColMatN: t = "lattice.color.matrix"; break;
+    case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: t = "lattice.dirac.fermion"; break;
+    case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: t = "lattice.dirac.propagator"; break;
+    case qLattice: t = "lattice"; break;
+    case qLatMulti: t = "multiset"; break;
+    case qLatSubset: t = "subset"; break;
+    case qVecInt: t = "vector.int"; break;
+    case qVecReal: t = "vector.real"; break;
+    case qVecComplex: t = "vector.complex"; break;
+    case qSeqRandom: t = "random.state"; break;
+    case qLatRandom: t = "lattice.random.state"; break;
+    case qReader: t = "qio.reader"; break;
+    case qWriter: t = "qio.writer"; break;
+    case qAffReader: t = "aff.reader"; break;
+    case qAffWriter: t = "aff.writer"; break;
+    case qHdf5Reader: t = "hdf5.reader"; break;
+    case qHdf5Writer: t = "hdf5.writer"; break;
+    case qClover: t = "clover"; break;
+    case qCloverDeflator: t = "clover.deflator"; break;
+    case qCloverDeflatorState: t = "clover.deflator.state"; break;
+    case qMDWF: t = "mdwf"; break;
+    case qMDWFDeflator: t = "mdwf.deflator"; break;
+    case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
+    default: break;
+    }
+    return t;
+}
+
 static int
 q_type(lua_State *L)
 {
@@ -360,43 +589,7 @@ q_type(lua_State *L)
     case LUA_TSTRING: t = "string"; break;
     case LUA_TTABLE: t = "table"; break;
     case LUA_TFUNCTION: t = "function"; break;
-    case LUA_TUSERDATA: switch (qlua_qtype(L, 1)) {
-        case qComplex: t = "complex"; break;
-        case qGamma: t = "gamma"; break;
-        case qMatReal: t = "matrix.real"; break;
-        case qMatComplex: t = "matrix.complex"; break;
-        case qSeqColVec2: case qSeqColVec3: case qSeqColVecN: t = "color.vector"; break;
-        case qSeqColMat2: case qSeqColMat3: case qSeqColMatN: t = "color.matrix"; break;
-        case qSeqDirFerm2: case qSeqDirFerm3: case qSeqDirFermN: t = "dirac.fermion"; break;
-        case qSeqDirProp2: case qSeqDirProp3: case qSeqDirPropN: t = "dirac.propagator"; break;
-        case qLatInt: t = "lattice.int"; break;
-        case qLatReal: t = "lattice.real"; break;
-        case qLatComplex: t = "lattice.complex"; break;
-        case qLatColVec2: case qLatColVec3: case qLatColVecN: t = "lattice.color.vector"; break;
-        case qLatColMat2: case qLatColMat3: case qLatColMatN: t = "lattice.color.matrix"; break;
-        case qLatDirFerm2: case qLatDirFerm3: case qLatDirFermN: t = "lattice.dirac.fermion"; break;
-        case qLatDirProp2: case qLatDirProp3: case qLatDirPropN: t = "lattice.dirac.propagator"; break;
-        case qLattice: t = "lattice"; break;
-        case qLatMulti: t = "multiset"; break;
-        case qLatSubset: t = "subset"; break;
-        case qVecInt: t = "vector.int"; break;
-        case qVecReal: t = "vector.real"; break;
-        case qVecComplex: t = "vector.complex"; break;
-        case qSeqRandom: t = "random.state"; break;
-        case qLatRandom: t = "lattice.random.state"; break;
-        case qReader: t = "qio.reader"; break;
-        case qWriter: t = "qio.writer"; break;
-        case qAffReader: t = "aff.reader"; break;
-        case qAffWriter: t = "aff.writer"; break;
-        case qClover: t = "clover"; break;
-        case qCloverDeflator: t = "clover.deflator"; break;
-        case qCloverDeflatorState: t = "clover.deflator.state"; break;
-        case qMDWF: t = "mdwf"; break;
-        case qMDWFDeflator: t = "mdwf.deflator"; break;
-        case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
-        default: break;
-        }
-        break;
+    case LUA_TUSERDATA: t = q_qtypename(L, 1, "userdata"); break;
     case LUA_TTHREAD: t = "thread"; break;
     }
     lua_pushstring(L, t);
@@ -431,6 +624,10 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "stderr");
     lua_pushcfunction(L, q_file);
     lua_setfield(L, -2, "open");
+    lua_pushcfunction(L, q_fexists);
+    lua_setfield(L, -2, "fexists");
+    lua_pushcfunction(L, q_dexists);
+    lua_setfield(L, -2, "dexists");
     lua_pushcfunction(L, q_lines);
     lua_setfield(L, -2, "lines");
     lua_setglobal(L, "io");
@@ -439,15 +636,20 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, "os");
     lua_pushcfunction(L, qlua_exit);
     lua_setfield(L, -2, "exit");
-    lua_pushcfunction(L, qlua_timeofday);
+    lua_pushcfunction(L, qlua_time);
     lua_setfield(L, -2, "time");
+    lua_pushcfunction(L, qlua_ctime);
+    lua_setfield(L, -2, "ctime");
     rf = fopen("/dev/urandom", "rb");
     if (rf) {
         lua_pushcfunction(L, qlua_random);
         lua_setfield(L, -2, "random");
     }
-    
-    lua_pop(L, 1);
+    lua_pushcfunction(L, qlua_limit);
+    lua_setfield(L, -2, "limit");
+    lua_pushcfunction(L, qlua_node);
+    lua_setfield(L, -2, "node");
+    lua_setglobal(L, "os");
 
     /* fix package.path -- try to get QLUALIB from the environment first */
         {
@@ -467,15 +669,19 @@ init_qlua_io(lua_State *L)
     lua_pushcfunction(L, qlua_getmetatable);
     lua_setglobal(L, "getmetatable");
 
+    /* qdp memory usage state */
+    lua_getglobal(L, qcdlib);
+    lua_pushcfunction(L, qlua_qcdmem);
+    lua_setfield(L, -2, "memory_usage");
+
     return 0;
 }
 
-int
-fini_qlua_io(lua_State *L)
+void
+fini_qlua_io(void)
 {
     if (rf) {
         fclose(rf);
         rf = 0;
     }
-    return 0;
 }

@@ -1,0 +1,46 @@
+require "stdlib"
+
+
+function show_mem(name)
+   printf("Memory usage at %s:\n", name);
+   for i,v in pairs(qcd.memory_usage()) do
+      printf("   %-20s %d\n", i, v)
+   end
+end
+
+
+d = 128
+LAT = qcd.lattice({d})
+
+j = LAT:pcoord(0)
+x = LAT:Real(LAT:pcoord(0)) * (math.pi / d)
+c = x:cos()
+s = x:sin()
+
+z = LAT:Complex(0)
+LAT:Subset("even"):where(function () z:set(LAT:Complex(-1) * x) end)
+LAT:Subset("odd"):where(function () z:set(LAT:Complex(1)) end)
+
+q = LAT:Complex(c) * s
+
+for i = 0, LAT[0] - 1 do
+  print(i, q[{i}]:real(), c[{i}], s[{i}])
+end
+
+-- for i = 0, d - 1 do
+--   print(i, j[{i}], z[{i}], x[{i}])
+-- end
+
+print("zz", qcd.dot(z,z):sum())
+
+show_mem("before GC")
+c = nil
+s = nil
+j = nil
+x = nil
+z = nil
+q = nil
+collectgarbage("collect")
+show_mem("after GC")
+
+printf("DONE\n")

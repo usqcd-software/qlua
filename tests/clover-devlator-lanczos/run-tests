@@ -1,0 +1,52 @@
+#!/bin/bash
+
+cmd_qlua="../../qlua"
+suffix=${suffix:-1}
+
+if [ "x$TEST" == "x" ] ; then
+  TEST="
+      solver_mixed_clover \
+      solver_eigcg_clover \
+      save_eigspace \
+      load_eigspace \
+      add-and-get-evec \
+      get-and-add-evec \
+      calc-save-evec \
+      calc-save-evec-poly \
+      calc-save-evec-poly-inplace \
+      load_eigspace \
+      "
+fi
+
+cmd_run=""
+qmp_geom=""
+
+if [ "x${do_mpi}" != "x" ] ; then
+  cmd_run="mpirun -np 16 $cmd_run"
+  #qmp_geom="-qmp-geom 2 2 2 2"
+fi
+
+if [ "x$do_valgrind" != "x" ] ; then
+  cmd_run="valgrind -v --tool=memcheck --trace-children=yes --leak-check=full $cmd_run"
+fi
+
+[ -d data_pdir ] || mkdir data_pdir
+
+for t in $(echo $TEST) \
+      ; do
+  exec_cmd="${cmd_run} ${cmd_qlua} ${qmp_geom} config_4c8.qlua ${t}.qlua"
+  echo $exec_cmd
+  echo $exec_cmd >log.${t}.${suffix}
+  $exec_cmd >>log.${t}.${suffix} 2>&1
+  if [ $? -eq 0 ] ; then
+      echo "$t OK"
+  else
+      echo "$t Fail"
+      exit 1
+  fi
+done
+
+if [ "x$keep_logs" == "x" ] ; then
+  rm -f log.*.${suffix} arpack.log src_sol_4c8.qdpc
+  rm -fr data_pdir
+fi

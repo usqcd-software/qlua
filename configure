@@ -1,5 +1,8 @@
 #!/bin/sh -f
 
+## version ID. 
+version='X.XX.XX-post-0.38.02'
+
 # show_help exit_code
 show_help() {
   cat << EOF
@@ -17,11 +20,15 @@ show_help() {
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
      --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
      --with-<package>=DIR     use DIR/bin/<package>-config to query package
+     --clover-nc=[23]         setup Nc for CLOVER inverter 
      --with[out]-nc=2         include [exclude] Nc=2 special case
      --with[out]-nc=3         include [exclude] Nc=3 special case
      --with[out]-nc=N         include [exclude] Nc=N special case
      --with-nc=all            include all special Nc cases
      --without-nc=any         exclude all special Nc cases
+     --with-arpack            build ARPACK-dependent code (libs in \$ARPACK var)
+     --fortran-post-underscore FORTAN lib object names have post-underscore
+                              [default=no]
 
    Supported packages:
      clover                   SciDAC L3 clover inverter
@@ -30,6 +37,7 @@ show_help() {
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
      hdf5                     Use HDF5 library
+     hypre                    Use HYPRE
 
    Environment variables:
      CC                      C compiler to use
@@ -73,25 +81,31 @@ default_ranlib="echo RANLIB"
 use_nc2=1
 use_nc3=1
 use_ncN=1
+clover_nc=3
 
 # process_args arg ...
 process_args() {
   while [ $# -ne 0 ]; do
     case "$1" in
       --help)  show_help 0 ;;
-      --prefix=*)       prefix=`echo "$1" | sed -e 's/--prefix=//'`   ;;
-      --bindir=*)       bindir=`echo "$1" | sed -e 's/--bindir=//'`   ;;
-      --libdir=*)       libdir=`echo "$1" | sed -e 's/--libdir=//'`   ;;
-      --incdir=*)       incdir=`echo "$1" | sed -e 's/--incdir=//'`   ;;
-      --docdir=*)       docdir=`echo "$1" | sed -e 's/--docdir=//'`   ;;
-      --with-lua=*)     lua=`echo "$1" | sed -e 's/--with-lua=//'`    ;;
-      --with-qdp=*)     qdp=`echo "$1" | sed -e 's/--with-qdp=//'`    ;;
-      --with-clover=*)    clover=`echo "$1" | sed -e 's/--with-clover=//'` ;;
-      --with-mdwf=*)      mdwf=`echo "$1" | sed -e 's/--with-mdwf=//'` ;;
-      --with-lhpc-aff=*)  aff=`echo "$1" | sed -e 's/--with-lhpc-aff=//'`  ;;
-      --with-gsl=*)       gsl=`echo "$1" | sed -e 's/--with-gsl=//'`  ;;
-      --with-hdf5=*)      hdf5=`echo "$1" | sed -e 's/--with-hdf5=//'`  ;;
-      --with-atlas=*)     atlas=`echo "$1" | sed -e 's/--with-atlas=//'`  ;;
+      --prefix=*)       prefix=$(echo "$1" | sed -e 's/--prefix=//')   ;;
+      --bindir=*)       bindir=$(echo "$1" | sed -e 's/--bindir=//')   ;;
+      --libdir=*)       libdir=$(echo "$1" | sed -e 's/--libdir=//')   ;;
+      --incdir=*)       incdir=$(echo "$1" | sed -e 's/--incdir=//')   ;;
+      --docdir=*)       docdir=$(echo "$1" | sed -e 's/--docdir=//')   ;;
+      --with-lua=*)     lua=$(echo "$1" | sed -e 's/--with-lua=//')    ;;
+      --with-qdp=*)     qdp=$(echo "$1" | sed -e 's/--with-qdp=//')    ;;
+      --with-clover=*)    clover=$(echo "$1" | sed -e 's/--with-clover=//') ;;
+      --with-mdwf=*)      mdwf=$(echo "$1" | sed -e 's/--with-mdwf=//') ;;
+      --with-lhpc-aff=*)  aff=$(echo "$1" | sed -e 's/--with-lhpc-aff=//')  ;;
+      --with-hdf5=*)      hdf5=$(echo "$1" | sed -e 's/--with-hdf5=//')  ;;
+      --with-gsl=*)       gsl=$(echo "$1" | sed -e 's/--with-gsl=//')  ;;
+      --with-atlas=*)     atlas=$(echo "$1" | sed -e 's/--with-atlas=//')  ;;
+      --with-hypre=*)     hypre=$(echo "$1" | sed -e 's/--with-hypre=//')  ;;
+      --clover-nc=*)      clover_nc=$(echo $1 | sed -e 's/--clover-nc=//') ;;
+      --with-arpack)      arpack=1 ;;
+      --with-arpack=*)    arpack=1 ; arpack_libs=$(echo "$1" | sed -e 's/--with-arpack=//') ;;
+      --fortran-post-underscore) fortran_post_uscore=1 ;;
       --with-nc=2)        use_nc2=1 ;;
       --with-nc=3)        use_nc3=1 ;;
       --with-nc=N)        use_ncN=1 ;;
@@ -107,10 +121,18 @@ process_args() {
     shift
   done
 
+  if [ ! -z "$clover" ] ; then
+    case "$clover_nc" in
+      2) clover_ok=$([ "$use_nc2" -eq "1" ] && echo 1) ;;
+      3) clover_ok=$([ "$use_nc3" -eq "1" ] && echo 1) ;;
+      *) clover_ok='' ;;
+    esac
+    [ -z "$clover_ok" ] && show_error "Selecting --clover-nc=$clover_nc requires --with-nc=$clover_nc"
+  fi
+
   if [ "$use_nc3" -eq "0" ] ; then
-      clover=
-      mdwf=
-      extras=
+      [ -z "$mdwf" ] || show_error "MDWF requires --with-nc=3"
+      [ -z "$extras" ] || show_error "--with-extras requires --with-nc=3"
   fi
 }
 
@@ -138,50 +160,64 @@ normalize() {
   [ -f $lua/lib/liblua.a ] || show_error "No liblua.a found under $lua"
   [ -z "$qdp" ] && show_error "QDP must be explicitly specified"
   [ -x $qdp/bin/qdp-config ] || show_error "No qdp-config found under $qdp"
-  qdp_cc=`$qdp/bin/qdp-config --cc`
-  qdp_copts=`$qdp/bin/qdp-config --copts`
-  qdp_cflags=`$qdp/bin/qdp-config --cflags`
-  qdp_ldflags=`$qdp/bin/qdp-config --ldflags`
-  qdp_libs=`$qdp/bin/qdp-config --libs`
+  qdp_cc=$($qdp/bin/qdp-config --cc)
+  qdp_copts=$($qdp/bin/qdp-config --copts)
+  qdp_cflags=$($qdp/bin/qdp-config --cflags)
+  qdp_ldflags=$($qdp/bin/qdp-config --ldflags)
+  qdp_libs=$($qdp/bin/qdp-config --libs)
   if [ ! -z "$clover" ] ; then
-     [ -x "$clover/bin/clover-config" ] \
-        || show_error "No clover-config under $clover"
-     clover_cflags=`$clover/bin/clover-config --cflags`
-     clover_ldflags=`$clover/bin/clover-config --ldflags`
-     clover_libs=`$clover/bin/clover-config --libs`
+     [ -x "$clover/bin/clover-config-$clover_nc" ] \
+        || show_error "No clover-config-$clover_nc under $clover"
+     clover_cflags=$($clover/bin/clover-config-$clover_nc --cflags)
+     clover_ldflags=$($clover/bin/clover-config-$clover_nc --ldflags)
+     clover_libs=$($clover/bin/clover-config-$clover_nc --libs)
+     [ "$($clover/bin/clover-config-$clover_nc --Nc)" -eq "$clover_nc" ] || show_error "CLOVER Nc mismatch"
      [ -z "$gsl" ] && show_error "CLOVER requires GSL"
   fi
   if [ ! -z "$mdwf" ] ; then
      [ -x "$mdwf/bin/mdwf-config" ] \
         || show_error "No mdwf-config under $mdwf"
-     mdwf_cflags=`$mdwf/bin/mdwf-config --cflags`
-     mdwf_ldflags=`$mdwf/bin/mdwf-config --ldflags`
-     mdwf_libs=`$mdwf/bin/mdwf-config --libs`
+     mdwf_cflags=$($mdwf/bin/mdwf-config --cflags)
+     mdwf_ldflags=$($mdwf/bin/mdwf-config --ldflags)
+     mdwf_libs=$($mdwf/bin/mdwf-config --libs)
      [ -z "$gsl" ] && show_error "MDWF requires GSL"
   fi
   if [ ! -z "$aff" ] ; then
      [ -x "$aff/bin/lhpc-aff-config" ] \
         || show_error "No lhpc-aff-config under $aff"
-     aff_cflags=`$aff/bin/lhpc-aff-config --cflags`
-     aff_ldflags=`$aff/bin/lhpc-aff-config --ldflags`
-     aff_libs=`$aff/bin/lhpc-aff-config --libs`
+     aff_cflags=$($aff/bin/lhpc-aff-config --cflags)
+     aff_ldflags=$($aff/bin/lhpc-aff-config --ldflags)
+     aff_libs=$($aff/bin/lhpc-aff-config --libs)
+  fi
+  # This is a bit sloppy - assume a regular installation of HDF5
+  if [ ! -z "$hdf5" ] ; then
+     hdf5_cflags="-I$hdf5/include"
+     hdf5_ldflags="-L$hdf5/lib"
+     hdf5_libs="-lhdf5"   # "-lhdf5_hl -lhdf5 -lz -lm" # from qlua-laph branch
   fi
   ## see if optimized CBLAS is chosen
   if [ ! -z "$atlas" ] ; then
      cblas_libs="-L$atlas/lib -lcblas"
   fi
   if [ ! -z "$gsl" ] ; then
-    gsl_cflags=`$gsl/bin/gsl-config --cflags`
+    gsl_cflags=$($gsl/bin/gsl-config --cflags)
     if [ -z "$cblas_libs" ] ; then
-      gsl_libs=`$gsl/bin/gsl-config --libs`
+      gsl_libs=$($gsl/bin/gsl-config --libs)
     else
-      gsl_libs=`$gsl/bin/gsl-config --libs-without-cblas`
+      gsl_libs=$($gsl/bin/gsl-config --libs-without-cblas)
     fi
   fi
-  if [ ! -z "$hdf5" ] ; then
-    hdf5_cflags="-I$hdf5/include"
-    hdf5_ldflags="-L$hdf5/lib"
-    hdf5_libs="-lhdf5_hl -lhdf5 -lz -lm"
+  if [ ! -z "$hypre" ] ; then
+     hypre_cflags="-I$hypre/include"
+     hypre_ldflags="-L$hypre/lib"
+     hypre_libs="-lHYPRE"
+  fi
+  if [ ! -z "$arpack" ] ; then
+     arpack_cflags=""
+     arpack_ldflags=""
+     if [ -z "$arpack_libs" ] ; then 
+        arpack_libs=$ARPACK # use env vars
+     fi
   fi
   ## Add other packages here
 }
@@ -190,27 +226,31 @@ normalize() {
 show_config() {
    echo "QLUA configuration summary:"
    echo "====================================="
+   echo "version                 $version"
    echo "prefix                  $prefix"
    echo "binaries directory      $bindir"
    echo "libraries directory     $libdir"
    echo "headers directory       $incdir"
    echo "doc directory           $docdir"
    echo "C compiler              $cc"
-   echo "C optimization flags    $copts"
-   echo "Compiler flags          $cflags"
+   [ -z "$copts" ] || echo "C optimization flags    $copts"
+   [ -z "$cflags" ] || echo "Compiler flags          $cflags"
    echo "Link editor             $ld"
-   echo "Linking flags           $ldflags"
-   echo "Additional libraries    $libs"
+   [ -z "$ldflags" ] || echo "Linking flags           $ldflags"
+   [ -z "$libs" ] || echo "Additional libraries    $libs"
    echo "Archiver                $ar"
-   echo "Ranlib                  $ranlib"
+   [ -z "$ranlib" ] || echo "Ranlib                  $ranlib"
    echo "LUA location            $lua"
    echo "QDP location            $qdp"
    [ -z "$clover" ]  || echo "Clover location         $clover"
+   [ -z "$clover_nc" ] || echo "Clover Nc               $clover_nc"
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
-   [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$hdf5" ]    || echo "HDF5 location           $hdf5"
+   [ -z "$gsl" ]     || echo "GSL location            $gsl"
+   [ -z "$hypre" ]   || echo "HYPRE location          $hypre"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
+   [ -z "$arpack" ]  || echo "ARPACK libraries        $arpack_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
    [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
    [ "$use_ncN" == 0 ] || echo "Nc=N included"
@@ -223,6 +263,7 @@ show_config() {
 ## Add other packages below
 build() {
   sed < $1 \
+      -e "s|@version@|$version|g" \
       -e "s|@bindir@|$bindir|g" \
       -e "s|@libdir@|$libdir|g" \
       -e "s|@incdir@|$incdir|g" \
@@ -244,10 +285,15 @@ build() {
         -e "s|@aff_cflags@|$aff_cflags|g" \
         -e "s|@aff_ldflags@|$aff_ldflags|g" \
         -e "s|@aff_libs@|$aff_libs|g" \
+  | sed -e "s|@hdf5@|$hdf5|g" \
+        -e "s|@hdf5_cflags@|$hdf5_cflags|g" \
+        -e "s|@hdf5_ldflags@|$hdf5_ldflags|g" \
+        -e "s|@hdf5_libs@|$hdf5_libs|g" \
   | sed -e "s|@clover@|$clover|g" \
         -e "s|@clover_cflags@|$clover_cflags|g" \
         -e "s|@clover_ldflags@|$clover_ldflags|g" \
         -e "s|@clover_libs@|$clover_libs|g" \
+        -e "s|@clover_nc@|$clover_nc|g" \
   | sed -e "s|@mdwf@|$mdwf|g" \
         -e "s|@mdwf_cflags@|$mdwf_cflags|g" \
         -e "s|@mdwf_ldflags@|$mdwf_ldflags|g" \
@@ -264,6 +310,14 @@ build() {
         -e "s|@use_nc3@|$use_nc3|g " \
         -e "s|@use_ncN@|$use_ncN|g " \
   | sed -e "s|@extras@|$extras|g" \
+  | sed -e "s|@hypre@|$hypre|g" \
+        -e "s|@hypre_cflags@|$hypre_cflags|g" \
+        -e "s|@hypre_ldflags@|$hypre_ldflags|g" \
+        -e "s|@hypre_libs@|$hypre_libs|g" \
+  | sed -e "s|@arpack@|$arpack|g" \
+        -e "s|@arpack_cflags@|$arpack_cflags|g" \
+        -e "s|@arpack_ldflags@|$arpack_ldflags|g" \
+        -e "s|@arpack_libs@|$arpack_libs|g" \
       > $2 \
 || show_error "Could not generate $2"
 }
@@ -271,14 +325,21 @@ build() {
 # build_modules
 ## Add other packages below
 build_modules() {
+  echo "#define QLUA_VERSION \"$version\""
   echo "#define QDP_VERSION \"$qdp\""
   if [ ! -z "$aff" ] ; then
     echo "#define HAS_AFF"
     echo "#define LHPC_AFF_VERSION \"$aff\""
   fi
+  if [ ! -z "$hdf5" ] ; then
+    echo "#define HAS_HDF5"
+    echo "#define HDF5_VERSION \"$hdf5\""
+  fi
   if [ ! -z "$clover" ] ; then
     echo "#define HAS_CLOVER"
     echo "#define CLOVER_VERSION \"$clover\""
+    echo "#define QLUA_CLOVER_NC $clover_nc"
+    echo "#define QLUA_CLOVER_HDR \"qop-clover$clover_nc.h\""
   fi
   if [ ! -z "$mdwf" ] ; then
     echo "#define HAS_MDWF"
@@ -300,9 +361,19 @@ build_modules() {
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
+  if [ ! -z "$hypre" ] ; then
+    echo "#define HAS_HYPRE"
+    echo "#define HYPRE_VERSION \"$hypre\""
+  fi
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"
   echo "#define USE_NcN $use_ncN"
+  if [ ! -z "$arpack" ] ; then
+    echo "#define HAS_ARPACK"
+  fi
+  if [ ! -z $fortran_post_uscore ] ; then
+    echo "#define FORTRAN_POST_USCORE"
+  fi
 }
 
 ######
@@ -311,7 +382,7 @@ if [ $# -eq 0 ]; then
   show_help 1
 fi
 
-process_args $*
+process_args "$@"   # quotes are necessary for handling args with spaces
 normalize
 build qlua-config.in qlua-config
 chmod +x qlua-config

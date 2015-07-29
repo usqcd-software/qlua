@@ -1,0 +1,85 @@
+require "stdlib"
+d = 3
+LAT = qcd.lattice({d,d,d})
+function dump_meta(x)
+   local m = getmetatable(x)
+   if m then
+      printf("Metatable for %s: %s\n", tostring(x), tostring(m))
+      for i, v in pairs(m) do
+         printf("   %-25s : %s\n", tostring(i), tostring(v))
+      end
+   else
+      printf("No metatable for %s\n", tostring(x))
+   end
+   printf("\n")
+end
+
+function show_table(n, t)
+   printf("Table %s (%s)\n", n, tostring(t))
+   if t then
+      for i, v in pairs(t) do
+         printf("  %-25s : %s\n", tostring(i), tostring(v))
+      end
+   end
+   printf("\n")
+end
+
+dump_meta(LAT)
+show_table("std lattice", LAT:get_defaults())
+LAT:set_defaults{colors=2}
+show_table("Nc2 lattice", LAT:get_defaults())
+
+rnd = LAT:RandomState(1, LAT:pcoord(0) * d * d +
+                         LAT:pcoord(1) * d +
+                         LAT:pcoord(2))
+
+crnd = rnd:gaussian_Complex()
+x = LAT:ColorVector(crnd, {c=0})
+printf("V(c,0) %s\n", tostring(x))
+
+dump_meta(LAT)
+dump_meta(crnd)
+dump_meta(x)
+-- metatable for all QLUA types are hidden
+-- getmetatable(x)["b-type"] = "?????????????"
+-- dump_meta(x)
+dump_meta(rnd:gaussian_ColorVector())
+
+x = rnd:gaussian_ColorVectorN(4) * rnd:gaussian_Real()
+y = rnd:gaussian_Real() * x
+
+printf("consturcted ColVec: %s\n", tostring(x))
+printf("x:colors() = %d\n", x:colors())
+printf("x[{1,0,3,c=1}] = %s\n", tostring(x[{1,0,3,c=1}]))
+
+printf("x=%s\n", tostring(x))
+x[{c=0}] = LAT:Complex(complex(math.pi,1))
+x[{c=1}] = LAT:Complex(LAT:Real(0), LAT:Real(0))
+
+printf("%s %s\n", tostring(x[{0,0,1,c=0}]), tostring(x[{0,0,1,c=1}]))
+dump_meta(LAT)
+
+xx = LAT:ColorVectorN(5)
+for i0 = 0, LAT[0] - 1 do
+   for i1 = 0, LAT[1] - 1 do
+      for i2 = 0, LAT[2] - 1 do
+         for j = 0, xx:colors() - 1 do
+            xx[{i0,i1,i2,c=j}] = complex(j + 10 * i0, i1 + 10 * i2)
+         end
+      end
+   end
+end
+
+for i0 = 0, LAT[0] - 1 do
+   for i1 = 0, LAT[1] - 1 do
+      for i2 = 0, LAT[2] - 1 do
+         for j = 0, xx:colors() - 1 do
+            printf("xx [%2d %2d %2d %2d] = %s\n", i0, i1, i2, j,
+                   tostring(xx[{i0,i1,i2,c=j}]))
+         end
+      end
+   end
+end
+
+
+printf("DONE\n")

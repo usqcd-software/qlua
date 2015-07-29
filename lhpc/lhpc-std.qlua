@@ -29,7 +29,7 @@ do
   show_timers = function(n)
     local dt = os.time() - tstart
     printf("ALL TIMERS %q -----------------------\n", n);
-	local ws, we, wn, wt = 0,0,0,0;
+    local ws, we, wn, wt = 0,0,0,0;
     for s,x in pairs(tt) do
        ws = update_len(ws, s);
 	   for e,r in pairs(x) do
@@ -43,8 +43,8 @@ do
 	  for e, r in pairs(x) do
 	    printf(fmt, s, e, r.n, r.t, r.t * 100 / dt);
       end
-	end
-	printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
+    end
+    printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
   end
 end
 
@@ -88,8 +88,9 @@ end
 
 
 function print_network_settings()
+  local ms, s 
   ms, s = qcd.network()
-  s_str=''
+  local s_str=''
   if s[1] then
     s_str = string.format('%3d', s[1])
     for i = 2, #s do s_str = s_str .. string.format(' %3d', s[i]) end
@@ -97,9 +98,9 @@ function print_network_settings()
   printf("network: %d nodes [%s]\n", ms, s_str)
 end
 function print_subgrid_settings(L)
-  ln = L:network()
-  ln_str = string.format('%3d', ln[1])
-  sg_str = string.format('%3d', L[0] / ln[1])
+  local ln = L:network()
+  local ln_str = string.format('%3d', ln[1])
+  local sg_str = string.format('%3d', L[0] / ln[1])
   for i = 2, #ln do
     ln_str = ln_str .. string.format(' %3d', ln[i])
     sg_str = sg_str .. string.format(' %3d', L[i-1] / ln[i])
@@ -134,4 +135,14 @@ function complex2colmat(c)
 end
 function complex2dirprop(c) 
   return c.lattice:DiracPropagator(complex2colmat(c))
+
+function force_gc(title)
+  if nil == title then title = '' end
+  local m0 = collectgarbage("count")
+  local t0 = os.time()
+  collectgarbage("collect")
+  local m1 = collectgarbage("count")
+  local t1 = os.time()
+  printf("GC_COLLECT('%s') %dk->%dk (%dk) ; %dsec\n", 
+         title, m0, m1, m0 - m1, t1 - t0)
 end

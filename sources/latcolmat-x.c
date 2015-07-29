@@ -15,8 +15,11 @@ Qs(q_M_fmt)(lua_State *L)
 static int
 Qs(q_M_gc)(lua_State *L)
 {
+    char qdp_name[72];
     Qs(mLatColMat) *b = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
 
+    sprintf(qdp_name, "ColorMatrix%d", QC(b));
+    qlua_qdp_memuse(L, qdp_name, -1);
     Qx(QDP_D,_destroy_M)(b->ptr);
     b->ptr = 0;
 
@@ -30,8 +33,10 @@ Qs(unpack_mat)(int nc, double *std, QLA_DN_ColorMatrix(nc, (*src)))
 Qs(unpack_mat)(int nc, double *std, Qx(QLA_D,_ColorMatrix) *src)
 #endif
 {
-    for (int a = 0; a < nc; a++) {
-        for (int b = 0; b < nc; b++) {
+    int a, b;
+
+    for (a = 0; a < nc; a++) {
+        for (b = 0; b < nc; b++) {
             QLA_D_Complex *z = &Qx(QLA_D,_elem_M)(*src, a, b);
             std[2 * (a + nc * b)] = QLA_real(*z);
             std[2 * (a + nc * b) + 1] = QLA_imag(*z);
@@ -47,8 +52,10 @@ Qs(pack_mat)(int nc, Qx(QLA_D,_ColorMatrix) *dst, const double *std)
 #endif
 {
     QLA_D_Complex z;
-    for (int a = 0; a < nc; a++) {
-        for (int b = 0; b < nc; b++) {
+    int a, b;
+
+    for (a = 0; a < nc; a++) {
+        for (b = 0; b < nc; b++) {
             int idx = 2 * (a + nc * b);
             QLA_c_eq_r_plus_ir(z, std[idx], std[idx + 1]);
             QLA_c_eq_c(Qx(QLA_D,_elem_M)(*dst, a, b), z);
@@ -105,7 +112,7 @@ Qs(q_M_get)(lua_State *L)
                 }
                 XMP_dist_double_array(site_node, 2 * QC(V) * QC(V), m_std);
                 Qs(pack_mat)(QC(V), m->ptr, m_std);
-				qlua_free(L, m_std);
+                                qlua_free(L, m_std);
             } else if ((a == -1) || (b == -1)) {
                 qlua_free(L, idx);
                 return qlua_badindex(L, "ColorMatrix" Qcolors);
@@ -230,10 +237,11 @@ Qs(q_M_sum)(lua_State *L)
         int size = m->size;
         QLA_Int *ii = m->idx;
         int sites = QDP_sites_on_node_L(S->lat);
-
         Vtype **vv = qlua_malloc(L, size * sizeof(Vtype *));
+        int i, k, ca, cb;
+
         lua_createtable(L, size, 0);
-        for (int i = 0; i < size; i++) {
+        for (i = 0; i < size; i++) {
             Qs(mSeqColMat) *vi = Qs(qlua_newZeroSeqColMat)(L, QC(a));
             vv[i] = vi->ptr;
             lua_rawseti(L, -2, i + 1); /* [sic] lua index */
@@ -241,7 +249,7 @@ Qs(q_M_sum)(lua_State *L)
         CALL_QDP(L);
         Vtype *xx = Qx(QDP_D,_expose_M)(a->ptr);
         
-        for (int k = 0; k < sites; k++, xx++, ii++) {
+        for (k = 0; k < sites; k++, xx++, ii++) {
             int t = *ii;
             if ((t < 0) || (t >= size))
                 continue;
@@ -249,9 +257,9 @@ Qs(q_M_sum)(lua_State *L)
         }
         Qx(QDP_D,_reset_M)(a->ptr);
         QLA_D_Real *rr = qlua_malloc(L, 2 * size * nc * nc * sizeof (QLA_D_Real));
-        for (int i = 0; i < size; i++) {
-            for (int ca = 0; ca < nc; ca++) {
-                for (int cb = 0; cb < nc; cb++) {
+        for (i = 0; i < size; i++) {
+            for (ca = 0; ca < nc; ca++) {
+                for (cb = 0; cb < nc; cb++) {
                     QLA_D_Complex *z = &Qx(QLA_D,_elem_M)(*vv[i], ca, cb);
                     int ab = 2 * (ca + nc * (cb + nc * i));
                     rr[ab] = QLA_real(*z);
@@ -260,9 +268,9 @@ Qs(q_M_sum)(lua_State *L)
             }
         }
         QMP_sum_double_array(rr, 2 * size * nc * nc);
-        for (int i = 0; i < size; i++) {
-            for (int ca = 0; ca < nc; ca++) {
-                for (int cb = 0; cb < nc; cb++) {
+        for (i = 0; i < size; i++) {
+            for (ca = 0; ca < nc; ca++) {
+                for (cb = 0; cb < nc; cb++) {
                     QLA_D_Complex z;
                     int ab =  2 * (ca + nc * (cb + nc * i));
                     QLA_c_eq_r_plus_ir(z, rr[ab], rr[ab + 1]);
@@ -270,8 +278,8 @@ Qs(q_M_sum)(lua_State *L)
                 }
             }
         }
-		qlua_free(L, rr);
-		qlua_free(L, vv);
+                qlua_free(L, rr);
+                qlua_free(L, vv);
         return 1;
     }
     }
@@ -578,7 +586,7 @@ Qs(do_Mproj)(Qx(QLA_D,_ColorMatrix) *r, int idx, void *env)
     QLA_Real new_tr, old_tr;
     Qx(QLA_D,_ColorMatrix) *w = &arg->a[idx];
 
-    Qx(QLA_D,_M_eq_M)(r, w);
+    Qs(X_reunit)(r); /* r is initalized to initial value for iter.proj */
     Qx(QLA_D,_r_eq_re_M_dot_M)(&new_tr, r, w);
     new_tr = new_tr / QC(xxx);
 
@@ -596,10 +604,19 @@ static int
 Qs(q_M_proj)(lua_State *L)
 {
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
-    mLattice *S = qlua_ObjLattice(L, 1);
     double BlkAccu = luaL_checknumber(L, 2);
     int BlkMax = luaL_checkint(L, 3);
+    Qs(mLatColMat) *r0= (3 < lua_gettop(L) 
+                         ? Qs(qlua_checkLatColMat)(L, 4, NULL, -1)
+                         : NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
+    if (NULL != r0) /* specified initial val. for iterative projection*/
+        Qx(QDP_D,_M_eq_M)(r->ptr, r0->ptr, *S->qss);
+    else            /* start with the matrix itself as initial; 
+                       this is likely incorrect as the matrix is not SU(N) */
+        Qx(QDP_D,_M_eq_M)(r->ptr, a->ptr, *S->qss);
+    
     Qs(Mproj_arg) arg;
 
     arg.a = Qx(QDP_D,_expose_M)(a->ptr);
@@ -681,7 +698,7 @@ Qs(q_M_neg)(lua_State *L)
     Qs(mLatColMat) *r = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
 
     CALL_QDP(L);
-    Qx(QDP_D,_M_meq_M)(r->ptr, a->ptr, *S->qss);
+    Qx(QDP_D,_M_eqm_M)(r->ptr, a->ptr, *S->qss);
 
     return 1;
 }
@@ -921,6 +938,7 @@ Qs(mLatColMat) *
 Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
 {
     mLattice *S = qlua_checkLattice(L, Sidx);
+    char qdp_name[72];
 #if QNc == 'N'
     Qx(QDP_D,_ColorMatrix) *v = Qx(QDP_D,_create_M_L)(nc, S->lat);
 #else
@@ -946,6 +964,8 @@ Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
     qlua_createLatticeTable(L, Sidx, Qs(mtLatColMat), Qs(qLatColMat),
                             Qs(LatColMatName));
     lua_setmetatable(L, -2);
+    sprintf(qdp_name, "ColorMatrix%d", QC(hdr));
+    qlua_qdp_memuse(L, qdp_name, 1);
 
     return hdr;
 }
@@ -953,10 +973,10 @@ Qs(qlua_newLatColMat)(lua_State *L, int Sidx, int nc)
 Qs(mLatColMat) *
 Qs(qlua_newZeroLatColMat)(lua_State *L, int Sidx, int nc)
 {
-	Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, Sidx, nc);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	Qx(QDP_D,_M_eq_zero)(v->ptr, S->all);
-	return v;
+        Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, Sidx, nc);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        Qx(QDP_D,_M_eq_zero)(v->ptr, S->all);
+        return v;
 }
 
 Qs(mLatColMat) *
@@ -1069,7 +1089,7 @@ Qs(q_latcolmat_)(lua_State *L, mLattice *S, int nc, int off)
             }
             case Qs(qLatColVec): {
                 Qs(mLatColVec) *g = Qs(qlua_checkLatColVec)(L, 3 + off, S, nc);
-                Qs(mLatColMat) *v = Qs(qlua_newLatColMat)(L, 1, nc);
+                Qs(mLatColMat) *v = Qs(qlua_newZeroLatColMat)(L, 1, nc);
 
                 CALL_QDP(L);
                 Qx(QDP_D,_M_eq_V_times_Va)(v->ptr, f->ptr, g->ptr, *S->qss);

@@ -25,7 +25,7 @@ function bmw_hex(U, n)
         local Um = U[mu]
         for nu in skip(mu, interval(1,dim)) do
            for rho in skip(nu, skip(mu, interval(1,dim))) do
-              C1 = L:ColorMatrix()
+              local C1 = L:ColorMatrix()
               for sigma in skip(mu, skip(nu, skip(rho, interval(1, dim)))) do
                  local Us = U[sigma]
                  C1 = C1 +

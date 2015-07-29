@@ -61,6 +61,7 @@ do
   local T_spinZ_parityP= (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2
   local T_spinZ_parityM= (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
   local T_parityP = (1 + gamma{mu=3}) / 2
+  local T_parityN = (1 - gamma{mu=3}) / 2
 
   local meson_tab = {
     ["a0_1"]    = 0,
@@ -98,7 +99,13 @@ do
     ["xi_1"]     = { baryon_xi_2pt, S_nucl1, T_parityP },
     ["lambda_5"] = { baryon_lambda_naive_2pt, S_nucl1, T_parityP },
     ["xi_2"]     = { baryon_xi_2pt, S_nucl1, T_spinZ_parityP },
-    ["proton_negpar_3"] = {baryon_sigma_2pt, S_nucl3_parityM, T_spinZ_parityM }
+    ["proton_negpar_3"] = {baryon_sigma_2pt, S_nucl3_parityM, T_spinZ_parityM },
+    
+    -- CPS hadspecs
+    ["proton_pp"] = { baryon_sigma_2pt, S_nucl1, T_parityP * 2 }, -- ==2*proton_4
+    ["proton_np"] = { baryon_sigma_2pt, S_nucl1, T_parityN * 2 },
+    ["proton_pp5"]= { baryon_sigma_2pt, S_nucl1, T_parityP * 2 * gamma{n=15} },
+    ["proton_np5"]= { baryon_sigma_2pt, S_nucl1, T_parityN * 2 * gamma{n=15} },
   }
   -- needed only if one of quarks is heavy (S)
 --  local baryon_lightheavyq_name = {
@@ -178,11 +185,11 @@ do
       psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
     end
     
-    tsrc = csrc[1+t_axis]
-    tsize = L[t_axis]
+    local tsrc = csrc[1+t_axis]
+    local tsize = L[t_axis]
     -- create MultiSet for projections
     -- TODO replace with shifted and sign-aware multiset?
-    mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
+    local mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
     
     -- calc baryon 2pts
     local bc_bar_t = bc_quark_t * bc_quark_t * bc_quark_t
@@ -280,10 +287,10 @@ do
       psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
     end
     
-    tsrc = csrc[1+t_axis]
-    tsize = L[t_axis]
+    local tsrc = csrc[1+t_axis]
+    local tsize = L[t_axis]
     -- create MultiSet for projections
-    mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
+    local mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
     
     for a, c2pt in pairs(corr_list) do
       for i,psnk in ipairs(psnk_list) do

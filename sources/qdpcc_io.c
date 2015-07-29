@@ -69,7 +69,7 @@ qdpcc_read_P_N(lua_State *L)
 {
     int nc = luaL_checkint(L, 1);
 
-    if (nc < 2)
+    if (nc < 1)
         return luaL_error(L, "bad number of colors for qcd.qdpcc.read_propN()");
 
     switch (nc) {
@@ -133,8 +133,7 @@ init_qdpcc_io(lua_State *L)
     return 0;
 }
 
-int
-fini_qdpcc_io(lua_State *L)
+void
+fini_qdpcc_io(void)
 {
-    return 0;
 }

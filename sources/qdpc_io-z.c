@@ -27,12 +27,27 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         /* one colored object */
         QDP_String *info = QDP_string_create();
         Qs(m) *X = Qs(qlua_newZero)(L, Sidx, nc);
-        int status = Qop(read)(reader->ptr, info, X->ptr);
-        if (status == 0) {
+        if (get_prec(reader->ptr) == 'F') {
+#if QNc == 'N'
+          Stype *tt = SopL(create)(nc, S->lat);
+#else
+          Stype *tt = SopL(create)(S->lat);
+#endif
+          int status = Sop(read)(reader->ptr, info, tt);
+          if (status == 0) {
+            FtoD(X->ptr, tt, S->all);
+            Sop(destroy)(tt);
+            lua_pushstring(L, QDP_string_ptr(info));
+            QDP_string_destroy(info);
+            return 2;
+          }
+        } else {
+          if (Qop(read)(reader->ptr, info, X->ptr) == 0) {
             /* read successful -- convert to LUA */
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
             return 2;
+          }
         }
         /* read failed */
         QDP_string_destroy(info);
@@ -60,11 +75,27 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         info = QDP_string_create();
 
         /* do the reading */
-        status = Qop(vread)(reader->ptr, info, X, n);
+        if (get_prec(reader->ptr) == 'F') {
+          Stype *tt[n];
+          for (i = 0; i < n; i++) {
+#if QNc == 'N'
+            tt[i] = SopL(create)(nc, S->lat);
+#else
+            tt[i] = SopL(create)(S->lat);
+#endif
+          }
+          status = Sop(vread)(reader->ptr, info, tt, n);
+          for (i = 0; i < n; i++) {
+            FtoD(X[i], tt[i], S->all);
+            Sop(destroy)(tt[i]);
+          }
+        } else {
+          status = Qop(vread)(reader->ptr, info, X, n);
+        }
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
-			qlua_free(L, X);
+                        qlua_free(L, X);
             return 2;
         }
         /* read failed */
@@ -72,7 +103,7 @@ Qs(r_)(lua_State *L, mLattice *S, int Sidx, mReader *reader, int off, int nc)
         for (i = 0; i < n; i++)
             Qop(destroy)(X[i]);
 
-		qlua_free(L, X);
+                qlua_free(L, X);
         break;
     }
     }
@@ -167,7 +198,7 @@ Qs(dwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
     QDP_string_set(xml, (char *)info); /* [ sic ] */
 
     Qtype *X[n];
-	lua_checkstack(L, n + 2);
+        lua_checkstack(L, n + 2);
     for (i = 0; i < n; i++) {
         Qs(m) *xi;
         /* full table indexing here */
@@ -212,7 +243,7 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
 
     Qtype **X = qlua_malloc(L, n * sizeof (Qtype *));
     Stype **Y = qlua_malloc(L, n * sizeof (Stype *));
-	lua_checkstack(L, n + 2);
+        lua_checkstack(L, n + 2);
     for (i = 0; i < n; i++) {
         Qs(m) *xi;
         /* full table indexing here */
@@ -234,8 +265,8 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
     for (i = 0; i < n; i++)
         Sop(destroy)(Y[i]);
 
-	qlua_free(L, X);
-	qlua_free(L, Y);
+        qlua_free(L, X);
+        qlua_free(L, Y);
     if (status == 0) {
         /* success -- clean up everything and return true */
         lua_pushboolean(L, 1);
@@ -252,6 +283,7 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
 #undef Qop
 #undef Sop
 #undef SopL
+#undef FtoD
 #undef DtoF
 #undef Qtype
 #undef Stype

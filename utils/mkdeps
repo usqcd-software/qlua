@@ -10,11 +10,13 @@ extract_file() {
          echo "$o.o: sources/$i"
       elif [ -f "extras/$i" ] ; then
          echo "$o.o: extras/$i"
+      elif [ -f "hypre/$i" ] ; then
+         echo "$o.o: hypre/$i"
       fi
     done
   fi
 }
 
-for f in sources/*.c extras/*.c ; do
+for f in sources/*.c extras/*.c hypre/*.c ; do
   extract_file $f
 done | sort

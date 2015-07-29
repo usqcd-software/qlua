@@ -1,0 +1,74 @@
+require "stdlib"
+
+-- SU(2) clover test
+
+Lx = 6
+Lt = 12
+Nc = 2
+
+L = qcd.lattice{Lx,Lx,Lx,Lt}
+L:defaults{colors = Nc}
+
+-- get a unique number of each lattice site
+function rnd_init(x)
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  return L:RandomState(x, l_id)
+end
+
+-- small deviation of identity in SU(n)
+function almost_SUn(S, v)
+  local one = L:ColorMatrix(complex(1,0))
+  return one + v * S:gaussian_ColorMatrix()
+end
+
+S = rnd_init(1984)
+
+U = { almost_SUn(S, 0.5),
+      almost_SUn(S, 0.5),
+      almost_SUn(S, 0.5),
+      almost_SUn(S, 0.5) }
+
+F = S:gaussian_DiracFermion()
+G = S:gaussian_DiracFermion()
+
+CL = qcd.Clover(U, 0.081, 0.07, {1, 1, 1, -1})
+--CL = qcd.Clover(U, 0.0, 0.0, {0, 0, 0, 0})
+
+printf("CLOVER  %s\n", tostring(CL))
+printf("F       %s\n", tostring(F))
+printf("U       [%s]\n", tostring(U[1]))
+
+X = CL:D(F)
+Y = CL:Dx(G)
+
+gDf = qcd.dot(G, X):sum()
+Dxgf = qcd.dot(Y, F):sum()
+printf("<G, D F> %s\n", tostring(gDf))
+printf("<DxG, F> %s\n", tostring(Dxgf))
+printf("error    %s\n", tostring(gDf - Dxgf))
+
+function check_clover(Z)
+   printf("check_clover Z= %s\n", tostring(Z))
+   local F = CL:D(Z)
+--   local A = CL:solver(1e-20,10000)(F)
+   local A = CL:solver(1e-20,10000)(F)
+   printf("|Z| = %18.8e\n", Z:norm2())
+   printf("|F| = %18.8e\n", F:norm2())
+   printf("|A| = %18.8e\n", A:norm2())
+   printf("|d| = %18.8e -- solution error\n", (A - Z):norm2())
+   local A = CL:mixed_solver(1e-3, 100, 1e-20, 10000)(F)
+   printf("mixed |Z| = %18.8e\n", Z:norm2())
+   printf("mixed |F| = %18.8e\n", F:norm2())
+   printf("mixed |A| = %18.8e\n", A:norm2())
+   printf("mixed |d| = %18.8e -- solution error\n", (A - Z):norm2())
+end
+
+check_clover(S:gaussian_DiracFermion())
+check_clover(S:gaussian_DiracPropagator())
+
+printf("DONE\n")

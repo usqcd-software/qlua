@@ -34,7 +34,6 @@ function save_qdpc_dirprop(L, fields, name, finfo, rinfo, volfmt)
 end
   
 
-
 -- READ functions
 -- TODO add load_qdpc_*, load_qdpc_*_list for all types
 function open_qdpc_read(L, name)
@@ -66,6 +65,30 @@ function load_qdpc_colmat(L, name)
   end
   qdp_r:close()
   return cm, finfo, rinfo
+end
+function load_qdpc_colmat_list(L, name, n)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local cm_list = {}
+  local rinfo_list = {}
+  for i = 0, n-1 do
+    cm_list[1+i], rinfo_list[1+i] = qdp_r:ColorMatrix()
+    if not cm_list[1+i] then
+      printf("Error reading record[%d] from '%s'\n", i, name)
+      os.exit(1)
+    end
+  end
+  qdp_r:close()
+  return cm_list, finfo, rinfo_list
+end
+function load_qdpc_gauge(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local gauge, rinfo = qdp_r:ColorMatrix(4)
+  if not gauge then 
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return gauge, finfo, rinfo
 end
 -- ColorVector
 function load_qdpc_colvec(L, name)

@@ -173,29 +173,6 @@ site2coord(int *coord, long long site, int nd, const int *dim)
 }
 
 static void
-send_string(lua_State *L, int idx)
-{
-    const char *str = lua_tostring(L, idx);
-    int len = strlen(str) + 1;
-
-    QMP_broadcast(&len, sizeof (len));
-    QMP_broadcast((void *)str, len);
-}
-
-static int
-receive_string(lua_State *L, char **str)
-{
-    int len;
-    *str = 0;
-    QMP_broadcast(&len, sizeof (len));
-    if (len == 0)
-        return 0;
-    *str = qlua_malloc(L, len);
-    QMP_broadcast(*str, len);
-    return 1;
-}
-
-static void
 normalize_int(lua_State *L, int idx, const char *key, char *fmt)
 {
     lua_getfield(L, idx, key);
@@ -323,10 +300,12 @@ nersc_read_master(lua_State *L,
         {NULL, ntNONE}
     };
     static const NERSC_Value nFPs[] = {
-        {"IEEE32",    4},
-        {"IEEE32BIG", 4},
-        {"IEEE64BIG", 8},
-        {NULL,        0}
+        {"IEEE32",           4},
+        {"IEEE32BIG",        4},
+        {"IEEE64BIG",        8},
+        {"IEEE32LITTLE",    16},
+        {"IEEE64LITTLE",    32},
+        {NULL,               0}
     };
 
     FILE *f = fopen(name, "rb");
@@ -436,17 +415,33 @@ eoh:
         if (status == NULL)
             status = "unsupported data format";
     }
+    int big_endian_data = 1;    /* default value */
     switch (f_fp) {
     case 4:
         read_real = read_float;
         site_size *= 4;
+        big_endian_data = 1;
         if (uni_eps == 0) uni_eps = 1e-6;
         break;
     case 8:
         read_real = read_double;
         site_size *= 8;
+        big_endian_data = 1;
         if (uni_eps == 0) uni_eps = 1e-12;
         break;
+    case 16:
+        read_real = read_float;
+        site_size *= 4;
+        big_endian_data = 0;
+        if (uni_eps == 0) uni_eps = 1e-6;
+        break;
+    case 32:
+        read_real = read_double;
+        site_size *= 8;
+        big_endian_data = 0;
+        if (uni_eps == 0) uni_eps = 1e-12;
+        break;
+
     default:
         if (status == NULL)
             status = "bad floating point size";
@@ -493,7 +488,8 @@ eoh:
             status = "file read error";
 
         /* swap bytes if necessary */
-        if (big_endian == 0) {
+        if ((big_endian && !big_endian_data) 
+                || (!big_endian && big_endian_data)) {
             char *p;
             switch (f_fp) {
             case 4:
@@ -573,7 +569,8 @@ eoh:
     qlua_free(L, site_buf);
     qlua_free(L, CM);
         
-    fclose(f);
+    if (f)
+      fclose(f);
 
     /* check the checksum */
     if ((status == NULL) && (f_checksum != d_checksum))
@@ -596,8 +593,8 @@ eoh:
     {
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
-            send_string(L, -2); /* key */
-            send_string(L, -1); /* value */
+            qlua_send_string(L, -2); /* key */
+            qlua_send_string(L, -1); /* value */
             lua_pop(L, 1);
         }
         int zero = 0;
@@ -620,7 +617,6 @@ nersc_read_slave(lua_State *L,
     QLA_D3_ColorMatrix *CM = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix));
     int *coord = qlua_malloc(L, S->rank * sizeof (int));
     QMP_msgmem_t mm = QMP_declare_msgmem(&CM[0], S->rank * sizeof (CM[0]));
-    QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
 
     /* get gauge element for this node */
     for (volume = 1, i = 0; i < S->rank; i++)
@@ -632,8 +628,10 @@ nersc_read_slave(lua_State *L,
         site2coord(coord, site, S->rank, S->dim);
         s_node = QDP_node_number_L(S->lat, coord);
         if (s_node == QDP_this_node) {
+            QMP_msghandle_t mh = QMP_declare_receive_from(mm, qlua_master_node, 0);
             QMP_start(mh);
             QMP_wait(mh);
+            QMP_free_msghandle(mh);
 
             int idx = QDP_index_L(S->lat, coord);
             int d;
@@ -642,7 +640,6 @@ nersc_read_slave(lua_State *L,
                 QLA_D3_M_eq_M(&U[d][idx], &CM[d]);
         }
     }
-    QMP_free_msghandle(mh);
     QMP_free_msgmem(mm);
     qlua_free(L, coord);
     qlua_free(L, CM);
@@ -661,9 +658,9 @@ nersc_read_slave(lua_State *L,
     /* NB: This may cause a slave node to run out of memory out of sync with the master */
     for (;;) {
         char *key, *value;
-        if (receive_string(L, &key) == 0)
+        if (qlua_receive_string(L, &key) == 0)
             break;
-        receive_string(L, &value);
+        qlua_receive_string(L, &value);
         lua_pushstring(L, value);
         lua_setfield(L, -2, key);
         qlua_free(L, key);
@@ -734,8 +731,7 @@ init_nersc_io(lua_State *L)
 }
 #endif /* USE_Nc3 == 0 */
 
-int
-fini_nersc_io(lua_State *L)
+void
+fini_nersc_io(void)
 {
-    return 0;
 }

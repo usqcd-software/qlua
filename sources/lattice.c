@@ -205,9 +205,10 @@ static int
 q_latnet(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
-    
+    int i;
+
     lua_createtable(L, S->rank, 0);
-    for (int i = 0; i < S->rank; i++) {
+    for (i = 0; i < S->rank; i++) {
         lua_pushnumber(L, S->net[i]);
         lua_rawseti(L, -2, i + 1);
     }
@@ -217,7 +218,7 @@ q_latnet(lua_State *L)
 
 typedef struct {
     int *s;
-    int *p;
+    double *p;
     int rank;
     int *dim;
 } PW_arg;
@@ -242,7 +243,7 @@ q_planewave(lua_State *L)
     mLattice *S = qlua_checkLattice(L, 1);
     QDP_Subset *qCurrent = S->qss;
     int *s = qlua_checklatcoord(L, 2, S);
-    int *p = qlua_checkintarray(L, 3, S->rank, NULL);
+    double *p = qlua_checknumberarray(L, 3, S->rank, NULL);
     mLatComplex *w = qlua_newLatComplex(L, 1);
     PW_arg arg;
 
@@ -267,100 +268,59 @@ subset_none(QDP_Lattice *S, int *coord, void *arg)
 static int
 q_lattice(lua_State *L)
 {
-    int r, i;
-    static int lat_id = 0;
-    mLattice *S = lua_newuserdata(L, sizeof (mLattice));
-    static const struct luaL_Reg mtLattice[] = {
-        { "__tostring",   q_L_fmt        },
-        { "__gc",         q_L_gc         },
-        { "__index",      q_L_get        },
-        { "__newindex",   qlua_nowrite   },
-        { "__len",        q_L_dim        },
-        { NULL,           NULL           }
-    };
-    
-    if (lat_id) /* XXX need more work for multiple lattices */
-        return luaL_error(L, "multiple lattices not supported yet");
+  int lat_rank = 0;
+  int *lat_dims = qlua_intarray(L, 1, &lat_rank);
+  int net_forced = 0;
+  int *net_dim = NULL;
+  if (lat_rank == 0)
+    luaL_error(L, "expecting lattice size");
+  if (qlua_checkopt_table(L, 2) && qlua_tabpushopt_key(L, 2, "network")) {
+    int net_idx = lua_gettop(L);
+    net_dim = qlua_checkintarray(L, net_idx, lat_rank, NULL);
+    net_forced = 1;
+    lua_pop(L, 1);
+  } else {
+    net_dim = qlua_malloc(L, lat_rank * sizeof (int));
+  }
+  static int lat_id = 0;
+  mLattice *S = lua_newuserdata(L, sizeof (mLattice));
+  static const struct luaL_Reg mtLattice[] = {
+    { "__tostring",   q_L_fmt        },
+    { "__gc",         q_L_gc         },
+    { "__index",      q_L_get        },
+    { "__newindex",   qlua_nowrite   },
+    { "__len",        q_L_dim        },
+    { NULL,           NULL           }
+  };
 
-    luaL_checktype(L, 1, LUA_TTABLE);
-    r = lua_objlen(L, 1);
-    if (r <= 0)
-        return luaL_error(L, "Bad lattice rank");
-	if (r > QLUA_MAX_LATTICE_RANK)
-		return luaL_error(L, "latice rank is too large");
-    S->rank = r;
-    S->node = 0;
-    S->neighbor_up = qlua_malloc(L, r * sizeof (int));
-    S->neighbor_down = qlua_malloc(L, r * sizeof (int));
-    S->net = qlua_malloc(L, r * sizeof (int));
-    S->dim = qlua_malloc(L, r * sizeof (int));
-    for (i = 0; i < r; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, 1);
-        S->dim[i] = qlua_checkint(L, -1, "lattice dim %d", i);
-        lua_pop(L, 1);
-    }
-    CALL_QDP(L);
-    S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
-    if (S->lat == 0)
-        return luaL_error(L, "can not create lattice");
-    S->all = QDP_all_L(S->lat);
-    S->even = QDP_even_L(S->lat);
-    S->odd = QDP_odd_L(S->lat);
-    S->none = QDP_create_subset_L(S->lat, subset_none, 0, 0, 1);
-    S->qss = &S->all;
-    S->lss.cl = qss_all;
-    S->lss.mask = NULL;
-    S->id = lat_id;
-    S->nc = 3;
-    lat_id++;
+  S->rank = lat_rank;
+  S->dim = lat_dims;
+  S->node = 0;
+  S->neighbor_up = qlua_malloc(L, S->rank * sizeof (int));
+  S->neighbor_down = qlua_malloc(L, S->rank * sizeof (int));
+  S->net_forced = net_forced;
+  S->net = net_dim;
+  S->L = L;
 
-    qlua_selftable(L, mtLattice, qLattice);
-    lua_setmetatable(L, -2);
-    
-    return 1;
-}
-
-int *
-qlua_intarray(lua_State *L, int n, int *dim)
-{
-    int d, i;
-    int *idx;
-
-    if (lua_type(L, n) != LUA_TTABLE)
-        return NULL;
-
-    d = lua_objlen(L, n);
-    idx = qlua_malloc(L, d * sizeof (int));
-    for (i = 0; i < d; i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, n);
-        if (lua_type(L, -1) != LUA_TNUMBER) {
-            qlua_free(L, idx);
-            return NULL;
-        }
-        idx[i] = qlua_checkint(L, -1, "array element %d", i + 1);
-        lua_pop(L, 1);
-    }
-    *dim = d;
-    return idx;
-}
-
-int *
-qlua_checkintarray(lua_State *L, int n, int dim, int *out_dim)
-{
-    int d_dim;
-    int *idx = qlua_intarray(L, n, &d_dim);
-
-    if (idx == 0)
-        luaL_error(L, "table of integers expected");
-
-    if (out_dim)
-        *out_dim = d_dim;
-    else if (d_dim != dim)
-        luaL_error(L, "table of integer has wrong size");
-
-    return idx;
+  CALL_QDP(L);
+  S->lat = QDP_create_lattice(&qlua_layout, S, S->rank, S->dim);
+  if (S->lat == 0)
+    return luaL_error(L, "can not create lattice");
+  S->all = QDP_all_L(S->lat);
+  S->even = QDP_even_L(S->lat);
+  S->odd = QDP_odd_L(S->lat);
+  S->none = QDP_create_subset_L(S->lat, subset_none, 0, 0, 1);
+  S->qss = &S->all;
+  S->lss.cl = qss_all;
+  S->lss.mask = NULL;
+  S->id = lat_id;
+  S->nc = 3;
+  lat_id++;
+  
+  qlua_selftable(L, mtLattice, qLattice);
+  lua_setmetatable(L, -2);
+  
+  return 1;
 }
 
 int *
@@ -454,30 +414,30 @@ q_network(lua_State *L)
 {
     lua_pushnumber(L, QMP_get_number_of_nodes());
 
-	{
-		QMP_ictype_t mptype = QMP_get_msg_passing_type();
-		switch (mptype) {
-		case QMP_SWITCH: lua_pushstring(L, "switch"); break;
-		case QMP_GRID: lua_pushstring(L, "grid"); break;
-		case QMP_FATTREE: lua_pushstring(L, "fattree"); break;
-		default: lua_pushfstring(L, "type%d", (int)mptype); break;
-		}
-	}
+        {
+                QMP_ictype_t mptype = QMP_get_msg_passing_type();
+                switch (mptype) {
+                case QMP_SWITCH: lua_pushstring(L, "switch"); break;
+                case QMP_GRID: lua_pushstring(L, "grid"); break;
+                case QMP_FATTREE: lua_pushstring(L, "fattree"); break;
+                default: lua_pushfstring(L, "type%d", (int)mptype); break;
+                }
+        }
 
-	if (QMP_logical_topology_is_declared() != QMP_TRUE)
-		return 2;
-	{
-		int n = QMP_get_logical_number_of_dimensions();
-		const int *d = QMP_get_logical_dimensions();
-		int i;
-		
-		lua_createtable(L, n, 0);
-		for (i = 0; i < n; i++) {
-			lua_pushnumber(L, d[i]);
-			lua_rawseti(L, -2, i + 1);
-		}
-	}
-	return 3;
+        if (QMP_logical_topology_is_declared() != QMP_TRUE)
+                return 2;
+        {
+                int n = QMP_get_logical_number_of_dimensions();
+                const int *d = QMP_get_logical_dimensions();
+                int i;
+                
+                lua_createtable(L, n, 0);
+                for (i = 0; i < n; i++) {
+                        lua_pushnumber(L, d[i]);
+                        lua_rawseti(L, -2, i + 1);
+                }
+        }
+        return 3;
 }
 
 static int
@@ -514,8 +474,7 @@ init_lattice(lua_State *L)
     return 0;
 }
 
-int
-fini_lattice(lua_State *L)
+void
+fini_lattice(void)
 {
-    return 0;
 }

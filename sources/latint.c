@@ -30,6 +30,7 @@ q_I_gc(lua_State *L)
 
     QDP_destroy_I(b->ptr);
     b->ptr = 0;
+    qlua_qdp_memuse(L, "Integer", -1);
 
     return 0;
 }
@@ -123,6 +124,71 @@ q_I_norm2(lua_State *L)
     }
     lua_pushnumber(L, n);
 
+    return 1;
+}
+
+static int
+q_I_xor(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_xor_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_or(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_or_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_and(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_and_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_min(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_min_I(r->ptr, a->ptr, b->ptr, *S->qss);
+    return 1;
+}
+
+static int
+q_I_max(lua_State *L)
+{
+    mLatInt *a = qlua_checkLatInt(L, 1, NULL);
+    mLattice *S = qlua_ObjLattice(L, 1);
+    mLatInt *b = qlua_checkLatInt(L, 2, S);
+    mLatInt *r = qlua_newLatInt(L, lua_gettop(L));
+
+    CALL_QDP(L);
+    QDP_I_eq_I_max_I(r->ptr, a->ptr, b->ptr, *S->qss);
     return 1;
 }
 
@@ -873,6 +939,11 @@ static struct luaL_Reg mtLatInt[] = {
     { "shift",        q_I_shift },
     { "sum",          q_I_sum },
     { "set",          q_I_set },
+    { "xor",          q_I_xor },
+    { "or",           q_I_or },
+    { "and",          q_I_and },
+    { "max",          q_I_max },
+    { "min",          q_I_min },
     /* "lattice" is inserted when the table is creates */
     /* "a-type"  is inserted as well */
     { NULL,           NULL}
@@ -895,6 +966,7 @@ qlua_newLatInt(lua_State *L, int Sidx)
     hdr->ptr = v;
     qlua_createLatticeTable(L, Sidx, mtLatInt, qLatInt, LatIntName);
     lua_setmetatable(L, -2);
+    qlua_qdp_memuse(L, "Integer", 1);
 
     return hdr;
 }
@@ -902,11 +974,11 @@ qlua_newLatInt(lua_State *L, int Sidx)
 mLatInt *
 qlua_newZeroLatInt(lua_State *L, int Sidx)
 {
-	mLatInt *v = qlua_newLatInt(L, Sidx);
-	mLattice *S = qlua_checkLattice(L, Sidx);
-	
-	QDP_I_eq_zero(v->ptr, S->all);
-	return v;
+        mLatInt *v = qlua_newLatInt(L, Sidx);
+        mLattice *S = qlua_checkLattice(L, Sidx);
+        
+        QDP_I_eq_zero(v->ptr, S->all);
+        return v;
 }
 
 mLatInt *
@@ -922,6 +994,32 @@ qlua_checkLatInt(lua_State *L, int idx, mLattice *S)
     }
 
     return (mLatInt *)v;
+}
+
+mLatInt *
+qlua_tabkey_LatInt(lua_State *L, int idx, const char *key, mLattice *S)
+{
+  mLatInt *v;
+
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting LatInt in { %s = ...}", key);
+  v = qlua_checkLatInt(L, -1, S);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
+}
+
+mLatInt *
+qlua_tabidx_LatInt(lua_State *L, int idx, int subidx, mLattice *S)
+{
+  mLatInt *v;
+
+  if (!qlua_tabpushopt_idx(L, idx, subidx))
+    luaL_error(L, "expecting LatInt in { [%d] = ...}", subidx);
+  v = qlua_checkLatInt(L, -1, S);
+  lua_pop(L, 1); /* expect the user not to drop the object */
+
+  return v;
 }
 
 static struct luaL_Reg fLatInt[] = {
@@ -987,8 +1085,7 @@ init_latint(lua_State *L)
     return 0;
 }
 
-int
-fini_latint(lua_State *L)
+void
+fini_latint(void)
 {
-    return 0;
 }

@@ -39,13 +39,13 @@ function check_hex(name, L, U, g)
   local V = U
   check_plaquettes("initial " .. name, U)
   for i = 1, 10 do
-    V = bmw_hex(L, V)
+    V = bmw_hex(V,1)
     check_plaquettes(string.format("V step %d", i), V)
   end
   V = gauge_transform_U(g, U)
   check_plaquettes("transformed " .. name, U)
   for i = 1, 10 do
-    V = bmw_hex(L, V)
+    V = bmw_hex(V,1)
     check_plaquettes(string.format("trans V step %d", i), V)
   end
 end

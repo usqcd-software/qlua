@@ -1,0 +1,37 @@
+-- check how lattice size is handled
+-- run on 32 processors to check the layout behavior
+require "stdlib"
+
+function check(n, g)
+   printf("\nchecking %s\n", n)
+   local Lx = qcd.lattice(g)
+   local ix = Lx:Int(1)
+   local v = 1
+   for i,z in pairs(g) do
+      v = v * z
+   end
+   local s = ix:sum()
+   if s == v then
+      printf("%s: OK\n\n", tostring(Lx))
+   else
+      printf("int value: %s, sum %d, should be %d\n\n", tostring(Lx), s, v)
+   end
+end
+
+printf("start\n")
+ms, t, s = qcd.network()
+printf("%s network of %d nodes\n", t, ms)
+
+if s then
+   for i = 1, #s do
+      printf("Machine network %4d: %5d\n", i, s[i])
+   end
+end
+
+--- start checks
+check("4c16", {4, 4, 4, 16})
+check("4q", {4, 4, 4, 4})
+check("2q", {2, 2, 2, 2})
+check("2s", {2, 2})
+
+printf("DONE\n")

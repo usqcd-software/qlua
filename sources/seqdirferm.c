@@ -82,7 +82,6 @@ static int
 q_seqdirfermN(lua_State *L)
 {
     int nc = luaL_checkint(L, 1);
-    lua_remove(L, 1);
 
     switch (nc) {
 #if USE_Nc2
@@ -127,8 +126,7 @@ init_seqdirferm(lua_State *L)
     return 0;
 }
 
-int
-fini_seqdirferm(lua_State *L)
+void
+fini_seqdirferm(void)
 {
-    return 0;
 }

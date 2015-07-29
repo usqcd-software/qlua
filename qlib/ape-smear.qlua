@@ -12,7 +12,7 @@ function APE_smear(U, A, N, accu, imax, axis)
          v = v + u[j] * u[i]:shift(j-1, "from_forward") * ux:adjoin() +
                  (u[j]:adjoin() * u[i] * ux):shift(j-1, "from_backward")
        end
-       w[i] = v:proj(accu, imax)
+       w[i] = v:proj(accu, imax, u[i])
      end
      return w
   end

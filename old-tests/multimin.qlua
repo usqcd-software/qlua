@@ -1,0 +1,81 @@
+require "stdlib"
+
+function show_table(n, x0, t)
+   local i, j, x, v
+   printf("result(%s)\n", n)
+   if x0 then
+      for i = 1, #x0 do
+         printf("  x[%2d] = %g\n", i, x0[i])
+      end
+   end
+   for i, v in pairs(t) do
+      printf("  .%-20s: %s\n", i, tostring(v))
+   end
+   local log = t.Logs
+   if log then
+      for i, v in pairs(log) do
+         printf("  .Log.%-20s: %s\n", i, tostring(v))
+      end
+      for i = 1, t.Iterations do
+         printf("   %5d %20.10e %12.4e :", i, log.f[i], log.size[i])
+         x = log.x[i]
+         for j = 1, #x do
+            printf(" %15.8e", x[j])
+         end
+         printf("\n")
+      end
+   end
+end
+
+function h2(v)
+   local x,y = v[1], v[2]
+   -- printf("...........h2(%g,%g)\n", x, y)
+   local xz = x + 4.5
+   local yz = y + 1.2
+   return xz * xz + 636 * yz * yz * yz * yz
+end
+
+function s2(v)
+   local x,y = v[1], v[2]
+   -- printf("...........s2(%g,%g)\n", x, y)
+   return math.sin(math.pi*x) + math.cos(math.pi*y)
+end
+
+function mk_quad(a,b,c,d,e)
+   return function (v)
+             local x,y = v[1], v[2]
+             return (a*x*x + b*x*y + c*y*y + d*x + e*y)
+          end
+end
+
+local f1 = mk_quad(10,21,33,41,15)
+local f2 = mk_quad(1,0,1,0,0)
+function ff(v)
+   local x,y,t = v[1],v[2],v[3]
+   local v2 = (f2({x,y}) - 230)
+   return f1({x,y}) + v2*v2 * (t * t + 20)
+end
+
+x,st = gsl.min.nmsimplex{MaxIterations = 1234,
+                         RelativeError = 1e-5,
+                         AbsoluteError = 1e-200,
+                         Logging = true}(h2,{3,4})
+show_table("nmsimplex", x, st)
+x, st = gsl.min.nmsimplex2{AbsoluteError = 1e-8}(s2,{0.3,0.4})
+show_table("abs, nmsimplex2", x, st)
+
+x, st = gsl.min.nmsimplex2rand{AbsoluteError = 1e-8}(s2,{0.3,0.4})
+show_table("abs, nmsimplex2rand", x, st)
+
+x,st = gsl.min.nmsimplex2{AbsoluteError = 1e-8,
+                         RelativeError = 1e-6,
+                         MaxIterations = 1000,
+                         -- Logging = true,
+                         StepSize = 0.5 }(ff,{0,0,0})
+show_table("form on form", x, st)
+
+x,st = gsl.min.nmsimplex2{AbsoluteError = 1e-8,
+                         RelativeError = 1e-6,
+                         MaxIterations = 1000,
+                         StepSize = 0.5 }(f1,{0,0})
+show_table("form f1", x, st)

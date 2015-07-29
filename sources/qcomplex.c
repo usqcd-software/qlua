@@ -1,3 +1,4 @@
+#include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "qcomplex.h"                                                /* DEPS */
 #include "seqrandom.h"                                               /* DEPS */
@@ -84,11 +85,64 @@ c_conj(lua_State *L)                                            /* (-1,+1,e) */
 }
 
 static int
+c_norm2(lua_State *L)                                            /* (-1,+1,e) */
+{
+    QLA_D_Complex *z = qlua_checkComplex(L, 1);
+
+    lua_pushnumber(L, QLA_norm2_c(*z));
+
+    return 1;
+}
+
+static int
 c_abs(lua_State *L)                                            /* (-1,+1,e) */
 {
     QLA_D_Complex *z = qlua_checkComplex(L, 1);
 
     lua_pushnumber(L, hypot(QLA_real(*z), QLA_imag(*z)));
+
+    return 1;
+}
+
+static int
+c_arg(lua_State *L)                                            /* (-1,+1,e) */
+{
+    QLA_D_Complex *z = qlua_checkComplex(L, 1);
+
+    lua_pushnumber(L, atan2(QLA_imag(*z), QLA_real(*z)));
+
+    return 1;
+}
+
+static int
+c_sqrt(lua_State *L)                                            /* (-1,+1,e) */
+{
+    QLA_D_Complex *z = qlua_checkComplex(L, 1);
+    QLA_D_Complex *q = qlua_newComplex(L);
+
+    *q = QLA_csqrt(z);
+
+    return 1;
+}
+
+static int
+c_exp(lua_State *L)                                            /* (-1,+1,e) */
+{
+    QLA_D_Complex *z = qlua_checkComplex(L, 1);
+    QLA_D_Complex *q = qlua_newComplex(L);
+
+    *q = QLA_cexp(z);
+
+    return 1;
+}
+
+static int
+c_log(lua_State *L)                                            /* (-1,+1,e) */
+{
+    QLA_D_Complex *z = qlua_checkComplex(L, 1);
+    QLA_D_Complex *q = qlua_newComplex(L);
+
+    *q = QLA_clog(z);
 
     return 1;
 }
@@ -274,7 +328,12 @@ static const luaL_Reg mtComplex[] = {
     { "real",       c_re },
     { "imag",       c_im },
     { "conj",       c_conj },
+    { "norm2",      c_norm2 },
     { "abs",        c_abs },
+    { "arg",        c_arg },
+    { "sqrt",       c_sqrt },
+    { "exp",        c_exp },
+    { "log",        c_log },
     { "__unm",      c_neg },
     { "__add",      qlua_add },
     { "__sub",      qlua_sub },
@@ -315,8 +374,7 @@ init_complex(lua_State *L)
     return 0;
 }
 
-int
-fini_complex(lua_State *L)
+void
+fini_complex(void)
 {
-    return 0;
 }

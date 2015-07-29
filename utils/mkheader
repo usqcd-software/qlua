@@ -1,0 +1,7 @@
+#!/bin/sh -f
+
+id=`uuidgen | sed -e 's/-/_/g'`
+echo '#ifndef MARK_'$id
+echo '#define MARK_'$id
+echo ""
+echo '#endif /* defined(MARK_'$id') */'

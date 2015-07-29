@@ -1,0 +1,11 @@
+Makefile
+deps
+config.log
+libqlua.a
+qlua
+qlua-config
+modules.h
+*.h5
+*.o
+.DS_Store
+qlua.dSYM

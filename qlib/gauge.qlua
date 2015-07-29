@@ -39,6 +39,13 @@ function gauge_transform_U(g, U)
    end
    return V
 end
+-- gauge transformation of one-dim gauge link
+--    g         gauge transformation
+--    U         gauge link
+--    mu        = 0 .. (Nd-1) direction of the gauge link U
+function gauge_transform_U_dir(g, U, mu)
+  return g * U * g:shift(mu, "from_forward"):adjoin()
+end
 
 function gauge_transform_D(g, F)
   return g * F
@@ -47,8 +54,26 @@ end
 function gauge_transform_P(g, P)
   return g * P * g:adjoin()
 end
+function gauge_copy(g)
+  local Nd = #g
+  local res_g = {}
+  for mu = 0, Nd - 1 do
+    res_g[1+mu] = g[1+mu]:copy()
+  end
+  return res_g
+end
+function gauge_apply_boundary(g, bc)
+  -- apply boundary conditions to the gauge field "in-place"
+  local Nd = #g
+  if Nd <= 0 then return {} end
+  local L = g[1].lattice
+  for mu = 0, Nd - 1 do 
+    L:Subset({axis=mu, position=L[mu]-1}):where(function() 
+        g[1+mu]:set(bc[1+mu] * g[1+mu]) end)
+  end
+end
 
--- compute ij plaquette on each lattice site
+-- compute ij plaquette on each lattice site, i,j=0..(dim-1)
 function plaquette(U,i,j)
    return U[i+1] *
           U[j+1]:shift(i, "from_forward") *
@@ -56,3 +81,18 @@ function plaquette(U,i,j)
           U[j+1]:adjoin()
 end
 
+-- compute clover term in (i,j) plane, i,j=0..(dim-1)
+function clover_term(U, i, j)
+  local Ujp   = U[1+j]:shift(i, "from_forward")
+  local Uipx  = U[1+i]:shift(j, "from_forward"):adjoin()
+  local Sl    = U[1+j]:adjoin() * U[1+i] * Ujp
+  local C01   = Sl * Uipx  -- at (0,1)
+  local C11   = Uipx * Sl  -- at (1,1)
+  local Su    = Ujp * Uipx * U[1+j]:adjoin()
+  local C00   = U[1+i] * Su -- at (0,0)
+  local C10   = Su * U[1+i] -- at (1,0)
+  local F = C00 +
+            C01:shift(j, "to_forward") +
+            (C10 + C11:shift(j, "to_forward")):shift(i, "to_forward")
+  return (F - F:adjoin()) / complex(0,8)
+end

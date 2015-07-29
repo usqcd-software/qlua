@@ -7,6 +7,18 @@
 static const char LatSubsetName[] = "lattice.Subset";
 
 static int
+q_U_gc(lua_State *L)
+{
+    mLatSubset *m = qlua_checkLatSubset(L, 1, NULL);
+
+    if (m->mask)
+        QDP_destroy_I(m->mask);
+    m->mask = 0;
+
+    return 0;
+}
+
+static int
 q_U_fmt(lua_State *L)
 {
     mLatSubset *m = qlua_checkLatSubset(L, 1, NULL);
@@ -145,7 +157,7 @@ subset_join(lua_State *L,
             mLattice *S,  /* use S->lss as src1 */
             const mLatSubset *b) /* src2 */
 {
-    int refine = b->mask ? 1: 0;
+    int refine = ((b->mask != NULL) || (S->lss.mask != NULL))? 1: 0;
     QLA_D_Real count = 0;
     sjArg arg;
 
@@ -253,6 +265,9 @@ q_U_where(lua_State *L)
         return luaL_error(L, lua_tostring(L, -1));
     resc = lua_gettop(L) - 1;
     switch_subset(L, S, &old_subset);
+    if (new_subset.mask)
+        QDP_destroy_I(new_subset.mask);
+
 
     return resc;
 }
@@ -331,6 +346,7 @@ q_subset(lua_State *L)
 }
 
 static struct luaL_Reg mtLatSubset[] = {
+    { "__gc",           q_U_gc        },
     { "__tostring",     q_U_fmt       },
     { "__newindex",     qlua_nowrite  },
     { "where",          q_U_where     },
@@ -382,8 +398,7 @@ init_latsubset(lua_State *L)
     return 0;
 }
 
-int
-fini_latsubset(lua_State *L)
+void
+fini_latsubset(void)
 {
-    return 0;
 }

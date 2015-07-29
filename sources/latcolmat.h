@@ -33,7 +33,7 @@ mLatColMatN *qlua_newZeroLatColMatN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latcolmat(lua_State *L);
-int fini_latcolmat(lua_State *L);
+void fini_latcolmat(void);
 
 int q_M_gaussian(lua_State *L);
 int q_M_gaussian_N(lua_State *L);

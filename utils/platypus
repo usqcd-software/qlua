@@ -1,0 +1,30 @@
+#!/bin/sh
+PACKTOP=$HOME/Local/packages/platypus-20130110
+Nc=2
+noNc=3
+
+#TARGET=`(cd ..; pwd)`/install
+TARGET=/opt/usqcd-su2/qlua
+
+# XXX Nc specific clover installation location
+
+#WOPTS='-Wno-unused-but-set-variable -Wno-unused-local-typedefs'
+WOPTS=''
+
+CC='mpiicc -m64 -std=c99' \
+CFLAGS="-D_BSD_SOURCE -Wall $WOPTS -DQDP_Nc=$Nc" \
+COPTS='-O2' \
+LIBS='-lz' \
+./configure                                                \
+   --prefix=$TARGET                                        \
+   --with-qdp=$PACKTOP/qdp                                 \
+   --with-lua=$PACKTOP/lua                                 \
+   --with-gsl=$PACKTOP/gsl                                 \
+   --with-lhpc-aff=$PACKTOP/aff                            \
+   --with-hdf5=$HOME/Local/packages/hdf5-1.8.10-patch1     \
+   --with-clover=$HOME/Local/packages/clover-1.4.0-nc2     \
+   --clover-nc=$Nc                                         \
+   --with-nc=$Nc                                           \
+   --without-nc=$noNc                                      \
+   --with-nc=N                                             \
+   $*

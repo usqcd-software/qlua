@@ -1,0 +1,60 @@
+package.path = package.path .. ';../../lhpc/?.qlua'
+
+latsize = {4,4,4,8}
+rnd_seed = 1984
+ferm_bc = {1,1,1,-1}
+
+gauge_file            = "gauge_disord_4c8.NERSC"
+df_vecs_file          = "data_pdir/df_mdwf_vectors_4c8.qdpc"
+df_vec_save_pack_eopc = true
+--df_vec_qioprec        = "double"
+df_vec_qioprec        = "float"
+df_vec_save_qio_format= "part_dir"
+ctrl_vec_file         = "src_sol_4c8.qdpc"
+
+mdwf_M5 = 1.5
+mdwf_mf = 0.05
+mdwf_Ls = 4
+mdwf_b5 = 1.5
+mdwf_c5 = 0.5
+
+ape_alpha   = 1.5
+ape_N       = 10
+--ape_N       = 0
+ape_accu    = 1e-6
+ape_maxiter = 150
+
+mixcg_tol     = 1e-14
+mixcg_maxiter = 3000
+mixcg_tol1    = 1e-10
+mixcg_maxiter1= 1000
+
+l_nev         = 50
+l_ncv         = 60
+l_maxiter     = 3000
+l_tol         = 1e-6
+l_poly_n      = 4
+l_poly_a      = .2
+l_poly_b      = 5.
+l_poly_x0     = 0.
+--l_poly_x0     = (l_poly_a + l_poly_b) / 2. -- brutal test of poly-normalize
+
+eigcg_nev = 2
+eigcg_tol = 1e-6
+eigcg_vmax= 10
+eigcg_umax= l_nev
+eigcg_nsol= math.floor((eigcg_umax + eigcg_nev - 1) / eigcg_nev)
+
+
+function calc_plaq_av(u)
+  local plaq_av = 0.
+  local plaq_cnt = #L * (#L - 1) / 2.
+  for mu = 0, #L-1 do
+    for nu = mu + 1, #L - 1 do
+      local plaq = plaquette(u, mu, nu)
+      plaq = 1. - plaq:trace():sum():real() / plaq:colors() / L:volume()
+      plaq_av = plaq_av + plaq / plaq_cnt
+    end
+  end
+  return plaq_av
+end

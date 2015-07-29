@@ -1,0 +1,61 @@
+require "stdlib"
+
+function tfmt(x)
+   local r = "{"
+   local s = ""
+   for i,v in pairs(x) do
+      r = r .. s .. tostring(v)
+      s = ","
+   end
+   return r .. "}"
+end
+
+function foreach(t,fn, zz)
+   local r = #t
+   local p = {}
+   local z = zz
+   local function scan(k)
+      if k == r then
+         z = fn(z, p)
+      else
+         local kk = k + 1
+         for i = 0, t[kk] - 1 do
+            p[kk] = i
+            scan(kk)
+         end
+      end
+   end
+   scan(0)
+   return z
+end
+
+
+function check_int(g)
+   printf("test exchange %s ...", tfmt(g))
+   local s = {g[1],g[2]}
+   local d = {g[2],g[1]}
+   local sL = qcd.lattice(s)
+   local dL = qcd.lattice(d)
+   local scatter = qcd.scatter(dL, sL, {dL:pcoord(1), dL:pcoord(0)})
+   local vS = 10 * sL:pcoord(0) + sL:pcoord(1)
+   local vD = scatter(vS)
+   printf("\nSrc\n")
+   foreach(s,
+           function(z, sp)
+              printf("    %s : %10d\n", tfmt(sp), vS[sp])
+              return true
+           end,
+           true)
+   printf("\n\nvD, Ix\n");
+   foreach(d,
+           function(z, dp)
+              printf("    %s : %10d < %10d\n", tfmt(dp), vD[dp], vS[{dp[2],dp[1]}])
+              return true
+           end,
+           true)
+end
+
+--check_int({2,4})
+--check_int({4,2})
+check_int({4,4})
+--check_int({3,7})

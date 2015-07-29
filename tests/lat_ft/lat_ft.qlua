@@ -1,0 +1,55 @@
+require "stdlib"
+require "lhpc-std"
+require "latvec"
+require "strict"
+
+
+tot_timer = timer("total")
+
+L = qcd.lattice(latsize, {network=network})
+
+rnd = L:RandomState(rnd_seed, 
+        L:pcoord(0) + L[0] * (
+        L:pcoord(1) + L[1] * (
+        L:pcoord(2) + L[2] * (
+        L:pcoord(3) ) ) ) )
+
+
+ft_dir=1
+c     = rnd:gaussian_Complex()
+c_ft  = qcd.fourier_transf(c, 1, ft_dir)
+c2    = qcd.fourier_transf(c_ft, -1, ft_dir) / L[ft_dir]
+print_latvec_cmp(c, c2, 
+                 string.format(
+                 'Complex, [%d]: c <-> ~FT1d(FT1d(c))', ft_dir))
+ft_dir=3
+c     = rnd:gaussian_Complex()
+c_ft  = qcd.fourier_transf(c, 1, ft_dir)
+c2    = qcd.fourier_transf(c_ft, -1, ft_dir) / L[ft_dir]
+print_latvec_cmp(c, c2, 
+                 string.format(
+                 'Complex, [%d]: c <-> ~FT1d(FT1d(c))', ft_dir))
+
+c     = rnd:gaussian_Complex()
+c_ft  = qcd.fourier_transf(c, 1)
+c2    = qcd.fourier_transf(c_ft, -1) / L:volume() 
+print_latvec_cmp(c, c2, 
+                 'Complex: c <-> ~FT(FT(c))         ')
+
+pw    = {1,2,3,4}
+c_pw  = L:planewave({0,0,0,0}, pw)
+c_d   = L:Complex() ; c_d[pw] = complex(1.,0.)
+print_latvec_cmp(c_d, qcd.fourier_transf(c_pw, -1) / L:volume(), 
+                 'delta{p} <-> ~FT(pw(p))           ')
+
+x    = rnd:gaussian_DiracFermion()
+x_ft = qcd.fourier_transf(x, 1, 3)
+x2   = qcd.fourier_transf(x_ft, -1, 3) / L[3]
+print_latvec_cmp(x, x2, 
+                 'DiracFermion df <-> ~FT(FT(x))    ')
+
+x    = rnd:gaussian_DiracPropagator()
+x_ft = qcd.fourier_transf(x, 1, 3)
+x2   = qcd.fourier_transf(x_ft, -1, 3) / L[3]
+print_latvec_cmp(x, x2, 
+                 'DiracPropagator x <-> ~FT(FT(x))  ')

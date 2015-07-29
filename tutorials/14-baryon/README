@@ -1,9 +1,0 @@
-To run this tutorial, say
-
-  $ qlua params.qlua baryons.qlua
-
-
-FILES
-params.qlua      -- lattice size and other parameters, shared with mesons
-baryons.qlua     -- computing and projecting proton3 2pt function
-wiki             -- mediawiki source

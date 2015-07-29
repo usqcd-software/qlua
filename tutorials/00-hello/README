@@ -1,8 +1,0 @@
-To run this example, say
-
-$ qlua  hello.qlua
-
-
-FILES:
-  wiki        -- mediawiki file for this tutorial
-  hello.qlua  -- a QLUA hello world program

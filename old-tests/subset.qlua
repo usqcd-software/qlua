@@ -1,0 +1,43 @@
+require "stdlib"
+
+L = qcd.lattice { 3, 4, 2, 4}
+
+printf("Lattice: %s\n", tostring(L))
+
+ALL   = L:Subset("all")
+Even  = L:Subset("even")
+Odd   = L:Subset("odd") 
+
+printf("ALL: %s\n", tostring(ALL))
+printf("Even: %s\n", tostring(Even))
+printf("Odd: %s\n", tostring(Odd))
+printf("Slice: %s\n", tostring(L:Subset{axis=1,position=2}))
+printf("Upper: %s\n", tostring(L:Subset{axis=2,position=1,semispace="upper"}))
+printf("Lower: %s\n", tostring(L:Subset{axis=3,position=2,semispace="lower"}))
+
+function volume()
+  local x = L:Int(1)
+  return x:sum()
+end
+
+printf("total volume %d\n", volume())
+printf("even volume %d\n", Even:where(volume))
+printf("t0 volume %d\n", L:Subset{axis=0,position=0}:where(volume))
+printf("t3 volume %d\n", L:Subset{axis=3,position=0}:where(volume))
+printf("t3 < 2 volume %d\n",
+       L:Subset{axis=3, position=2, semispace="lower"}:where(volume))
+printf("t3 >= 1 volume %d\n",
+       L:Subset{axis=3, position=1, semispace="upper"}:where(volume))
+
+-- check that subset stack does not mangle the LUA state
+function check(w, ...)
+   printf(w, ...)
+   return 1, 2, 3
+end
+
+check("results %d %d %d\n",
+     Even:where(check, "args %d %d %d %d\n", 4, 3, 2, 1));
+
+
+printf("all done\n")
+

@@ -1,0 +1,210 @@
+-- GMRES
+--  Paramenters
+--    MaxIterations      1000 -- never use more than this number of iterations
+--    MinIterations         0 -- minimal number of iterations to do
+--    KDim                  7 -- block size
+--    RelativeError      1e-7 -- stop when A:error(x,b)/A:norm(b) < re
+--    AbsoluteError     false -- stop when A:error(x,b) < ae
+--    TrueResidual      false -- use A:error(x,b) to compute errors
+--    Logging           false -- store residual in status.Norms[]
+--    ConvergenceFactor false -- stop if (X:dot(r,r)/X:dot(b,b))^(1/(2*iter)) > cf
+--    ZeroGuard        1e-209 -- consider number <= zg to be zero
+--
+-- Status elements
+--    Status            -- "OK" if solved, else some other string
+--    Syndrome          -- human-readable reason for status
+--    Iterations        -- number of iterations used
+--    RealtiveResidual  -- X:error(x,b)/X:norm(b)
+--    AbsoluteResidual  -- X:error(x,b)
+--    RHSNorm           -- X:norm(b)
+--    SolutionNorm      -- X:norm(x)
+--    Norms             -- vector of relative residuals (or an empty vector)
+--    Steps             -- iterations of outer loop
+
+function makeGMRES(t)
+   local solver = {} -- object placeholder
+   local function is_number(x) -- true if x is not Inf or NaN
+      if x == 0 then
+         return true
+      else
+         local v = x / x    -- convert Inf and NaN into NaN
+         return v == v      -- assume ANSI 754 semantics
+      end
+   end
+   local min_iter            = t.MinIterations      or      0
+   local max_iter            = t.MaxIterations      or   1000
+   local k_dim               = t.KDim               or      7
+   local rel_error           = t.RelativeError      or   1e-7
+   local abs_error           = t.AbsoluteError      or  false
+   local true_residual       = t.TrueResidual       or  false
+   local logging             = t.Logging            or  false
+   local convergence_factor  = t.ConvergenceFactor  or  false
+   local zero_guard          = t.ZeroGuard          or 1e-209
+
+   local function k_solve(A,x,v,hh,e,k_dim) --> x
+      local k,j
+      local xr = x
+      for k = 0, k_dim - 1 do
+         local c = hh[{k,k}]
+         local s = hh[{k+1,k}]
+         local d = math.sqrt(c*c+s*s)
+         c = c/d
+         s = s/d
+         e[k+1] = -s * e[k]
+         e[k] = c * e[k]
+         for j = k, k_dim - 1 do
+            local hk = hh[{k+1,j}]
+            hh[{k+1,j}] = c * hk - s * hh[{k,j}]
+            hh[{k,j}]   = s * hk + c * hh[{k,j}]
+         end
+      end
+      for k = k_dim - 1, 0, -1 do
+         local hk = hh[{k,k}]
+         local ek = e[k] / hk
+         e[k] = ek
+         for j = 0, k - 1 do
+            e[j] = e[j] - ek * hh[{j,k}]
+         end
+         xr = A:axpy(ek, v[k+1], xr)
+      end
+      return xr
+   end
+
+   local function GMRESk(A, x, r, beta) -- > x,k
+      local v = { r / beta }
+      local hh = matrix.real{k_dim + 1, k_dim}
+      local e = vector.real(k_dim + 1)
+      e[0] = beta
+      local k, j
+      for k = 0, k_dim-1 do
+         local Av = A:apply(v[k+1])
+         for j = 0, k do
+            hh[{j,k}] = A:dot(Av,v[j+1])
+            Av = A:axpy(-hh[{j,k}], v[j+1], Av)
+         end
+         local hk = math.sqrt(A:dot(Av,Av))
+         if hk <= zero_guard then
+            if k == 0 then
+               return x, 0
+            else
+               local xr = k_solve(A,x,v,hh,e,k)
+               return xr, k
+            end
+         end
+         v[k+2] = A:scale(1/hk, Av)
+         hh[{k+1,k}] = hk
+      end
+      local xr = k_solve(A,x,v,hh,e,k_dim)
+      return xr, k_dim
+   end
+
+   local function full_solve(b,A,x0)
+      local status = { Status = "DIVERGED",
+                       Solver = string.format("GMRES(%d)", k_dim) }
+      local x = x0 or A:zeroVector()
+      local b_norm = math.sqrt(A:dot(b,b))
+      local x_norm = math.sqrt(A:dot(x,x))
+      local b_true_norm = A:norm(b)
+      local x_true_norm = A:norm(x)
+      local norms = {}
+      local steps = {}
+      if (not is_number(b_norm)) or (not is_number(x_norm)) then
+         status.Status = "ERROR"
+         status.Syndrome = "NaN input"
+         status.Iterations = 0
+         return x, status
+      end
+      local denom = b_norm
+      if denom == 0 then
+         denom = x_norm
+      end
+      if denom == 0 then
+         status.Status = "ERROR"
+         status.Syndrome = "Both RHS and guess are zero"
+         status.Iterations = 0
+         return x, status
+      end
+      local epsilon = 1
+      local efactor = 1
+      if abs_error then
+         epsilon = abs_error
+      else
+         epsilon = rel_error * denom
+      end
+      if true_residual and abs_error then
+         efactor = A:error(x,b) / denom
+      end
+      efactor = efactor * efactor
+      epsilon = epsilon * epsilon
+      local iter = 0
+      while iter + k_dim <= max_iter do
+         local r = A:residue(x,b)
+         local r_norm = A:dot(r,r)
+         if logging then
+            norms[#norms+1] = r_norm
+            steps[#steps+1] = iter
+         end
+         local beta = math.sqrt(r_norm)
+         if (iter >= min_iter) and (r_norm < epsilon * efactor) then
+            if true_residual then
+               local error = A:error(x,b)
+               if error * error < epsilon then
+                  status.Status = "OK"
+                  status.Syndrome = "true residual converged"
+                  break
+               end
+               efactor = error / denom
+               efactor = efactor * efactor
+            else
+               status.Status = "OK"
+               status.Syndrome = "iterative residual converged"
+               break
+            end
+         end
+         if r_norm <= zero_guard then
+            status.Status = "OK"
+            status.Syndrome = "<r|r> is too small to continue"
+            break
+         end
+         if convergence_factor and (iter >= min_iter) then
+            local observed_rate = math.expt(r_norm/denom, 1.0/(2 * iter))
+            if observed_rate > convergence_factor then
+               status.Syndrome = "convergence too slow (CF trigger)"
+               break
+            end
+         end
+         local xr, k = GMRESk(A,x,r,beta)
+         if k == 0 then
+            status.Syndrome = "Encountered zero mode"
+            break
+         end
+         iter = iter + k
+         x = xr
+      end
+      if iter + k_dim > max_iter then
+         status.Syndome = "Max iterations reached"
+      end
+      status.Norms = norms
+      status.Steps = steps
+      status.Iterations = iter
+      status.RHSNorm = b_norm
+      status.SolutionNorm = A:norm(x)
+      status.AbsoluteResidual = A:error(x,b)
+      if b_norm == 0 then
+         status.RelativeResidual = status.AbsoluteResidual / x_norm
+      else
+         status.RelativeResidual = status.AbsoluteResidual / b_norm
+      end
+      return x, status
+   end
+
+   function solver:setup(A)
+      local sx = {}
+      function sx:solve(b,B,x0)
+         return full_solve(b,B,x0)
+      end
+      return sx
+   end
+   
+   return solver
+end

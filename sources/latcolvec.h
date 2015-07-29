@@ -33,7 +33,7 @@ mLatColVecN *qlua_newZeroLatColVecN(lua_State *L, int Sidx, int nc);
 #endif
 
 int init_latcolvec(lua_State *L);
-int fini_latcolvec(lua_State *L);
+void fini_latcolvec(void);
 
 int q_V_gaussian(lua_State *L);
 int q_V_gaussian_N(lua_State *L);

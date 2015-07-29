@@ -1,0 +1,8 @@
+require "stdlib";
+
+b = qcd.hdf5.Writer("b.h5");
+
+b:write("/a/b/d", "cafebabe");
+b:write("/a/b/c", complex(1.5, -2.25));
+b:close();
+printf("DONE\n");

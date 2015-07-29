@@ -33,7 +33,7 @@ mSeqDirPropN *qlua_newZeroSeqDirPropN(lua_State *L, int nc);
 #endif
 
 int init_seqdirprop(lua_State *L);
-int fini_seqdirprop(lua_State *L);
+void fini_seqdirprop(void);
 
 int q_p_gaussian_N(lua_State *L);
 

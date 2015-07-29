@@ -1,0 +1,10 @@
+Tests for the complex MDWF inverter library.
+
+run the test from the build directory as follows:
+
+for rc in real complex_real complex; do
+  for v in const var; do
+   echo; echo "RUNNING $rc $v"
+    ./qlua tests/mdwf-complex/config_mdwf_${rc}_${v}.qlua tests/mdwf-complex/mdwf-complex.qlua
+  done
+done

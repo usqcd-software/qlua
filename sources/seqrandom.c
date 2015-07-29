@@ -10,7 +10,6 @@
 #include <string.h>
 /* ZZZ other packages */
 static const char mtnSeqRandom[] = "qlua.mtSeqRandomState";
-static const char SeqRandomName[] = "qcd.RandomState";
 static int
 q_s_fmt(lua_State *L)
 {
@@ -138,8 +137,7 @@ init_seqrandom(lua_State *L)
     return 0;
 }
 
-int
-fini_seqrandom(lua_State *L)
+void
+fini_seqrandom(void)
 {
-    return 0;
 }
