@@ -125,9 +125,6 @@ q_laplacian(lua_State *L)
 }
 
 
-static struct luaL_Reg fExtra[] = {
-    { "save_bb",                    q_save_bb },
-    { "laplacian",                  q_laplacian },
 /* (latcomplex x, sign, dir)
     dir     (= 0 .. (NDIM-1)) : FT direction
             nil : do all directions
