@@ -15,6 +15,7 @@ rnd = L:RandomState(rnd_seed,
         L:pcoord(3) ) ) ) )
 
 
+
 ft_dir=1
 c     = rnd:gaussian_Complex()
 c_ft  = qcd.fourier_transf(c, 1, ft_dir)
@@ -29,6 +30,13 @@ c2    = qcd.fourier_transf(c_ft, -1, ft_dir) / L[ft_dir]
 print_latvec_cmp(c, c2, 
                  string.format(
                  'Complex, [%d]: c <-> ~FT1d(FT1d(c))', ft_dir))
+
+r     = rnd:gaussian_Real()
+c_ft  = qcd.fourier_transf(r, 1)
+r2    = qcd.fourier_transf(c_ft, -1) / L:volume() 
+printf("|Im(~FT(FT(r)))|^2=%e\n", r2:imag():norm2())
+print_latvec_cmp(r, r2:real(), 'Real, r <-> ~FT(FT(r))')
+
 
 c     = rnd:gaussian_Complex()
 c_ft  = qcd.fourier_transf(c, 1)

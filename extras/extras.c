@@ -10,6 +10,7 @@
 #include "latdirprop.h"                                             /* DEPS */
 #include "latcolmat.h"                                              /* DEPS */
 #include "latcolvec.h"                                              /* DEPS */
+#include "latreal.h"                                                /* DEPS */
 #include "latcomplex.h"                                             /* DEPS */
 #include "extras.h"                                                 /* DEPS */
 
@@ -141,10 +142,13 @@ q_fourier_transf(lua_State *L)
     int ndim = QDP_ndim_L(S->lat);
     int Sidx = lua_gettop(L);
     int ft_sign = luaL_checkint(L, 2);
+    if (1 != ft_sign && -1 != ft_sign) {
+        luaL_error(L, "bad FT sign in arg #4 ; must be +1 or -1");
+    }
     int ft_dir = -1;    /* all directions by default */
     if (4 <= Sidx)
         ft_dir  = luaL_checkint(L, 3);
-    if (ndim <= ft_dir) {
+    if (ndim < 0 || ndim <= ft_dir) {
         luaL_error(L, "bad direction in arg #3");
     }
     
@@ -152,6 +156,21 @@ q_fourier_transf(lua_State *L)
     /* XXX the code relies on particular organization of QLA structures: 
        for each site, an array of double complex numbers, no padding */
     switch (qlua_qtype(L, 1)) {
+    case qLatReal:    {
+        mLatReal *x_r       = qlua_checkLatReal(L, 1, S);
+        mLatComplex *r      = qlua_newLatComplex(L, Sidx);
+        CALL_QDP(L);
+        QDP_Lattice *x_lat  = QDP_D_get_lattice_R(x_r->ptr);
+        QDP_D_Complex *x    = QDP_D_create_C_L(x_lat);
+        QDP_D_C_eq_R(x, x_r->ptr, QDP_all_L(x_lat));
+        QLA_D_Complex *qla_x= QDP_D_expose_C(x),
+                      *qla_r= QDP_D_expose_C(r->ptr);
+        status = extra_lat_fourier_qla(L, S, qla_r, qla_x, 1, ft_sign, ft_dir);
+        QDP_D_reset_C(x);
+        QDP_D_destroy_C(x);
+        QDP_D_reset_C(r->ptr);
+        break;
+    }
     case qLatComplex: {
         mLatComplex *x = qlua_checkLatComplex(L, 1, S);
         mLatComplex *r = qlua_newLatComplex(L, Sidx);
