@@ -1,0 +1,17 @@
+
+* test_run.py --  main tool to run tests; it can iterate through tests and sub-tests, 
+  or can run only a selected subset
+
+* 'utests/<func>' -- directory for test scripts for one functionality, 
+** generates input parametes for Qlua
+** calls the test (shell, mpirun, etc)
+** checks logs using testcase-provided functions
+** checks output files usint testcase-provided functions
+
+* 'utests/<func>/testN.py -- test case files
+** provides test subcase 
+** provides inputs
+** provides functions to check logs
+** provides functions to check output files
+
+* 'utests/<func>/testNX.qlua -- test subcase files

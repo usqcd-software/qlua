@@ -1,4 +1,5 @@
 require('test_fields')
+require('strict')
 
 if (nil == test_dir
        or nil == h5_file          -- hdf path

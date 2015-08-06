@@ -145,9 +145,9 @@ def check_output_data(p, test_dir='.'):
     # (debug?) printouts
     print y.shape, y1.shape
     dy  = y - y1
-    print math.sqrt((y*y.conj()).sum()), \
-          math.sqrt((y1*y1.conj()).sum()), \
-          math.sqrt((dy*dy.conj()).sum())
+    print math.sqrt(cplx_norm2(y)), \
+          math.sqrt(cplx_norm2(y1)), \
+          math.sqrt(cplx_norm2(dy))
 
     return (cmp_data and cmp_meta)
 

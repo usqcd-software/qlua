@@ -52,3 +52,5 @@ function xml.get(x, n, ...)
     return nil    
   end
 end
+
+require 'verbose'

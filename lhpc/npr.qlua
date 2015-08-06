@@ -1,11 +1,17 @@
+-- compute quark-bilinear contractions of two plane-wave propagators
+-- conventions are identical to Building Blocks
+-- * forward propagator[x] = (Dslash)^{-1} * exp(i*p1.x) (incoming quark)
+-- * backward propagator[x]= (Dslash)^{-1} * exp(i*p2.x) (outgoing quark)
+-- * insertion momentum q = (p1 - p2) ("flowing out of the vertex")
+
 do
   -- make lpath string
   local function lpath_string(lpath)
     local s = string.format('l%d_', #lpath)
     local ltab = {'x', 'y', 'z', 't', 'X', 'Y', 'Z', 'T'}
-    if time_rev then
-      ltab[1 + t_axis], ltab[1 + t_axis + #L] = ltab[1 + t_axis + #L], ltab[1 + t_axis]
-    end
+--    if time_rev then
+--      ltab[1 + t_axis], ltab[1 + t_axis + #L] = ltab[1 + t_axis + #L], ltab[1 + t_axis]
+--    end
     for i = 0, #lpath - 1 do
       s = s .. string.format('%s', ltab[1+lpath[1+i]])
     end

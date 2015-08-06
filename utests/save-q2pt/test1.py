@@ -1,6 +1,6 @@
 import math
 import numpy as np
-import tables as tb
+import h5py
 
 def make_metainfo_p(p):
     """
@@ -99,22 +99,22 @@ def make_test_res_p(p):
 
 
 def check_output_data(p, test_dir='.'):
-    h5  = tb.openFile(test_dir + '/' + p['h5_file'])
-    y   = h5.getNode('/' + p['h5_path'])
-    attr_f  = y.attrs
-    y   = y[...,0] + 1j * y[...,1]
+    h5      = h5py.File(test_dir + '/' + p['h5_file'], 'r')
+    y       = h5['/%s' % p['h5_path']]
+    attr_f  = dict(y.attrs)
+    y       = y[...,0] + 1j * y[...,1]
     h5.close()
 
-    y1  = make_test_res_p(p)
+    y1      = make_test_res_p(p)
     
     cmp_data    = np.allclose(y, y1)
-    cmp_meta    = check_metainfo(p, attr_f.__dict__)    
+    cmp_meta    = check_metainfo(p, attr_f)    
 
     print y.shape, y1.shape
     dy  = y - y1    
-    print math.sqrt((y*y.conj()).sum()), \
-          math.sqrt((y1*y1.conj()).sum()), \
-          math.sqrt((dy*dy.conj()).sum())
+    print math.sqrt(cplx_norm2(y)), \
+          math.sqrt(cplx_norm2(y1)), \
+          math.sqrt(cplx_norm2(dy))
     
     return (cmp_data and cmp_meta)
 

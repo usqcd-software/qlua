@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.5
+#!/usr/bin/env python2.7
 
 import sys
 import re
@@ -275,16 +275,17 @@ $ test_run.py  <test>.py  run|ch_log|ch_out
     if 6 <= len(sys.argv): run_param_str = sys.argv[5]
     else: run_param_str = None
 
+    # FIXME specify locals/globals to keep test variables separate from the current scope
     execfile(test_name)
     
     if 'all' == what_list_str: what_list = ['run', 'ch_log', 'ch_out' ]
     else: what_list = parse_comma_list(what_list_str)[0]
 
     # TODO find case ## by names
-    if 'all' == case_list_str: i_case_list = range(len(case_list))
+    if 'all' == case_list_str: i_case_list = range(len(case_list))  # replace with test's 'local' var
     else: i_case_list = map(int, parse_comma_list(case_list_str)[0])
 
-    if 'all' == in_list_str: i_in_list = range(len(input_list))
+    if 'all' == in_list_str: i_in_list = range(len(input_list))     # replace with test's 'local' var
     else: i_in_list = map(int, parse_comma_list(in_list_str)[0])
 
     for i_case in i_case_list:
