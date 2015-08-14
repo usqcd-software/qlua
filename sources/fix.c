@@ -328,7 +328,8 @@ static int
 qlua_exit(lua_State *L)
 {
     int c = lua_gettop(L) == 0? 0: luaL_checknumber(L, 1);
-    
+
+    qlua_fini();
     QDP_finalize();
     exit(c);
     /* never happens */
@@ -571,6 +572,7 @@ q_qtypename(lua_State *L, int idx, char *def)
     case qMDWF: t = "mdwf"; break;
     case qMDWFDeflator: t = "mdwf.deflator"; break;
     case qMDWFDeflatorState: t = "mdwf.deflator.state"; break;
+    case qQOPwmgState: t = "qop.WilsonMG"; break;
     default: break;
     }
     return t;

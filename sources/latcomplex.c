@@ -846,11 +846,11 @@ q_C_norm2(lua_State *L)
 {
     mLatComplex *a = qlua_checkLatComplex(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_D_Real n;
+    QLA_D_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        mLatComplex *b = qlua_newLatComplex(L, lua_gettop(L));
+        mLatComplex *b = qlua_newZeroLatComplex(L, lua_gettop(L));
         QDP_D_C_eq_C_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
         QDP_D_r_eq_norm2_C(&n, b->ptr, *S->qss);
     } else {

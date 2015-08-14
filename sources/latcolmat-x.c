@@ -291,11 +291,11 @@ Qs(q_M_norm2_)(lua_State *L)
 {
     Qs(mLatColMat) *a = Qs(qlua_checkLatColMat)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_D_Real n;
+    QLA_D_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        Qs(mLatColMat) *b = Qs(qlua_newLatColMat)(L, lua_gettop(L), QC(a));
+        Qs(mLatColMat) *b = Qs(qlua_newZeroLatColMat)(L, lua_gettop(L), QC(a));
         Qx(QDP_D,_M_eq_M_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
         Qx(QDP_D,_r_eq_norm2_M)(&n, b->ptr, *S->qss);
     } else {

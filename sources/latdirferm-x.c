@@ -314,11 +314,11 @@ Qs(q_D_norm2_)(lua_State *L)
 {
     Qs(mLatDirFerm) *a = Qs(qlua_checkLatDirFerm)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_D_Real n;
+    QLA_D_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        Qs(mLatDirFerm) *b = Qs(qlua_newLatDirFerm)(L, lua_gettop(L), QC(a));
+        Qs(mLatDirFerm) *b = Qs(qlua_newZeroLatDirFerm)(L, lua_gettop(L), QC(a));
         Qx(QDP_D,_D_eq_D_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
         Qx(QDP_D,_r_eq_norm2_D)(&n, b->ptr, *S->qss);
     } else {

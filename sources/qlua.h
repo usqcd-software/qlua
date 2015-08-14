@@ -98,8 +98,9 @@ typedef enum {
     qMDWF,                    /* 55 */
     qMDWFDeflator,            /* 56 */
     qMDWFDeflatorState,       /* 57 */
+    qQOPwmgState,             /* 58 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 58 */
+    qNoType                   /* 59 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -177,19 +178,27 @@ int *qlua_intarray(lua_State *L, int idx, int *out_dim);
 double *qlua_numberarray(lua_State *L, int idx, int *out_dim);
 int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 double *qlua_checknumberarray(lua_State *L, int idx, int dim, int *out_dim);
+int qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *a);
 
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
 int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);
 
+int qlua_push_key_bool(lua_State *L, int idx, const char *key, int val);
+int qlua_push_key_number(lua_State *L, int idx, const char *key, double val);
+int qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val);
+int qlua_push_key_object(lua_State *L, int idx, const char *key);
+
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);
 int qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabidx_int(lua_State *L, int idx, int subidx);
 double qlua_tabkey_double(lua_State *L, int idx, const char *key);
+double qlua_tabkey_doubleopt(lua_State *L, int idx, const char *key, double def);
 double qlua_tabidx_double(lua_State *L, int idx, int subidx);
 const char *qlua_tabkey_string(lua_State *L, int idx, const char *key);
 const char *qlua_tabidx_string(lua_State *L, int idx, int subidx);
 const char *qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def);
+int qlua_tabidx_tableopt(lua_State *L, int idx, int subidx);
 int qlua_tabkey_tableopt(lua_State *L, int idx, const char *key);
 
 typedef int (*q_op)(lua_State *L);
@@ -251,6 +260,9 @@ void XMP_dist_double_array(int src_node, int count, double *value);
 void qlua_assert(int, const char *);
 
 char *qlua_strdup(lua_State *L, const char *str);
+
+/* qlua cleanup */
+void qlua_fini(void);
 
 /* strict memory management: collect garbage befor any QDP operation */
 #define CALL_QDP(L) do lua_gc(L, LUA_GCCOLLECT, 0); while (0)

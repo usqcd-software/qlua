@@ -1,7 +1,7 @@
 #!/bin/sh -f
 
 ## version ID. 
-version='X.XX.XX-post-0.38.02'
+version='0.39.00'
 
 # show_help exit_code
 show_help() {
@@ -33,6 +33,7 @@ show_help() {
    Supported packages:
      clover                   SciDAC L3 clover inverter
      mdwf                     SciDAC L3 Moebius Domain Wall inverter
+     qopqdp                   SciDAC L3 qop package
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
@@ -102,6 +103,7 @@ process_args() {
       --with-gsl=*)       gsl=$(echo "$1" | sed -e 's/--with-gsl=//')  ;;
       --with-atlas=*)     atlas=$(echo "$1" | sed -e 's/--with-atlas=//')  ;;
       --with-hypre=*)     hypre=$(echo "$1" | sed -e 's/--with-hypre=//')  ;;
+      --with-qopqdp=*)    qopqdp=$(echo "$1" | sed -e 's/--with-qopqdp=//')    ;;
       --clover-nc=*)      clover_nc=$(echo $1 | sed -e 's/--clover-nc=//') ;;
       --with-arpack)      arpack=1 ;;
       --with-arpack=*)    arpack=1 ; arpack_libs=$(echo "$1" | sed -e 's/--with-arpack=//') ;;
@@ -165,6 +167,11 @@ normalize() {
   qdp_cflags=$($qdp/bin/qdp-config --cflags)
   qdp_ldflags=$($qdp/bin/qdp-config --ldflags)
   qdp_libs=$($qdp/bin/qdp-config --libs)
+  if [ ! -z "$qopqdp" ] ; then
+     qopqdp_cflags="-I$qopqdp/include"
+     qopqdp_ldflags="-L$qopqdp/lib"
+     qopqdp_libs="-lqopqdp"
+  fi
   if [ ! -z "$clover" ] ; then
      [ -x "$clover/bin/clover-config-$clover_nc" ] \
         || show_error "No clover-config-$clover_nc under $clover"
@@ -249,6 +256,7 @@ show_config() {
    [ -z "$hdf5" ]    || echo "HDF5 location           $hdf5"
    [ -z "$gsl" ]     || echo "GSL location            $gsl"
    [ -z "$hypre" ]   || echo "HYPRE location          $hypre"
+   [ -z "$qopqdp" ]  || echo "QOPQDP location          $qopqdp"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ -z "$arpack" ]  || echo "ARPACK libraries        $arpack_libs"
    [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
@@ -281,6 +289,10 @@ build() {
       -e "s|@qdp_cflags@|$qdp_cflags|g" \
       -e "s|@qdp_ldflags@|$qdp_ldflags|g" \
       -e "s|@qdp_libs@|$qdp_libs|g" \
+  | sed -e "s|@qopqdp@|$qopqdp|g" \
+        -e "s|@qopqdp_cflags@|$qopqdp_cflags|g" \
+        -e "s|@qopqdp_ldflags@|$qopqdp_ldflags|g" \
+        -e "s|@qopqdp_libs@|$qopqdp_libs|g" \
   | sed -e "s|@aff@|$aff|g" \
         -e "s|@aff_cflags@|$aff_cflags|g" \
         -e "s|@aff_ldflags@|$aff_ldflags|g" \
@@ -364,6 +376,10 @@ build_modules() {
   if [ ! -z "$hypre" ] ; then
     echo "#define HAS_HYPRE"
     echo "#define HYPRE_VERSION \"$hypre\""
+  fi
+  if [ ! -z "$qopqdp" ] ; then
+    echo "#define HAS_QOPQDP"
+    echo "#define QOPQDP_VERSION \"$qopqdp\""
   fi
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"

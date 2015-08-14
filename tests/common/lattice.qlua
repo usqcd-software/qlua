@@ -1,0 +1,54 @@
+require "stdlib"
+require "gauge"
+
+-- common routines for tests
+
+function show_object(name, t)
+   if type(t) == "table" then
+      local i, v;
+      for i, v in pairs(t) do
+         if type(v) == "table" then
+            printf("%s.%s : TABLE\n", name, i)
+            show_object(name .. "." .. i, v)
+         else
+            printf("%s.%s : (%s) %s\n", name, i, type(v), tostring(v));
+         end
+      end
+   else
+      printf("%s : (%s) %s\n", name, type(t), tostring(t))
+   end
+end
+
+function vec_div(a,b)
+   local r = {};
+   local i;
+   for i = 1, #a do
+      r[i] = a[i] / b[i];
+   end
+   return r;
+end
+
+function random_gen(L, seed_A, seed_B)
+   local d;
+   local x = L:Int(0)
+   for d = 0, #L - 1 do
+      x = x * L[d] + L:pcoord(d)
+   end
+   return L:RandomState(seed_A, x * seed_B);
+end
+
+function random_gauge(rnd, scale)
+   local L = rnd.lattice;
+   local U = {};
+   local d;
+   local one = L:ColorMatrix(complex(1,0));
+   for d = 1, #L do
+      local X = one + scale * rnd:gaussian_ColorMatrix();
+      U[d] = toSUn(X);
+   end
+   return U;
+end
+
+function random_fermion(rnd)
+   return rnd:gaussian_DiracFermion();
+end

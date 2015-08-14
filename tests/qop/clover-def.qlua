@@ -1,0 +1,55 @@
+require "stdlib"
+require "gauge"
+
+
+-------------------------------------------------------------------------------
+local function clovF(U, i,j)
+   local Ujp = U[j]:shift(i - 1, "from_forward")
+   local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
+   local Sl = U[j]:adjoin() * U[i] * Ujp
+   local C01 = Sl * Uipx  -- at (0,1)
+   local C11 = Uipx * Sl  -- at (1,1)
+   local Su = Ujp * Uipx * U[j]:adjoin()
+   local C00 = U[i] * Su -- at (0,0)
+   local C10 = Su * U[i] -- at (1,0)
+   local F = C00 +
+      C01:shift(j - 1, "to_forward") +
+   (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward")
+return (F - F:adjoin()) / complex(0,8)
+end
+
+function clover_std(U, action)
+   local boundary = action.boundary;
+   local kappa = action.kappa;
+   local c_sw = action.c_sw;
+   local i, j;
+   local L = U[1].lattice;
+   
+   return function(F)
+             local X = F;
+             
+             for i = 0, #L - 1 do
+                local Ui = U[i+1];
+                if boundary then
+                   Ui = Ui:copy();
+                   L:Subset{axis=i,position=L[i]-1}:where(function () Ui:set(Ui * boundary[i+1]) end);
+                end
+                X = X - kappa * 
+                   ((1-gamma{mu=i}) * (Ui * (F:shift(i, "from_forward"))) + (
+                       (1+gamma{mu=i}) * ((Ui:adjoin() * F):shift(i, "from_backward"))))
+             end
+             
+             if c_sw then
+                for i = 1, (#L - 1) do
+                   for j = i + 1, #L do
+                      X = X - (kappa * c_sw) * clovF(U,i,j) * (
+                         (gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
+                   end
+                end
+             end
+             return X
+          end
+end
+
+-------------------------------------------------------------------------------
+printf("defined reference clover operator clover_std(U, action, f)\n");

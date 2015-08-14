@@ -58,6 +58,15 @@
 #ifdef HAS_HYPRE
 #include "qhp.h"                                                     /* DEPS */
 #endif
+#ifdef _OPENMP
+#include "qomp.h"                                                    /* DEPS */
+#endif
+#ifdef HAS_QOPQDP
+#include "qqopqdp.h"                                                 /* DEPS */
+#endif
+
+
+#define NORMALIZE_INDEX(L, idx) do if (idx < 0) idx = lua_gettop(L) + 1 + idx; while (0)
 
 /* ZZZ include other package headers here */
 
@@ -100,6 +109,9 @@ static struct {
 #endif
 #ifdef HAS_HYPRE
     {"hypre",    HYPRE_VERSION },
+#endif
+#ifdef HAS_QOPQDP
+    {"qopqdp", QOPQDP_VERSION },
 #endif
     {"colors",   (
 #if USE_Nc2
@@ -467,6 +479,33 @@ qlua_checknumberarray(lua_State *L, int n, int dim, int *out_dim)
     return idx;
 }
 
+int
+qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *arr)
+{
+  int i;
+
+  NORMALIZE_INDEX(L, idx);
+  for (i = 0; i < dim; i++) {
+    lua_pushnumber(L, i + 1);
+    lua_gettable(L, idx);
+    switch (qlua_qtype(L, -1)) {
+    case qReal: {
+      double v = luaL_checknumber(L, -1);
+      QLA_real(arr[i]) = v;
+      QLA_imag(arr[i]) = 0.0;
+    } break;
+    case qComplex: {
+      QLA_D_Complex *z = qlua_checkComplex(L, -1);
+      QLA_c_eq_c(arr[i], *z);
+    } break;
+    default:
+      luaL_error(L, "Unexpected element type in complex table");
+    }
+    lua_pop(L, 1);
+  }
+  return 0;
+}
+
 const char *
 qlua_checkstring(lua_State *L, int idx, const char *fmt, ...)
 {
@@ -534,10 +573,54 @@ qlua_tabpushopt_idx(lua_State *L, int idx, int subindex)
 }
 
 int
+qlua_push_key_bool(lua_State *L, int idx, const char *key, int val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushboolean(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
+qlua_push_key_number(lua_State *L, int idx, const char *key, double val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushnumber(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
+qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val)
+{
+  if (idx < 0)
+    idx = lua_gettop(L) + 1 + idx;
+  lua_pushstring(L, key);
+  lua_pushstring(L, val);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
+qlua_push_key_object(lua_State *L, int idx, const char *key)
+{
+  NORMALIZE_INDEX(L, idx);
+  lua_pushstring(L, key);
+  lua_insert(L, -2);
+  lua_settable(L, idx);
+  return 0;
+}
+
+int
 qlua_tabkey_int(lua_State *L, int idx, const char *key)
 {
   int v;
-
+  
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting integer in { %s = ...}", key);
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -551,6 +634,7 @@ qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def)
 {
   int v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return def;
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -564,6 +648,7 @@ qlua_tabidx_int(lua_State *L, int idx, int key)
 {
   int v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting integer in { %s = ...}", key);
   v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
@@ -577,6 +662,7 @@ qlua_tabkey_double(lua_State *L, int idx, const char *key)
 {
   double v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting double in { %s = ...}", key);
   v = luaL_checknumber(L, -1);
@@ -586,10 +672,25 @@ qlua_tabkey_double(lua_State *L, int idx, const char *key)
 }
 
 double
+qlua_tabkey_doubleopt(lua_State *L, int idx, const char *key, double def)
+{
+  double v;
+
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  v = luaL_checknumber(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+double
 qlua_tabidx_double(lua_State *L, int idx, int key)
 {
   double v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting double in { %s = ...}", key);
   v = luaL_checknumber(L, -1);
@@ -603,6 +704,7 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 {
   const char *v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     luaL_error(L, "expecting string in { %s = ...}", key);
   v = luaL_checkstring(L, -1);
@@ -614,6 +716,7 @@ qlua_tabkey_string(lua_State *L, int idx, const char *key)
 const char *
 qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def)
 {
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return def;
   const char *v = luaL_checkstring(L, -1);
@@ -627,6 +730,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 {
   const char *v;
 
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
     luaL_error(L, "expecting string in { %s = ...}", key);
   v = luaL_checkstring(L, -1);
@@ -636,8 +740,21 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 }
 
 int
+qlua_tabidx_tableopt(lua_State *L, int idx, int subidx)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_idx(L, idx, subidx))
+    return 0;
+  if (lua_type(L, -1) == LUA_TTABLE)
+    return 1;
+  lua_pop(L, 1);
+  return 0;
+}
+
+int
 qlua_tabkey_tableopt(lua_State *L, int idx, const char *key)
 {
+  NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_key(L, idx, key))
     return 0;
   if (lua_type(L, -1) == LUA_TTABLE)
@@ -1106,6 +1223,9 @@ void
 qlua_init(lua_State *L, int argc, char *argv[])
 {
     static const lua_CFunction qcd_inits[] = {
+#ifdef _OPENMP
+        init_qomp,
+#endif
         init_qlua_io,
         init_complex,
         init_seqrandom,
@@ -1152,6 +1272,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #endif
 #ifdef HAS_MDWF
         init_mdwf,
+#endif
+#ifdef HAS_QOPQDP
+        init_qopqdp,
 #endif
 #ifdef HAS_EXTRAS
         init_extras,
@@ -1218,6 +1341,9 @@ qlua_fini(void)
 #ifdef HAS_EXTRAS
         fini_extras,
 #endif
+#ifdef HAS_QOPQDP
+        fini_qopqdp,
+#endif
 #ifdef HAS_MDWF
         fini_mdwf,
 #endif
@@ -1265,6 +1391,9 @@ qlua_fini(void)
         fini_seqrandom,
         fini_complex,
         fini_qlua_io,
+#ifdef _OPENMP
+        fini_qomp,
+#endif
         NULL };
     int i;
 

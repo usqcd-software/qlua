@@ -267,11 +267,11 @@ Qs(q_P_norm2_)(lua_State *L)
 {
     Qs(mLatDirProp) *a = Qs(qlua_checkLatDirProp)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_D_Real n;
+    QLA_D_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        Qs(mLatDirProp) *b = Qs(qlua_newLatDirProp)(L, lua_gettop(L), QC(a));
+        Qs(mLatDirProp) *b = Qs(qlua_newZeroLatDirProp)(L, lua_gettop(L), QC(a));
         Qx(QDP_D,_P_eq_P_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
         Qx(QDP_D,_r_eq_norm2_P)(&n, b->ptr, *S->qss);
     } else {

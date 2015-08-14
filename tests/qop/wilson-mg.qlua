@@ -1,0 +1,163 @@
+require "stdlib"
+require "tests/qop/clover-def"
+require "tests/common/lattice"
+
+Lx = 8;
+Lt = 8;
+kappa =  0.136;
+c_sw = 0.1;
+seeds = { 25456, 456 };
+gaugeScale = 1.1245;
+max_error = 1e-8;
+block = {2, 2, 2, 2};
+-- do not use to set hardwall boundary - clover term will be wrong.
+boundary = { 1, -- periodic in X
+            -1, -- antiperiodic in Y
+            complex(3/5,4/5), -- funny phase in Z
+            complex(0,1) -- pi/2 phase in T
+};
+
+latSize = {Lx,Lx,Lx,Lt};
+lat = qcd.lattice(latSize);
+action = { boundary = boundary,
+           kappa = kappa;
+           c_sw = c_sw
+        };
+
+
+high_error = 1e-14;
+
+high_prec = {
+   residual = {
+      rsqmin = high_error,
+      relmin = 0
+   },
+   inverter = {
+      max_iter = 6010,
+      restart = 2020,
+      max_restarts = 50,
+      evenodd = "evenodd" -- or "odd" or "even"
+   },
+};
+
+-------- multigrid parameters
+mg_params = {
+   name = "mg-wilson-test", -- optional for tostring()
+   verbose = 0, -- for -2
+   residual = {
+      rsqmin = 1e-8,
+      relmin = 0
+   },
+   inverter = {
+      max_iter = 601,
+      restart = 202,
+      max_restarts = 5,
+      evenodd = "evenodd" -- or "odd" or "even"
+   },
+   action = action,
+   global = { -- for -1
+      -- nlevels is #multigrid
+      -- nc is U[1]:colors()
+      -- kappa and kappanv are from action
+      verbose = -1,
+      profile = 1,
+      itmax = 50,
+      ngcr = 8,
+   },
+   multigrid = { -- start with 0
+      { lattice = vec_div(latSize, block),
+        -- verbose
+        nvecs = 8,
+        npre =  0,
+        npost =  4,
+        scale = 1,
+        cres = 0.1,
+        itmax = 50,
+        ngcr = 8,
+        setup_res =  0.4,
+        setup_maxit = 100;
+        setup_change_fac = 0.5
+        --- setup_nvecs 
+     }
+   }
+};
+
+-------------- initialization
+printf("Running multigrid test with\n");
+show_object("  latSize", latSize);
+printf("-----\n");
+show_object("  mg_params", mg_params);
+printf("=====\n");
+
+rnd = random_gen(lat, seeds[1], seeds[2]);
+U = random_gauge(rnd, gaugeScale);
+F = random_fermion(rnd);
+stdOp = clover_std(U, action);
+show_object("F.norm", F:norm2());
+show_object("F.lattice", F.lattice);
+show_object("F.colors", F.colors);
+show_object("F.a-type", F["a-type"]);
+rhs = stdOp(F);
+
+-------- check the result
+local status = true
+function check_vector(f, g, tol, msg)
+   local gf2 = (f - g):norm2();
+   local f2 = f:norm2();
+   local error = gf2 / f2;
+   if error > tol then
+      status = false;
+      printf("FAILED %s: relative error too large: %e, expect %e\n", msg, error, tol)
+   else
+      printf("%s OK (%e vs %e)\n", msg, error, tol)
+   end
+end
+
+-------- test proper
+printf("-------------------- creating wilson MG----------\n");
+mg = qcd.qop.WilsonMG(U, mg_params);
+printf("-------------------- the solver object ----------\n");
+show_object("MG solver", mg);
+printf("-------------------- the solver's lattice -------\n");
+show_object("  mg.lattice", mg.lattice);
+printf("-------------------- solver's Nc ----------------\n");
+show_object("  mg:colors()", mg:colors());
+printf("-------------------- solver information ---------\n");
+show_object("MG info", mg:info());
+printf("-------------------- default inverter values ----\n");
+show_object("default inverter", mg:inverter());
+printf("-------------------- applying the MG solver -----\n");
+G,status = mg:solve(rhs);
+printf("-------------------- solution error--------------\n");
+check_vector(F, G, max_error, "default solver");
+printf("-------------------- solve status ---------------\n");
+show_object("solve status", status);
+printf("-------------------- solver store status --------\n");
+show_object("solver status", mg:status());
+
+printf("-------------------- applying the MG solver with high precision -----\n");
+G,status = mg:solve(rhs, high_prec);
+printf("-------------------- solution error--------------\n");
+check_vector(F, G, high_error, "high precision solver");
+printf("-------------------- solve status ---------------\n");
+show_object("solve status", status);
+printf("-------------------- solver store status --------\n");
+show_object("solver status", mg:status());
+
+
+
+printf("-------------------- operator tests ------------ \n");
+X = mg:operator(G);
+Y = stdOp(G);
+printf("relative error\n");
+printf("   ref vs std  : %e\n", (Y-X):norm2() / X:norm2());
+printf("   qop operator: %e\n", (X-rhs):norm2() / rhs:norm2());
+printf("   ref operator: %e\n", (Y-rhs):norm2() / rhs:norm2());
+
+
+if not status then
+   printf("***** Errors too large\n")
+   os.exit(1)
+else
+   printf("DONE OK\n");
+end
