@@ -57,7 +57,7 @@ q_R_sum(lua_State *L)
     
     switch (argc) {
     case 1: {
-        QLA_Real sum;
+        QLA_Real sum = 0;
 
         CALL_QDP(L);
         if (S->lss.mask) {
@@ -106,11 +106,11 @@ q_R_norm2(lua_State *L)
 {
     mLatReal *a = qlua_checkLatReal(L, 1, NULL);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_Real n;
+    QLA_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        mLatReal *b = qlua_newLatReal(L, lua_gettop(L));
+        mLatReal *b = qlua_newZeroLatReal(L, lua_gettop(L));
         QDP_R_eq_R_mask_I(b->ptr, a->ptr, S->lss.mask, *S->qss);
         QDP_r_eq_norm2_R(&n, b->ptr, *S->qss);
     } else {

@@ -22,7 +22,7 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 
 CC='mpicc -fopenmp -m64 -std=c99' \
 LD='mpif77 -fopenmp -m64 -fno-underscoring' \
-CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc" \
+CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
 COPTS='-g' \
 LIBS='-lz' \
 ./configure                                                \

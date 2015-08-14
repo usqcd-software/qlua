@@ -417,11 +417,11 @@ Qs(q_V_norm2_)(lua_State *L)
 {
     Qs(mLatColVec) *a = Qs(qlua_checkLatColVec)(L, 1, NULL, -1);
     mLattice *S = qlua_ObjLattice(L, 1);
-    QLA_D_Real n;
+    QLA_D_Real n = 0;
 
     CALL_QDP(L);
     if (S->lss.mask) {
-        Qs(mLatColVec) *b = Qs(qlua_newLatColVec)(L, lua_gettop(L), QC(a));
+        Qs(mLatColVec) *b = Qs(qlua_newZeroLatColVec)(L, lua_gettop(L), QC(a));
         Qx(QDP_D,_V_eq_V_mask_I)(b->ptr, a->ptr, S->lss.mask, *S->qss);
         Qx(QDP_D,_r_eq_norm2_V)(&n, b->ptr, *S->qss);
     } else {
