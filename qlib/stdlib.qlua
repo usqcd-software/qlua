@@ -53,4 +53,16 @@ function xml.get(x, n, ...)
   end
 end
 
+-- create an arithmetic sequence
+function range(lo, hi, step)
+  if nil == step  then step = 1 end
+  local res = {}
+  while (lo < hi) == (0 < step) do -- sic! logical XOR
+    res:insert(lo)
+    lo = lo + step
+  end
+  return res
+end
+
+
 require 'verbose'

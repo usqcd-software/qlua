@@ -107,7 +107,7 @@ function apply_bc(gauge_links, bc)
 end
 
 function complex2colmat(c)
-  m = c.lattice:ColorMatrix()
+  local m = c.lattice:ColorMatrix()
   for a = 0, m:colors()-1 do
     m[{a=a,b=a}] = c
   end

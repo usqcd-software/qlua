@@ -1,6 +1,7 @@
 require "stdlib"
 require "gauge"
 
+
 function get_staple(U, mu, numax)
   local st = 0 * U[1]
   for nu in skip(mu, interval(1,numax)) do
@@ -10,6 +11,8 @@ function get_staple(U, mu, numax)
   return st
 end
 
+-- XXX this function performs only 3d smearing
+-- XXX the name should be changed to avoid confusion
 function stout_smear(U, rho, n)
   local S = {}
   for i=1,4 do S[i] = U[i]; end
@@ -20,6 +23,58 @@ function stout_smear(U, rho, n)
     end
     for mu=1,3 do
       S[mu] = toSUn(rho*st[mu]) * S[mu]
+    end
+  end
+  return S
+end
+
+
+-- TODO stuff above need to be rewritten
+
+
+require "set"
+
+-- compute the sum of 1x1 staples parallel to 'mu' in all directions in dirset except mu
+--    U[1..#L]      gauge field
+--    mu            direction of staple, 0 <= mu < #L
+--    dirset        set of 2nd directions of staples, 0 <= nu < #L
+function get_staple_dirset(U, mu, dirset)
+  local st = 0 * U[1]
+  assert (#U == #(st.lattice))
+  for nu = 0, #(st.lattice)-1 do 
+    if set_contains(dirset, nu) and mu ~= nu then
+      st = st + U[1+nu] * U[1+mu]:shift(nu, "from_forward") * U[1+nu]:shift(mu, "from_forward"):adjoin()
+      st = st + (U[1+nu]:adjoin() * U[1+mu] * U[1+nu]:shift(mu, "from_forward")):shift(nu, "from_backward")
+    end
+  end
+  return st
+end
+
+-- complete (all directions) stout smearing
+--    U[1..#L]      gauge field
+--    rho           stout parameter
+--    n             number of stout smearing steps
+--    mu_skip       do not smear this direction, (and do not include staples in that direction)
+--                  0 <= mu_skip < #L
+-- [SNS 2015/08/13, implemented and x-checked with the old stout_smear]
+function stout_smear_full(U, rho, n, mu_skip)
+  local L = U[1].lattice
+  assert (#U == #L)
+  local dirset = {}
+  local S = {}
+  for mu = 0, #L-1 do 
+    if mu ~= mu_skip then set_add(dirset, mu) end
+    S[1+mu] = U[1+mu]
+  end
+  for i = 1, n do
+    local Sold = {}
+    for mu = 0, #L-1 do
+      Sold[1+mu] = S[1+mu]
+    end
+    for mu = 0, #L-1 do
+      if set_contains(dirset, mu) then
+        S[1+mu] = toSUn(rho * get_staple_dirset(Sold, mu, dirset) * Sold[1+mu]:adjoin()) * Sold[1+mu]
+      end
     end
   end
   return S

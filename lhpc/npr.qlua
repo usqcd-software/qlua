@@ -30,6 +30,7 @@ do
       lpath    -- linkpath(array of: dir for +1 shift, Nd+dir for -1 shift)
     )
     -- append '/' to kpath prefix if non-empty
+    local aff_kpath
     if lpath_min <= #lpath then 
       if (0 < aff_kpath_prefix:len()) then 
         aff_kpath = aff_kpath_prefix .. '/' .. lpath_string(lpath)
@@ -64,7 +65,7 @@ do
       gauge_u_,           -- gauge links
       bc,                 -- BC for quarks
       solver,             -- solver function
-      frw_mom, bkw_mom,   -- momenta of forward and backward
+      frw_mom, bkw_mom,   -- momenta of forward and backward - must agree with the BC (eg half-integer for APBC)
       ft_x0,              -- source coord: x,y,z,t
       lpath_min,          -- minimum linkpath length to save 
       lpath_max           -- maximum linkpath length
@@ -76,7 +77,9 @@ do
       ins_mom[1+i] = frw_mom[1+i] - bkw_mom[1+i]
       if 0 ~= ins_mom[1+i] then ins_nonzero = true end
     end
-    local frw_p = solver(complex2dirprop(L:planewave(ft_x0, frw_mom)))
+    local frw_src = complex2dirprop(L:planewave(ft_x0, frw_mom))
+    local frw_p   = solver(frw_src)
+    printf("|frw_src|^2=%e  |frw_prop|^2=%e\n", frw_src:norm2(), frw_p:norm2())
     qcd.save_npr_prop(aff_w, aff_kpath_prefix .. '/frw_prop', frw_p, frw_mom, ft_x0)
     local bkw_p = frw_p
     if ins_nonzero then 
