@@ -1,0 +1,140 @@
+-- convert cpspack<->(even/odd)sublat depending on the sublat type
+require "strict"
+require "latvec"
+
+function cps_eopc_pack(L, a, b, sublat)
+  -- pack eoprec field with CPS conventions
+  --    L       lattice object
+  --    a, b    (latvec) defined on sublat
+  --    sublat  "even"|"odd" support for the eoprec field
+
+  -- ignored (complementary) sublattice
+  if "even" == sublat then xsublat = "odd" 
+  elseif "odd" == sublat then xsublat = "even"
+  else error(string.format("unknown subat='%s'", sublat)) end
+  
+  local shift_dir = 0 -- constant, but can be parameter
+  local loc_lx = L[shift_dir] / L:network()[1+shift_dir]
+  if 0 ~= loc_lx % 2 then 
+    error(string.format("local dimension %d=%d/%d must be even", 
+                        loc_lx, L[shift_dir], L:network()[1+shift_dir]))
+  end
+  -- define even/odd co-sublattices
+  local xperp_sum = L:Int(0)
+  for mu = 0, #L - 1 do 
+    if mu ~= shift_dir then 
+      xperp_sum = xperp_sum + L:pcoord(mu)
+    end
+  end
+  local xperp_even = L:Subset(qcd.eq(xperp_sum % 2, 0))
+  local xperp_odd  = L:Subset(qcd.eq(xperp_sum % 2, 1))
+
+  -- check that values on ignored sublat to zero
+  local a_zcheck, b_zcheck = L:Subset(xsublat):where(
+    function()
+      return latvec_norm2(a), latvec_norm2(b)
+    end)
+  if 0 < a_zcheck or 0 < b_zcheck then
+    error(string.format("incorrect data in sublat eigenvectors: |a|^2=%e |b|^2=%e", 
+                        a_zcheck, b_zcheck))
+  end
+  -- b is always packed at (x+1) if a is packed at (x)
+  local res = latvec_scalsum_left(1., a, 1., latvec_shift(b, shift_dir, "from_backward"))
+  -- shift fields on appropriate orthogonal checkerboard subsets
+  if 'even' == sublat then
+    xperp_odd:where(function() 
+          local res_shift = latvec_shift(res, shift_dir, "from_forward")
+          latvec_set(res, res_shift)
+        end)
+  elseif "odd" == sublat then 
+    xperp_even:where(function() 
+          local res_shift = latvec_shift(res, shift_dir, "from_forward")
+          latvec_set(res, res_shift)
+        end)
+  else error(string.format("unknown subat='%s'", sublat)) end
+  return res
+end
+
+
+function cps_eopc_unpack(L, ab, sublat)
+  -- unpack CPS-packed eoprec field
+  --    L       lattice object
+  --    ab      cps-packed eoprec field
+  --    sublat  "even"|"odd" support for the eoprec field
+
+  -- ignored (complementary) sublattice
+  if "even" == sublat then xsublat = "odd" 
+  elseif "odd" == sublat then xsublat = "even"
+  else error(string.format("unknown subat='%s'", sublat)) end
+
+  local shift_dir = 0 -- constant, but can be parameter  
+  local xperp_sum = L:Int(0)
+  local loc_lx = L[shift_dir] / L:network()[1+shift_dir]
+  if 0 ~= loc_lx % 2 then 
+    error(string.format("local dimension %d=%d/%d must be even", 
+                        loc_lx, L[shift_dir], L:network()[1+shift_dir]))
+  end
+  -- define even/odd co-sublattices
+  for mu = 0, #L - 1 do 
+    if mu ~= shift_dir then 
+      xperp_sum = xperp_sum + L:pcoord(mu)
+    end
+  end
+  local xperp_even = L:Subset(qcd.eq(xperp_sum % 2, 0))
+  local xperp_odd  = L:Subset(qcd.eq(xperp_sum % 2, 1))
+ 
+  local a = latvec_copy(ab)
+  -- shift fields on appropriate orthogonal checkerboard subsets
+  if 'even' == sublat then
+    xperp_odd:where(function() 
+          latvec_set(a, latvec_shift(ab, shift_dir, "from_backward"))
+        end)
+  elseif "odd" == sublat then 
+    xperp_even:where(function() 
+          latvec_set(a, latvec_shift(ab, shift_dir, "from_backward"))
+        end)
+  else error(string.format("unknown subat='%s'", sublat)) end
+  -- b is always packed at (x+1) if a is packed at (x)
+  local b = latvec_shift(a, shift_dir, "from_forward")
+  
+  -- set values on ignored sublat to zero
+  L:Subset(xsublat):where(function()
+      latvec_setzero(a)
+      latvec_setzero(b)
+    end)
+  return a, b
+end
+
+
+-- TODO test : move to a separate file
+package.path = 'qlib/?.qlua;qlib-lhpc/?.qlua;' .. package.path
+require "stdlib"
+require "setup_util"
+--latsize = {8,8,8,12}
+--L = qcd.lattice(latsize)
+--S = rnd_init(L, 1973)
+function utest_cps_eopc_pack_unpack(L, S)
+
+  v1   = { S:gaussian_DiracFermion(), S:gaussian_DiracFermion(), S:gaussian_DiracFermion() }
+  v2   = { S:gaussian_DiracFermion(), S:gaussian_DiracFermion(), S:gaussian_DiracFermion() }
+
+  --sublat = "even"
+  --xsublat= "odd"
+  xsublat = "even"
+  sublat= "odd"
+
+  L:Subset(xsublat):where(function()
+      latvec_setzero(v1)
+      latvec_setzero(v2)
+    end)
+
+  v_eopack  = cps_eopc_pack(L, v1, v2, sublat)
+
+  printf("|v1|^2=%e  |v2|^2=%e  (|v1|^2+|v2|^2)=%e  |eopack|^2=%e\n", 
+      latvec_norm2(v1), latvec_norm2(v2), 
+      latvec_norm2({v1, v2}), latvec_norm2(v_eopack))
+
+  v1_up, v2_up = cps_eopc_unpack(L, v_eopack, sublat)
+  print_latvec_cmp(v1, v1_up, "v1 <-> v1_up")
+  print_latvec_cmp(v2, v2_up, "v2 <-> v2_up")
+end

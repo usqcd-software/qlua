@@ -135,6 +135,14 @@ function latvec_ortho(x, y_b) -- return ||x - (y_b . x)*y_b||
   return latvec_scal_left(math.sqrt(1. / latvec_norm2(x1)), x1)
 end
 
+-- set functions
+function latvec_setzero(a)
+  if 'table' == type(a) then
+    for i = 0, #a - 1 do
+      latvec_setzero(a[1+i])
+    end
+  else a:set(0. * a) end
+end
 function latvec_set(a, b)   -- set a <- b
   if 'table' == type(a) then
     assert ('table' == type(b))
@@ -144,6 +152,8 @@ function latvec_set(a, b)   -- set a <- b
     end
   else a:set(b) end
 end
+
+
 --    ss            subset with meaningful information
 --    ss_v1, ss_v2  precond. vectors defined only on subsets
 --    res[ss] <- ss_v1, res[not ss] <- ss_v2
