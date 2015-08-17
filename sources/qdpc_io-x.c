@@ -21,7 +21,11 @@ X_ID(qdpc_r_)(lua_State *L)
     int Sidx;
 
     check_reader(L, reader);
+#ifdef X_DF
+    mLattice *S = qlua_ObjLattice(L, 1);
+#else
     qlua_ObjLattice(L, 1);
+#endif
     Sidx = lua_gettop(L);
 
     /* collect garbage now */
@@ -32,8 +36,22 @@ X_ID(qdpc_r_)(lua_State *L)
         /* one color matrix */
         QDP_String *info = QDP_string_create();
         QLUA_NAME(m) *U = QLUA_NAME(qlua_newZero)(L, Sidx);
+	int status;
         
-        if (X_ID(QDP_read_)(reader->ptr, info, U->ptr) == 0) {
+#ifdef X_DF
+	if (get_prec(reader->ptr) == 'F') {
+	  T_sTYPE *tt = SopL(create)(S->lat);
+	  status = Sop(read)(reader->ptr, info, tt);
+	  FtoD(U->ptr, tt, S->all);
+	  Sop(destroy)(tt);
+	} else {
+#endif /* defined (X_DF) */
+	  status = X_ID(QDP_read_)(reader->ptr, info, U->ptr);
+#ifdef X_DF
+	}
+#endif /* defined (X_DF) */
+
+        if (status == 0) {
             /* read successful -- convert to LUA */
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
@@ -64,15 +82,31 @@ X_ID(qdpc_r_)(lua_State *L)
         }
         info = QDP_string_create();
 
-        /* do the reading */
-        status = X_ID(QDP_vread_)(reader->ptr, info, U, n);
-        if (status == 0) {
-            lua_pushstring(L, QDP_string_ptr(info));
-            QDP_string_destroy(info);
-			qlua_free(L, U);
-            return 2;
-        }
-        /* read failed */
+#ifdef X_DF
+	if (get_prec(reader->ptr) == 'F') {
+	  T_sTYPE *tt[n];
+	  for (i = 0; i < n; i++) {
+	    tt[i] = SopL(create)(S->lat);
+	  }
+	  status = Sop(vread)(reader->ptr, info, tt, n);
+	  for (i = 0; i < n; i++) {
+	    FtoD(U[i], tt[i], S->all);
+	    Sop(destroy)(tt[i]);
+	  }
+	} else {
+#endif /* defined (X_DF) */
+	  /* do the reading */
+	  status = X_ID(QDP_vread_)(reader->ptr, info, U, n);
+#ifdef X_DF
+	}
+#endif /* defined (X_DF) */
+	if (status == 0) {
+	  lua_pushstring(L, QDP_string_ptr(info));
+	  QDP_string_destroy(info);
+	  qlua_free(L, U);
+	  return 2;
+	}
+	/* read failed */
         QDP_string_destroy(info);
         for (i = 0; i < n; i++)
             X_ID(QDP_destroy_)(U[i]);
@@ -215,6 +249,11 @@ X_ID(qdpc_w_)(lua_State *L)
     return luaL_error(L, "qdpc write error");
 }
 
+#ifdef X_DF
+#undef Sop
+#undef SopL
+#undef FtoD
+#endif /* defined (X_DF) */
 #undef T_QTYPE
 #undef QLUA_NAME
 #undef X_ID
