@@ -69,7 +69,7 @@ X_ID(qdpc_r_)(lua_State *L)
         if (status == 0) {
             lua_pushstring(L, QDP_string_ptr(info));
             QDP_string_destroy(info);
-			qlua_free(L, U);
+            qlua_free(L, U);
             return 2;
         }
         /* read failed */

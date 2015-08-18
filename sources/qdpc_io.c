@@ -286,6 +286,171 @@ error:
     return luaL_error(L, "qdpc read error");
 }
 
+typedef struct {
+    QLA_D_Real **qla_arr;
+    int len;
+} putR_func_arg_s; 
+/* qdpc_r_genericR_put_F|D 
+   * read a sequence of float|double
+   * ignore "count" 
+*/
+static void 
+qdpc_r_genericR_put_F(char *buf, size_t index, int count, void *arg_)
+{
+    putR_func_arg_s *arg = arg_;
+//    if (arg->len != count)
+//        printf("arg->len =%d != %d=count\n", arg->len, count);
+    for (int i = 0 ; i < arg->len ; i++)
+        arg->qla_arr[i][index] = ((float *)buf)[i];
+}
+static void 
+qdpc_r_genericR_put_D(char *buf, size_t index, int count, void *arg_)
+{
+    putR_func_arg_s *arg = arg_;
+//    if (arg->len != count)
+//        printf("arg->len =%d != %d=count\n", arg->len, count);
+    for (int i = 0 ; i < arg->len ; i++)
+        arg->qla_arr[i][index] = ((double *)buf)[i];
+}
+
+static int
+qdpc_r_GenericReal(lua_State *L) 
+{
+    /* read any lime record interpreting it as a sequence of LatticeReal (determi) 
+       return a table (list) of LatticeReal
+       determine the length of 
+     */
+    int status = 0;
+    const char *errstr = NULL;
+
+    mReader *reader = q_checkReader(L, 1, NULL);
+    int Sidx;
+
+
+    QDP_D_Real **qdp_arr = NULL;
+    QLA_D_Real **qla_arr = NULL;
+    QIO_String *rec_xml  = NULL;
+    char prec = '\0' ;   /* no default value */
+    int datacount   = -1,
+        typesize    = -1,
+        wordsize    = -1;
+
+    void (*put_f)(char *, size_t, int, void *);
+    putR_func_arg_s put_arg;
+
+    if (qlua_checkopt_table(L, 2)) {
+        if (qlua_tabpushopt_key(L, 2, "precision")) {
+            prec = qlua_qio_file_precision(L, -1);
+            lua_pop(L, 1);
+        }
+    }
+
+    check_reader(L, reader);
+    qlua_ObjLattice(L, 1);
+    Sidx = lua_gettop(L);
+    
+    CALL_QDP(L);
+
+    QIO_Reader *qio_r = QDP_reader_get_qio(reader->ptr);
+    QIO_RecordInfo rec_info;
+    if (NULL == (rec_xml = QIO_string_create())) {
+        errstr = "memory error";
+        goto clearerr_1;
+    }
+    if (0 != (status =
+            QIO_read_record_info(qio_r, &rec_info, rec_xml))) {
+        errstr = "cannot read record info";
+        goto clearerr_1;
+    }
+    if ('F' != prec && 'D' != prec) {
+        if (!QIO_defined_precision(&rec_info)) {
+            luaL_error(L, "precision not defined");
+        }
+        prec = *QIO_get_precision(&rec_info);
+    }
+    switch (prec) {
+    case 'F' :  {
+        wordsize = 4;       
+        put_f    = qdpc_r_genericR_put_F;
+        break; }
+    case 'D' :  {
+        wordsize = 8;       
+        put_f    = qdpc_r_genericR_put_D;
+        break;
+    }
+    default:    return luaL_error(L, "unknown precision");
+    }
+    if (!QIO_defined_datacount(&rec_info) || !QIO_defined_typesize(&rec_info)) {
+        errstr = "datacount or typesize not defined";
+        goto clearerr_1;
+    }
+    datacount   = QIO_get_datacount(&rec_info);
+    typesize    = QIO_get_typesize(&rec_info);
+    if (0 != (datacount * typesize) % wordsize) {
+        errstr = "incompatible datacount, typesize and precision";
+        goto clearerr_1;
+    }
+    int lenR        = (datacount * typesize) / wordsize;
+    printf("prec='%c'   datacount=%d   typesize=%d   wordsize=%d\n", 
+           prec, datacount, typesize, wordsize);
+
+    /* init fields, prepare for import */
+    qdp_arr = qlua_malloc(L, lenR * sizeof(QDP_D_Real *));
+    qla_arr = qlua_malloc(L, lenR * sizeof(QLA_D_Real *));
+    if (NULL == qdp_arr || NULL == qla_arr) {
+        errstr = "memory_error";
+        goto clearerr_2;
+    }
+
+    lua_createtable(L, lenR, 0);
+    for (int i = 0 ; i < lenR ; i++) {
+        mLatReal *ui = qlua_newZeroLatReal(L, Sidx);
+        if (NULL == ui) {
+            errstr = "memory_error";
+            goto clearerr_2;
+        }
+        qdp_arr[i] = ui->ptr;
+        qla_arr[i] = QDP_D_expose_R(qdp_arr[i]);
+        lua_rawseti(L, -2, i + 1); /* pops the value */
+    }
+
+    /* import qio data */
+    put_arg.len     = lenR;
+    put_arg.qla_arr = qla_arr;
+    if (0 != (status = QIO_read(qio_r, &rec_info, rec_xml, put_f, 
+                    datacount * typesize, wordsize, &put_arg))) {
+        errstr = "qio read failed";
+        goto clearerr_2;
+    }
+    
+    lua_pushstring(L, QIO_string_ptr(rec_xml));
+
+    /* cleanup */
+    for (int i = 0 ; i < lenR ; i++)
+        QDP_D_reset_R(qdp_arr[i]);
+    qlua_free(L, qdp_arr);
+    qlua_free(L, qla_arr);
+    QIO_string_destroy(rec_xml);
+
+    return 2;       /* { (table of)field(s), rec_xml } */
+
+    /* error cleanup */
+clearerr_3:
+    for (int i = 0 ; i < lenR ; i++) {
+        QDP_D_reset_R(qdp_arr[i]);
+        QDP_D_destroy_R(qdp_arr[i]);
+    }
+clearerr_2:
+    if (NULL != qla_arr) qlua_free(L, qla_arr);
+    if (NULL != qdp_arr) qlua_free(L, qdp_arr);
+clearerr_1:
+    if (NULL != rec_xml) QIO_string_destroy(rec_xml);
+
+    return luaL_error(L, errstr);
+}
+
+
+
 #ifdef HAS_GSL
 static int
 qdpc_r_rm(lua_State *L)
@@ -396,6 +561,7 @@ static const struct luaL_Reg mtReader[] = {
     { "Complex",          qdpc_r_C                 },
 #if USE_Nc2 || USE_Nc3 || USE_NcN
     { "ColorVector",      qdpc_r_ColorVector       },
+    { "generic_Real",     qdpc_r_GenericReal       },
     { "ColorVectorN",     qdpc_r_ColorVectorN      },
     { "ColorMatrix",      qdpc_r_ColorMatrix       },
     { "ColorMatrixN",     qdpc_r_ColorMatrixN      },

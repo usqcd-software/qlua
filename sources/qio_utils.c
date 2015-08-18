@@ -95,7 +95,9 @@ qlua_qio_file_precision(lua_State *L, int idx)
         int value;
     } fmts[] = {
         { "double", 'D' },
+        { "D",      'D' },
         { "float",  'F' },
+        { "F",      'F' },
         { NULL,     -1  }
     };
     int i;
