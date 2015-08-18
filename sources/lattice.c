@@ -441,6 +441,13 @@ q_network(lua_State *L)
 }
 
 static int
+q_node(lua_State *L)
+{
+  lua_pushnumber(L, QMP_get_node_number());
+  return 1;
+}
+
+static int
 q_volume(lua_State *L)
 {
   mLattice *S = qlua_checkLattice(L, 1);
@@ -456,12 +463,14 @@ static struct luaL_Reg LatticeMethods[] = {
     { "network",          q_latnet        },
     { "everywhere",       qlua_everywhere },
     { "volume",           q_volume        },
+    { "node",             q_node          },
     { NULL,               NULL            }
 };
 
 static struct luaL_Reg fLattice[] = {
     { "lattice",            q_lattice },
     { "network",            q_network },
+    { "node",               q_node    },
     { NULL, NULL}
 };
 

@@ -88,6 +88,9 @@ get_prec(QDP_Reader *qr)
 #define X_ID2(a,b)    a ## R ## b
 #define X_ID3(a,b)    a ## R ## b ## R
 #define T_sTYPE       QDP_F_Real
+#define SopL(n)       QDP_F_ ## n ## _R_L
+#define Sop(n)        QDP_F_ ## n ## _R
+#define FtoD(d,s,a)   QDP_DF_R_eq_R((d),(s),(a))
 #define X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
@@ -97,6 +100,9 @@ get_prec(QDP_Reader *qr)
 #define X_ID2(a,b)    a ## C ## b
 #define X_ID3(a,b)    a ## C ## b ## C
 #define T_sTYPE       QDP_F_Complex
+#define SopL(n)       QDP_F_ ## n ## _C_L
+#define Sop(n)        QDP_F_ ## n ## _C
+#define FtoD(d,s,a)   QDP_DF_C_eq_C((d),(s),(a))
 #define X_DF
 #include "qdpc_io-x.c"                                               /* DEPS */
 
