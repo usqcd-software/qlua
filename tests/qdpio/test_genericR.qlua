@@ -1,0 +1,272 @@
+--package.path = 'qlib/?.qlua;' .. package.path
+
+require "strict"
+require "stdlib"
+require "qdpc_io"
+require "setup_util"
+require "latvec"
+
+function mk_tab(n, f)
+  local res = {}
+  for i = 1, n do res[i] = f end
+  return res
+end
+
+function write_R(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:Real(prec, f, "")
+  qdp_w:close()
+  printf("R*%d write success\n", #f)
+end
+function write_C(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:Complex(prec, f, "")
+  qdp_w:close()
+  printf("C*%d write success\n", #f)
+end
+function write_V(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:ColorVector(prec, f, "")
+  qdp_w:close()
+  printf("V*%d write success\n", #f)
+end
+function write_M(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:ColorMatrix(prec, f, "")
+  qdp_w:close()
+  printf("M*%d write success\n", #f)
+end
+function write_D(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:DiracFermion(prec, f, "")
+  qdp_w:close()
+  printf("D*%d write success\n", #f)
+end
+function write_P(file, volfmt, prec, f)
+  local qdp_w = open_qdpc_write(L, file, "", volfmt)
+  qdp_w:DiracPropagator(prec, f, "")
+  qdp_w:close()
+  printf("P*%d write success\n", #f)
+end
+
+
+function read_R(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:Real(n)
+  qdp_r:close()
+  printf("R*%d read success\n", n)
+  return x
+end
+function read_C(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:Complex(n)
+  qdp_r:close()
+  printf("C*%d read success\n", n)
+  return x
+end
+function read_V(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:ColorVector(n)
+  qdp_r:close()
+  printf("V*%d read success\n", n)
+  return x
+end
+function read_M(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:ColorMatrix(n)
+  qdp_r:close()
+  printf("M*%d read success\n", n)
+  return x
+end
+function read_D(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:DiracFermion(n)
+  qdp_r:close()
+  printf("D*%d read success\n", n)
+  return x
+end
+function read_P(file, n)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:DiracPropagator(n)
+  qdp_r:close()
+  printf("P*%d read success\n", n)
+  return x
+end
+function read_genericR(file)
+  local qdp_r = open_qdpc_read(L, file)
+  local x = qdp_r:generic_Real()
+  qdp_r:close()
+  printf("R*%d GENERIC read success\n", #x)
+  return x
+end
+
+
+
+latsize = {4,4,4,4}
+L   = qcd.lattice(latsize)
+S   = rnd_init(L, 1973)
+r   = S:gaussian_Real()
+c   = S:gaussian_Complex()
+cv  = S:gaussian_ColorVector()
+cm  = S:gaussian_ColorMatrix()
+df  = S:gaussian_DiracFermion()
+dp  = S:gaussian_DiracPropagator()
+
+file = "test_readwrite.qdpc"
+volfmt  = "part"
+
+
+-- format-specific functions
+function R2C(r)
+  local lenR = #r
+  assert(0 == lenR % 2)
+  local resC = {}
+  for i = 1, lenR/2 do
+    resC[i] = r[2*i-1] + complex(0,1)*r[2*i]
+  end
+  return resC
+end
+function C2V(c)
+  local nc = 3
+  local lenC = #c
+  assert(0 == lenC % nc)
+  local resV = {}
+  for i = 0, lenC/nc-1 do
+    local cv = L:ColorVector()
+    for a = 0, nc-1 do
+      cv[{c=a}] = c[1 + a + nc * i]
+    end
+    resV[1+i] = cv
+  end
+  return resV
+end
+function C2M(c)
+  local nc = 3
+  local nc2= nc * nc
+  local lenC = #c
+  assert(0 == lenC % nc2)
+  local resM = {}
+  for i = 0, lenC/nc2-1 do
+    local cm = L:ColorMatrix()
+    for a = 0, nc-1 do
+      for b = 0, nc-1 do
+        cm[{a=a, b=b}] = c[1 + b + nc * (a + nc * i)]
+      end
+    end
+    resM[1+i] = cm
+  end
+  return resM
+end
+function C2D(c)
+  local nc = 3
+  local ns = 4
+  local ncs = nc * ns
+  local lenC = #c
+  assert(0 == lenC % ncs)
+  local resD = {}
+  for i = 0, lenC / ncs - 1 do
+    local df = L:DiracFermion()
+    for s = 0, ns-1 do
+      for a = 0, nc-1 do
+        df[{d=s,c=a}] = c[1 + a + nc * (s + ns * i)]
+      end
+    end
+    resD[1+i] = df
+  end
+  return resD
+end
+function C2P(c)
+  local nc = 3
+  local ns = 4
+  local ncs = nc * ns
+  local ncs2 = ncs * ncs
+  local lenC = #c
+  assert(0 == lenC % ncs2)
+  local resP = {}
+  for i = 0, lenC / ncs2 - 1 do
+    local dp = L:DiracPropagator()
+    for jc = 0, nc-1 do  for js = 0, ns-1 do
+      local df = L:DiracFermion()
+      for ic = 0, nc-1 do  for is = 0, ns-1 do
+        -- sic! order to agree with QDP/C++
+        df[{c=ic,d=is}] = c[1 + jc + nc * (ic + nc * (js + ns * (is + ns * i)))]
+      end end
+      dp[{c=jc,d=js}] = df
+    end end
+    resP[1+i] = dp
+  end
+  return resP
+end
+function R2V(r) return C2V(R2C(r)) end
+function R2M(r) return C2M(R2C(r)) end
+function R2D(r) return C2D(R2C(r)) end
+function R2P(r) return C2P(R2C(r)) end
+
+
+function do_test(test, prec, lenR)
+  local lenC  = lenR / 2
+  local lenV  = lenR / 6
+  local lenM  = lenR / 18
+  local lenD  = lenR / 24
+  local lenP  = lenR / 288
+  printf("*** sizes = %s %s %s %s %s %s\n", 
+        tostring(lenR), tostring(lenC),
+        tostring(lenV), tostring(lenM),
+        tostring(lenD),tostring(lenP))
+
+  if "R" == test then
+    write_R(file, volfmt, prec, mk_tab(lenR, r))
+    local r2  = read_R(file, lenR)
+    local genR= read_genericR(file)
+    print_latvec_cmp(r2, genR, "R<->genR")
+
+  elseif "C" == test then
+    write_C(file, volfmt, prec, mk_tab(lenC, c))
+    local c2  = read_C(file, lenC)
+    local genR= read_genericR(file)
+    print_latvec_cmp(c2, R2C(genR), "C<->genR")
+  
+  elseif "V" == test then
+    write_V(file, volfmt, prec, mk_tab(lenV, cv))
+    local v2  = read_V(file, lenV)
+    local genR= read_genericR(file)
+    print_latvec_cmp(v2, R2V(genR), "V<->genR")
+    
+
+  elseif "M" == test then
+    write_M(file, volfmt, prec, mk_tab(lenM, cm))
+    local m2  = read_M(file, lenM)
+    local genR= read_genericR(file)
+    print_latvec_cmp(m2, R2M(genR), "M<->genR")
+
+
+  elseif "D" == test then
+    write_D(file, volfmt, prec, mk_tab(lenD, df))
+    local d2  = read_D(file, lenD)
+    local genR= read_genericR(file)
+
+    print_latvec_cmp(d2, R2D(genR), "D<->genR")
+
+  elseif "P" == test then
+    write_P(file, volfmt, prec, mk_tab(lenP, dp))
+    local p2  = read_P(file, lenP)
+    local genR= read_genericR(file)
+    print_latvec_cmp(p2, R2P(genR), "P<->genR")
+
+  else error("unknown test")
+  end
+end
+
+
+-- XXX modify to float to examine the problem
+-- comment 'do_test' to see how reading as R,C fails in different cases
+--prec = "double"
+prec = "float"
+do_test("R", prec, 18)
+do_test("C", prec, 18)
+do_test("V", prec, 18)
+do_test("M", prec, 72)
+do_test("D", prec, 576)
+do_test("P", prec, 576)
+
+printf("QLUA_SUCCESS\n")
