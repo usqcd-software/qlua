@@ -1,0 +1,77 @@
+require "stdlib";
+require "gauge";
+require "wilson-flow";
+
+Lx = 4;
+Lt = 8;
+Nc = 3;
+seed = 1236;
+epsilon = 0.02;
+Nsteps = 250;
+sigma = 5.1534; -- gaussian factor
+
+-- create lattice
+lat = qcd.lattice{Lx,Lx,Lx,Lt};
+
+-- create seed
+function mk_seed(L,s)
+   local x = L:Int(0);
+   local i;
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i);
+   end
+   return L:RandomState(s,x);
+end
+rnd = mk_seed(lat,seed);
+
+-- create random lattice
+function mk_gauge(L,rnd)
+   local U = {};
+   local i;
+   for i = 0, #L - 1 do
+      U[i+1] = toSUn(rnd:gaussian_ColorMatrixN(Nc) * sigma);
+   end
+   return U;
+end
+
+Ustart = mk_gauge(lat, rnd);
+
+function plaq(U)
+   local i,j;
+   local L = U[1].lattice;
+   local v = L:volume();
+   local np = 0;
+   local p = L:Real();
+
+   for i = 0, #L - 2 do
+      for j = i + 1, #L - 1 do
+         p = p + plaquette(U,i,j):trace():real();
+         np = np + v;
+      end
+   end
+   return p:sum() / (np * Nc);
+end
+
+-- 
+printf("# initial plaq %f\n", plaq(Ustart));
+Ufull = Ustart;
+Uspace = Ustart;
+
+function update_space(old,new)
+   local v = {};
+   local i;
+   v[1] = old[1];
+   for i = 2, #old do
+      v[i] = new[i];
+   end
+   return v;
+end
+
+---- run the test
+for i = 0, Nsteps do
+   Ufull = wilson_flow(Ufull, epsilon);
+   Uspace = wilson_flow(Uspace, epsilon, {update = update_space});
+   printf(" %7.4f  %10.7f  %10.7f\n", i * epsilon, plaq(Ufull), plaq(Uspace));
+end
+
+printf("# DONE\n");
