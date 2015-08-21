@@ -7,7 +7,7 @@ Lt = 8;
 Nc = 3;
 seed = 1236;
 epsilon = 0.02;
-Nsteps = 250;
+Nsteps = 500;
 sigma = 5.1534; -- gaussian factor
 
 -- create lattice
@@ -57,14 +57,9 @@ printf("# initial plaq %f\n", plaq(Ustart));
 Ufull = Ustart;
 Uspace = Ustart;
 
+-- keep plane 0-1 fixed
 function update_space(old,new)
-   local v = {};
-   local i;
-   v[1] = old[1];
-   for i = 2, #old do
-      v[i] = new[i];
-   end
-   return v;
+   return {old[1],old[2],new[3],new[4]};
 end
 
 ---- run the test
