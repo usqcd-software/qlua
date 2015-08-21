@@ -1,3 +1,5 @@
+-- test reading NERSC file format
+
 require "stdlib"
 
 L = qcd.lattice{4,4,4,8}
@@ -6,7 +8,7 @@ L = qcd.lattice{4,4,4,8}
 -- provide your own NERSC file for testing!
 file_name = os.getenv("NERSC_DATA")
 if not file_name then
-  file_name = "./tests/random-gauge.nersc"
+  file_name = "./tests/io-gauge/random-gauge.nersc"
 end
 
 -- U, msg = L:nersc_gauge(file_name)

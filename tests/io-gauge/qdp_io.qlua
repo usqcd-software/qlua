@@ -1,3 +1,4 @@
+-- tests reading and writing of chroma-generated gauge field.
 require "stdlib"
 
 Lx = 4
@@ -5,7 +6,7 @@ Lt = 8
 -- this is probably a bad (chroma) sample file, but it should read OK
 gfile = os.getenv("QDP_FILE")
 if not gfile then 
-  gfile = "./tests/random-gauge.qio"
+  gfile = "./tests/io-gauge/random-gauge.qio"
 end
 output = "xxx"
 
