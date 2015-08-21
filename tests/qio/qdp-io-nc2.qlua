@@ -1,0 +1,3 @@
+-- run with ./qlua tests/qio/qdp-io-nc2.qlua
+lattice_colors = 2
+require "tests/qio/qdp-io-common"

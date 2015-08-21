@@ -21,9 +21,9 @@ printf("Lt = %d\n", Lt)
 
 -- setup gauge
 L = qcd.lattice({Lx, Lx, Lx, Lt})
-L:set_defaults{colors=lattice_colors}
+L:defaults{colors=lattice_colors}
 
-printf("Default colors: %s\n", tostring(L:get_defaults().colors))
+printf("Default colors: %s\n", tostring(L:defaults().colors))
 
 do
    local x = L:Int(0)
