@@ -1807,6 +1807,93 @@ found:
     return xx;
 }
 
+
+static int
+build_clover(lua_State *L,
+	     mLattice *S,
+	     double kappa,
+	     double c_sw,
+	     mClover *clover,
+	     QNc(QLA_D, _ColorMatrix) *uf[],
+	     double (*u_reader)(int, const int [], int, int, int, void *),
+	     double (*f_reader)(int, int, const int [], int, int, int, void *),
+	     void *args)
+{
+  QNc(QDP_D, _ColorMatrix) *UF[Nz];
+
+  luaL_checktype(L, 1, LUA_TTABLE);
+  CALL_QDP(L);
+  
+  /* create a temporary F, and temp M */
+  int i;
+  for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+    UF[i] = QNc(QDP_D, _create_M_L)(S->lat);
+  
+  /* extract U from the arguments */
+  for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
+    lua_pushnumber(L, i + 1); /* [sic] lua indexing */
+    lua_gettable(L, 1);
+    UF[i] = QNz(qlua_checkLatColMat)(L, -1, S, QLUA_CLOVER_NC)->ptr;
+    lua_pop(L, 1);
+  }
+
+  int mu, nu;
+  QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
+  CALL_QDP(L); /* just in case, because we touched LUA state above */
+  /* compute 8i*F[mu,nu] in UF[Nf...] */
+  for (i = 0, mu = 0; mu < QNc(QOP_, _CLOVER_DIM); mu++) {
+    for (nu = mu + 1; nu < QNc(QOP_, _CLOVER_DIM); nu++, i++) {
+      /* clover in [mu, nu] --> UF[Nu + i] */
+      QNc(QDP_D, _M_eq_sM)(UF[Nt], UF[nu], neighbor[mu], QDP_forward, S->all);
+      QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+1], UF[nu], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_M_times_M)(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward, S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward, S->all);
+      QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
+      QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
+      QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward, S->all);
+      QNc(QDP_D, _M_peq_M)(UF[Nt+4], UF[Nt+2], S->all);
+      QNc(QDP_D, _M_eq_M)(UF[Nu+i], UF[Nt+4], S->all);
+      QNc(QDP_D, _M_meq_Ma)(UF[Nu+i], UF[Nt+4], S->all);
+    }
+  }
+
+  struct QNc(QOP_, _CLOVER_Config) cc;
+  cc.self = S->node;
+  cc.master_p = QMP_is_primary_node();
+  cc.rank = S->rank;
+  cc.lat = S->dim;
+  cc.net = S->net;
+  cc.neighbor_up = S->neighbor_up;
+  cc.neighbor_down = S->neighbor_down;
+  cc.sublattice = qlua_sublattice;
+  cc.env = S;
+  if (QNc(QOP_, _CLOVER_init)(&clover->state, &cc))
+    return luaL_error(L, "CLOVER_init() failed");
+
+    /* import the gauge field */
+    for (i = 0; i < Nt; i++) {
+      uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
+    }
+
+    if (QNc(QOP_, _CLOVER_import_gauge)(&clover->gauge, clover->state, kappa, c_sw,
+                                u_reader, f_reader, args)) {
+        return luaL_error(L, "CLOVER_import_gauge() failed");
+    }
+
+    for (i = 0; i < Nt; i++)
+      QNc(QDP_D, _reset_M)(UF[i]);
+
+    /* clean up temporaries */
+    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+      QNc(QDP_D, _destroy_M)(UF[i]);
+
+    return 1;
+}
 /*
  *  qcd.Clover(U,         -- 1, {U0,U1,U2,U3}, a table of color matrices
  *             kappa,     -- 2, double, the hopping parameter
@@ -1824,7 +1911,7 @@ q_clover(lua_State *L)
     QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
     mLattice *S = qlua_ObjLattice(L, -1);
     int Sidx = lua_gettop(L);
-    mClover *c = qlua_newClover(L, Sidx);
+    mClover *clover = qlua_newClover(L, Sidx);
 
     if (S->rank != QNc(QOP_, _CLOVER_DIM))
         return luaL_error(L, "clover is not implemented for #L=%d", S->rank);
@@ -1832,6 +1919,9 @@ q_clover(lua_State *L)
         return luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
 
     QCArgs args;
+    args.lat = S->lat;
+    QDP_latsize_L(S->lat, args.lattice);
+
     luaL_checktype(L, 4, LUA_TTABLE);
     for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
         lua_pushnumber(L, i + 1);
@@ -1851,89 +1941,10 @@ q_clover(lua_State *L)
 
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
-    c->kappa = kappa;
-    c->c_sw = c_sw;
+    clover->kappa = kappa;
+    clover->c_sw = c_sw;
 
-    QNc(QDP_D, _ColorMatrix) *UF[Nz];
-
-    luaL_checktype(L, 1, LUA_TTABLE);
-    CALL_QDP(L);
-
-    /* create a temporary F, and temp M */
-    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
-      UF[i] = QNc(QDP_D, _create_M_L)(S->lat);
-
-    /* extract U from the arguments */
-    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
-        lua_pushnumber(L, i + 1); /* [sic] lua indexing */
-        lua_gettable(L, 1);
-        UF[i] = QNz(qlua_checkLatColMat)(L, -1, S, QLUA_CLOVER_NC)->ptr;
-        lua_pop(L, 1);
-    }
-
-    int mu, nu;
-    QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
-    CALL_QDP(L); /* just in case, because we touched LUA state above */
-    /* compute 8i*F[mu,nu] in UF[Nf...] */
-    for (i = 0, mu = 0; mu < QNc(QOP_, _CLOVER_DIM); mu++) {
-        for (nu = mu + 1; nu < QNc(QOP_, _CLOVER_DIM); nu++, i++) {
-            /* clover in [mu, nu] --> UF[Nu + i] */
-            QNc(QDP_D, _M_eq_sM)(UF[Nt], UF[nu], neighbor[mu], QDP_forward,
-                           S->all);
-            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+1], UF[nu], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_M_times_M)(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward,
-                           S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward,
-                        S->all);
-            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
-            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
-            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward,
-                        S->all);
-            QNc(QDP_D, _M_peq_M)(UF[Nt+4], UF[Nt+2], S->all);
-            QNc(QDP_D, _M_eq_M)(UF[Nu+i], UF[Nt+4], S->all);
-            QNc(QDP_D, _M_meq_Ma)(UF[Nu+i], UF[Nt+4], S->all);
-        }
-    }
-
-    args.lat = S->lat;
-    /* create the clover state */
-    QDP_latsize_L(S->lat, args.lattice);
-    struct QNc(QOP_, _CLOVER_Config) cc;
-    cc.self = S->node;
-    cc.master_p = QMP_is_primary_node();
-    cc.rank = S->rank;
-    cc.lat = S->dim;
-    cc.net = S->net;
-    cc.neighbor_up = S->neighbor_up;
-    cc.neighbor_down = S->neighbor_down;
-    cc.sublattice = qlua_sublattice;
-    cc.env = S;
-    if (QNc(QOP_, _CLOVER_init)(&c->state, &cc))
-        return luaL_error(L, "CLOVER_init() failed");
-
-    /* import the gauge field */
-    for (i = 0; i < Nt; i++) {
-      args.uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
-    }
-
-    if (QNc(QOP_, _CLOVER_import_gauge)(&c->gauge, c->state, kappa, c_sw,
-                                q_CL_u_reader, q_CL_f_reader, &args)) {
-        return luaL_error(L, "CLOVER_import_gauge() failed");
-    }
-
-    for (i = 0; i < Nt; i++)
-      QNc(QDP_D, _reset_M)(UF[i]);
-
-    /* clean up temporaries */
-    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
-      QNc(QDP_D, _destroy_M)(UF[i]);
-
-    return 1;
+    return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
 }
 
 static struct luaL_Reg mtClover[] = {

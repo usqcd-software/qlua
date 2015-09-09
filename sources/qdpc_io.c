@@ -441,7 +441,6 @@ qdpc_r_GenericReal(lua_State *L)
     return 2;       /* { (table of)field(s), rec_xml } */
 
     /* error cleanup */
-clearerr_3:
     for (int i = 0 ; i < lenR ; i++) {
         QDP_D_reset_R(qdp_arr[i]);
         QDP_D_destroy_R(qdp_arr[i]);
