@@ -699,6 +699,45 @@ qlua_tabidx_double(lua_State *L, int idx, int key)
   return v;
 }
 
+static void
+get_complex(lua_State *L, double *rptr, double *iptr, const char *msg)
+{
+  switch (qlua_qtype(L, -1)) {
+  case qReal:
+    *rptr = lua_tonumber(L, -1);
+    *iptr = 0.0;
+    break;
+  case qComplex: {
+    QLA_D_Complex *z = qlua_checkComplex(L, -1);
+    *rptr = QLA_real(*z);
+    *iptr = QLA_imag(*z);
+  } break;
+  default:
+    luaL_error(L, msg);
+  }
+  lua_pop(L, 1);
+}
+
+void
+qlua_tabkey_complex(lua_State *L, int idx, const char *key, double *rptr, double *iptr, const char *msg)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting complex in { %s = ...}", key);
+  get_complex(L, rptr, iptr, msg);
+  return;
+}
+
+void
+qlua_tabidx_complex(lua_State *L, int idx, int key, double *rptr, double *iptr, const char *msg)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting complex in { [%d] = ...}", key);
+  get_complex(L, rptr, iptr, msg);
+  return;
+}
+
 const char *
 qlua_tabkey_string(lua_State *L, int idx, const char *key)
 {

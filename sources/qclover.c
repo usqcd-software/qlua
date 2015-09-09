@@ -1894,6 +1894,20 @@ build_clover(lua_State *L,
 
     return 1;
 }
+
+static void
+get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const char *msg)
+{
+  int i;
+
+  luaL_checktype(L, idx, LUA_TTABLE);
+  for (i = 0; i < dim; i++) {
+    double rv, iv;
+    qlua_tabidx_complex(L, idx, i + 1, &rv, &iv, msg);
+    QLA_c_eq_r_plus_ir(cv[i], rv, iv);
+  }
+}
+
 /*
  *  qcd.Clover(U,         -- 1, {U0,U1,U2,U3}, a table of color matrices
  *             kappa,     -- 2, double, the hopping parameter
@@ -1903,8 +1917,6 @@ build_clover(lua_State *L,
 static int
 q_clover(lua_State *L)
 {
-    int i;
-
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_pushnumber(L, 1);
     lua_gettable(L, 1);
@@ -1922,27 +1934,11 @@ q_clover(lua_State *L)
     args.lat = S->lat;
     QDP_latsize_L(S->lat, args.lattice);
 
-    luaL_checktype(L, 4, LUA_TTABLE);
-    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, 4);
-        switch (qlua_qtype(L, -1)) {
-        case qReal:
-            QLA_c_eq_r_plus_ir(args.bf[i], lua_tonumber(L, -1), 0);
-            break;
-        case qComplex:
-            QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
-            break;
-        default:
-            luaL_error(L, "bad clover boundary condition type");
-        }
-        lua_pop(L, 1);
-    }
-
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
     clover->kappa = kappa;
     clover->c_sw = c_sw;
+    get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "bad boundary condition value");
 
     return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
 }
