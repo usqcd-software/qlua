@@ -650,8 +650,8 @@ qlua_tabidx_int(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting integer in { %s = ...}", key);
-  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+    luaL_error(L, "expecting integer in { [%d] = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { [%d] = ...}", key);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
   return v;
@@ -692,7 +692,7 @@ qlua_tabidx_double(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting double in { %s = ...}", key);
+    luaL_error(L, "expecting double in { [%d] = ...}", key);
   v = luaL_checknumber(L, -1);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
@@ -771,7 +771,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting string in { %s = ...}", key);
+    luaL_error(L, "expecting string in { [%d] = ...}", key);
   v = luaL_checkstring(L, -1);
   lua_pop(L, 1); /* expect the user not to drop the object */
 

@@ -59,7 +59,6 @@ typedef struct {
 typedef struct {
   struct QNc(QOP_, _CLOVER_State) *state;
   struct QNc(QOP_, _CLOVER_Gauge) *gauge;
-  double kappa, c_sw;
 } mClover;
 
 typedef struct {
@@ -1400,7 +1399,7 @@ q_CL_fmt(lua_State *L)
     mClover *c = qlua_checkClover(L, 1, NULL, 0);
 
     if (c->state)
-        sprintf(fmt, "Clover[%g,%g]", c->kappa, c->c_sw);
+        sprintf(fmt, "Clover[%p]", c);
     else
         sprintf(fmt, "Clover(closed)");
 
@@ -1936,8 +1935,6 @@ q_clover(lua_State *L)
 
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
-    clover->kappa = kappa;
-    clover->c_sw = c_sw;
     get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "bad boundary condition value");
 
     return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
