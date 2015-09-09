@@ -1895,6 +1895,22 @@ build_clover(lua_State *L,
 }
 
 static void
+start_clover(lua_State *L, mLattice **ptr_S, mClover **ptr_clover)
+{
+  luaL_checktype(L, 1, LUA_TTABLE);
+  lua_pushnumber(L, 1);
+  lua_gettable(L, 1);
+  QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
+  *ptr_S = qlua_ObjLattice(L, -1);
+  int Sidx = lua_gettop(L);
+  *ptr_clover = qlua_newClover(L, Sidx);
+  if ((*ptr_S)->rank != QNc(QOP_, _CLOVER_DIM))
+    luaL_error(L, "clover is not implemented for #L=%d", (*ptr_S)->rank);
+  if (QDP_Ns != QNc(QOP_,  _CLOVER_FERMION_DIM))
+    luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
+}
+
+static void
 get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const char *msg)
 {
   int i;
@@ -1916,26 +1932,16 @@ get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const cha
 static int
 q_clover(lua_State *L)
 {
-    luaL_checktype(L, 1, LUA_TTABLE);
-    lua_pushnumber(L, 1);
-    lua_gettable(L, 1);
-    QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
-    mLattice *S = qlua_ObjLattice(L, -1);
-    int Sidx = lua_gettop(L);
-    mClover *clover = qlua_newClover(L, Sidx);
-
-    if (S->rank != QNc(QOP_, _CLOVER_DIM))
-        return luaL_error(L, "clover is not implemented for #L=%d", S->rank);
-    if (QDP_Ns != QNc(QOP_,  _CLOVER_FERMION_DIM))
-        return luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
-
+    mLattice *S = NULL;
+    mClover *clover = NULL;
     QCArgs args;
-    args.lat = S->lat;
-    QDP_latsize_L(S->lat, args.lattice);
-
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
+
     get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "bad boundary condition value");
+    start_clover(L, &S, &clover);
+    args.lat = S->lat;
+    QDP_latsize_L(S->lat, args.lattice);
 
     return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
 }
