@@ -66,6 +66,8 @@ try_write(output, "fmt=none")
 try_write(output .. "-nil", "fmt=nil", nil)
 try_write(output .. "-single", "fmt=single", "single")
 try_write(output .. "-multi", "fmt=multi", "multi")
+try_write(output .. "-part", "fmt=part", "part")
+try_write(output .. "-partdir", "fmt=partdir", "part_dir")
 
 xx, xinfo = qcd.qdpc.Reader(L, output)
 printf("xx  : %s\n", tostring(xx))

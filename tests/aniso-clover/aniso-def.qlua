@@ -5,11 +5,17 @@ require "gauge"
 
 -- use a crazy set of parameters:
 L = qcd.lattice{10,4,6,8};
-kappa = {1.4235, 5.1234, 1.065, 0.67};
-c_sw = {{6.1765, 2.5346, 7.4560, 1.1234},
-        {2.5346, 9.6572, 5.2340, 3.5324},
-        {7.4560, 5.2340, 0.4567, 2.4356},
-        {1.1234, 3.5324, 2.4356, 0.0234}};
+kappa = {complex(1.4235,0.3456), complex(0.1235,5.1234), complex(1.065,0), complex(0,0.67)};
+cxy = complex(0.3456,1.1235);
+cxz = complex(1.35623,0.075);
+cxt = complex(0.75626,2.125);
+cyz = 0.563456;
+cyt = complex(0.9234,-0.235);
+czt = complex(0.7456,-1.235);
+c_sw = {{0.0, cxy, cxz, cxt},
+        {cxy, 0.0, cyz, cyt},
+        {cxz, cyz, 0.0, czt},
+        {cxt, cyt, czt, 0.0}};
 boundary = {1, -1, complex(0.6, 0.8), complex(0,1)};
 tolerance = 1e-25;
 
@@ -42,9 +48,8 @@ function clover_std(U, k, c, b, F)
    end
 
   for i = 0, #L - 1 do
-     X = X - k[i+1] * 
-        ((1-gamma{mu=i}) * (Ux[i+1] * (F:shift(i, "from_forward"))) +
-         (1+gamma{mu=i}) * ((Ux[i+1]:adjoin() * F):shift(i, "from_backward")))
+     X = X - ((1-gamma{mu=i}) * (k[i+1] * Ux[i+1] * (F:shift(i, "from_forward"))) +
+              (1+gamma{mu=i}) * (k[i+1]:conj() * (Ux[i+1]:adjoin() * F):shift(i, "from_backward")))
   end
 
   for i = 1, #L do
