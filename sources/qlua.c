@@ -713,7 +713,7 @@ get_complex(lua_State *L, double *rptr, double *iptr, const char *msg)
     *iptr = QLA_imag(*z);
   } break;
   default:
-    luaL_error(L, msg);
+    luaL_error(L, "expecting real or complex for %s", msg);
   }
   lua_pop(L, 1);
 }

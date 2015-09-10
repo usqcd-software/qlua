@@ -1806,6 +1806,64 @@ found:
     return xx;
 }
 
+typedef struct {
+  QDP_Lattice *lat;
+  int lattice[QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex kappa[QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex c_sw[QNc(QOP_, _CLOVER_DIM)][QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex boundary[QNc(QOP_, _CLOVER_DIM)];
+  QNc(QLA_D, _ColorMatrix) *uf[Nu + Nf];
+} QAniCloArgs;
+
+static double
+q_AniC_u_reader(int d, const int p[], int a, int b, int re_im, void *env)
+{
+  QLA_D_Complex z, w;
+  QAniCloArgs *args = env;
+  int i = QDP_index_L(args->lat, p);
+  
+  if (p[d] == (args->lattice[d] - 1)) {
+    QLA_c_eq_c_times_c(z, args->boundary[d], QLA_elem_M(args->uf[d][i], a, b));
+  } else {
+    QLA_c_eq_c(z, QLA_elem_M(args->uf[d][i], a, b));
+  }
+  QLA_c_eq_c_times_c(w, z, args->kappa[d]);
+  if (re_im == 0)
+    return QLA_real(w);
+  else
+    return QLA_imag(w);
+}
+
+static double
+q_AniC_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
+{
+  QLA_D_Real x;
+  QLA_D_Complex z, w;
+  QAniCloArgs *args = env;
+  int i = QDP_index_L(args->lat, p);
+  int d, xm, xn;
+
+  for (d = 0, xm = 0; xm < QNc(QOP_, _CLOVER_DIM); xm++) {
+    for (xn = xm + 1; xn < QNc(QOP_, _CLOVER_DIM); xn++, d++) {
+      if ((xn == nu) && (xm == mu))
+	goto found;
+    }
+  }
+  return 0.0; /* should never happen */
+  
+ found:
+  QLA_c_eq_c(z, QLA_elem_M(args->uf[Nu + d][i], a, b));
+  QLA_c_eq_c_times_c(w, z, args->c_sw[mu][nu]);
+  if (re_im == 0) {
+    QLA_r_eq_Im_c(x, w);
+    x = x / 8;
+  } else {
+    QLA_r_eq_Re_c(x, w);
+    x = - x / 8;
+  }
+  return x;
+}
+
 
 static int
 build_clover(lua_State *L,
@@ -1938,12 +1996,58 @@ q_clover(lua_State *L)
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
 
-    get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "bad boundary condition value");
+    get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "boundary");
     start_clover(L, &S, &clover);
     args.lat = S->lat;
     QDP_latsize_L(S->lat, args.lattice);
 
     return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
+}
+
+/*
+ * qcd.AnisotropicClover(U,                                -- gauge field, { Ux,Uy,Uz,Ut }
+ *                       {kappa = { kx, ky, kz, kt },      -- complex kappa's in each direction
+ *                        c_sw  = { {cxx,cxy,cxy,cxt },    -- complex clover factors
+ *                                  {cyx,cyy,cyz,cyt },
+ *                                  {czx,czy,czz,czt },
+ *                                  {ctx,cty,ctz,ctt } },
+ *                        boundary = { bx, by, bz, bt } })  -- complex boundary conditions
+ */
+static int
+q_anisotropic_clover(lua_State *L)
+{
+  mLattice     *S = NULL;
+  mClover      *clover = NULL;
+  QAniCloArgs   args;
+  int i, j;
+
+  if (qlua_tabkey_tableopt(L, 2, "kappa") == 0)
+    luaL_error(L, "missing kappa values");
+  get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.kappa, "kappa");
+  lua_pop(L, 1);
+  if (qlua_tabkey_tableopt(L, 2, "boundary") == 0)
+    luaL_error(L, "missing boundary values");
+  get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.boundary, "boundary");
+  lua_pop(L, 1);
+  if (qlua_tabkey_tableopt(L, 2, "c_sw") == 0)
+    luaL_error(L, "missing c_sw values");
+  for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
+    if (qlua_tabidx_tableopt(L, lua_gettop(L), i + 1) == 0)
+      luaL_error(L, "missing c_sw values for i = %d", i);
+    int idx_i = lua_gettop(L);
+    for (j = 0; j <  QNc(QOP_, _CLOVER_DIM); j++) {
+      double rv, iv;
+      qlua_tabidx_complex(L, idx_i, j + 1, &rv, &iv, "c_sw element");
+      QLA_c_eq_r_plus_ir(args.c_sw[i][j], rv, iv);
+    }
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
+  start_clover(L, &S, &clover);
+  args.lat = S->lat;
+  QDP_latsize_L(S->lat, args.lattice);
+
+  return build_clover(L, S, 1.0, 1.0, clover, args.uf, q_AniC_u_reader, q_AniC_f_reader, &args);
 }
 
 static struct luaL_Reg mtClover[] = {
@@ -1995,8 +2099,9 @@ qlua_checkClover(lua_State *L, int idx, mLattice *S, int live)
 }
 
 static struct luaL_Reg fClover[] = {
-    { "Clover",       q_clover },
-    { NULL,           NULL }
+    { "Clover",                  q_clover },
+    { "AnisotropicClover",       q_anisotropic_clover },
+    { NULL,                      NULL }
 };
 
 int
