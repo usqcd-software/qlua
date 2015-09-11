@@ -1,6 +1,8 @@
 -- convert cpspack<->(even/odd)sublat depending on the sublat type
 require "strict"
 require "latvec"
+require "stdlib"
+require "qdpc_io"
 
 function cps_eopc_pack(L, a, b, sublat)
   -- pack eoprec field with CPS conventions
@@ -63,6 +65,7 @@ function cps_eopc_unpack(L, ab, sublat)
   --    sublat  "even"|"odd" support for the eoprec field
 
   -- ignored (complementary) sublattice
+  local xsublat = nil
   if "even" == sublat then xsublat = "odd" 
   elseif "odd" == sublat then xsublat = "even"
   else error(string.format("unknown subat='%s'", sublat)) end
@@ -104,7 +107,54 @@ function cps_eopc_unpack(L, ab, sublat)
     end)
   return a, b
 end
+function cps_eopc_unpack_v2(L, ab, sublat)
+  local xsublat = nil
+  if "even" == sublat then xsublat = "odd" 
+  elseif "odd" == sublat then xsublat = "even"
+  else error(string.format("unknown subat='%s'", sublat)) end
 
+  local shift_dir = 0 -- constant, but can be parameter  
+  local xperp_sum = L:Int(0)
+  local loc_lx = L[shift_dir] / L:network()[1+shift_dir]
+  if 0 ~= loc_lx % 2 then 
+    error(string.format("local dimension %d=%d/%d must be even", 
+                        loc_lx, L[shift_dir], L:network()[1+shift_dir]))
+  end
+  -- define even/odd co-sublattices
+  for mu = 0, #L - 1 do 
+    if mu ~= shift_dir then 
+      xperp_sum = xperp_sum + L:pcoord(mu)
+    end
+  end
+  local x_even    = L:Subset(qcd.eq(L:pcoord(shift_dir)%2, 0))
+  local x_odd     = L:Subset(qcd.eq(L:pcoord(shift_dir)%2, 1))
+  local xperp_even= L:Subset(qcd.eq(xperp_sum % 2, 0))
+  local xperp_odd = L:Subset(qcd.eq(xperp_sum % 2, 1))
+  -- separate ab[xeven]->a, ab[xodd]->b
+  local a = latvec_copy(ab)
+  x_odd :where(function()latvec_setzero(a)end)
+  local b = latvec_copy(ab)
+  x_even:where(function()latvec_setzero(b)end)
+  if 'even' == sublat then
+    xperp_odd:where(function()
+          latvec_set(a, latvec_shift(a, shift_dir, "from_backward"))
+        end)
+    xperp_even:where(function()
+          latvec_set(b, latvec_shift(b, shift_dir, "from_forward"))
+        end)
+  elseif "odd" == sublat then 
+    xperp_even:where(function() 
+          latvec_set(a, latvec_shift(a, shift_dir, "from_backward"))
+        end)
+    xperp_odd:where(function()
+          latvec_set(b, latvec_shift(b, shift_dir, "from_forward"))
+        end)
+  else error(string.format("unknown subat='%s'", sublat)) end
+  -- set values on ignored sublat to zero
+  assert(0 == L:Subset(xsublat):where(function()return latvec_norm2(a)end))
+  assert(0 == L:Subset(xsublat):where(function()return latvec_norm2(b)end))
+  return a, b
+end
 
 -- TODO test : move to a separate file
 package.path = 'qlib/?.qlua;qlib-lhpc/?.qlua;' .. package.path
@@ -137,4 +187,171 @@ function utest_cps_eopc_pack_unpack(L, S)
   v1_up, v2_up = cps_eopc_unpack(L, v_eopack, sublat)
   print_latvec_cmp(v1, v1_up, "v1 <-> v1_up")
   print_latvec_cmp(v2, v2_up, "v2 <-> v2_up")
+end
+
+-- reading evectors
+do 
+  local cps_ns  = 4
+  local cps_nc  = 3
+
+  function R2C(r)
+    local lenR = #r
+    assert(0 == lenR % 2)
+    local resC = {}
+    for i = 0, lenR/2-1 do
+      resC[1+i] = r[1+2*i] + complex(0,1)*r[1+2*i+1]
+    end
+    return resC
+  end
+
+  function read_cps_evec(L, cps_evec_file, L5, nev, evec_prec, evec_sublat)
+    local evec_flat = nil
+    do
+      local qio_r = open_qdpc_read(L, cps_evec_file)
+      qio_r:skip()
+      local generic_r = qio_r:generic_Real({precision=evec_prec})
+      evec_flat = R2C(generic_r)
+      qio_r:close()
+    end
+
+    local lenC = #evec_flat
+    assert(0 == lenC % (nev * L5))
+    assert(0 == cps_ns % 2)
+    local index = {}
+    for e = 0, nev-1 do
+      local index_e = {}
+      for s5 = 0, L5-1 do
+        local df = L:DiracFermion()
+        for c = 0, cps_nc-1 do 
+          for d2 = 0, cps_ns/2-1 do
+            local c1, c2 = cps_eopc_unpack_v2(L, evec_flat[1 + c + cps_nc * (d2 + cps_ns/2*(s5 + L5*e))], evec_sublat)
+            df[{c=c,d=d2}]   = c1
+            df[{c=c,d=2+d2}] = c2
+          end 
+        end 
+        index_e[1+s5] = df
+      end
+      index[1+e] = index_e
+    end
+    return index
+  end
+
+
+  -- cross-checks and validation
+  function make_coord_index_gold(L)
+    local coord_idx = L:pcoord(#L-1)
+    for mu = #L-2, 0, -1 do
+  --    printf("mu=%d\n", mu)
+      coord_idx = L[mu] * coord_idx + L:pcoord(mu)
+    end
+    return L:Real(coord_idx)
+  end
+
+  function make_evec5d_index_gold(L, L5, nev)
+    local coord_idx = make_coord_index_gold(L)
+    local index_gold = {}
+    for e = 0, nev-1 do
+      local index_gold_e = {}
+      for s5 = 0, L5-1 do
+        local df = L:DiracFermion()
+        for c = 0, cps_nc-1 do for d = 0, cps_ns-1 do
+          -- XXX agrees with Chulwoo's file up to Re<->Im from D<->F mixup in QIO and endianness transf.
+          df[{c=c,d=d}] = complex(0,1) + complex(2,2) * (c + cps_nc * (d + cps_ns * (
+                            s5 + L5 * (coord_idx + L:volume() * e))))
+        end end
+      index_gold_e[1+s5] = df
+      end
+      index_gold[1+e] = index_gold_e
+    end
+    return index_gold
+  end
+
+    
+  local function get_point(reim, c,d, x,y,z,t, s5,n, v)
+    local x = v[1+n][1+s5][{x,y,z,t,c=c, d=d}]
+    if 0 == reim then return x:real()
+    elseif 1 == reim then return x:imag()
+    else error("unknown reim") end
+  end 
+  local function print_point(reim, c,d, x,y,z,t, s5,n, l_vec, title) 
+    if nil == title then title = "" end
+    assert(0 <= c and c < cps_nc)
+    assert(0 <= d and d < cps_ns)
+    assert(0 <= s5 and s5 < L5)
+    assert(0 <= n and n < nev)
+    local reim_str = nil
+    if 0 == reim then reim_str = "Re" 
+    elseif 1 == reim then reim_str = "Im" 
+    else error("unknown reim") end
+    local ind_str = string.format('[%d,%d][{%d,%d,%d,%d, c=%d, s=%d}]', 
+                                  n, s5, x,y,z,t,c,d)
+    local val_str = ""
+    local v0re = nil
+    for i = 0, #l_vec-1 do
+      local v = l_vec[1+i][1+n][1+s5][{x,y,z,t,c=c, d=d}]
+      local v_re = nil
+      if 0 == reim then v_re = v:real()
+      elseif 1 == reim then v_re = v:imag()
+      else error("unknown reim") end
+      local cmp_str = nil
+      if 0 == i then 
+        cmp_str = " "
+        v0re = v_re
+      else 
+        if math.abs(v0re - v_re) < 1e-4 then
+          cmp_str = "=="
+        else
+          cmp_str = "!="
+        end
+      end
+      val_str = string.format("%s %s%8.0f", val_str, cmp_str, v_re)
+    end
+    printf("%s%s%s\t(%s)\n", reim_str, ind_str, val_str, title)
+  end
+
+  function test_cps_evec_print_points(index_cps, index_gold)
+    print_point(0, 0,0, 0,0,0,0, 0,0, {index_cps, index_gold}, "Re incr")
+    print_point(1, 0,0, 0,0,0,0, 0,0, {index_cps, index_gold}, "Im incr")
+
+    print_point(0, 1,0, 0,0,0,0, 0,0, {index_cps, index_gold}, "col incr, Re")
+    print_point(0, 0,1, 0,0,0,0, 0,0, {index_cps, index_gold}, "spin incr, Re")
+
+    print_point(1, 1,0, 0,0,0,0, 0,0, {index_cps, index_gold}, "col incr, Im")
+    print_point(1, 0,1, 0,0,0,0, 0,0, {index_cps, index_gold}, "spin incr, Im")
+
+    print_point(1, 0,0, 1,0,0,0, 0,0, {index_cps, index_gold}, "x+=1 incr, Im")
+    print_point(1, 0,0, 0,1,0,0, 0,0, {index_cps, index_gold}, "y+=1 incr, Im")
+    print_point(1, 0,0, 0,0,1,0, 0,0, {index_cps, index_gold}, "z+=1 incr, Im")
+    print_point(1, 0,0, 0,0,0,1, 0,0, {index_cps, index_gold}, "t+=1 incr, Im")
+    print_point(1, 0,0, 0,0,0,0, 1,0, {index_cps, index_gold}, "s+=1 incr, Im")
+    print_point(1, 0,0, 0,0,0,0, 0,1, {index_cps, index_gold}, "n+=1 incr, Im")
+
+    print_point(1, 0,0, 2,0,0,0, 0,0, {index_cps, index_gold}, "x+=2 incr, Im")
+    print_point(1, 0,0, 0,2,0,0, 0,0, {index_cps, index_gold}, "y+=2 incr, Im")
+    print_point(1, 0,0, 0,0,2,0, 0,0, {index_cps, index_gold}, "z+=2 incr, Im")
+    print_point(1, 0,0, 0,0,0,2, 0,0, {index_cps, index_gold}, "t+=2 incr, Im")
+  end
+  function test_cps_evec_print_diff(index_cps, index_gold, cnt_max)
+    if nil == cnt_max then cnt_max = 100 end
+    local cnt = 0 
+    local fc = latvec_close(index_cps, index_gold)
+    for n = 0, nev-1 do for s5 = 0, L5-1 do
+      for x=0, L[0]-1 do for y=0, L[1]-1 do for z=0, L[2]-1 do for t=0, L[3]-1 do 
+        local reim=1
+        local c=0
+        local d=0
+        local s5=0
+        local n=0
+        if (true
+            and (0 == fc[1+n][1+s5][{x,y,z,t}])
+           )
+            then 
+          print_point(1, c,d, x,y,z,t, s5,n, {index_cps, index_gold}, "")
+          cnt = cnt + 1
+          if cnt_max <= cnt then os.exit(0) end
+        end
+      end end end end
+    end end
+  end
+
 end

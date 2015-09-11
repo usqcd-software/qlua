@@ -34,10 +34,14 @@ function latvec_copy(v, scal)
   elseif 'lattice.color.matrix'    == type(v) then return scal * (v.lattice):ColorMatrix(v)
   elseif 'lattice.dirac.fermion'   == type(v) then return scal * (v.lattice):DiracFermion(v) 
   elseif 'lattice.dirac.propagator'== type(v) then return scal * (v.lattice):DiracPropagator(v)
-  else return nil
+  else 
+    error("unknown type")
+    return nil
   end
 end
-
+function latvec_zeros_like(v)
+  return latvec_copy(v, 0)
+end
 -- generalize standard ops to tables, in which ops are applied to items
 function latvec_norm2(v)
   if 'table' == type(v) then
@@ -67,6 +71,27 @@ function latvec_shift(v, mu, dir)
     end
     return res
   else return v:shift(mu, dir) end
+end
+function latvec_add(a, b)
+  if 'table' == type(a) then
+    assert ('table' == type(b))
+    assert (#a == #b)
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_add(a[1+i], b[1+i])
+    end
+    return c
+  else return (a + b) end
+end
+function latvec_sum(...)
+  local ll  = {...}
+  local n   = #ll
+  if n <= 0 then return {} end
+  local c = ll[1]
+  for i = 2, n do
+    c = latvec_add(c, ll[i])
+  end
+  return c
 end
 function latvec_sub(a, b)
   if 'table' == type(a) then
@@ -118,7 +143,41 @@ function latvec_scalsum_left(...) -- (a0,x0,a1,x1,...) -> a0*x0+a1*x1+...
   end
   return res
 end
+function latvec_locvdot(x, y)
+  -- compute local scalar product x^H.y (return complex field)
+  if 'table' == type(x) then
+    assert ('table' == type(y))
+    assert (#x == #y)
+    local d = {}
+    for i = 0, #x-1 do
+      d[1+i] = latvec_locvdot(x[1+i], y[1+i])
+    end
+    return d
+  else return qcd.dot(x, y) end
+end
+function latvec_real(x)
+  if 'table' == type(x) then
+    local d = {}
+    for i = 0, #x-1 do
+      d[1+i] = latvec_real(x[1+i])
+    end
+    return d
+  else return latvec_real(x) end
+end
+function latvec_imag(x)
+  if 'table' == type(x) then
+    local d = {}
+    for i = 0, #x-1 do
+      d[1+i] = latvec_imag(x[1+i])
+    end
+    return d
+  else return latvec_imag(x) end
+end
+function latvec_locnorm2(x)
+  return latvec_real(latvec_locvdot(x, x))
+end
 function latvec_vdot(x, y) 
+  -- scalar product (return complex global)
   if 'table' == type(x) then
     assert ('table' == type(y))
     assert (#x == #y)
@@ -153,6 +212,91 @@ function latvec_set(a, b)   -- set a <- b
   else a:set(b) end
 end
 
+-- cmp functions
+-- TODO support  one argument to be a global number
+-- TODO (some distant day) cmp of broadcastable nested arrays (similar to NumPy)
+function latvec_eq(a, b)
+  if 'table' == type(a) then
+    assert ('table' == type(b))
+    assert (#a == #b)
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_eq(a[1+i], b[1+i])
+    end
+    return c
+  else return qcd.eq(a, b) end
+end
+function latvec_ne(a, b)
+  if 'table' == type(a) then
+    assert ('table' == type(b))
+    assert (#a == #b)
+    local c = {}
+    for i = 0, #a-1 do
+      c[1+i] = latvec_ne(a[1+i], b[1+i])
+    end
+    return c
+  else 
+    printf("qcd.ne(%s, %s)\n", tostring(a), tostring(b))
+    return qcd.ne(a, b) 
+  end
+end
+function mask_all(a)
+  return 0 == qcd.eq(a, 0):sum()
+end
+function mask_any(a)
+  return 0 ~= qcd.ne(a, 0):sum()
+end
+function latvec_all(a)
+  -- compute "and" function over a (nested) array of Int(0->false, 1->true)
+  if 'table' == type(a) then
+    local c = true
+    for i = 0, #a-1 do
+      c = c and latvec_all(a[1+i])
+    end
+    return c
+  else return mask_all(a) end
+end
+function latvec_any(a)
+  -- compute "and" function over a (nested) array of Int(0->false, 1->true)
+  if 'table' == type(a) then
+    local c = false
+    for i = 0, #a-1 do
+      -- hopefully summation does not overflow the int type
+      c = c or latvec_any(a[1+i])
+    end
+    return c
+  else return mask_any(a) end
+end
+function field_close(x, y, rtol, atol)
+  if nil == rtol then rtol = 1e-5 end
+  if nil == atol then atol = 1e-8 end
+  local x2py2 = (qcd.dot(x,x) + qcd.dot(y,y)):real()
+  local xmy = x - y
+  local xmy2= qcd.dot(xmy, xmy):real()
+  local aclose = qcd.le(xmy2, atol*atol)
+  local rclose = qcd.le(xmy2, rtol*rtol*x2py2)
+  return qcd.ne(aclose * rclose, 0) -- aclose and rclose
+end
+function field_allclose(x, y, rtol, atol)
+  return mask_all(field_close(x, y, rtol, atol))
+end
+
+function latvec_close(x, y, rtol, atol)
+  -- return latvec_mask
+  if 'table' == type(x) then
+    assert ('table' == type(y))
+    assert (#x == #y)
+    local d = {}
+    for i = 0, #x-1 do
+      d[1+i] = latvec_close(x[1+i], y[1+i], rtol, atol)
+    end
+    return d
+  else return field_close(x, y, rtol, atol) end
+end
+function latvec_allclose(x, y, rtol, atol)
+  -- return global bool
+  return latvec_all(latvec_close(x, y, rtol, atol))
+end
 
 --    ss            subset with meaningful information
 --    ss_v1, ss_v2  precond. vectors defined only on subsets
@@ -242,7 +386,7 @@ function latvec_op_xwilson(d, u, is_dag)
   if 'table' == type(d) then
     res = {}
     for s = 0, #d - 1 do
-      res[1+s] = latvec_op_xwilson(d[1+s], u)
+      res[1+s] = latvec_op_xwilson(d[1+s], u, is_dag)
     end
   else
     res = nil
@@ -266,8 +410,7 @@ end
 function latvec_op_x5(d, mf, is_dag)
   assert('table' == type(d))
   local res = {}
-  if is_dag
-  then
+  if is_dag then
     res[1] = .5*(1 + gamma{mu=5}) * d[2]  - mf * .5*(1 - gamma{mu=5}) * d[#d]
     for s = 1, #d - 2 do
       res[1+s] = .5*(1 + gamma{mu=5}) * d[2+s] + .5*(1 - gamma{mu=5}) * d[s]
