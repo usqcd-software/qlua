@@ -32,11 +32,30 @@
 #include <string.h>
 
 typedef struct {
+    int master;
+    int rank_stride;
+} qdpc_ionode_ctrl_s;
+
+static int qdpc_my_ionode_a(int node, void *arg) 
+{
+    qdpc_ionode_ctrl_s *ionode_ctrl = (qdpc_ionode_ctrl_s *)arg;
+    int rank_stride = ionode_ctrl->rank_stride;
+    return (node / rank_stride) * rank_stride;
+}
+static int qdpc_master_ionode_a(void *arg) 
+{
+    qdpc_ionode_ctrl_s *ionode_ctrl = (qdpc_ionode_ctrl_s *)arg;
+    return ionode_ctrl->master;
+}
+
+typedef struct {
     QDP_Reader *ptr;
+    qdpc_ionode_ctrl_s *ionode_ctrl;
 } mReader;
 
 typedef struct {
     QDP_Writer *ptr;
+    qdpc_ionode_ctrl_s *ionode_ctrl;
 } mWriter;
 
 /* this magic used to identify global matrices in QIO */
@@ -166,6 +185,9 @@ qdpc_r_gc(lua_State *L)
     if (b->ptr)
         QDP_close_read(b->ptr);
     b->ptr = 0;
+    if (NULL != b->ionode_ctrl) 
+        qlua_free(L, b->ionode_ctrl);
+    b->ionode_ctrl = NULL;
     
     return 0;
 }
@@ -397,8 +419,7 @@ qdpc_r_GenericReal(lua_State *L)
         goto clearerr_1;
     }
     int lenR        = (datacount * typesize) / wordsize;
-    printf("prec='%c'   datacount=%d   typesize=%d   wordsize=%d\n", 
-           prec, datacount, typesize, wordsize);
+//    printf("prec='%c'   datacount=%d   typesize=%d   wordsize=%d\n", prec, datacount, typesize, wordsize);
 
     /* init fields, prepare for import */
     qdp_arr = qlua_malloc(L, lenR * sizeof(QDP_D_Real *));
@@ -604,11 +625,12 @@ q_checkReader(lua_State *L, int idx, mLattice *S)
 }
 
 static mReader *
-q_newReader(lua_State *L, QDP_Reader *reader)
+q_newReader(lua_State *L, QDP_Reader *reader, qdpc_ionode_ctrl_s *ionode_ctrl)
 {
     mReader *h = lua_newuserdata(L, sizeof (mReader));
+    h->ptr          = reader;
+    h->ionode_ctrl  = ionode_ctrl;
 
-    h->ptr = reader;
     qlua_createLatticeTable(L, 1, mtReader, qReader, ReaderName);
     lua_setmetatable(L, -2);
 
@@ -624,6 +646,24 @@ q_qdpc_reader (lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
+    int has_fs = 0,
+        ionode_rank_stride = 1,
+        ionode_master = 0;
+    qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
+    QIO_Filesystem fs;
+    if (qlua_checkopt_table(L, 3)) {
+        if (qlua_tabpushopt_key(L, 3, "rank_stride")) {
+            ionode_rank_stride = luaL_checkint(L, -1);
+            has_fs  = 1;
+            lua_pop(L, 1);
+        }
+        if (qlua_tabpushopt_key(L, 3, "master")) {
+            ionode_master = luaL_checkint(L, -1);
+            has_fs  = 1;
+            lua_pop(L, 1);
+        }
+    }
+    
     QDP_String *xml = 0;
     QDP_Reader *reader = 0;
     int rcount;
@@ -633,7 +673,25 @@ q_qdpc_reader (lua_State *L)
 
     /* go through the motions of opening a QDP reader */
     xml = QDP_string_create();
-    reader = QDP_open_read_L(S->lat, xml, (char *)name); /* [sic] */
+    if (has_fs) {
+        fs.my_io_node_a         = qdpc_my_ionode_a;
+        fs.master_io_node_a     = qdpc_master_ionode_a;
+        ionode_ctrl             = qlua_malloc(L, sizeof(qdpc_ionode_ctrl_s));
+        if (NULL == ionode_ctrl) 
+            luaL_error(L, "memory error");
+        ionode_ctrl->master     = ionode_master;
+        ionode_ctrl->rank_stride= ionode_rank_stride;
+        fs.arg                  = ionode_ctrl;
+        printf("[%04d] q_qdpc_reader : master=%d rank_stride=%d master_io(..)=%d my_io(..)=%d\n",
+                QDP_this_node,
+                ionode_master, ionode_rank_stride, 
+                qdpc_master_ionode_a(fs.arg),
+                qdpc_my_ionode_a(QDP_this_node, fs.arg));
+        /* TODO perhaps set only those overridden by lua params */
+        reader  = QDP_open_read_general_L(S->lat, xml, (char *)name, &fs, NULL);
+    } else {
+        reader  = QDP_open_read_L(S->lat, xml, (char *)name); /* [sic] */
+    }
 
     /* convert QDP results to LUA */
     if (reader == 0) {
@@ -641,7 +699,7 @@ q_qdpc_reader (lua_State *L)
         rcount = 0;
     } else {
         /* we have a reader - return (mReader, file_xml) */
-        q_newReader(L, reader);
+        q_newReader(L, reader, ionode_ctrl);
         lua_pushstring(L, QDP_string_ptr(xml));
         rcount = 2;
     }
@@ -684,6 +742,9 @@ qdpc_w_gc(lua_State *L)
     if (b->ptr)
         QDP_close_write(b->ptr);
     b->ptr = 0;
+    if (NULL != b->ionode_ctrl) 
+        qlua_free(L, b->ionode_ctrl);
+    b->ionode_ctrl = NULL;
     
     return 0;
 }
@@ -907,11 +968,12 @@ q_checkWriter(lua_State *L, int idx, mLattice *S)
 }
 
 static mWriter *
-q_newWriter(lua_State *L, QDP_Writer *writer)
+q_newWriter(lua_State *L, QDP_Writer *writer, qdpc_ionode_ctrl_s *ionode_ctrl)
 {
     mWriter *h = lua_newuserdata(L, sizeof (mWriter));
+    h->ptr          = writer;
+    h->ionode_ctrl  = ionode_ctrl;
 
-    h->ptr = writer;
     qlua_createLatticeTable(L, 1, mtWriter, qWriter, WriterName);
     lua_setmetatable(L, -2);
 
@@ -925,7 +987,7 @@ q_newWriter(lua_State *L, QDP_Writer *writer)
  *  qcd.qdpc.writer(L, file_name, file_info, "multi")
  */
 static int
-q_qdpc_writer (lua_State *L)
+q_qdpc_writer(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
@@ -935,13 +997,49 @@ q_qdpc_writer (lua_State *L)
     QDP_Writer *writer = 0;
     int rcount;
 
+    int has_fs = 0,
+        ionode_rank_stride = INT_MAX,
+        ionode_master = 0;
+    qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
+    QIO_Filesystem fs;
+    if (qlua_checkopt_table(L, 5)) {
+        if (qlua_tabpushopt_key(L, 5, "rank_stride")) {
+            ionode_rank_stride  = luaL_checkint(L, -1);
+            has_fs              = 1;
+            lua_pop(L, 1);
+        }
+        if (qlua_tabpushopt_key(L, 5, "master")) {
+            ionode_master   = luaL_checkint(L, -1);
+            has_fs          = 1;
+            lua_pop(L, 1);
+        }
+    }
+
     /* first collect garbage */
     CALL_QDP(L);
     
     /* open the QDP writer */
     xml = QDP_string_create();
     QDP_string_set(xml, (char *)info); /* [ sic ] */
-    writer = QDP_open_write_L(S->lat, xml, (char *)name, volfmt); /* [ sic ] */
+    if (has_fs) {
+        fs.my_io_node_a         = qdpc_my_ionode_a;
+        fs.master_io_node_a     = qdpc_master_ionode_a;
+        ionode_ctrl             = qlua_malloc(L, sizeof(qdpc_ionode_ctrl_s));
+        if (NULL == ionode_ctrl) 
+            luaL_error(L, "memory error");
+        ionode_ctrl->master     = ionode_master;
+        ionode_ctrl->rank_stride= ionode_rank_stride;
+        fs.arg                  = ionode_ctrl;
+        /* TODO perhaps set only those overridden by lua params */
+        writer = QDP_open_write_general_L(S->lat, xml, (char *)name, volfmt, &fs, NULL); /* [ sic ] */
+        printf("[%04d] q_qdpc_writer : master=%d rank_stride=%d master_io(..)=%d my_io(..)=%d\n",
+                QDP_this_node,
+                ionode_master, ionode_rank_stride, 
+                qdpc_master_ionode_a(fs.arg),
+                qdpc_my_ionode_a(QDP_this_node, fs.arg));
+    } else {
+        writer = QDP_open_write_L(S->lat, xml, (char *)name, volfmt); /* [ sic ] */
+    }
 
     /* convert QDP results into LUA values */
     if (writer == 0) {
@@ -949,7 +1047,7 @@ q_qdpc_writer (lua_State *L)
         rcount = 0;
     } else {
         /* success -- return writer */
-        q_newWriter(L, writer);
+        q_newWriter(L, writer, ionode_ctrl);
         rcount = 1;
     }
     QDP_string_destroy(xml);
