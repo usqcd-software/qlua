@@ -15,11 +15,8 @@ static const char qomp_name[] = "openmp";
  *    nested   	              OMP_NESTED                  bool         r/w *_nested()
  *    num_threads	      OMP_NUM_THREADS             int          r/w *_{max,num}_threads()
  *    schedule		      OMP_SCHEDULE                string,int   r/w *_schedule()
- *X    bind		      OMP_PROC_BIND               string       r/  *_proc_bind()
  *    thread+limit	      OMP_THREAD_LIMIT            int          r/  *_thread_limit()
  *    max_active_levels	      OMP_MAX_ACTIVE_LEVELS       int          r/w *_max_active_levels()
- *X    default-device	      OMP_DEFAULT_DEVICE          int          r/w *_default_device()
- *X    num_devices             -                           int          r/  *_num_devices()
  *    version                 -                           string       r/  _OPENMP
  *    
  */
@@ -120,44 +117,6 @@ qomp_thread_limit(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
-static int
-qomp_default_dev(lua_State *L)
-{
-  switch (lua_gettop(L)) {
-  case 0: {
-    int n = omp_get_default_device();
-    lua_pushinteger(L, n);
-    return 1;
-  };
-  case 1: {
-    int v = lua_tointeger(L, 1);
-    omp_set_default_device(v);
-  } break;
-  default:
-    luaL_error(L, "illegal arguments");
-    break;
-  }
-  return 0;
-}
-
-static int
-qomp_num_devices(lua_State *L)
-{
-  switch (lua_gettop(L)) {
-  case 0: {
-    int n = omp_get_num_devices();
-    lua_pushinteger(L, n);
-    return 1;
-  };
-  default:
-    luaL_error(L, "illegal arguments");
-    break;
-  }
-  return 0;
-}
-#endif /* XXX */
-
 static struct {
   omp_sched_t   sched;
   const char *  name;
@@ -213,71 +172,13 @@ qomp_schedule(lua_State *L)
   return 0;
 }
 
-#if 0 /* XXX */
-static struct {
-  omp_proc_bind_t   bind;
-  const char       *name;
-} binds[] = {
-  /* { omp_proc_bind_false, "false" } */
-  /* { omp_proc_bind_true,   "true" } */
-  { omp_proc_bind_master,   "master" },
-  { omp_proc_bind_close,    "close" },
-  { omp_proc_bind_spread,   "spread" },
-  { omp_proc_bind_false,     NULL }
-};
-
-static int
-qomp_bind(lua_State *L)
-{
-  switch (lua_gettop(L)) {
-  case 0: {
-    omp_proc_bind_t kind = omp_get_proc_bind();
-
-    switch (kind) {
-    case omp_proc_bind_false:
-      lua_pushboolean(L, 0);
-      break;
-    case omp_proc_bind_true:
-      lua_pushboolean(L, 1);
-      break;
-    default: {
-      int i;
-      const char *name = NULL;
-      for (i = 0; binds[i].name; i++) {
-	if (binds[i].bind == kind) {
-	  name = binds[i].name;
-	  break;
-	}
-      }
-      qlua_assert(name != NULL, "Unknown bind value");
-      lua_pushstring(L, name);
-      break;
-    }
-    }
-    return 1;
-  }
-  default:
-    luaL_error(L, "illegal arguments");
-    break;
-  }
-  return 0;
-}
-#endif /* XXX */
-
 static const luaL_Reg mtOpenMP[] = {
   { "dynamic",              qomp_dynamic},       /*  bool         r/w */
   { "nested",               qomp_nested},        /*  bool         r/w */
   { "num_threads",          qomp_num_threads},   /*  int          r/w */
   { "thread_limit",         qomp_thread_limit},  /*  int          r/- */
   { "levels",               qomp_levels},        /*  int          r/w */
-#if 0 /* XXX */
-  { "default_dev",          qomp_default_dev},   /*  int          r/w */
-  { "num_dev",              qomp_num_devices},   /*  int          r/- */
-#endif /* XXX */
   { "schedule",             qomp_schedule},      /*  string,int   r/w */
-#if 0 /* XXX */
-  { "binding",              qomp_bind},          /*  string       r/- */
-#endif /* XXX */
   { NULL,                   NULL}
 };
 

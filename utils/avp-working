@@ -33,13 +33,13 @@ LIBS='-lz' \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-hdf5=$PACKTOP/hdf5                               \
    --with-qopqdp=$PACKTOP/qopqdp                           \
+   --with-clover=$DEVTOP/clover-working                    \
+   --clover-nc=$Nc                                         \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
-#   --with-clover=$DEVTOP/clover-working                    \
-#   --clover-nc=$Nc                                         \
 #   --with-mdwf=$DEVTOP/mdwf-working                        \
 #   --with-mdwf=$PACKTOP/mdwf                               \
 #   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \

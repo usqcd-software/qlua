@@ -20,7 +20,5 @@ mdwf_M5 = 0.345623
 mdwf_mf = 1.123453
 mdwf_L5 = 10
 
-mdwf_b5 = complex(1.5, -0.1);
-mdwf_c5 = complex(0.25, -1.1);
-
-
+mdwf_b5 = complex(1.5, -0.31);
+mdwf_c5 = mdwf_b5 - 1.0;

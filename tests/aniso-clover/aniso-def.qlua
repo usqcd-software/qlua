@@ -1,0 +1,126 @@
+require "stdlib"
+require "gauge"
+
+-- Check the anisotropic CLOVER against explicit definition of the operator.
+
+-- use a crazy set of parameters:
+L = qcd.lattice{10,4,6,8};
+kappa = {complex(1.4235,0.3456), complex(0.1235,5.1234), complex(1.065,0), complex(0,0.67)};
+cxy = complex(0.3456,1.1235);
+cxz = complex(1.35623,0.075);
+cxt = complex(0.75626,2.125);
+cyz = 0.563456;
+cyt = complex(0.9234,-0.235);
+czt = complex(0.7456,-1.235);
+c_sw = {{0.0, cxy, cxz, cxt},
+        {cxy, 0.0, cyz, cyt},
+        {cxz, cyz, 0.0, czt},
+        {cxt, cyt, czt, 0.0}};
+boundary = {1, -1, complex(0.6, 0.8), complex(0,1)};
+tolerance = 1e-25;
+
+-- operator definition
+-------------------------------------------------------------------------------
+local function clovF(i,j)
+  local Ujp = U[j]:shift(i - 1, "from_forward")
+  local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin()
+  local Sl = U[j]:adjoin() * U[i] * Ujp
+  local C01 = Sl * Uipx  -- at (0,1)
+  local C11 = Uipx * Sl  -- at (1,1)
+  local Su = Ujp * Uipx * U[j]:adjoin()
+  local C00 = U[i] * Su -- at (0,0)
+  local C10 = Su * U[i] -- at (1,0)
+  local F = C00 +
+            C01:shift(j - 1, "to_forward") +
+            (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward")
+  return (F - F:adjoin()) / complex(0,8)
+end
+
+function clover_std(U, k, c, b, F)
+   local X = F;
+   local Ux = {};
+   local i, j;
+
+   for i = 1, #U do
+      local Ui = U[i]:copy();
+      L:Subset{axis=i-1, position = L[i-1] - 1}:where(function () Ui:set(U[i] * b[i]) end);
+      Ux[i] = Ui;
+   end
+
+  for i = 0, #L - 1 do
+     X = X - ((1-gamma{mu=i}) * (k[i+1] * Ux[i+1] * (F:shift(i, "from_forward"))) +
+              (1+gamma{mu=i}) * (k[i+1]:conj() * (Ux[i+1]:adjoin() * F):shift(i, "from_backward")))
+  end
+
+  for i = 1, #L do
+    for j = i + 1, #L do
+       X = X - c[i][j] * clovF(i,j) * 
+               ((gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F)
+    end
+  end
+
+  return X
+end
+
+---- test per se.
+-------------------------------------------------------------------------------
+ix = L:Int(0)
+for i = 0, #L - 1 do
+  ix = ix * L[i] + L:pcoord(i)
+end
+
+S = L:RandomState(12345, ix)
+
+U = {}
+for i = 1, #L do
+ U[i] = toSUn(S:gaussian_ColorMatrix())
+end
+
+
+F = S:gaussian_DiracFermion()
+
+CL = qcd.AnisotropicClover(U, {kappa = kappa, c_sw = c_sw, boundary = boundary});
+
+G3 = CL:D(F)
+Gs = clover_std(U, kappa, c_sw, boundary, F)
+
+function check_F(n,F,x)
+   local nc = F:colors()
+   for c = 0, nc - 1 do
+      x.c = c
+      for d = 0, qcd.Ns - 1 do
+         x.d = d
+         local z = F[x]
+         printf("%s[%d, %d]: %20.10f %20.10f\n", n, c, d, z:real(), z:imag())
+      end
+   end
+   printf("\n")
+end
+
+P = S:gaussian_DiracPropagator()
+T = CL:D(P)
+X = L:DiracPropagator()
+
+for c = 0, P:colors() - 1 do
+  for d = 0, qcd.Ns - 1 do
+    X[{c=c,d=d}] = CL:D(P[{c=c,d=d}])
+  end
+end
+
+
+dx = (G3 - Gs):norm2() / F:norm2();
+tx = (T - X):norm2() / P:norm2();
+
+printf("Dirac fermion\n");
+printf("|F|^2       = %.10e\n", F:norm2())
+printf("|d|^2/|F|^2 = %.10e relative error\n", dx);
+printf("Dirac propagator\n");
+printf("|P|^2       = %.10e\n", P:norm2());
+printf("|t|^2/|p|^2 = %.10e relative error\n", tx);
+
+if (dx < tolerance) and (tx < tolerance) then
+   printf("--- OK ----- all done\n")
+else
+   printf("**** SOMETHING IS WRONG\n");
+end
+   
