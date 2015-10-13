@@ -1,9 +1,39 @@
-function make_list_const(a, len)
-  local res = {}
-  for i=1, len do res[i] = a end
-  return res
+-- IMPLEMENTATION OF FUNCTIONS ACTING ON ARRAYS
+-- such as 
+-- * 5D FERMIONS
+-- 
+-- TODO 
+-- * functions like scale, add, etc should be available for any reasonable arrays 
+--   (vectors, matrices, etc)
+
+require "gauge"
+-----------------------------------------------------------------------------
+-- random fields
+-----------------------------------------------------------------------------
+
+function make_random_SUn_gauge(S)
+  local gauge_u = {}
+  for mu = 0, #L-1 do
+    gauge_u[1+mu] = toSUn(S:gaussian_ColorMatrix())
+  end
+  return gauge_u
+end
+function make_random_dirprop_5d(S, L5)
+  local dp5 = {}
+  for i = 1, L5 do
+    dp5[i] = S:gaussian_DiracPropagator()
+  end
+  return dp5
+end
+function make_random_dirferm_5d(S, L5)
+  local df5 = {}
+  for i = 1, L5 do
+    df5[i] = S:gaussian_DiracFermion()
+  end
+  return df5
 end
 
+-- another function to create a 5d fermion: this time, normalized
 function dw_random_latdirferm(L5, rnd)
   local n = 0.
   local res = {}
@@ -18,7 +48,37 @@ function dw_random_latdirferm(L5, rnd)
   return res
 end
 
--- create deep copy
+
+function make_list_const(a, len)
+  -- obsolete, replace with latvec_as_table
+  local res = {}
+  for i=1, len do res[i] = a end
+  return res
+end
+
+function latvec_as_table(x, x_len)
+  -- if table, check length
+  -- if not a table, make a constant table
+  -- NOTE x's are not deep-copied, so changing one element of the result 
+  -- may have side effects; TODO make a deep copy version ; depends on having 
+  -- a function implementing universal deep copy
+  if 'table' == type(x) then
+    if nil ~= x_len and #x ~= x_len then
+      error(string.format("latvec size mismatch: len(%s) != %d", tostring(x), x_len))
+    end
+    return x
+  elseif not nil == x then 
+    x_s   = {}
+    for s = 1, x_len do
+      x_s[s] = x
+    end
+    return x_s
+  else
+    return {}
+  end
+end
+
+-- create deep copy of a latvec of lattice oblects
 function latvec_copy(v, scal)
   if nil == scal then scal = 1 end
   if 'table' == type(v) then
@@ -39,6 +99,7 @@ function latvec_copy(v, scal)
     return nil
   end
 end
+
 function latvec_zeros_like(v)
   return latvec_copy(v, 0)
 end

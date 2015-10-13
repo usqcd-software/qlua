@@ -1,7 +1,7 @@
 -- WRITE functions
 -- TODO add save_qdpc_* for all types
-function open_qdpc_write(L, name, finfo, volfmt)
-  local qdp_w = qcd.qdpc.Writer(L, name, finfo, volfmt)
+function open_qdpc_write(L, name, finfo, volfmt, param)
+  local qdp_w = qcd.qdpc.Writer(L, name, finfo, volfmt, param)
   if not qdp_w then
     printf("Error opening QDP writer to '%s'\n", name)
     os.exit(1)
@@ -36,8 +36,8 @@ end
 
 -- READ functions
 -- TODO add load_qdpc_*, load_qdpc_*_list for all types
-function open_qdpc_read(L, name)
-  local qdp_r = qcd.qdpc.Reader(L, name)
+function open_qdpc_read(L, name, param)
+  local qdp_r = qcd.qdpc.Reader(L, name, param)
   if not qdp_r then
     printf("Error opening QDP reader from '%s'\n", name)
     os.exit(1)

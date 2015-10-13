@@ -1,18 +1,5 @@
 require('stdlib')
 
--- complete "spatial" coord to full
-function space2full(c, t_axis, c_t)
-  local cfull = {}
-  if nil == c_t then cfull[1+t_axis] = 0
-  else cfull[1+t_axis] = c_t end
-  for d = 0, #L-1 do
-    if d < t_axis then cfull[1+d] = c[1+d]
-    else cfull[2+d] = c[1+d] end
-  end
-  return cfull
-end
-
-
 -----------------------------------------------------------------------------
 -- functions to create "vectors": lists of values
 -- to modulate t-dependence of laph-vectors and propagators

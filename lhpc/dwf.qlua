@@ -22,19 +22,26 @@ function latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, x)
             mdwf_c5 * (4. - mdwf_M5) - 1.,  x,
             -mdwf_c5,                       xw_x)
 end
+function latvec_op_mdwf_dminus_5d(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, x)
+  local mdwf_b5 = latvec_as_table(mdwf_b5)
+  local mdwf_c5 = latvec_as_table(mdwf_c5)
+  local xw_x = latvec_op_xwilson(x, gauge_u)
+  local res = {}
+  for s = 0, #x - 1 do
+    res[1+s] = latvec_scalsum_left(
+            mdwf_c5[1+s] * (4. - mdwf_M5) - 1.,  x[1+s],
+            -mdwf_c5[1+s],                       xw_x[1+s])
+  end
+  return res
+end
 
 --* compute propagator including Dminus, i.e with action 
 --* S_fermion = \bar q [ Dminus^{-1} DMoebiusSlash ] q
 function calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5, 
                         mdwf_b5_s, mdwf_c5_s, src,
                         is_relaxed, is_verbose)
-  if 'table' ~= type(mdwf_b5_s) then 
-    mdwf_b5_s = make_list_const(mdwf_b5_s, mdwf_L5) 
-  end
-  if 'table' ~= type(mdwf_c5_s) then 
-    mdwf_c5_s = make_list_const(mdwf_c5_s, mdwf_L5) 
-  end
-  
+  local mdwf_b5_s = latvec_as_table(mdwf_b5_s)
+  local mdwf_c5_s = latvec_as_table(mdwf_c5_s)
 
   if type(src) == 'lattice.dirac.propagator' then
     local sol_4d = (src.lattice):DiracPropagator()

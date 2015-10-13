@@ -682,11 +682,6 @@ q_qdpc_reader (lua_State *L)
         ionode_ctrl->master     = ionode_master;
         ionode_ctrl->rank_stride= ionode_rank_stride;
         fs.arg                  = ionode_ctrl;
-        printf("[%04d] q_qdpc_reader : master=%d rank_stride=%d master_io(..)=%d my_io(..)=%d\n",
-                QDP_this_node,
-                ionode_master, ionode_rank_stride, 
-                qdpc_master_ionode_a(fs.arg),
-                qdpc_my_ionode_a(QDP_this_node, fs.arg));
         /* TODO perhaps set only those overridden by lua params */
         reader  = QDP_open_read_general_L(S->lat, xml, (char *)name, &fs, NULL);
     } else {
@@ -1032,11 +1027,6 @@ q_qdpc_writer(lua_State *L)
         fs.arg                  = ionode_ctrl;
         /* TODO perhaps set only those overridden by lua params */
         writer = QDP_open_write_general_L(S->lat, xml, (char *)name, volfmt, &fs, NULL); /* [ sic ] */
-        printf("[%04d] q_qdpc_writer : master=%d rank_stride=%d master_io(..)=%d my_io(..)=%d\n",
-                QDP_this_node,
-                ionode_master, ionode_rank_stride, 
-                qdpc_master_ionode_a(fs.arg),
-                qdpc_my_ionode_a(QDP_this_node, fs.arg));
     } else {
         writer = QDP_open_write_L(S->lat, xml, (char *)name, volfmt); /* [ sic ] */
     }
