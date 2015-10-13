@@ -1774,6 +1774,89 @@ q_DW_mixed_solver(lua_State *L,
 static MDWFSolver mixed_solver = { q_DW_mixed_solver, "mixedCG" };
 
 static int
+q_DW_debugmesilly(lua_State *L)
+{
+    /* stack: 1:mMDWF, : debugmesilly ( 2:"op_name", 3:{Fermion} ) */
+    char *err_str = NULL;
+    mMDWF *c    = qlua_checkMDWF(L, 1, NULL, 1); 
+    mLattice *S = qlua_ObjLattice(L, 1);
+    int Sidx = lua_gettop(L);
+    const char *op_name    = luaL_checkstring(L, 2);
+
+//    fermion x   = ...
+    QLA_D3_DiracFermion **x = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+    mLatDirFerm3 **qlua_x = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
+    mLatDirFerm3 **qlua_y = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
+    struct QOP_D3_MDWF_Fermion *c_x;
+    struct QOP_D3_MDWF_Fermion *c_y;
+    QLA_D3_DiracFermion **e_x = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+    QLA_D3_DiracFermion **e_y = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+    DW_5_env env;
+    int status;
+    int i;
+    CALL_QDP(L);
+
+    for (i = 0; i < c->Ls; i++) {
+        lua_pushnumber(L, i + 1); /* [sic] lua indexing */
+        lua_gettable(L, 3);
+        qlua_x[i] = qlua_checkLatDirFerm3(L, -1, S, 3);
+        e_x[i]  = QDP_D3_expose_D(qlua_x[i]->ptr);
+        lua_pop(L, 1);
+    }
+
+    env.lat = S->lat;
+    env.f = e_x;
+
+    if (QOP_D3_MDWF_import_fermion(&c_x, c->state, DW_5_reader, &env)) {
+        err_str = "MDWF_import_fermion() failed";
+        goto err_end;
+    }
+    for (i = 0; i < c->Ls; i++)
+        QDP_D3_reset_D(qlua_x[i]->ptr);
+
+    if (QOP_D3_MDWF_allocate_fermion(&c_y, c->state)) {
+        err_str = "MDWF_create_fermion() failed";
+        goto err_end;
+    }
+
+    QOP_D3_MDWF_debugmesilly(c_y, c->params, c->gauge, op_name, c_x);
+
+    QOP_D3_MDWF_free_fermion(&c_x);
+
+    lua_createtable(L, c->Ls, 0);
+    for (i = 0; i < c->Ls; i++) {
+        qlua_y[i] = qlua_newLatDirFerm3(L, Sidx, 3);
+        e_y[i] = QDP_D3_expose_D(qlua_y[i]->ptr);
+        lua_rawseti(L, -2, i + 1);
+    }
+
+    env.lat = S->lat;
+    env.f = e_y;
+    if (QOP_D3_MDWF_export_fermion(DW_5_writer, &env, c_y)) {
+        err_str = "MDWF_export_fermion() failed";
+        goto err_end;
+    }
+    for (i = 0; i < c->Ls; i++) 
+        QDP_D3_reset_D(qlua_y[i]->ptr);
+    
+
+    QOP_D3_MDWF_free_fermion(&c_y);
+
+    qlua_free(L, qlua_x);
+    qlua_free(L, qlua_y);
+    qlua_free(L, e_x);
+    qlua_free(L, e_y);
+    return 1;
+
+err_end:
+    qlua_free(L, qlua_x);
+    qlua_free(L, qlua_y);
+    qlua_free(L, e_x);
+    qlua_free(L, e_y);
+    return luaL_error(L, err_str);
+}
+
+static int
 q_DW_make_mixed_solver(lua_State *L)
 {
     qlua_checkMDWF(L, 1, NULL, 1);     /* mClover */
@@ -1946,7 +2029,7 @@ q_mdwf_generic_check_coeff_table(int n, double *r, double *r_im,
  * qcd.MDWF.generic(U[4],          -- [1] Gauge, gauge field
  *                  ubc[4],        -- [2] double[4], gauge boundary conditions
  *                  Ls,            -- [3] int, flavor dimension size
- *                  M5,            -- [4] double
+ QOP_MDWF_*                  M5,            -- [4] double
  *                  mf,            -- [5] double
  *                  b5[Ls],        -- [6] double[Ls]
  *                  c5[Ls])        -- [7] double[Ls]
@@ -2127,6 +2210,7 @@ static struct luaL_Reg mtMDWF[] = {
     { "Dx",                         q_DW_Dx                         },
     { "solver",                     q_DW_make_solver                },
     { "mixed_solver",               q_DW_make_mixed_solver          },
+    { "debugmesilly",               q_DW_debugmesilly               },
     { "eig_deflator",               q_DW_make_deflator              },
 #ifdef HAS_ARPACK
     { "eig_deflator_lanczos",       q_DW_make_deflator_lanczos      },
