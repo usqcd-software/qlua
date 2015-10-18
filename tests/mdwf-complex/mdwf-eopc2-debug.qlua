@@ -1,0 +1,116 @@
+require "latvec"
+require "mdwf_eopc"
+
+do
+   local ix = L:Int(0)
+   for i = 0, #L - 1 do
+      ix = ix * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(rnd_seed, ix)
+end
+
+-- random gauge field
+U = latvec_fromfunction(#L, function() 
+      return toSUn(4.123 * S:gaussian_ColorMatrix()) end)
+-- gauge field for "gold MDWF"
+bc_U = latvec_copy(U) ; gauge_apply_boundary(bc_U, bc)
+
+-- init MDWF lib 
+DW = qcd.MDWF.generic(U, bc, mdwf_L5, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+
+
+-- init "gold" functions
+require "op-gold"
+
+-- M : prec-specific operator
+function m_eopc_gold(x, is_dag) 
+  return mdwf_eopc_sym2(x, bc_U, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, is_dag)
+end
+function op_M(x)
+  return m_eopc_gold(x)
+end
+function op_Mx(x)
+  return m_eopc_gold(x, true)
+end
+
+
+
+-- random fermion fields
+F = latvec_fromfunction(mdwf_L5, function(i,a) return S:gaussian_DiracFermion() end)
+F2= latvec_fromfunction(mdwf_L5, function(i,a) return S:gaussian_DiracFermion() end)
+
+
+-- debug
+Fe = latvec_const(mdwf_L5, L:DiracFermion())
+L:Subset("even"):where(function() latvec_set(Fe, F) end)
+-- or, another way of doing the same
+Fe_other = latvec_copy(F)
+L:Subset("odd"):where(function() latvec_setzero(Fe_other) end)
+print_latvec_cmp(Fe, Fe_other, "two ways to make an even-sublat vector")
+
+if true then -- nahyi
+--if false then -- nahyi
+  M_Fe    = DW:debugmesilly("op-M", Fe)
+  Mx_Fe   = DW:debugmesilly("op-Mx", Fe)
+  Mx_M_Fe = DW:debugmesilly("op-Mx", M_Fe)
+  print_latvec_cmp(Fe, Mx_M_Fe, "Fe<->Mx.M.Fe")
+
+  gold_M_Fe     = m_eopc_gold(Fe, false)
+  gold_Mx_Fe    = m_eopc_gold(Fe, true)
+  gold_Mx_M_Fe  = m_eopc_gold(gold_M_Fe, true)
+  print_latvec_cmp(Fe, gold_Mx_M_Fe, "gold Fe<->Mx.M.Fe")
+
+  print_latvec_cmp(M_Fe, gold_M_Fe, "M.Fe<->gold(M.Fe)")
+  print_latvec_cmp(Mx_Fe, gold_Mx_Fe, "Mx.Fe<->gold(Mx.Fe)")
+  print_latvec_cmp(Mx_M_Fe, gold_Mx_M_Fe, "Mx.M.Fe<->gold(Mx.M.Fe)")
+end
+
+
+function check_op(op_name, op_gold, x)
+  local y = DW:debugmesilly(op_name, x)
+  local gold_y = op_gold(x)
+  print_latvec_cmp(y, gold_y, string.format("%s:DW<->gold", op_name))
+end
+
+check_op("op-A",        op_A,         F)
+check_op("op-Ax",       op_Ax,        F)
+check_op("op-A1",       op_A1,        F)
+check_op("op-A1x",      op_A1x,       F)
+
+check_op("op-B",        op_B,         F)
+check_op("op-Bx",       op_Bx,        F)
+check_op("op-B1",       op_B1,        F)
+check_op("op-B1x",      op_B1x,       F)
+
+check_op("op-F",        op_F,         F)
+check_op("op-Fx",       op_Fx,        F)
+
+check_op("op-K",        op_K,         F)
+check_op("op-Kx",       op_Kx,        F)
+check_op("op-K1",       op_K1,        F)
+check_op("op-K1x",      op_K1x,       F)
+
+check_op("op-BA1",      op_BA1,       F)
+check_op("op-BA1F",     op_BA1F,      F)
+check_op("op-BA1K1",    op_BA1K1,     F)
+
+check_op("op-A1xBx",    op_A1xBx,     F)
+check_op("op-A1xBxFx",  op_A1xBxFx,   F)
+
+check_op("op-1mBA1F",   op_1mBA1F,    F)
+check_op("op-1mBA1Fn",  op_1mBA1F,    F)
+check_op("op-1mF",      op_1mF,       F)
+check_op("op-1mFx",     op_1mFx,      F)
+check_op("op-1mFxn",    op_1mFx,      F)
+check_op("op-1mKF",     op_1mKF,      F)
+check_op("op-1mKFn",    op_1mKF,      F)
+check_op("op-1mK1xA1xBxFx",   op_1mK1xA1xBxFx,  F)
+check_op("op-1mK1xA1xBxFxn",  op_1mK1xA1xBxFx,  F)
+
+check_op("op-M",        op_M,         Fe)
+check_op("op-Mn",       op_M,         Fe)
+check_op("op-Mx",       op_Mx,        Fe)
+check_op("op-Mxn",      op_Mx,        Fe)
+
+
+printf("DONE\n")
