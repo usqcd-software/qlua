@@ -49,56 +49,118 @@ function dw_random_latdirferm(L5, rnd)
 end
 
 
-function make_list_const(a, len)
-  -- obsolete, replace with latvec_as_table
-  local res = {}
-  for i=1, len do res[i] = a end
-  return res
-end
-
-function latvec_as_table(x, x_len)
-  -- if table, check length
-  -- if not a table, make a constant table
-  -- NOTE x's are not deep-copied, so changing one element of the result 
-  -- may have side effects; TODO make a deep copy version ; depends on having 
-  -- a function implementing universal deep copy
-  if 'table' == type(x) then
-    if nil ~= x_len and #x ~= x_len then
-      error(string.format("latvec size mismatch: len(%s) != %d", tostring(x), x_len))
+-- create a (scaled) copy of anything except string, lattice, ???
+function scal_nontable_(v, scal)
+  assert('table' ~= type(v))
+  if (   'nil'      == type(v)
+      or 'string'   == type(v) 
+      or 'lattice'  == type(v)) then 
+    if (nil ~= scal) then
+      error(string.format("cannot scale %s", type(v)))
     end
-    return x
-  elseif not nil == x then 
-    x_s   = {}
-    for s = 1, x_len do
-      x_s[s] = x
-    end
-    return x_s
-  else
-    return {}
+    return v 
   end
-end
-
--- create deep copy of a latvec of lattice oblects
-function latvec_copy(v, scal)
-  if nil == scal then scal = 1 end
-  if 'table' == type(v) then
-    local res = {}
-    for k, v_k in pairs(v) do
-      res[k] = latvec_copy(v_k, scal)
-    end
-    return res
-  elseif 'lattice.int'             == type(v) then return scal * (v.lattice):Int(v)
+  scal = (scal or 1)
+  if     'lattice.int'             == type(v) then return scal * (v.lattice):Int(v)
   elseif 'lattice.real'            == type(v) then return scal * (v.lattice):Real(v) 
   elseif 'lattice.complex'         == type(v) then return scal * (v.lattice):Complex(v)
   elseif 'lattice.color.vector'    == type(v) then return scal * (v.lattice):ColorVector(v) 
   elseif 'lattice.color.matrix'    == type(v) then return scal * (v.lattice):ColorMatrix(v)
   elseif 'lattice.dirac.fermion'   == type(v) then return scal * (v.lattice):DiracFermion(v) 
   elseif 'lattice.dirac.propagator'== type(v) then return scal * (v.lattice):DiracPropagator(v)
-  else 
-    error("unknown type")
+  elseif('number'                  == type(v) 
+      or 'complex'                 == type(v))then return scal * v
+  else
+    error(string.format("%s : unsupported type", type(v)))
     return nil
   end
 end
+
+-- create deep copy of a latvec (of lattice oblects, numbers, etc)
+-- TODO clarify semantics wrt deep-copying of keys; are keys assumed immutable?
+function latvec_copy(obj, scal, seen, scal_nontable_func)
+  if 'table' == type(obj) then
+    -- shamelessly copied from stackoverflow 
+    -- [https://stackoverflow.com/questions/640642/how-do-you-copy-a-lua-table-by-value]
+    if seen and seen[obj] then return seen[obj] end
+    local s = seen or {}
+    local obj_mt = getmetatable(obj)
+    local res = {}
+    setmetatable(res, obj_mt)
+    s[obj] = res
+    for k, v in pairs(obj) do 
+      res[latvec_copy(k, nil, s)] = latvec_copy(v, scal, s, scal_nontable_func)
+    end
+    return res
+  end
+  return (scal_nontable_func or scal_nontable_)(obj, scal)
+end
+
+function latvec_fromfunction(dim, func, arg_list)
+  -- create N-dim table of shape dim, N=#dim, calling func as
+  --    a[1+i1][1+i2]...[i+iN] = func(arg[1], arg[2], ..., argM, i1,...,iN)
+  if 'number' == type(dim) then 
+    return latvec_fromfunction({dim}, func, arg_list)
+  elseif 'table' == type(dim) then
+    if 0 == #dim then return {} end
+    local cnt = dim[1]
+    if ('number' ~= type(cnt) or 0 ~= cnt%1) then
+      error("dim must be an integer or a table of integers")
+    end
+    local arg_list  = arg_list or {}
+    local na = #arg_list
+    -- copy args and indices in the tail
+    local newarg_list = {}
+    for s = 1, na do newarg_list[s] = arg_list[s] end 
+    local res = {}
+    if 1 < #dim then 
+      local newdim = {}
+      for s = 1, #dim - 1 do newdim[s] = dim[s+1] end -- copy dims except [1]
+      for i = 1, cnt do
+        newarg_list[1 + na] = i - 1  -- enumerating from zero
+        res[i] = latvec_fromfunction(newdim, func, newarg_list)
+      end
+    else
+      assert(1 == #dim)
+      for i = 1, cnt do
+        newarg_list[1 + na] = i - 1  -- enumerating from zero
+        res[i] = func(unpack(newarg_list))
+      end
+    end
+    return res
+  else
+    error("dim must be an integer or a table of integers")
+  end
+end
+
+function latvec_const(dim, a)
+  return latvec_fromfunction(dim, function() return latvec_copy(a) end)
+end
+function make_list_const(a, len)
+  printf("make_list_const(a, len): OBSOLETE; use latvec_const(len, a)\n")
+  return latvec_const(len, a)
+end
+
+function latvec_asarray1d(x, x_len)
+  -- if table, check length
+  -- if not a table, make a constant table
+  -- NOTE x's are not deep-copied, so changing one element of the result 
+  -- may have side effects; TODO make a deep copy version ; depends on having 
+  -- a function implementing universal deep copy
+  if 'table' == type(x) then
+    if x_len and #x ~= x_len then
+      error(string.format("latvec size mismatch: len(%s) != %d", tostring(x), x_len))
+    end
+    return x
+  elseif x then 
+    local x_s   = {}
+    for s = 1, x_len do  x_s[s] = x  end
+    return x_s
+  else
+    return {}
+  end
+end
+latvec_as_table = latvec_asarray1d
 
 function latvec_zeros_like(v)
   return latvec_copy(v, 0)
@@ -115,6 +177,12 @@ function latvec_norm2(v)
     return v:norm2()
   end
 end
+function conj_nontable_(v)
+  assert('table' ~= type(v))
+  if 'number' == type(v) then return v
+  else return v:conj()
+  end
+end
 function latvec_conj(v)
   if 'table' == type(v) then
     local c = {}
@@ -122,7 +190,7 @@ function latvec_conj(v)
       c[1+i] = latvec_conj(v[1+i])
     end
     return c
-  else return (v:conj()) end
+  else return conj_nontable_(v) end
 end
 function latvec_shift(v, mu, dir)
   if 'table' == type(v) then

@@ -19,3 +19,21 @@ function print_subgrid_settings(L)
   end
   printf("%s: network=[%s] subgrid=[%s]\n", tostring(L), ln_str, sg_str)
 end
+
+-- moved from qop tests and simplified [sns 2015/10/13]
+function print_obj(t, name)
+  name  = name or tostring(t)
+  if type(t) == "table" then
+    printf("%s : TABLE\n", name)
+    local t_mt = getmetatable(t)
+    if t_mt then 
+      print_obj(t_mt, string.format("%s.META", name))
+    end
+    for i, v in pairs(t) do
+      local name_i = string.format("%s[%s]", name, tostring(i))
+      print_obj(v, name_i)
+    end
+  else
+    printf("%s : (%s) %s\n", name, type(t), tostring(t))
+  end
+end
