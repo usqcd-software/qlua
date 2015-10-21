@@ -1,0 +1,176 @@
+-- convenience functions for manipulating deflator data
+
+require "qdpc_io"
+require "latvec"
+require "lhpc-std"
+
+-- FIXME do I need to enforce garbage collection on local variables,
+--    e.g. ss_v1, ss_v2, ss_ below?
+
+-- load deflator espace for a 4d eo preconditioned operator from a qdp reader 
+-- return the number of loaded vectors
+function deflator_read_espace(
+        df,             -- deflator
+        qdp_r_espace,   -- QDP reader
+        l_nev,          -- the number of e.vectors to load
+        evec_pack_eopc) -- pack 2 eopc vectors into one? def=yes
+  if nil == evec_pack_eopc then 
+    evec_pack_eopc = true   -- default to packed
+  end
+  local L = df.lattice
+  local df_dim = df:current_dim()
+  df:start_load()
+  if evec_pack_eopc then
+    for i = 0, (l_nev + 1) / 2 - 1 do
+      local ss_v1, ss_v2
+      if 2*i + 1 < l_nev then
+        printf('read evec pair #%d\n', i)
+        ss_v1, ss_v2 = latvec_eopc_single_to_pair(
+                          L:Subset("even"),
+                          qdp_r_espace:DiracFermion())
+        assert(0. < latvec_norm2(ss_v1))  -- sanity check
+        df:add_vector(ss_v1)
+        assert(0. < latvec_norm2(ss_v2))  -- sanity check
+        df:add_vector(ss_v2)
+      else
+        df:add_vector(qdp_r_espace:DiracFermion())
+      end
+    end
+  else
+    for i = 0, l_nev - 1 do
+      local ss_v = qdp_r_espace:DiracFermion()
+      assert(0. < latvec_norm2(ss_v))
+      df:add_vector(ss_v)
+    end
+  end
+  df:stop_load()
+  force_gc('deflator_read_espace|')
+  return (df:current_dim() - df_dim)
+end
+-- load deflator espace for a 5d operator (4d eo preconditioned) from a qdp reader
+-- return the number of loaded vectors
+function deflator_read_espace_d5(
+        df, L5,         -- deflator and the size of 5th dimension
+        qdp_r_espace,   -- QDP reader
+        l_nev,          -- the number of e.vectors to load
+        evec_pack_eopc) -- packed 2 eopc vectors into one? def=yes
+  if nil == evec_pack_eopc then 
+    evec_pack_eopc = true   -- default to packed
+  end
+  local L = df.lattice
+  local df_dim = df:current_dim()
+  df:start_load()
+  if evec_pack_eopc then
+    for i = 0, (l_nev + 1) / 2 - 1 do
+      local ss_v1, ss_v2
+      if 2*i + 1 < l_nev then
+        --printf('read evec pair #%d\n', i)
+        ss_v1, ss_v2 = latvec_eopc_single_to_pair(
+                          L:Subset("even"),
+                          qdp_r_espace:DiracFermion(L5))
+        assert(0. < latvec_norm2(ss_v1))  -- sanity check
+        df:add_vector(ss_v1)
+        assert(0. < latvec_norm2(ss_v2))  -- sanity check
+        df:add_vector(ss_v2)
+      else
+        df:add_vector(qdp_r_espace:DiracFermion(L5))
+      end
+    end
+  else
+    for i = 0, l_nev - 1 do
+      local ss_v = qdp_r_espace:DiracFermion(L5)
+      assert(0. < latvec_norm2(ss_v))
+      df:add_vector(ss_v)
+    end
+  end
+  df:stop_load()
+  force_gc('deflator_read_espace_d5|')
+  return (df:current_dim() - df_dim)
+end
+
+-- save deflator espace for a 4d eo preconditioned operator to a qdp writer
+-- return the number of saved vectors
+function deflator_save_espace(
+                df,           -- deflator and the size of 5th dimension
+                qdp_w_espace, -- QDP writer
+                evec_pack_eopc,   -- pack 2 eopc vectors into one? def=yes
+                evec_qio_prec,    -- QIO precision for e.vectors; def=single
+                df_dim_max)       -- max number of vectors to save; def=all
+  if nil == evec_pack_eopc then 
+    evec_pack_eopc = true   -- default to packed
+  end
+  if nil == evec_qio_prec then 
+    evec_qio_prec = "single" -- default to single precision
+  end
+  local df_dim = df:current_dim()
+  if nil ~= df_dim_max and df_dim_max < df_dim then 
+    df_dim = df_dim_max 
+  end
+  
+  local L = df.lattice
+
+  if evec_pack_eopc then
+    for i = 0, (df_dim + 1) / 2 - 1 do
+      local vec_pack
+      if 2*i + 1 < df_dim then
+        vec_pack = latvec_eopc_pair_to_single(
+                      L:Subset("even"),
+                      df:get_vector(2*i), 
+                      df:get_vector(2*i + 1))
+      else
+        vec_pack = df:get_vector(2*i)
+      end 
+      qdp_w_espace:DiracFermion(evec_qio_prec, vec_pack, "")
+    end
+  else
+    for i = 0, df_dim - 1 do
+      qdp_w_espace:DiracFermion(evec_qio_prec, df:get_vector(i), "")
+    end
+  end
+  force_gc('deflator_save_espace_d5|')
+  return df_dim
+end
+
+-- save deflator espace for a 5d operator (4d eo preconditioned) to a qdp writer
+-- return the number of saved vectors
+function deflator_save_espace_d5(
+                df, L5,       -- deflator and the size of 5th dimension
+                qdp_w_espace, -- QDP writer
+                evec_pack_eopc,   -- pack 2 eopc vectors into one? def=yes
+                evec_qio_prec,    -- QIO precision for e.vectors; def=single
+                df_dim_max)       -- max number of vectors to save; def=all
+  if nil == evec_pack_eopc then 
+    evec_pack_eopc = true   -- default to packed
+  end
+  if nil == evec_qio_prec then 
+    evec_qio_prec = "single" -- default to single precision
+  end
+  local df_dim = df:current_dim()
+  if nil ~= df_dim_max and df_dim_max < df_dim then 
+    df_dim = df_dim_max 
+  end
+  
+  local L = df.lattice
+
+  if evec_pack_eopc then
+    for i = 0, (df_dim + 1) / 2 - 1 do
+      local vec_pack
+      if 2*i + 1 < df_dim then
+        vec_pack = latvec_eopc_pair_to_single(
+                      L:Subset("even"),
+                      df:get_vector(2*i), 
+                      df:get_vector(2*i + 1))
+      else
+        vec_pack = df:get_vector(2*i)
+      end 
+      assert(L5 == #vec_pack)
+      qdp_w_espace:DiracFermion(evec_qio_prec, vec_pack, "")
+    end
+  else
+    for i = 0, df_dim - 1 do
+      qdp_w_espace:DiracFermion(evec_qio_prec, df:get_vector(i), "")
+    end
+  end
+  force_gc('deflator_save_espace_d5|')
+  return df_dim
+end

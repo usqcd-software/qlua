@@ -1,0 +1,36 @@
+package.path = 'qlib/?.qlua;lhpc/?.qlua;' .. package.path;
+
+require "strict"
+require "stdlib"
+require "gauge"
+require "latvec"
+require "lhpc-std"
+
+printf("Test for variable complex b and c\n");
+
+latsize = { 4, 4, 6, 8}
+bc  = {1, 1, 1, -1}
+rnd_seed = 1984
+
+L = qcd.lattice(latsize)
+print_network_settings()
+print_subgrid_settings(L)
+
+mdwf_M5 = 1.80345623
+mdwf_mf = 0.1246
+mdwf_L5 = 8
+
+mdwf_b5 = {
+      complex(1.502,    -0.10),
+      complex(1.501,     0.01),
+      complex(1.5,      -0.02),
+      complex(1.504,     0.02),
+      complex(1.494,     0.01),
+      complex(1.491,     0.05),
+      complex(1.492,     0.04),
+      complex(1.504,     0.03)
+}
+mdwf_c5={}
+for s = 0, mdwf_L5-1 do
+  mdwf_c5[1+s] = mdwf_b5[1+s] - 1
+end

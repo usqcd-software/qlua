@@ -1,0 +1,117 @@
+-- WRITE functions
+-- TODO add save_qdpc_* for all types
+function open_qdpc_write(L, name, finfo, volfmt, param)
+  local qdp_w = qcd.qdpc.Writer(L, name, finfo, volfmt, param)
+  if not qdp_w then
+    printf("Error opening QDP writer to '%s'\n", name)
+    os.exit(1)
+  end
+  return qdp_w
+end
+function save_qdpc_dirferm(L, fields, name, finfo, rinfo, volfmt)
+  local qdp_w = open_qdpc_write(L, name, finfo, volfmt)
+  if not qdp_w:DiracFermion(fields, rinfo) then
+    printf("Error writing to '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_w:close()
+end
+function save_qdpc_colmat(L, fields, name, finfo, rinfo, volfmt)
+  local qdp_w = open_qdpc_write(L, name, finfo, volfmt)
+  if not qdp_w:ColorMatrix(fields, rinfo) then
+    printf("Error writing to '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_w:close()
+end
+function save_qdpc_dirprop(L, fields, name, finfo, rinfo, volfmt)
+  local qdp_w = open_qdpc_write(L, name, finfo, volfmt)
+  if not qdp_w:DiracPropagator(fields, rinfo) then
+    printf("Error writing to '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_w:close()
+end
+  
+
+-- READ functions
+-- TODO add load_qdpc_*, load_qdpc_*_list for all types
+function open_qdpc_read(L, name, param)
+  local qdp_r = qcd.qdpc.Reader(L, name, param)
+  if not qdp_r then
+    printf("Error opening QDP reader from '%s'\n", name)
+    os.exit(1)
+  end
+  return qdp_r
+end
+-- DiracFermion
+function load_qdpc_dirferm(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local df, rinfo = qdp_r:DiracFermion()
+  if not df then
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return df, finfo, rinfo
+end
+-- ColorMatrix
+function load_qdpc_colmat(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local cm, rinfo = qdp_r:ColorMatrix()
+  if not cm then
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return cm, finfo, rinfo
+end
+function load_qdpc_colmat_list(L, name, n)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local cm_list = {}
+  local rinfo_list = {}
+  for i = 0, n-1 do
+    cm_list[1+i], rinfo_list[1+i] = qdp_r:ColorMatrix()
+    if not cm_list[1+i] then
+      printf("Error reading record[%d] from '%s'\n", i, name)
+      os.exit(1)
+    end
+  end
+  qdp_r:close()
+  return cm_list, finfo, rinfo_list
+end
+function load_qdpc_gauge(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local gauge, rinfo = qdp_r:ColorMatrix(4)
+  if not gauge then 
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return gauge, finfo, rinfo
+end
+-- ColorVector
+function load_qdpc_colvec(L, name)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local cv, rinfo = qdp_r:ColorVector()
+  if not cv then
+    printf("Error reading from '%s'\n", name)
+    os.exit(1)
+  end
+  qdp_r:close()
+  return cv, finfo, rinfo
+end
+function load_qdpc_colvec_list(L, name, n)
+  local qdp_r, finfo = open_qdpc_read(L, name)
+  local cv_list = {}
+  local rinfo_list = {}
+  for i = 0, n-1 do
+    cv_list[1+i], rinfo_list[1+i] = qdp_r:ColorVector()
+    if not cv_list[1+i] then
+      printf("Error reading record[%d] from '%s'\n", i, name)
+      os.exit(1)
+    end
+  end
+  qdp_r:close()
+  return cv_list, finfo, rinfo_list
+end

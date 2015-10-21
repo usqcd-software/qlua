@@ -1,0 +1,108 @@
+-- TODO need qcd.momentum_project(field, momentum, t_axis)
+-- better to have single function for fields = real, complex, color&Dirac vectors&matrices
+-- and for 3d & 4d mom projections:
+--    d=3 if t_axis is present; momentum[t_axis+1] is ignored; return vector.<whatever>
+--    d=4 if no t_axis given; return scalar; required for NPR implementation
+-- FIXME much copied code from lhpc/bb.qlua; identify common functions and put into a sep.file
+function calc_clover(
+    L,
+    aff_w,              -- aff writer
+    aff_kpath_prefix,   -- keypath prefix
+    fw_p,               -- forward propagator
+    bw_p_adj, gauge_u,  -- backward propagator, Dslash^-1 * g5 * SeqSrc^\dag *g5
+    csrc,               -- source coord: x,y,z,t
+    tsnk, psnk,         -- sink timeslice, sink momentum
+    t_axis,             -- axis; currently works for t_axis ==3
+    qlist,              -- list of insertion momenta {q}; each q be with #q = #L
+    time_rev,           -- whether to reverse time (true for proton_negpar_3)
+    bc_2pt_t            -- BC for 2pt function in t dir; need to get the correct sign for 3pt's
+    )
+  -- handy function to copy tables
+  local function copy_table(tab) 
+    local a = {}; for i,v in pairs(tab) do a[i] = v end
+    return a
+  end
+  
+  local bw_p = gamma{n=15} * bw_p_adj:adjoin() * gamma{n=15} -- XXX c3pt = tr[bw_p.Gamma.fw_p]
+  local lt = L[t_axis]
+  local tsrc = csrc[1+t_axis]
+  -- calc source-sink separation
+  local src_snk_dt = nil
+  if not time_rev then
+    if tsrc < tsnk then src_snk_dt = tsnk - tsrc
+    else src_snk_dt = lt + tsnk - tsrc end
+  else
+    if tsnk < tsrc then src_snk_dt = tsrc - tsnk
+    else src_snk_dt = lt + tsrc - tsnk end
+  end
+  -- append '/' to kpath prefix if non-empty
+  if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+  
+  -- init plane waves for each momentum 
+  local qlist_pw = {}
+  for i,q in pairs(qlist) do
+    local q_cp = copy_table(q)
+    q_cp[1+t_axis] = 0
+    qlist_pw[i] = L:planewave(csrc, q_cp)
+  end
+  -- init timeslice subsets
+  local time_mset = L:MultiSet(L[t_axis], L:pcoord(t_axis))
+  local mset_src_snk = nil
+  if not time_rev then
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt - tsrc + L:pcoord(t_axis)) % lt)
+  else
+     mset_src_snk = L:MultiSet(src_snk_dt + 1, (lt + tsrc - L:pcoord(t_axis)) % lt)
+  end
+
+  -- make keypath
+  local function clover_keypath(clover_a, clover_b, gn, qext)
+    if not (t_axis == 3) then return nil end    -- general case is involved
+    local ltab = {'x', 'y', 'z', 't'}
+    return string.format(
+        "%sx%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d_T%d/clover_%s%s/g%d/qx%d_qy%d_qz%d",
+        aff_kpath_prefix, 
+        csrc[1], csrc[2], csrc[3], csrc[4], 
+        psnk[1], psnk[2], psnk[3], tsnk,
+        ltab[1+clover_a], ltab[1+clover_b],
+        gn, qext[1], qext[2], qext[3])
+  end
+
+  local gamma_list_all = { 
+          0, 1, 2, 3, 4, 5, 6, 7,
+          8, 9,10,11,12,13,14,15}
+  -- compute contractions with 16 gammas, project on momenta, save bb
+  local function save_clover(fw_p, bw_p, clover_a, clover_b, gamma_list)
+    local clover_u = clover_term(gauge_u, clover_a, clover_b) -- (U_p - U_p^H)/(8i)
+    clover_u = (clover_u      -- subtract trace
+                - clover_u:trace() * clover_u.lattice:ColorMatrix(1. / clover_u:colors()))
+    local fw_times_bw = clover_u * fw_p * bw_p
+    if nil == gamma_list then gamma_list = gamma_list_all end
+
+    for i_gn, gn in pairs(gamma_list) do
+      local bb = (gamma{n=gn} * fw_times_bw):trace()
+      -- XXX Chroma signs [sic!]; 
+      -- note that in general can be bc_2pt_t != -1
+      if time_rev then
+        if (gn < 8) then bb = bb * bc_2pt_t
+        else bb = bb * (-bc_2pt_t) end
+      end
+      for iq = 1, #qlist do
+        aff_w:write(clover_keypath(clover_a, clover_b, gn, qlist[iq]),
+                    bb:project(qlist_pw[iq], mset_src_snk))
+      end
+    end
+  end
+
+
+  -- cycle over directions
+  local gamma_sigma_ab = {}
+  for clover_a = 0, #L - 2 do
+    for clover_b = clover_a + 1, #L - 1 do
+      gamma_sigma_ab[1] = 2^clover_a + 2^clover_b
+      gamma_sigma_ab[2] = 15 - gamma_sigma_ab[1]
+      save_clover(fw_p, bw_p, clover_a, clover_b,
+                  -- TODO select only 2 relevant Gammas  = gamma_a.gamma_b.{1;gamma_5}
+                  gamma_sigma_ab)
+    end
+  end
+end

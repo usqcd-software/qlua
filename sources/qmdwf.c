@@ -1773,6 +1773,7 @@ q_DW_mixed_solver(lua_State *L,
 
 static MDWFSolver mixed_solver = { q_DW_mixed_solver, "mixedCG" };
 
+#ifdef DEBUG_MDWF_EOPC2
 static int
 q_DW_debugmesilly(lua_State *L)
 {
@@ -1784,7 +1785,7 @@ q_DW_debugmesilly(lua_State *L)
     const char *op_name    = luaL_checkstring(L, 2);
 
 //    fermion x   = ...
-    QLA_D3_DiracFermion **x = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
+//    QLA_D3_DiracFermion **x = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
     mLatDirFerm3 **qlua_x = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
     mLatDirFerm3 **qlua_y = qlua_malloc(L, c->Ls * sizeof (mLatDirFerm3 *));
     struct QOP_D3_MDWF_Fermion *c_x;
@@ -1792,7 +1793,7 @@ q_DW_debugmesilly(lua_State *L)
     QLA_D3_DiracFermion **e_x = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
     QLA_D3_DiracFermion **e_y = qlua_malloc(L, c->Ls * sizeof (QLA_D3_DiracFermion *));
     DW_5_env env;
-    int status;
+    //    int status;
     int i;
     CALL_QDP(L);
 
@@ -1855,6 +1856,7 @@ err_end:
     qlua_free(L, e_y);
     return luaL_error(L, err_str);
 }
+#endif /* defined (DEBUG_MDWF_EOPC2) */
 
 static int
 q_DW_make_mixed_solver(lua_State *L)
@@ -2210,7 +2212,9 @@ static struct luaL_Reg mtMDWF[] = {
     { "Dx",                         q_DW_Dx                         },
     { "solver",                     q_DW_make_solver                },
     { "mixed_solver",               q_DW_make_mixed_solver          },
+#ifdef DEBUG_MDWF_EOPC2
     { "debugmesilly",               q_DW_debugmesilly               },
+#endif /* defined(DEBUG_MDWF_EOPC2) */
     { "eig_deflator",               q_DW_make_deflator              },
 #ifdef HAS_ARPACK
     { "eig_deflator_lanczos",       q_DW_make_deflator_lanczos      },

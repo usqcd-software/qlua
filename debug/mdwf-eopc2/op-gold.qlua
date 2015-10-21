@@ -1,0 +1,118 @@
+-- A
+do
+  local lv_K  = latvec_mdwfK
+  local lv_K1 = latvec_inv_mdwfK
+  local lv_A  = latvec_mdwfA
+  local lv_A1 = latvec_inv_mdwfA
+  local lv_B  = latvec_mdwfB
+  local lv_B1 = latvec_inv_mdwfB
+  local lv_F  = latvec_mdwfF
+  function op_A(x)
+    return lv_A(x, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_Ax(x)
+    return lv_A(x, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  function op_A1(x)
+    return lv_A1(x, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_A1x(x)
+    return lv_A1(x, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  -- B
+  function op_B(x)
+    return lv_B(x, mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_Bx(x)
+    return lv_B(x, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  function op_B1(x)
+    return lv_B1(x, mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_B1x(x)
+    return lv_B1(x, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  -- F
+  function op_F(x)
+    return lv_F(x, bc_U)
+  end
+  function op_Fx(x)
+    return lv_F(x, bc_U, true)
+  end
+  -- K
+  function op_K(x)
+    return lv_K(x, mdwf_M5, mdwf_b5)
+  end
+  function op_Kx(x)
+    return lv_K(x, mdwf_M5, mdwf_b5, true)
+  end
+  function op_K1(x)
+    return lv_K1(x, mdwf_M5, mdwf_b5)
+  end
+  function op_K1x(x)
+    return lv_K1(x, mdwf_M5, mdwf_b5, true)
+  end
+  -- composites
+  function op_BA1(x)
+    return lv_B(lv_A1(x,
+                      mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5),
+                mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_BA1F(x)
+    return lv_B(lv_A1(lv_F(x,
+                           bc_U), 
+                      mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5),
+                mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_BA1K1(x)
+    return lv_B(lv_A1(lv_K1(x,
+                            mdwf_M5, mdwf_b5),
+                      mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5),
+                mdwf_mf, mdwf_b5, mdwf_c5)
+  end
+  function op_A1xBxFx(x)
+    return lv_A1(lv_B(lv_F(x,
+                           bc_U, true), 
+                      mdwf_mf, mdwf_b5, mdwf_c5, true),
+                 mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  function op_A1xBx(x)
+    return lv_A1(lv_B(x,
+                      mdwf_mf, mdwf_b5, mdwf_c5, true),
+                 mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, true)
+  end
+  function op_1mBA1F(x)
+    return latvec_scalsum_left(
+            1.,   x,
+            -1.,  lv_B(lv_A1(lv_F(x,
+                                  bc_U), 
+                             mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5),
+                       mdwf_mf, mdwf_b5, mdwf_c5))
+  end
+  function op_1mF(x)
+    return latvec_scalsum_left(
+            1.,   x,
+            -1.,  lv_F(x, bc_U))
+  end
+  function op_1mFx(x)
+    return latvec_scalsum_left(
+            1.,   x,
+            -1.,  lv_F(x, bc_U, true))
+  end
+  function op_1mKF(x)
+    return latvec_scalsum_left(
+            1.,   x,
+            -1.,  lv_K(lv_F(x, 
+                            bc_U),
+                       mdwf_M5, mdwf_b5))
+  end
+  function op_1mK1xA1xBxFx(x)
+    return latvec_scalsum_left(
+            1.,   x,
+            -1.,  lv_K1(lv_A1(lv_B(lv_F(x, 
+                                        bc_U, true),
+                                   mdwf_mf, mdwf_b5, mdwf_c5, true),
+                              mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, true),
+                        mdwf_M5, mdwf_b5, true))
+  end
+end
