@@ -36,15 +36,17 @@ LIBS='-lz' \
    --with-hdf5=$PACKTOP/hdf5                               \
    --with-qopqdp=$PACKTOP/qopqdp                           \
    --with-clover=$PACKTOP/clover                           \
-   --with-mdwf=$PACKTOP/mdwf                               \
    --clover-nc=$Nc                                         \
+   --with-twisted=$DEVTOP/twisted-working                  \
+   --twisted-nc=$Nc                                        \
+   --with-mdwf=$PACKTOP/mdwf                               \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
 #   --with-mdwf=$DEVTOP/mdwf-working                        \
-#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
 #   --with-nc=N                                             \

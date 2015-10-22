@@ -1968,19 +1968,6 @@ start_clover(lua_State *L, mLattice **ptr_S, mClover **ptr_clover)
     luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
 }
 
-static void
-get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const char *msg)
-{
-  int i;
-
-  luaL_checktype(L, idx, LUA_TTABLE);
-  for (i = 0; i < dim; i++) {
-    double rv, iv;
-    qlua_tabidx_complex(L, idx, i + 1, &rv, &iv, msg);
-    QLA_c_eq_r_plus_ir(cv[i], rv, iv);
-  }
-}
-
 /*
  *  qcd.Clover(U,         -- 1, {U0,U1,U2,U3}, a table of color matrices
  *             kappa,     -- 2, double, the hopping parameter
@@ -1996,7 +1983,7 @@ q_clover(lua_State *L)
     double kappa = luaL_checknumber(L, 2);
     double c_sw = luaL_checknumber(L, 3);
 
-    get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "boundary");
+    qlua_get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "boundary");
     start_clover(L, &S, &clover);
     args.lat = S->lat;
     QDP_latsize_L(S->lat, args.lattice);
@@ -2023,11 +2010,11 @@ q_anisotropic_clover(lua_State *L)
 
   if (qlua_tabkey_tableopt(L, 2, "kappa") == 0)
     luaL_error(L, "missing kappa values");
-  get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.kappa, "kappa");
+  qlua_get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.kappa, "kappa");
   lua_pop(L, 1);
   if (qlua_tabkey_tableopt(L, 2, "boundary") == 0)
     luaL_error(L, "missing boundary values");
-  get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.boundary, "boundary");
+  qlua_get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.boundary, "boundary");
   lua_pop(L, 1);
   if (qlua_tabkey_tableopt(L, 2, "c_sw") == 0)
     luaL_error(L, "missing c_sw values");

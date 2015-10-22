@@ -50,6 +50,14 @@ if [ ! -z "$clover" ] ; then
   libs="$libs @clover_libs@"
 fi
 
+twisted="@twisted@"
+if [ ! -z "$twisted" ] ; then
+  cflags="$cflags @twisted_cflags@"
+  ldflags="$ldflags @twisted_ldflags@"
+  libs="$libs @twisted_libs@"
+fi
+
+
 qdp="@qdp@"
 cflags="$cflags @qdp_cflags@"
 ldflags="$ldflags @qdp_ldflags@"
@@ -70,10 +78,11 @@ usage() {
        --lua
        --qdp
 EOF
-   [ -z "$clover" ] || echo "       --clover"
-   [ -z "$mdwf" ]   || echo "       --mdwf"
-   [ -z "$aff" ]    || echo "       --aff"
-   [ -z "$hdf5" ]   || echo "       --hdf5"
+   [ -z "$clover" ]   || echo "       --clover"
+   [ -z "$twisted" ]  || echo "       --twisted"
+   [ -z "$mdwf" ]     || echo "       --mdwf"
+   [ -z "$aff" ]      || echo "       --aff"
+   [ -z "$hdf5" ]     || echo "       --hdf5"
    [ -z "$qopqdp" ]   || echo "       --qopqdp"
    ## Add other packages here
 }
@@ -90,6 +99,7 @@ case "$1" in
    --lua)      echo "$lua" ;;
    --qdp)      echo "$qdp" ;;
    --clover)   echo "$clover" ;;
+   --twisted)  echo "$twisted" ;;
    --mdwf)     echo "$mdwf" ;;
    --aff)      echo "$aff" ;;
    --hdf5)     echo "$hdf5" ;;
