@@ -635,41 +635,42 @@ static struct luaL_Reg mtDeflator[] = {
 static int
 q_TW_make_deflator(lua_State *L)
 {
-    mTwisted *c = qlua_checkTwisted(L, 1, NULL, 1);
-    qlua_ObjLattice(L, 1);
-    int Sidx = lua_gettop(L);
-    int vmax = luaL_checkint(L, 2);
-    int nev = luaL_checkint(L, 3);
-    double eps = luaL_checknumber(L, 4);
-    int umax = luaL_checkint(L, 5);
+  int vmax = qlua_tabkey_int(L, 2, "Vmax");
+  int nev = qlua_tabkey_int(L, 2, "Nev");
+  double eps = qlua_tabkey_double(L, 2, "eps");
+  int umax = qlua_tabkey_int(L, 2, "Umax");
 
-    if (nev <= 0 || vmax <= 0 || umax <= 0)
-        return luaL_error(L, "bad eigenspace size");
-    if (2 * nev >= vmax)
-        return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
+  mTwisted *c = qlua_checkTwisted(L, 1, NULL, 1);
+  qlua_ObjLattice(L, 1);
+  int Sidx = lua_gettop(L);
 
-    if ((c->state == 0) || (c->gauge == 0))
-        return luaL_error(L, "closed Twisted used");
-
-    lua_createtable(L, 2, 0);
-    lua_pushvalue(L, 1);
-    lua_rawseti(L, -2, 1);
-    mDeflatorState *d = q_newDeflatorState(L, Sidx);
-    d->nev = nev;
-    d->vmax = vmax;
-    d->umax = umax;
-
-    CALL_QDP(L);
-    if (QNc(QOP_F, _TWISTED_create_deflator)(&d->deflator, c->state,
-                                   vmax, nev, eps, umax))
-        return luaL_error(L, "TWISTED_create_deflator() failed");
-
-    lua_rawseti(L, -2, 2);
-    qlua_createLatticeTable(L, Sidx, mtDeflator, qTwistedDeflator,
-                            TwistedDeflatorName);
-    lua_setmetatable(L, -2);
-
-    return 1;
+  if (nev <= 0 || vmax <= 0 || umax <= 0)
+    return luaL_error(L, "bad eigenspace size");
+  if (2 * nev >= vmax)
+    return luaL_error(L, "eigcg VMAX: must satisfy VMAX > 2*NEV");
+  
+  if ((c->state == 0) || (c->gauge == 0))
+    return luaL_error(L, "closed Twisted used");
+  
+  lua_createtable(L, 2, 0);
+  lua_pushvalue(L, 1);
+  lua_rawseti(L, -2, 1);
+  mDeflatorState *d = q_newDeflatorState(L, Sidx);
+  d->nev = nev;
+  d->vmax = vmax;
+  d->umax = umax;
+  
+  CALL_QDP(L);
+  if (QNc(QOP_F, _TWISTED_create_deflator)(&d->deflator, c->state,
+					   vmax, nev, eps, umax))
+    return luaL_error(L, "TWISTED_create_deflator() failed");
+  
+  lua_rawseti(L, -2, 2);
+  qlua_createLatticeTable(L, Sidx, mtDeflator, qTwistedDeflator,
+			  TwistedDeflatorName);
+  lua_setmetatable(L, -2);
+  
+  return 1;
 }
 
 #ifdef HAS_ARPACK
@@ -831,6 +832,7 @@ QNc(op_TWISTED_F, _eoprec_MdagM_double_op)(int loc_dim,
 static int
 q_TW_make_deflator_lanczos(lua_State *L)
 {
+
 #define LANCZOS_MXM_DOUBLE  1
   /* by default, search for ev with smallest real part */
   const char *lanczos_which= "SR";
@@ -864,17 +866,16 @@ q_TW_make_deflator_lanczos(lua_State *L)
   mDeflatorState *d = NULL;
 
   /* parse parameters */
-  int nev, ncv, max_iter;
-  double tol;
-  nev     = qlua_checkint(L, 2, "expect NEV at #2");
-  ncv     = qlua_checkint(L, 3, "expect NCV at #3");
-  max_iter= qlua_checkint(L, 4, "expect MAX_ITER at #4");
-  tol     = luaL_checknumber(L, 5);
+  /* XXX convert parameters to a single table */
+  int nev      = qlua_checkint(L, 2, "expect NEV at #2");
+  int ncv      = qlua_checkint(L, 3, "expect NCV at #3");
+  int max_iter = qlua_checkint(L, 4, "expect MAX_ITER at #4");
+  double tol   = luaL_checknumber(L, 5);
 
   /* parse optional parameters */
-  int eigcg_vmax  = 0,
-    eigcg_umax  = 0,
-    eigcg_nev   = 0;
+  int eigcg_vmax  = 0;
+  int eigcg_umax  = 0;
+  int eigcg_nev   = 0;
   double eigcg_eps= 0.;
 
   if (qlua_checkopt_table(L, 6)) {
