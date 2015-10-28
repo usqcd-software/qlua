@@ -1,5 +1,4 @@
 #include "modules.h"                                                 /* DEPS */
-#include "versions.inc"                                              /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 
 #include <string.h>
@@ -69,6 +68,7 @@
 #include "qqopqdp.h"                                                 /* DEPS */
 #endif
 
+#include "versions.inc"                                              /* DEPS */
 
 #define NORMALIZE_INDEX(L, idx) do if (idx < 0) idx = lua_gettop(L) + 1 + idx; while (0)
 
@@ -87,7 +87,7 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version " QLUA_VERSION},
+    {"qlua",   QLUA_VERSION},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
