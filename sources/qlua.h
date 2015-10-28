@@ -180,6 +180,7 @@ int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 double *qlua_checknumberarray(lua_State *L, int idx, int dim, int *out_dim);
 int qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *a);
 
+int qlua_checkopt_paramtable(lua_State *L, int idx);
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
 int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);

@@ -536,6 +536,19 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 }
 
 int
+qlua_checkopt_paramtable(lua_State *L, int idx)
+{
+  if (lua_gettop(L) < idx)
+    return 0;
+  if (lua_type(L, idx) == LUA_TNONE)
+    return 0;
+  qlua_checktable(L, idx, "optional argument");
+  if (lua_objlen(L, 2) <= 0)
+    return 0;
+  return 1;
+}
+
+int
 qlua_checkopt_table(lua_State *L, int idx)
 {
   if (lua_gettop(L) < idx)

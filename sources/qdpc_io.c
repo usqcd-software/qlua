@@ -650,7 +650,7 @@ q_qdpc_reader (lua_State *L)
         ionode_master = 0;
     qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
     QIO_Filesystem fs;
-    if (qlua_checkopt_table(L, 3)) {
+    if (qlua_checkopt_paramtable(L, 3)) {
         if (qlua_tabpushopt_key(L, 3, "rank_stride")) {
             ionode_rank_stride = luaL_checkint(L, -1);
             has_fs  = 1;
@@ -996,7 +996,7 @@ q_qdpc_writer(lua_State *L)
         ionode_master = 0;
     qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
     QIO_Filesystem fs;
-    if (qlua_checkopt_table(L, 5)) {
+    if (qlua_checkopt_paramtable(L, 5)) {
         if (qlua_tabpushopt_key(L, 5, "rank_stride")) {
             ionode_rank_stride  = luaL_checkint(L, -1);
             has_fs              = 1;

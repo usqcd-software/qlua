@@ -1116,7 +1116,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
     eigcg_nev   = 0;
   double eigcg_eps= 0.;
 
-  if (qlua_checkopt_table(L, 6)) {
+  if (qlua_checkopt_paramtable(L, 6)) {
     if (qlua_tabpushopt_key(L, 6, "cheb_accel")) {
       /* Chebyshev acceleration parameters */
 #ifdef LANCZOS_MXM_DOUBLE
