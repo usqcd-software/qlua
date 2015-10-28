@@ -1,0 +1,101 @@
+require "stdlib"
+require "gauge"
+
+-- BMW HEX smearing (section 1.3.3 of Stefan's notes)
+function bmw_hex(U, n)
+  local alpha = { 0.95, 0.76, 0.38 }
+  local dim = #U
+
+  assert(dim == 4, "only 4-d lattice is supported")
+  
+  local function step(U)
+     local L = U[1].lattice
+     -- compute V1
+     local V1 = {}
+     for mu in interval(1, dim) do
+        V1[mu] = {}
+     end
+     for mu in interval(1, dim) do
+        for nu in skip(mu, interval(1, dim)) do
+           V1[mu][nu] = {}
+           V1[nu][mu] = {}
+        end
+     end
+     for mu in interval(1, dim) do
+        local Um = U[mu]
+        for nu in skip(mu, interval(1,dim)) do
+           for rho in skip(nu, skip(mu, interval(1,dim))) do
+              local C1 = L:ColorMatrix()
+              for sigma in skip(mu, skip(nu, skip(rho, interval(1, dim)))) do
+                 local Us = U[sigma]
+                 C1 = C1 +
+                      Us *
+                       Um:shift(sigma - 1, "from_forward") *
+                       Us:shift(mu - 1, "from_forward"):adjoin() +
+                     (Us:adjoin() *
+                       Um * 
+                       Us:shift(mu - 1, "from_forward")):
+                            shift(sigma - 1, "from_backward")
+              end
+              -- dump_M(string.format("C1[%d,%d,%d]", mu, nu, rho), C1)
+              local X = toSUn(alpha[3] / 2 * C1 * Um:adjoin()) * Um
+              -- dump_M(string.format("V1[%d,%d,%d]", mu, nu, rho), X)
+              V1[mu][nu][rho] = X
+              V1[mu][rho][nu] = X
+           end
+        end
+     end
+
+     -- compute V2
+     local V2 = {}
+     for mu in interval(1,dim) do
+        V2[mu] = {}
+     end
+     for mu in interval(1,dim) do
+        for nu in skip(mu, interval(1,dim)) do
+           local C2 = L:ColorMatrix()
+           for sigma in skip(mu, skip(nu, interval(1,dim))) do
+              local Vsmn = V1[sigma][mu][nu]
+              local Vmsn = V1[mu][sigma][nu]
+              C2 = C2 +
+                    Vsmn *
+                     Vmsn:shift(sigma - 1, "from_forward") *
+                     Vsmn:shift(mu - 1, "from_forward"):adjoin() +
+                    (Vsmn:adjoin() *
+                      Vmsn *
+                       Vsmn:shift(mu - 1, "from_forward")):
+                              shift(sigma - 1, "from_backward")
+           end
+           V2[mu][nu] = toSUn(alpha[2] / 4 * C2 * U[mu]:adjoin()) * U[mu]
+        end
+     end
+     V1 = nil -- let QLUA reclaim some memory
+
+     -- compute V3
+     local V3 = {}
+     for mu in interval(1,dim) do
+        local C3 = L:ColorMatrix()
+        for sigma in skip(mu, interval(1,dim)) do
+           local Vsm = V2[sigma][mu]
+           local Vms = V2[mu][sigma]
+           C3 = C3 + 
+                 Vsm *
+                  Vms:shift(sigma - 1, "from_forward") *
+                  Vsm:shift(mu - 1, "from_forward"):adjoin() +
+                 (Vsm:adjoin() *
+                   Vms *
+                    Vsm:shift(mu - 1, "from_forward")):
+                           shift(sigma - 1, "from_backward")
+        end
+        V3[mu] = toSUn(alpha[1]/6 * C3 * U[mu]:adjoin()) * U[mu]
+     end
+     return V3
+  end
+
+  local Z = U
+  for i = 1, n do
+     Z = step(Z)
+  end
+  return Z
+end
+
