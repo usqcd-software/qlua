@@ -208,8 +208,8 @@ q_mxm_solver(lua_State *L)
 {
   int relaxed_p = 0, log_p = 0;
   if (qlua_checkopt_table(L, 2)) {
-    relaxed_p = qlua_tabkey_boolopt(L, 3, "relaxed", 0);
-    log_p = qlua_tabkey_boolopt(L, 3, "log", 0);
+    relaxed_p = qlua_tabkey_boolopt(L, 2, "relaxed", 0);
+    log_p = qlua_tabkey_boolopt(L, 2, "log", 0);
   }
   int log_level = 0;
   if (log_p)
