@@ -1,4 +1,5 @@
 #include "modules.h"                                                 /* DEPS */
+#include "versions.inc"                                              /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 
 #include <string.h>
@@ -90,7 +91,7 @@ static struct {
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
-    {"aff",    LHPC_AFF_VERSION },
+    {"aff",    AFF_VERSION },
 #endif
 #ifdef HAS_HDF5
     {"hdf5",    HDF5_VERSION },
@@ -118,6 +119,29 @@ static struct {
 #endif
 #ifdef HAS_QOPQDP
     {"qopqdp", QOPQDP_VERSION },
+#endif
+#ifdef SFC_VERSION
+    {"sfc", SFC_VERSION },
+#endif
+#ifdef QA0_VERSION
+    {"qa0", QA0_VERSION },
+#endif
+#ifdef QMP_VERSION
+    {"qmp", QMP_VERSION },
+#endif
+#ifdef QLA_VERSION
+    {"qla", QLA_VERSION },
+#endif
+#ifdef QIO_VERSION
+    {"qio", QIO_VERSION },
+#endif
+#ifdef HAS_ARPACK
+#ifdef ARPACK_VERSION
+    {"arpack", ARPACK_VERSION },
+#endif
+#ifdef LAPACK_VERSION
+    {"lapack", LAPACK_VERSION },
+#endif
 #endif
     {"colors",   (
 #if USE_Nc2

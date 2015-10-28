@@ -1,7 +1,7 @@
 #!/bin/sh -f
 
 ## version ID. 
-version='0.39.00'
+version='git tree'
 
 # show_help exit_code
 show_help() {
@@ -364,58 +364,62 @@ build() {
 || show_error "Could not generate $2"
 }
 
+# build_versions
+## Add other packages below
+build_versions() {
+  echo "#define QLUA_VERSION \"$version\""
+  echo "#define QDP_VERSION \"$qdp\""
+  if [ ! -z "$aff" ] ;         then echo "#define LHPC_AFF_VERSION \"$aff\""      ; fi
+  if [ ! -z "$hdf5" ] ;        then echo "#define HDF5_VERSION \"$hdf5\""         ; fi
+  if [ ! -z "$clover" ] ;      then echo "#define CLOVER_VERSION \"$clover\""     ; fi
+  if [ ! -z "$twisted" ] ;     then echo "#define TWISTED_VERSION \"$twisted\""   ; fi
+  if [ ! -z "$mdwf" ] ;        then echo "#define MDWF_VERSION \"$mdwf\""         ; fi
+  if [ ! -z "$cblas_libs" ] ;  then echo "#define CBLAS_VERSION \"$cblas_libs\""  ; fi
+  if [ ! -z "$gsl" ] ;         then echo "#define GSL_VERSION \"$gsl\""           ; fi
+  if [ ! -z "$hdf5" ] ;        then echo "#define HDF5_VERSION \"$hdf5\""         ; fi
+  if [ ! -z "$hypre" ] ;       then echo "#define HYPRE_VERSION \"$hypre\""       ; fi
+  if [ ! -z "$qopqdp" ] ;      then echo "#define QOPQDP_VERSION \"$qopqdp\""     ; fi
+}
 # build_modules
 ## Add other packages below
 build_modules() {
-  echo "#define QLUA_VERSION \"$version\""
-  echo "#define QDP_VERSION \"$qdp\""
   if [ ! -z "$aff" ] ; then
     echo "#define HAS_AFF"
-    echo "#define LHPC_AFF_VERSION \"$aff\""
   fi
   if [ ! -z "$hdf5" ] ; then
     echo "#define HAS_HDF5"
-    echo "#define HDF5_VERSION \"$hdf5\""
   fi
   if [ ! -z "$clover" ] ; then
     echo "#define HAS_CLOVER"
-    echo "#define CLOVER_VERSION \"$clover\""
     echo "#define QLUA_CLOVER_NC $clover_nc"
     echo "#define QLUA_CLOVER_HDR \"qop-clover$clover_nc.h\""
   fi
   if [ ! -z "$twisted" ] ; then
     echo "#define HAS_TWISTED"
-    echo "#define TWISTED_VERSION \"$twisted\""
     echo "#define QLUA_TWISTED_NC $twisted_nc"
     echo "#define QLUA_TWISTED_HDR \"qop-twisted$twisted_nc.h\""
   fi
   if [ ! -z "$mdwf" ] ; then
     echo "#define HAS_MDWF"
-    echo "#define MDWF_VERSION \"$mdwf\""
   fi
   echo "#define QLUA_LIB \"$libdir\""
   if [ ! -z "$cblas_libs" ] ; then
      echo "#define HAS_CBLAS"
-     echo "#define CBLAS_VERSION \"$cblas_libs\""
   fi
   if [ ! -z "$gsl" ] ; then
     echo "#define HAS_GSL"
-    echo "#define GSL_VERSION \"$gsl\""
   fi
   if [ ! -z "$hdf5" ] ; then
     echo "#define HAS_HDF5"
-    echo "#define HDF5_VERSION \"$hdf5\""
   fi
   if [ ! -z "$extras" ] ; then
     echo "#define HAS_EXTRAS"
   fi
   if [ ! -z "$hypre" ] ; then
     echo "#define HAS_HYPRE"
-    echo "#define HYPRE_VERSION \"$hypre\""
   fi
   if [ ! -z "$qopqdp" ] ; then
     echo "#define HAS_QOPQDP"
-    echo "#define QOPQDP_VERSION \"$qopqdp\""
   fi
   echo "#define USE_Nc2 $use_nc2"
   echo "#define USE_Nc3 $use_nc3"
@@ -440,6 +444,11 @@ build qlua-config.in qlua-config
 chmod +x qlua-config
 build Makefile.in Makefile
 build_modules > modules.h
+if [ -f versions.inc.in ] ; then
+   cp versions.inc.in versions.inc
+else
+   build_versions > versions.inc
+fi
 show_config
 show_config > config.log
 utils/mkdeps > deps
