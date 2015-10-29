@@ -22,14 +22,28 @@ function latvec_arnoldi(op, x0, eps, n_iter)
       scal_arg[4+2*i] = vv[1+i]
     end
     local hv_next = latvec_scalsum_left(unpack(scal_arg))
-    h [2 + j] = math.sqrt(latvec_norm2(hv_next))
+    h [2 + j] = complex(math.sqrt(latvec_norm2(hv_next)), 0.)
     vv[2 + j] = latvec_scal_left(1. / h[2 + j], hv_next)
     hessT[1 + j] = h
-    if math.abs(h[2 + j]) < eps then break end
+    if h[2 + j]:abs() < eps then break end
     j = j + 1
   end
 
   return hessT, vv
+end
+
+function print_arnoldi_matr(m, ndigit)
+  -- m[col][row <= col+1]
+  local real_patt = string.format("%% -.%de", ndigit or 3)
+  local cplx_patt = string.format("(%s,%s)  ", real_patt, real_patt)
+  for row = 1, #m + 1 do
+    for col = 1, #m do
+      local mij = complex(0,0)
+      if row <= col + 1 then mij = m[col][row] end
+      printf(cplx_patt, mij:real(), mij:imag())
+    end
+    printf("\n")
+  end
 end
 
 
