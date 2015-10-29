@@ -1300,7 +1300,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
                                              QNc(op_CLOVER_F, _eoprec_MdagM_op),
 #endif/*LANCZOS_MXM_DOUBLE*/
                                              &op_arg,
-                                             lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                                             lanczos_which, loc_dim, nev, ncv, max_iter, tol, NULL/*TODO implement v0*/,
                                              eval, (float complex *)hfm_blas_ptr, hfm_ld, hfm_ncol,
                                              &n_iters, &nconv, arpack_logfile))) {
       return luaL_error(L, "lanczos_float_inplace returned %d", status);
@@ -1319,7 +1319,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
                                      QNc(op_CLOVER_F, _eoprec_MdagM_op),
 #endif/*LANCZOS_MXM_DOUBLE*/
                                      &op_arg,
-                                     lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                                     lanczos_which, loc_dim, nev, ncv, max_iter, tol, NULL/*TODO implement v0*/,
                                      &eval, &evec, &n_iters, &nconv, arpack_logfile)))
       return luaL_error(L, "lanczos_float returned %d", status);
     /* FIXME rewrite with clear explanation for the choice of
