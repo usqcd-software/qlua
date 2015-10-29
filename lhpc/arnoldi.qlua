@@ -1,0 +1,35 @@
+require "latvec"
+
+function latvec_arnoldi(op, x0, eps, n_iter)
+  -- generate a sequence of arnoldi vectors 
+  --    {x0, A^1.x0, ..., A^{n_iter} } (at most) 
+  --    and compute the Hessenberg matrix
+  -- stop when abs(H[j+1, j]) < eps or n_iter < j
+  -- return : 
+  --    Arnoldi vectors, 
+  --    transposed Hessian matrix hessT[i][j] = H[j, i], 1<=i<=n_iter, 1<=j<=(i+1)
+  local hessT = {}  -- tra
+  local vv  = {latvec_scal_left(math.sqrt(1./latvec_norm2(x0)), x0)}
+  local j   = 0 -- current
+  eps = eps or 1e-6
+  while not n_iter or j < n_iter do
+    local Av  = op(vv[1+j])
+    local h = {}
+    local scal_arg = {1., Av}
+    for i = 0, j do
+      h[1+i] = latvec_vdot(vv[1+i], Av)
+      scal_arg[3+2*i] = -h[1+i]
+      scal_arg[4+2*i] = vv[1+i]
+    end
+    local hv_next = latvec_scalsum_left(unpack(scal_arg))
+    h [2 + j] = math.sqrt(latvec_norm2(hv_next))
+    vv[2 + j] = latvec_scal_left(1. / h[2 + j], hv_next)
+    hessT[1 + j] = h
+    if math.abs(h[2 + j]) < eps then break end
+    j = j + 1
+  end
+
+  return hessT, vv
+end
+
+
