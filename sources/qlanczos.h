@@ -22,6 +22,7 @@ lanczos_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex **eval,   /* return buffer for evalues,  [nev] */
         float complex **evec,   /* return buffer for evectors, [ld_evec, ncol_evec] */
         int *n_iters,           /* return the iteration count */
@@ -45,6 +46,7 @@ int lanczos_inplace_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex *eval,    /* (allocated) return buffer for evalues,  [nev] */
         float complex *evec,    /* (allocated) return buffer for evectors, [ld_evec, ncol_evec] */
         int ld_evec,            /* BLAS leading dimension, >=loc_dim */
@@ -68,6 +70,7 @@ int lanczos_internal_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex *eval,    /* return buffer for evalues,  [nev + 1] */
         float complex *evec,    /* workspace for evectors (BLAS-matrix), [ld_evec, >=ncv] */
         int ld_evec,            /* BLAS leading dimension */

@@ -1,6 +1,6 @@
 require "stdlib"
 
-function cg_ritz(op_k, op_m, x0, eps, do_max)
+function cg_ritz(op_k, op_m, x0, eps, max_iter, do_max)
   -- find the largest/smallest Ritz value [(x,op_k(x)) / (x,op_m(x))]
   -- applying conjugate gradient to [(x,op_k(x)) / (x,op_m(x))]
   -- for real-valued vectors, see [M.Geradin, 'The computational efficiency 
@@ -25,7 +25,7 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
   k_x   = op_k(x)
   x_k_x = latvec_vdot(x, k_x):real()
   lopt  = x_k_x / x_m_x
-  printf("# xkx=%e\txmx=%e\tlopt=%e\n", x_k_x, x_m_x, lopt)
+--  printf("# xkx=%e\txmx=%e\tlopt=%e\n", x_k_x, x_m_x, lopt)
 
   s     = latvec_scalsum_left(-1. / x_m_x, k_x,  lopt / x_m_x, m_x)
   s_m_x = latvec_vdot(s, m_x)
@@ -37,13 +37,13 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
 
   lopt_prev = 0.
   cnt = 0
-  while (eps * lopt_prev < math.abs(lopt_prev - lopt)) do
+  while (eps * lopt_prev < math.abs(lopt_prev - lopt)) and cnt < max_iter do
     printf("%d\t%21.13e\t%21.13e\t%21.13e\n", cnt, lopt, x_k_x/x_m_x, 
            (lopt_prev - lopt) * cmp_fact / (lopt_prev + lopt) * 2.)
-    printf("# |x| =%e\t|s| =%e\n", math.sqrt(latvec_norm2(x)), math.sqrt(latvec_norm2(s)))
-    printf("# |Kx|=%e\t|Ks|=%e\n", math.sqrt(latvec_norm2(k_x)), math.sqrt(latvec_norm2(k_s)))
-    printf("# |Mx|=%e\t|Ms|=%e\n", math.sqrt(latvec_norm2(m_x)), math.sqrt(latvec_norm2(m_s)))
-    print_latvec_cmp(x, s, "# x<->s")
+--    printf("# |x| =%e\t|s| =%e\n", math.sqrt(latvec_norm2(x)), math.sqrt(latvec_norm2(s)))
+--    printf("# |Kx|=%e\t|Ks|=%e\n", math.sqrt(latvec_norm2(k_x)), math.sqrt(latvec_norm2(k_s)))
+--    printf("# |Mx|=%e\t|Ms|=%e\n", math.sqrt(latvec_norm2(m_x)), math.sqrt(latvec_norm2(m_s)))
+--    print_latvec_cmp(x, s, "# x<->s")
     lopt_prev = lopt  
     cnt = cnt + 1
 
@@ -53,7 +53,7 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
     v_im  = (s_k_x:conj() * s_m_x - s_k_x * s_m_x:conj())
     v     =  complex(v_re, v_im:imag())
     w     = (s_k_x:conj() * x_m_x - x_k_x * s_m_x:conj())
-    printf("# u=%s, v=%s, w=%s\n", tostring(u), tostring(v), tostring(w))
+--    printf("# u=%s, v=%s, w=%s\n", tostring(u), tostring(v), tostring(w))
 
     sq_d  = (v * v - 4. * u * w):sqrt()
     a1    = ((-v + sq_d) / 2. / u):conj()
@@ -69,9 +69,9 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
       aopt  = a2
       lopt  = l2
     end
-    printf("# sq_d=%s, a1=%s, a2=%s, l1=%s, l2=%s\n", 
-            tostring(sq_d), tostring(a1), tostring(a2), tostring(l1), tostring(l2))
-    printf("# new lopt=%e\n", lopt)
+--    printf("# sq_d=%s, a1=%s, a2=%s, l1=%s, l2=%s\n", 
+--            tostring(sq_d), tostring(a1), tostring(a2), tostring(l1), tostring(l2))
+--    printf("# new lopt=%e\n", lopt)
 
     -- update x
     x     = latvec_scalsum_left(1., x, aopt, s)
@@ -79,7 +79,7 @@ function cg_ritz(op_k, op_m, x0, eps, do_max)
     x_m_x = latvec_vdot(x, m_x):real()
     k_x   = latvec_scalsum_left(1., k_x, aopt, k_s)
     x_k_x = latvec_vdot(x, k_x):real()
-    printf("# %e =?= %e\n", lopt, x_k_x / x_m_x)
+--    printf("# %e =?= %e\n", lopt, x_k_x / x_m_x)
     gr    = latvec_scalsum_left(1., k_x, -lopt, m_x) / x_m_x
     gr_n2 = latvec_norm2(gr)
     gr_k_s= latvec_vdot(gr, k_s)
