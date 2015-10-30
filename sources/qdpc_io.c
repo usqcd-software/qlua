@@ -992,7 +992,7 @@ q_qdpc_writer(lua_State *L)
     int rcount;
 
     int has_fs = 0,
-        ionode_rank_stride = INT_MAX,
+        ionode_rank_stride = 1,
         ionode_master = 0;
     qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
     QIO_Filesystem fs;
