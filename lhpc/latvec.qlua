@@ -162,6 +162,28 @@ function latvec_asarray1d(x, x_len)
 end
 latvec_as_table = latvec_asarray1d
 
+
+
+function latvec_lattice(v, L)
+  -- check that all objects in latvec has the same lattice type v
+  -- L is nil, extract it from v
+  -- return the lattice object
+  if 'table' == type(v) then
+    if #v <= 0 then return nil end
+    for i = 0, #v-1 do 
+      -- skip empty sub-tables
+      if 'table' ~= type(v[1+i]) or 0 < #v[1+i] then 
+        local this_L = latvec_lattice(v[1+i], L)
+        L = L or this_L
+        assert(this_L == L)
+      end
+    end
+    return L
+  else
+    return v.lattice
+  end
+end
+
 function latvec_zeros_like(v)
   return latvec_copy(v, 0)
 end
@@ -191,6 +213,15 @@ function latvec_conj(v)
     end
     return c
   else return conj_nontable_(v) end
+end
+function latvec_adjoin(v)
+  if 'table' == type(v) then
+    local c = {}
+    for i = 0, #v-1 do
+      c[1+i] = latvec_adjoin(v[1+i])
+    end
+    return c
+  else return v:adjoin() end
 end
 function latvec_shift(v, mu, dir)
   if 'table' == type(v) then
@@ -555,6 +586,25 @@ function latvec_op_x5(d, mf, is_dag)
   return res
 end
 
+function latvec_op_clover(d, g_clover, is_dag)
+  -- compute sum_{mu,nu} i*gamma{mu}*gamma{nu}*g[mu][nu]
+  --  g   table : [mu][nu] -> cloverG{mu,nu}
+  local L = latvec_lattice(g_clover)
+  latvec_lattice(d)
+  if is_dag then g_clover = latvec_adjoin(g_clover) end
+  local res = latvec_zeros_like(d)
+  for i = 0, #L-1 do
+    for j = 0, #L - 1 do
+      if i ~= j then
+        local s_ij = complex(0,1) * gamma({mu=i}) * gamma({mu=j})
+        res = latvec_scalsum_left(
+                      1,    res,
+                      s_ij, latvec_scal_left(g_clover[1+i][1+j], d))
+      end
+    end
+  end
+  return res
+end
 -- Wilson Dslash 
 -- XXX check conventions for the Mw sign; 
 -- XXX agree up to a factor with qcd.Clover(..):D (== 2*kappa*latvec_op_wilson, 2*kappa=1/(4+Mw) )
@@ -562,6 +612,16 @@ function latvec_op_wilson(d, u, Mw, is_dag)
   return latvec_scalsum_left(
             4. + Mw,  d,
             -1.,      latvec_op_xwilson(d, u, is_dag))
+end
+function latvec_op_wilson_clover(d, u, Mw, c_sw, g_clover, is_dag)
+  local L = latvec_lattice(u)
+  g_clover = g_clover or clover_term_all(u)
+  latvec_lattice(g_clover)
+  latvec_lattice(d)
+  return latvec_scalsum_left(
+            4. + Mw,  d,
+            -1.,      latvec_op_xwilson(d, u, is_dag),
+            -c_sw/4., latvec_op_clover(d, g_clover, is_dag))
 end
 
 -- DWF Dslash 
