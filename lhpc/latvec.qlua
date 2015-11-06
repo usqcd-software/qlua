@@ -371,6 +371,16 @@ function latvec_set(a, b)   -- set a <- b
     end
   else a:set(b) end
 end
+function latvec_apply(func, a, ...)
+  -- TODO extend to many 'a' args?
+  if 'table' == type(a) then
+    local res = {}
+    for i = 0, #a - 1 do
+      res[1+i] = latvec_apply(func, a[1+i], ...)
+    end
+    return res
+  else return func(a, ...) end
+end
 
 -- cmp functions
 -- TODO support  one argument to be a global number
