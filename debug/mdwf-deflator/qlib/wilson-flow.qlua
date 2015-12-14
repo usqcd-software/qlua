@@ -1,0 +1,41 @@
+-- Wilson flow adapted from the code by Evan Weinberg, weinbe2@bu.edu
+-- See arXiv:1105.4749 for the original M. Leuscher's paper
+function wilson_flow(U, eps, opt)
+   local function staple(U, mu)
+      local Nc = U[1]:colors();
+      local L = U[1].lattice;
+      local st = L:ColorMatrixN(Nc);
+      local nu
+      for nu in skip(mu, interval(1,#L)) do
+         st = st + U[nu] * U[mu]:shift(nu-1,"from_forward") * U[nu]:shift(mu-1,"from_forward"):adjoin()
+         st = st + (U[nu]:adjoin() * U[mu] * U[nu]:shift(mu-1,"from_forward")):shift(nu-1,"from_backward")
+      end
+      return st
+   end
+   local xopt = opt or {};
+   local function update_all(old,new) return new end
+   local update = xopt.update or update_all;
+   local destLat = gauge_copy(U);
+   local tmp = {};
+   local nextLat = {};
+   local mu;
+   local st = {};
+
+   for mu = 1,#U do
+      st[mu] = staple(U, mu) * U[mu]:adjoin();
+      tmp[mu] = toSUn((eps/4.0)*st[mu]) * U[mu];
+   end
+   destLat = update(U,tmp);
+
+   for mu = 1,#U do
+      st[mu] = (8.0/9.0)*(staple(destLat, mu) * destLat[mu]:adjoin()) - (17.0/36.0)*st[mu];
+      tmp[mu] = toSUn(eps*st[mu]) * destLat[mu];
+   end
+   nextLat = update(U,tmp);
+   
+   for mu = 1,#U do
+      st[mu] = (3.0/4.0)*(staple(nextLat, mu) * nextLat[mu]:adjoin()) - st[mu];
+      tmp[mu] = toSUn(eps*st[mu]) * nextLat[mu];
+   end
+   return update(U,tmp);
+end

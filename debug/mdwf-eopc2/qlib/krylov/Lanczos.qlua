@@ -1,0 +1,85 @@
+-- Simple Lanczos.
+-- Parameters
+--   Dim            150    -- Lanczos space dimension
+--   Scan           false  -- collect eigenvaluses estimates into Scan result
+--  
+-- Results
+--   Eigen(k)       -- compute k-th eigenvalue and eigenvector
+--   Scan           -- a list of partial eigenvalues (each is vector.real)
+
+function makeLanczos(t)
+   local lanczos = {}
+   local function get_value(n, d)
+      return t[n] or d
+   end
+   local vdim        = get_value("Dim",        150)
+   local scan        = get_value("Scan",      false)
+
+   function lanczos:distill(A, b)
+      local T = matrix.real {vdim, vdim}
+      local rho = b or A:randomVector()
+      local r = A:dot(rho,rho)
+      rho = A:scale(1/math.sqrt(r), rho)
+      local b0 = rho
+      local bn = b0
+      local zeta = A:apply(rho)
+      local tx = A:dot(rho, zeta)
+      T[{0,0}] = tx
+      zeta = A:axpy(-tx, rho, zeta)
+      r = A:norm(zeta)
+      rho = A:scale(1/r, zeta)
+      local k
+      for k = 1, vdim - 1 do
+         T[{k - 1, k}] = r
+         T[{k, k - 1}] = r
+         local zeta = A:apply(rho)
+         zeta = A:axpy(-r, bn, zeta)
+         bn = rho
+         local tx = A:dot(rho, zeta)
+         T[{k,k}] = tx
+         zeta = A:axpy(-tx, rho, zeta)
+         r = A:norm(zeta)
+         rho = A:scale(1/r, zeta)
+      end
+      local M, Y = T:symmetric_eigen()
+      
+      local function eigen(n)
+         local v = A:scale(Y[{0,n}], b0)
+         local bn = b0
+         local rho = b0
+         local zeta = A:apply(rho)
+         local tx = A:dot(rho, zeta)
+         zeta = A:axpy(-tx, rho, zeta)
+         r = A:norm(zeta)
+         rho = A:scale(1/r, zeta)
+         local k
+         for k = 1, vdim - 1 do
+            v = A:axpy(Y[{k,n}], rho, v)
+            local zeta = A:apply(rho)
+            zeta = A:axpy(-r, bn, zeta)
+            bn = rho
+            local tx = A:dot(rho, zeta)
+            zeta = A:axpy(-tx, rho, zeta)
+            r = A:norm(zeta)
+            rho = A:scale(1/r, zeta)
+         end
+         local vn = A:norm(v)
+         v = A:scale(1/vn, v)
+         local ll = A:dot(v, A:apply(v))
+         return ll, v
+      end
+
+      local res = {Eigen = eigen}
+      if scan then
+         local s = {}
+         local k
+         for k = 1, vdim do
+            s[k] = T:symmetric_eigen(k)
+         end
+         res.Scan = s
+      end
+      return res
+   end
+
+   return lanczos
+end

@@ -1,0 +1,83 @@
+-- TODO need qcd.planewave(coord, p, t_axis) = exp(i * 2 * pi *sum(p_k * (x-coord)_k))
+-- if t_axis is given, ignore p[t_axis+1]; 
+-- if t_axis is not given, generate the full 4d plane wave (required for NPR
+require "stdlib"
+
+do
+  -- general nucleon sequential source for D quark
+  local function nucleon_seqsource_d(L, d, u, S, T)
+    return (-1)* (qcd.quarkContract12(u * T, S * u * S)
+                  + qcd.quarkContract23(S * u * T, u * S)):spintranspose()
+  end
+  -- general nucleon sequential source for U quark
+  local function nucleon_seqsource_u(L, d, u, S, T)
+    local sds = S * d * S
+    local tu = T * u
+    return (-1.) * (
+        L:DiracPropagator(qcd.quarkContract13(u, sds):spintrace()) * T
+        + qcd.quarkContract24(tu, sds)
+        + qcd.quarkContract13(sds, u * T)
+        + qcd.quarkContract12(tu, sds):spintranspose())
+  end
+  -- tables
+  local xS = {
+    ["proton_1"]        = gamma{mu=0} * gamma{mu=2},
+    ["proton_3"]        = gamma{mu=0} * gamma{mu=2} * (1 + gamma{mu=3}) / 2,
+    ["proton_negpar_3"] = gamma{mu=0} * gamma{mu=2} * (1 - gamma{mu=3}) / 2
+  }
+  local xT = {
+    ["proton_1"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
+    ["proton_3"]        = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2,
+    ["proton_negpar_3"] = (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
+  }
+  local qbuilder = {
+    ["proton_1"] = {
+      ["U"] = nucleon_seqsource_u,
+      ["D"] = nucleon_seqsource_d
+    },
+    ["proton_3"] = {
+      ["U"] = nucleon_seqsource_u,
+      ["D"] = nucleon_seqsource_d
+    },
+    ["proton_negpar_3"] = {
+      ["U"] = nucleon_seqsource_u,
+      ["D"] = nucleon_seqsource_d
+    }
+  }
+  local function copy_table(tab)
+    local tab_c = {}
+    for i,v in pairs(tab) do tab_c[i] = v end
+    return tab_c
+  end
+  function baryon_seqsource(
+      L, 
+      baryon, 
+      flavor, 
+      d, u, 
+      csrc, 
+      tsnk, psnk, 
+      t_axis, 
+      bc_2pt_t
+      )
+    local ss = L:DiracPropagator()
+    local bc_factor = 1
+    -- XXX bc_factor sign is compatible with Chroma; note that for 'proton_negpar_3' 
+    --     (with tsnk < tsrc without winding) the sign should be opposite
+    if tsnk < csrc[1+t_axis] then bc_factor = bc_2pt_t end  
+
+    local psnk_l = copy_table(psnk)
+    psnk_l[1+t_axis] = 0
+    L:Subset{axis=t_axis,position=tsnk}:where(
+      function()
+        -- XXX phase is exp(-iP'x), in  g5 * (Dslash^-1 * SeqSrc)^\dag * g5
+        ss:set(gamma{n=15} 
+               * qbuilder[baryon][flavor](L, d, u, xS[baryon], xT[baryon]):adjoin()
+               * gamma{n=15} 
+               * L:planewave(csrc, psnk)
+               * bc_factor)
+      end
+      )
+    return ss
+  end
+end
+

@@ -1,0 +1,320 @@
+require "stdlib"
+
+do
+  -- meson correlator;
+  -- meson field = \bar{d} S u
+  function meson_2pt(d, u, S)
+    local dd = gamma{mu=5} * d:adjoin() * gamma{mu=5}
+    return (S * u * S * dd):trace()
+  end
+  -- taken from Chroma, should reproduce proton_3, 
+  -- interp field = (d^T S u) u, 
+  -- T is the spin matrix for nucleon states
+  function baryon_sigma_2pt(d, u, S, T)
+    local a1 = T * u
+    local a2 = qcd.quarkContract13(d * S, S * u)
+    return (  (a1:spintrace() * a2:spintrace()):trace() 
+            + (a1 * a2):trace())
+  end
+  -- taken from Chroma, interp function -- ???
+  function baryon_lambda_2pt(d, u, S, T)
+    local a1 = T * d
+    local a2 = qcd.quarkContract13(u * S, S * u)
+    return (  (a1:spintrace() * a2:spintrace()):trace() 
+            + (a1 * a2):trace()
+            + (T * u * qcd.quarkContract13(u * S, S *d)):trace())
+  end
+  -- taken from Chroma, interp function -- ???
+  function baryon_sigma_st_2pt(d, u, S, T)
+    local a1 = T * u
+    local a2 = qcd.quarkContract13(d * S, S * u)
+    local a3 = T * d
+    local a4 = qcd.quarkContract13(u * S, S * u)
+    return (  2 * (a1:spintrace() * a2:spintrace()):trace()
+            + 2 * (a1 * a2):spintrace():trace()
+            + 2 * (a1 * qcd.quarkContract13(u * S, S * d)):spintrace():trace()
+            + 2 * (a3 * a4):spintrace():trace()
+            + (a3:spintrace() * a4:spintrace()):trace())
+           
+  end
+  -- taken from Chroma, interp function -- ???
+  function baryon_lambda_naive_2pt(d, u, S, T)
+    return ((T * d):spintrace() * qcd.quarkContract13(u * S, S * u):spintrace()):trace()
+  end
+  -- taken from Chroma, interp function -- ???
+  function baryon_xi_2pt(d, u, S, T)
+    local a1 = T * d
+    local a2 = qcd.quarkContract13(d * S, S * u)
+    return (  (a1:spintrace() * a2:spintrace()):trace()
+            + (a1 * a2):trace())
+  end
+
+  local S_nucl1 = gamma{mu=0} * gamma{mu=2}
+  local S_nucl2 = -gamma{mu=0} * gamma{mu=2} * gamma{mu=3}
+  local S_nucl3_parityP = gamma{mu=0} * gamma{mu=2} * (1 + gamma{mu=3}) / 2
+  local S_nucl3_parityM = gamma{mu=0} * gamma{mu=2} * (1 - gamma{mu=3}) / 2
+  local S_delta1 = gamma{mu=1} * gamma{mu=3} * (gamma{mu=1} + gamma{mu=0} * complex(0,1)) / 2
+  local S_delta2 = gamma{mu=1} * (gamma{mu=1} + gamma{mu=0} * complex(0,1)) / 2
+  local S_delta3_parityP = gamma{mu=1} * gamma{mu=3} * 
+        (gamma{mu=1} + gamma{mu=0} * complex(0,1)) * (1 + gamma{mu=3})/ 4
+
+  local T_spinZ_parityP= (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2
+  local T_spinZ_parityM= (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
+  local T_parityP = (1 + gamma{mu=3}) / 2
+  local T_parityN = (1 - gamma{mu=3}) / 2
+
+  local meson_tab = {
+    ["a0_1"]    = 0,
+    ["rho_x_1"] = 1,
+    ["rho_y_1"] = 2,
+    ["b1_z_1"]  = 3,
+    ["rho_z_1"] = 4,
+    ["b1_y_1"]  = 5,
+    ["b1_x_1"]  = 6,
+    ["pion_2"]  = 7,
+    ["a0_2"]    = 8,
+    ["rho_x_2"] = 9,
+    ["rho_y_2"] = 10,
+    ["a1_z_1"]  = 11,
+    ["rho_z_2"] = 12,
+    ["a1_y_1"]  = 13,
+    ["a1_x_1"]  = 14,
+    ["pion_1"]  = 15
+  }
+  local baryon_tab = {
+    ["proton_1"] = { baryon_sigma_2pt, S_nucl1, T_spinZ_parityP },
+    ["lambda_1"] = { baryon_lambda_2pt, S_nucl1, T_spinZ_parityP },
+    ["delta_1"]  = { baryon_sigma_st_2pt, S_delta1, T_spinZ_parityP },
+    ["proton_2"] = { baryon_sigma_2pt, S_nucl2, T_spinZ_parityP },
+    ["lambda_2"] = { baryon_lambda_2pt, S_nucl2, T_spinZ_parityP },
+    ["delta_2"]  = { baryon_sigma_st_2pt, S_delta2, T_spinZ_parityP },
+    ["proton_3"] = { baryon_sigma_2pt, S_nucl3_parityP, T_spinZ_parityP },
+    ["lambda_3"] = { baryon_lambda_2pt, S_nucl3_parityP, T_spinZ_parityP }, 
+    -- vvvv XXX factor 1/2 for compatibility with Chroma
+    ["delta_3"]  = { baryon_sigma_st_2pt, S_delta3_parityP*2, T_spinZ_parityP },
+    ["proton_4"] = { baryon_sigma_2pt, S_nucl1, T_parityP },
+    ["proton_5"] = { baryon_sigma_2pt, S_nucl2, T_parityP },
+    ["proton_6"] = { baryon_sigma_2pt, S_nucl3_parityP, T_parityP },
+    ["lambda_4"] = { baryon_lambda_naive_2pt, S_nucl1, T_parityP },
+    ["xi_1"]     = { baryon_xi_2pt, S_nucl1, T_parityP },
+    ["lambda_5"] = { baryon_lambda_naive_2pt, S_nucl1, T_parityP },
+    ["xi_2"]     = { baryon_xi_2pt, S_nucl1, T_spinZ_parityP },
+    ["proton_negpar_3"] = {baryon_sigma_2pt, S_nucl3_parityM, T_spinZ_parityM },
+    
+    -- CPS hadspecs
+    ["proton_pp"] = { baryon_sigma_2pt, S_nucl1, T_parityP * 2 }, -- ==2*proton_4
+    ["proton_np"] = { baryon_sigma_2pt, S_nucl1, T_parityN * 2 },
+    ["proton_pp5"]= { baryon_sigma_2pt, S_nucl1, T_parityP * 2 * gamma{n=15} },
+    ["proton_np5"]= { baryon_sigma_2pt, S_nucl1, T_parityN * 2 * gamma{n=15} },
+  }
+  -- needed only if one of quarks is heavy (S)
+--  local baryon_lightheavyq_name = {
+--    ["xi_1"] = 
+--    "lambda_1";
+--    "xi_st_1";
+--    "xi_2";
+--    "lambda_2";
+--    "xi_st_2";
+--    "xi_3";
+--    "lambda_3";
+--    "xi_st_3";
+--    "xi_4";
+--    "xi_5";
+--    "xi_6";
+--    "lambda_4";
+--    "sigma_1";
+--    "lambda_5";
+--    "sigma_2";
+--    "xi_negpar_3";
+--  }
+  function baryon_c2pt(baryon, d, u)
+    return baryon_tab[baryon][1](d, u, 
+              baryon_tab[baryon][2],
+              baryon_tab[baryon][3]
+              )
+  end
+  local function print_table(pref, tab)
+    printf('%s\t', pref)
+    for i,v in pairs(tab) do
+      printf('[%s]=%s  ', tostring(i), tostring(v));
+    end
+    printf('\n');
+  end
+  -- make standard keypath
+  local function hadspec_kpath(hadron_name, csrc, psnk)
+    -- FIXME limited to a particular case
+    if not (#L == 4) or not (t_axis == 3) then return nil end
+    return string.format('%s/x%d_y%d_z%d_t%d/PX%d_PY%d_PZ%d',
+                         hadron_name,
+                         csrc[1], csrc[2], csrc[3], csrc[4],
+                         psnk[1], psnk[2], psnk[3])
+  end
+  -- convert to standard array[t]
+  local function make_hadspec_standard(c2pt, tsrc, lt, bc_t)
+    local c2pt_std = vector.complex(lt)
+    for i = 0, tsrc-1 do
+      c2pt_std[lt + i - tsrc] = bc_t * c2pt[i]
+    end
+    for i = tsrc, lt-1 do
+      c2pt_std[i - tsrc] = c2pt[i]
+    end
+    return c2pt_std
+  end
+
+  function save_hadspec_list(
+      L,
+      aff_w, 
+      aff_kpath_prefix,
+      d, u,
+      csrc, psnk_list, t_axis,
+      bc_quark_t,
+      baryon_list,
+      meson_list
+      )
+    -- insert '/' between kpath prefix and the rest of kpath
+    if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+    -- create a list of 4d momenta appropriate for momentum projection
+    -- XXX note that <N(t,p)\bar{N}(0)> = \sum_x exp(-ipx) <N(t,x)\bar{N}(0)>
+    local psnk_pw = {}
+    for i,p in ipairs(psnk_list) do 
+      local psnk_list_neg = {}
+      for j,pj in ipairs(p) do
+        psnk_list_neg[j] = -pj
+      end
+      psnk_list_neg[1+t_axis] = 0
+      psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
+    end
+    
+    local tsrc = csrc[1+t_axis]
+    local tsize = L[t_axis]
+    -- create MultiSet for projections
+    -- TODO replace with shifted and sign-aware multiset?
+    local mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
+    
+    -- calc baryon 2pts
+    local bc_bar_t = bc_quark_t * bc_quark_t * bc_quark_t
+    for i, bar in pairs(baryon_list) do
+      local val = baryon_tab[bar]
+      local c2pt = val[1](d, u, val[2], val[3])
+      for i,psnk in ipairs(psnk_list) do
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(bar, csrc, psnk),
+                    make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
+                                          tsrc, tsize, bc_bar_t))
+      end
+    end
+    
+    -- calc meson 2pts
+    local bc_mes_t = bc_quark_t * bc_quark_t
+    for i, mes in pairs(meson_list) do
+      local c2pt = meson_2pt(d, u, gamma{n=meson_tab[mes]})
+      for i,psnk in ipairs(psnk_list) do
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(mes, csrc, psnk),
+                    make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
+                                          tsrc, tsize, bc_mes_t))
+      end
+    end
+  end
+  
+  
+  function save_hadspec(
+      L,
+      aff_w, 
+      aff_kpath_prefix,
+      d, u,
+      csrc, psnk_list, t_axis,
+      bc_quark_t
+      )
+    save_hadspec_list(
+        L,
+        aff_w, 
+        aff_kpath_prefix,
+        d, u,
+        csrc, psnk_list, t_axis,
+        bc_quark_t,
+        { "proton_1",
+          "lambda_1",
+          "delta_1",
+          "proton_2",
+          "lambda_2",
+          "delta_2",
+          "proton_3",
+          "lambda_3",
+          "delta_3",
+          "proton_4",
+          "proton_5",
+          "proton_6",
+          "lambda_4",
+          "xi_1",
+          "lambda_5",
+          "xi_2",
+          "proton_negpar_3" },
+        { "a0_1",
+          "rho_x_1",
+          "rho_y_1",
+          "b1_z_1",
+          "rho_z_1",
+          "b1_y_1",
+          "b1_x_1",
+          "pion_2",
+          "a0_2",
+          "rho_x_2",
+          "rho_y_2",
+          "a1_z_1",
+          "rho_z_2",
+          "a1_y_1",
+          "a1_x_1",
+          "pion_1" })
+  
+  end
+
+  function save_2pt_list(L, aff_w, aff_kpath_prefix, 
+      corr_list,-- table { 'name': Complex }
+      csrc,     -- coord
+      psnk_list,-- list of momenta
+      t_axis,   -- time axis = 0 .. D-1
+      bc_t)     -- time boundary condition for the correlators
+    -- insert '/' between kpath prefix and the rest of kpath
+    if (0 < aff_kpath_prefix:len()) then aff_kpath_prefix = aff_kpath_prefix .. '/' end
+    -- create a list of 4d momenta appropriate for momentum projection
+    -- note that <N(t,p)\bar{N}(0)> = \sum_x exp(-ipx) <N(t,x)\bar{N}(0)>
+    local psnk_pw = {}
+    for i,p in ipairs(psnk_list) do 
+      local psnk_list_neg = {}
+      for j,pj in ipairs(p) do
+        psnk_list_neg[j] = -pj
+      end
+      psnk_list_neg[1+t_axis] = 0
+      psnk_pw[i] = L:planewave(csrc, psnk_list_neg)
+    end
+    
+    local tsrc = csrc[1+t_axis]
+    local tsize = L[t_axis]
+    -- create MultiSet for projections
+    local mset_tcoord = L:MultiSet(tsize, L:pcoord(t_axis))
+    
+    for a, c2pt in pairs(corr_list) do
+      for i,psnk in ipairs(psnk_list) do
+        aff_w:write(aff_kpath_prefix .. hadspec_kpath(a, csrc, psnk),
+                    make_hadspec_standard(c2pt:project(psnk_pw[i], mset_tcoord),
+                                          tsrc, tsize, bc_t))
+      end
+    end
+  end
+
+
+  -- function saving dwf-specific correlators, analogously to the Chroma in
+  -- PROPAGATOR/DWF measurement
+  function save_dwf_correlators(L, aff_w, aff_kpath_prefix,
+      prop, ps_axialcons, ps_midpoint,
+      mom_list, csrc, t_axis)
+    save_2pt_list(L, aff_w, aff_kpath_prefix,
+        { ['ps_ps']           = (prop * prop:adjoin()):trace(),   -- <P_x P_0>
+          ['ps_midpoint']     = L:Complex(ps_midpoint),           -- <P5_x P_0>
+          ['ps_axial_local']  = (prop * prop:adjoin() 
+                      * (-gamma{mu=t_axis})):trace(),             -- <Alocal^t_x P_0>
+          ['ps_axial_cons']= L:Complex(ps_axialcons[1+t_axis])    -- <Acons^t_x P_0>
+        },                                        
+        csrc, mom_list, t_axis, 1)
+  end
+
+end

@@ -1,0 +1,96 @@
+-- compute quark-bilinear contractions of two plane-wave propagators
+-- conventions are identical to Building Blocks
+-- * forward propagator[x] = (Dslash)^{-1} * exp(i*p1.x) (incoming quark)
+-- * backward propagator[x]= (Dslash)^{-1} * exp(i*p2.x) (outgoing quark)
+-- * insertion momentum q = (p1 - p2) ("flowing out of the vertex")
+
+do
+  -- make lpath string
+  local function lpath_string(lpath)
+    local s = string.format('l%d_', #lpath)
+    local ltab = {'x', 'y', 'z', 't', 'X', 'Y', 'Z', 'T'}
+--    if time_rev then
+--      ltab[1 + t_axis], ltab[1 + t_axis + #L] = ltab[1 + t_axis + #L], ltab[1 + t_axis]
+--    end
+    for i = 0, #lpath - 1 do
+      s = s .. string.format('%s', ltab[1+lpath[1+i]])
+    end
+    return s
+  end
+
+  -- function to generate linkpaths
+  function save_nprvertex_linkdepth1st(
+      aff_w,              -- aff writer
+      aff_kpath_prefix,   -- keypath prefix
+      gauge_u,
+      frw_p,   -- adjoint(U_linkpath) * forward-prop
+      bkw_p,
+      ft_mom, ft_x0,
+      lpath_min, lpath_max, 
+      lpath    -- linkpath(array of: dir for +1 shift, Nd+dir for -1 shift)
+    )
+    -- append '/' to kpath prefix if non-empty
+    local aff_kpath
+    if lpath_min <= #lpath then 
+      if (0 < aff_kpath_prefix:len()) then 
+        aff_kpath = aff_kpath_prefix .. '/' .. lpath_string(lpath)
+      else aff_kpath = lpath_string(lpath) end
+      qcd.save_npr_2qvertex(aff_w, aff_kpath, frw_p, bkw_p, ft_mom, ft_x0)
+    end
+    if lpath_max <= #lpath then return end
+
+    local lpath_new = copy_table(lpath)
+    for dir = 0, #L - 1 do
+      if (0 == #lpath) or not (dir + #L == lpath[#lpath]) then
+        lpath_new[#lpath + 1] = dir       -- forward direction
+        local frw_p_new = (gauge_u[1+dir]:adjoin() * frw_p):shift(dir, "from_backward")
+        save_nprvertex_linkdepth1st(aff_w, aff_kpath_prefix, 
+            gauge_u, frw_p_new, bkw_p, ft_mom, ft_x0, 
+            lpath_min, lpath_max, lpath_new)
+      end
+      if (0 == #lpath) or not (dir == lpath[#lpath]) then
+        lpath_new[#lpath + 1] = dir + #L  -- backward direction
+        local frw_p_new = gauge_u[1+dir] * frw_p:shift(dir, "from_forward")
+        save_nprvertex_linkdepth1st(aff_w, aff_kpath_prefix, 
+            gauge_u, frw_p_new, bkw_p, ft_mom, ft_x0, 
+            lpath_min, lpath_max, lpath_new)
+      end
+    end
+  end
+
+  function calc_npr_momshell(
+      L,                  -- lattice
+      aff_w,              -- aff writer
+      aff_kpath_prefix,   -- keypath prefix
+      gauge_u_,           -- gauge links
+      bc,                 -- BC for quarks
+      solver,             -- solver function
+      frw_mom, bkw_mom,   -- momenta of forward and backward - must agree with the BC (eg half-integer for APBC)
+      ft_x0,              -- source coord: x,y,z,t
+      lpath_min,          -- minimum linkpath length to save 
+      lpath_max           -- maximum linkpath length
+      )
+    -- moments
+    local ins_mom = {}
+    local ins_nonzero = false
+    for i = 0, #L-1 do
+      ins_mom[1+i] = frw_mom[1+i] - bkw_mom[1+i]
+      if 0 ~= ins_mom[1+i] then ins_nonzero = true end
+    end
+    local frw_src = complex2dirprop(L:planewave(ft_x0, frw_mom))
+    local frw_p   = solver(frw_src)
+    printf("|frw_src|^2=%e  |frw_prop|^2=%e\n", frw_src:norm2(), frw_p:norm2())
+    qcd.save_npr_prop(aff_w, aff_kpath_prefix .. '/frw_prop', frw_p, frw_mom, ft_x0)
+    local bkw_p = frw_p
+    if ins_nonzero then 
+      bkw_p = solver(complex2dirprop(L:planewave(ft_x0, bkw_mom)))
+    end
+    qcd.save_npr_prop(aff_w, aff_kpath_prefix .. '/bkw_prop', bkw_p, bkw_mom, ft_x0)
+    -- loop through linkpaths
+    local gauge_u = copy_table(gauge_u_)
+    apply_bc(gauge_u, bc)
+    save_nprvertex_linkdepth1st(aff_w, aff_kpath_prefix, 
+          gauge_u, frw_p, bkw_p, ins_mom, ft_x0,
+          lpath_min, lpath_max, {})
+  end
+end

@@ -1,0 +1,253 @@
+require('stdlib')
+
+-----------------------------------------------------------------------------
+-- functions to create "vectors": lists of values
+-- to modulate t-dependence of laph-vectors and propagators
+-----------------------------------------------------------------------------
+
+-- constant "vector"
+function vec_const(lt, x)
+  local res = {}
+  for t = 0, lt-1 do res[1+t] = x end
+  return res
+end
+
+-- make a list { P(t) }, t=0..(lt-1), P(x) = c0 + c1*t + ...
+--  lt    lattice length in t-direction
+--  coeff poly coefficients {c0, c1, ...}
+function vec_poly(lt, coeff)
+  local res = {}
+  for t = 0, (lt - 1) do
+    local y = 0
+    for i = 1, #coeff do
+      y = y * t + coeff[-i]
+    end
+    res[1+t] = y
+  end
+  return res
+end
+
+-- exp(e*t)
+function vec_exp(lt, e)
+  local res = {}
+  for t = 0, (lt - 1) do res[1+t] = math.exp(e*t) end
+  return res
+end
+
+-- exp(complex(e*t))
+function vec_cexp(lt, e)
+  local res = {}
+  for t = 0, (lt - 1) do 
+    local et = e*t + complex(0,0)
+    res[1+t] = math.exp(et:real()) * complex(math.cos(et:imag()), math.sin(et:imag()))
+  end
+  return res
+end
+
+-- sin(e*t)
+function vec_sin(lt, e)
+  local res = {}
+  for t = 0, (lt - 1) do res[1+t] = math.sin(e*t) end
+  return res
+end
+
+-- cos(e*t)
+function vec_cos(lt, e)
+  local res = {}
+  for t = 0, (lt - 1) do res[1+t] = math.cos(e*t) end
+  return res
+end
+
+-- a*x+y
+function vec_axpy(a,x,y)
+  assert(#x == #y)
+  local res = {}
+  for t = 1, #x do res[t] = a * x[t] + y[t] end
+  return res
+end
+
+-- a*x
+function vec_scal(a,x)
+  local res = {}
+  for t = 1, #x do res[t] = a * x[t] end
+  return res
+end
+
+-- res[i] = vec[min(i, #vec+1-i)]
+function vec_symm_cyclic(vec, t0)
+  local res = {}
+  for t = 1, #vec do res[t] = vec[math.min(t, #vec+1-t)] end
+  return res
+end
+vec_symmc = vec_symm_cyclic
+
+-- res[i] = vec[ (i+dt-1)%(#vec)+1 ], |dt| <= (#vec-1)
+function vec_shift_cyclic(vec, dt)
+  local res = {}
+  for t = 1, #vec do res[t] = vec[1 + (#vec + t + dt - 1) % (#vec)] end
+  return res
+end
+vec_shc = vec_shift_cyclic
+
+-- res[j] = x[i] . A[i,j]
+function vec_gevm(g_list, vec_list)
+  local n = #g_list
+  assert(n == #vec_list)
+  if n <= 0 then return 0 end
+
+  local lt = #(vec_list[1])
+  local res = {}
+  for t = 1, lt do
+    local x = 0
+    for i = 1, n do x = x + g_list[i] * vec_list[i][t] end
+    res[t] = x
+  end
+  return res
+end
+-- res[i] = x[i] * y[i]
+function vec_mul(x,y)
+  assert(#x == #y)
+  local res = {}
+  for t = 1, #x do res[t] = x[t] * y[t] end
+  return res
+end
+
+-- multiply along t_axis:
+-- res[t,x3] = x[t] * l[t,x3]
+-- XXX orig vector is modified!
+function vec_mul_lat(x, l, t_axis)
+  local L = l.lattice
+  assert(#x == L[t_axis])
+  for t = 0, L[t_axis] - 1 do 
+    -- FIXME check that this assignment works as expected
+--    L:Subset{axis=t_axis, position=t}:where(
+--        function () l:set(x[1+t] * l) end)
+  end
+end
+
+
+------------------------------------------------------------------------------
+-- real/complex lat fields depending on one direction
+------------------------------------------------------------------------------
+
+-- linear function in 'axis' direction, starting at x0
+function latI_lin(L, axis, x0)
+  if nil == x0 then x0 = 0 end
+  local lt = L[axis]
+  x0 = x0 % lt
+  return ((lt - x0) + L:pcoord(axis)) % lt
+end
+-- linear function in 'axis' direction, starting at x0 and growing in neg. direction
+function latI_rlin(L, axis, x0)
+  if nil == x0 then x0 = 0 end
+  local lt = L[axis]
+  x0 = x0 % lt
+  return ((lt + x0) - L:pcoord(axis)) % lt
+end
+-- linear function in 'axis' direction, starting at x0
+function latI_dist(L, axis, x0)
+  return qcd.min(latI_lin(L, axis, x0), latI_rlin(L, axis, x0))
+end
+
+-- linear function in 'axis' direction, starting at x0
+function latR_lin(L, axis, x0)
+  if nil == x0 then x0 = 0 end
+  local lt = L[axis]
+  x0 = x0 % lt
+  return L:Real(((lt - x0) + L:pcoord(axis)) % lt)
+end
+-- linear function in 'axis' direction, starting at x0 and growing in neg. direction
+function latR_rlin(L, axis, x0)
+  if nil == x0 then x0 = 0 end
+  local lt = L[axis]
+  x0 = x0 % lt
+  return L:Real(((lt + x0) - L:pcoord(axis)) % lt)
+end
+-- linear function in 'axis' direction, starting at x0
+function latR_dist(L, axis, x0)
+  return L:Real(qcd.min(latI_lin(L, axis, x0), latI_rlin(L, axis, x0)))
+end
+
+-- polynomial c0 + c1*x + c2*x*x + ...
+--  coeff {c0, c1, c2, ...}
+function lat_poly(x, coeff)
+  local y = 0
+  for i = 1, #coeff do
+    y = y * x + coeff[-i]
+  end
+  return y
+end
+
+-- create V = exp(I*p3.(x3-src0_3))*col[c]
+--    L         lattice
+--    t_axis    t-direction = 0 .. #L - 1
+--    p3        { px, py, pz }
+--    src0      { x0, y0, z0, t0 } (t0 is ignored)
+--    col       { c0, c1, c2 }
+--    tvec      {xt0, xt1, ... xt(LT-1)}; ignored if nil (equiv to {1,1,...})
+function make_latcolvec_pw_c_t(L, t_axis, p3, src0, col)
+  local p3x = L:planewave(src0, space2full(p3, t_axis))
+  local res = L:ColorVector()
+  for c=0, 2 do
+    res[{c=c}] = p3x * col[1+c]
+  end
+  return res
+end
+
+-- list of latcolvec 
+-- [i_pw3 * n_col + i_col] = dep_col[i_col] . dep_pw3[i_pw3] . col[i_col] * {exp(I*x*p3[i_pw3])
+--  dep_pw3, dep_col  modifiers applied depending on pw3 and col index, 
+--            e.g. to vary t-dependence of components; ignored if nil
+function make_latcolvec_list_pw_c_expt(L, t_axis, pw3_list, pw_x0, col_list, dep_pw3, dep_col)
+  local v = {}
+  local lt = L[t_axis]
+  local cnt = 0
+  for p = 1, #pw3_list do
+    for c = 1, #col_list do
+      v[1+cnt] = make_latcolvec_pw_c_t(L, t_axis, 
+                    pw3_list[p], pw_x0, col_list[c])
+      if nil ~= dep_pw3 then v[1+cnt] = dep_pw3[c] * v[1+cnt] end
+      if nil ~= dep_col then v[1+cnt] = dep_col[c] * v[1+cnt] end
+      cnt = cnt + 1
+    end
+  end
+  return v
+end
+
+-- make propagator exp(ip(x-x0)) * [c0 +c_ac*ic +c_as*is +c_bc*jc +c_bs*js]
+-- lc5 = { c0, c_ac, c_as, c_bc, c_bs }
+function make_latdirprop_lin_pw(L, lc5, ft_mom, ft_x0)
+  local pw = L:planewave(ft_x0, ft_mom)
+  local p = L:DiracPropagator()
+  for jc=0,2 do  for js=0,3 do
+    local d = L:DiracFermion()
+    for ic=0,2 do  for is=0,3 do
+      d[{c=ic, d=is}] = pw * (lc5[1] + lc5[2]*ic + lc5[3]*is + lc5[4]*jc + lc5[5]*js)
+    end  end
+    p[{c=jc, d=js}] = d
+  end  end
+  return p
+end
+
+
+
+-- make "propagator": latdirferm x 4 {d0, d1, d2, d3 } = tdep \otimes {v} 
+-- with t-dependent gamma structure
+--    v         latcolvec
+--    t_axis    t-direction
+--    dep_spin  modifier depending on spin index, e.g. to vary t-dependence of components; 
+--              ignored if nil
+--  result: {d0, d1, d2, d3}, d[i] = dep_spin[i] . v
+function make_4latdirferm_t(v, t_axis, pw3, pw_x0, dep_spin)
+  local L = v.lattice
+  local p = L:DiracPropagator()
+  local res = {}
+  for i = 0, 3 do
+    local y = L:DiracFermion(v, {d=i})
+    res[1+i] = L:DiracFermion(v, {d=i}) * L:planewave(pw_x0, space2full(pw3, t_axis))
+    if nil ~= dep_spin then res[1+i] = dep_spin[1+i] * res[1+i] end
+  end
+  return res
+end
+
+

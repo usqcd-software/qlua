@@ -1,0 +1,128 @@
+require "stdlib"
+require "wuppertal-smear"
+
+do
+  local tt = {}
+  local tstart = os.time()
+  timer = function(str)
+    local t0=os.time()
+    if tt[str] == nil then
+      tt[str] = {}
+    end
+    return function(es)
+      local dt = os.time() - t0
+	  printf("TIME(%q,%q) = %.3f secs\n", str, es, dt)
+      if tt[str][es] == nil then
+        tt[str][es] = {n = 0, t = 0}
+      end
+      tt[str][es].n = tt[str][es].n + 1
+	  tt[str][es].t = tt[str][es].t + dt
+    end
+  end
+  local function update_len(n, x)
+    local z = tostring(x)
+    if n < #z then
+      return #z
+    end
+    return n
+  end
+  show_timers = function(n)
+    local dt = os.time() - tstart
+    printf("ALL TIMERS %q -----------------------\n", n);
+    local ws, we, wn, wt = 0,0,0,0;
+    for s,x in pairs(tt) do
+       ws = update_len(ws, s);
+	   for e,r in pairs(x) do
+          we = update_len(we, e)
+          wn = update_len(wn, r.n)
+		  wt = update_len(wt, string.format("%.3f", r.t));
+       end
+    end
+	local fmt = string.format("  %%-%ds : %%-%ds     %%%dd  %%%d.3f  ( %%6.2f %%%% )\n", ws, we, wn, wt)
+	for s, x in pairs(tt) do
+	  for e, r in pairs(x) do
+	    printf(fmt, s, e, r.n, r.t, r.t * 100 / dt);
+      end
+    end
+    printf("---------- TOTAL(%q): %.3f secs\n", n, dt);
+  end
+end
+
+function make_source(Z, csrc, wup_a, wup_n, t_axis)
+  local cm = L:ColorMatrix()
+  for a = 0, cm:colors() - 1 do
+    cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
+  end
+  L:Subset{axis=t_axis, position=csrc[1+t_axis]}:where(
+     function()
+       cm:set(wuppertal_smear(Z, wup_a, wup_n, cm, t_axis))
+     end)
+  return L:DiracPropagator(cm)
+end
+
+function propagator_projected(sign, mu, src, solver)
+  local z = qcd.right_project(sign, {mu=mu}, src)
+  local z_sol = {}
+  for i = 1, #z do
+    z_sol[i] = {}
+    for j = 1, #z[i] do 
+      z_sol[i][j] = solver(z[i][j]) / 2.
+    end
+  end
+  return qcd.right_reconstruct(sign, {mu=mu}, z_sol)
+end
+
+function calc_mean_squared_radius(density, csrc, t_axis)
+  local dr_sq = L:Int(0)
+  for mu = 0, #L-1 do
+    -- calc dx = (x-x0) in [-Lx/2; +Lx/2)
+    local dx = (L:pcoord(mu) + 3 * L[mu] / 2 - csrc[1+mu]) % L[mu] - L[mu] / 2
+    dr_sq = dr_sq + dx * dx
+  end
+  local subset = L:Subset{axis=t_axis,position=csrc[1+t_axis]}
+  local sum = subset:where(function() return density:sum() end)
+  if sum <= 0. then return 0 end
+  local r2sum = subset:where(function() return (density * L:Real(dr_sq)):sum() end)
+  return r2sum / sum
+end
+
+
+
+function copy_table(tab) 
+  local a = {}; for i,v in pairs(tab) do a[i] = v end
+  return a
+end
+
+function apply_bc(gauge_links, bc)
+  assert (#gauge_links == #bc)
+  if #gauge_links < 1 then return end
+  L = gauge_links[1].lattice
+  for d = 0, #L-1 do
+    L:Subset{axis=d, position=L[d]-1}:where(
+      function()
+        gauge_links[1+d]:set(gauge_links[1+d] * bc[1+d])
+      end
+    )
+  end
+end
+
+function complex2colmat(c)
+  local m = c.lattice:ColorMatrix()
+  for a = 0, m:colors()-1 do
+    m[{a=a,b=a}] = c
+  end
+  return m
+end
+function complex2dirprop(c) 
+  return c.lattice:DiracPropagator(complex2colmat(c))
+end
+function force_gc(title)
+  if nil == title then title = '' end
+  local m0 = collectgarbage("count")
+  local t0 = os.time()
+  collectgarbage("collect")
+  local m1 = collectgarbage("count")
+  local t1 = os.time()
+  printf("GC_COLLECT('%s') %dk->%dk (%dk) ; %dsec\n", 
+         title, m0, m1, m0 - m1, t1 - t0)
+end

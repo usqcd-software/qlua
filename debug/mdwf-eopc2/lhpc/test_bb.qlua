@@ -1,0 +1,217 @@
+package.path = package.path .. ';/Users/syritsyn/trench/qlua-trunk/lhpc/?.qlua'
+require "stdlib"
+require "gauge"
+require "wuppertal-smear"
+require "ape-smear"
+require "hex-smear"
+
+require "lhpc-std"
+require "hadspec"
+require "seqsource"
+require "bb"
+
+Lx=4
+Lt=8
+L = qcd.lattice{Lx,Lx,Lx,Lt}
+volume = Lx * Lx * Lx * Lt
+
+
+tsrc = 1
+csrc = {1,2,3,tsrc}
+baryon='proton_3'
+flavor='D'
+
+time_reverse = nil
+if (baryon =='proton_3') then time_reverse = false
+elseif (baryon == 'proton_negpar_3') then time_reverse = true
+else exit() end
+
+--src_snk_dt = 4
+--if (not time_reverse) then tsnk = (tsrc + src_snk_dt) % Lt
+--else tsnk = (tsrc + lt - src_snk_dt) % Lt end
+tsnk = 5
+
+bc = {1,1,1,-1}
+t_axis = 3
+
+psnk = {1,2,3,-10} -- psnk_t is not used
+
+-- for hadspec
+psnk_list = {
+  { 0, 0, 0, 0}, 
+  { 0, 0, 1, 0}, { 0, 1, 0, 0}, { 1, 0, 0, 0},
+  { 0, 0,-1, 0}, { 0,-1, 0, 0}, {-1, 0, 0, 0},
+
+  { 0, 1, 1, 0}, { 1, 1, 0, 0}, { 1, 0, 1, 0},
+  { 0, 1,-1, 0}, { 1,-1, 0, 0}, { 1, 0,-1, 0},
+  { 0,-1, 1, 0}, {-1, 1, 0, 0}, {-1, 0, 1, 0},
+  { 0,-1,-1, 0}, {-1,-1, 0, 0}, {-1, 0,-1, 0}
+}
+
+-- list of momenta for insertsions
+qext_list_lpath2 = {
+  { 0, 0, 0, 0}, 
+  { 0, 0, 1, 0}, { 0, 1, 0, 0}, { 1, 0, 0, 0},
+  { 0, 0,-1, 0}, { 0,-1, 0, 0}, {-1, 0, 0, 0},
+
+  { 0, 1, 1, 0}, { 1, 1, 0, 0}, { 1, 0, 1, 0},
+  { 0, 1,-1, 0}, { 1,-1, 0, 0}, { 1, 0,-1, 0},
+  { 0,-1, 1, 0}, {-1, 1, 0, 0}, {-1, 0, 1, 0},
+  { 0,-1,-1, 0}, {-1,-1, 0, 0}, {-1, 0,-1, 0}
+}
+qext_list_lpath3 = {{0, 0, 0, 0}}
+
+kappa     = .12805081056163085512
+c_sw      = 1
+epsilon   = 1e-21
+max_iters = 20000
+
+wup_alpha = 3.0
+wup_N = 25
+
+U, hdr = qcd.nersc.read_gauge('input/gauge_disord_4c8.NERSC')
+
+c2pt_timer = timer('c3pt')
+-- compute forward propagagor
+S = make_source(U, csrc)
+c2pt_timer('source')
+
+solver = qcd.Clover(U, kappa, c_sw, bc):solver(epsilon, max_iters)
+fwd_prop = 2 * kappa * solver(S)
+c2pt_timer('fwd_prop')
+
+qcd.ddpairs.write("D", 
+                  string.format('output.qlua/forward_x%dy%dz%dt%d.dd', 
+                                csrc[1],csrc[2],csrc[3],csrc[4]),
+                  "", S, "", tsrc, fwd_prop, "")
+c2pt_timer('fwd_prop-write')
+
+fwd_prop_sm = wuppertal_smear(U, wup_alpha, wup_N, fwd_prop, 3)
+c2pt_timer('sink')
+
+-- compute hadspec
+aff_hadspec = qcd.aff.Writer(
+                  string.format('output.qlua/hadspec_x%dy%dz%dt%d.aff',
+                                csrc[1],csrc[2],csrc[3],csrc[4]))
+save_hadspec(L, aff_hadspec, "/hspectrum/GN25-P/mq-0.0953",
+             fwd_prop, fwd_prop, csrc, psnk_list, 3, bc[4])
+save_hadspec(L, aff_hadspec, "/hspectrum/GN25-GN25/mq-0.0953",
+             fwd_prop_sm, fwd_prop_sm, csrc, psnk_list, 3, bc[4])
+c2pt_timer('hadspec')
+
+
+
+c3pt_timer = timer('c3pt')
+-- compute seqsource and backward prop
+bc_2pt_t = bc[1+t_axis]*bc[1+t_axis]*bc[1+t_axis]
+seqsource = baryon_seqsource(L, baryon, flavor, fwd_prop_sm, fwd_prop_sm, 
+                             csrc, tsnk, psnk, 3, bc_2pt_t)
+seqsource_sm = wuppertal_smear(U, wup_alpha, wup_N, seqsource, 3)
+c3pt_timer('bwd_source')
+qcd.ddpairs.write("D",
+                  string.format('output.qlua/seqsrc_%s_%s_x%dy%dz%dt%d_PX%dPY%dPZ%dT%d.dd',
+                                baryon, flavor,
+                                csrc[1],csrc[2],csrc[3],csrc[4],
+                                psnk[1],psnk[2],psnk[3], tsnk),
+                  "", L:DiracPropagator(seqsource_sm), "", tsrc, seqsource_sm, "")
+
+-- solving only for the required components
+if baryon == 'proton_3' then 
+  printf('computing (1-g4) projected prop\n')
+  bwd_prop = 2 * kappa * propagator_projected('minus', 3, seqsource_sm, solver)
+elseif baryon == 'proton_negpar_3' then
+  printf('computing (1+g4) projected prop\n')
+  bwd_prop = 2 * kappa * propagator_projected('plus', 3, seqsource_sm, solver)
+else
+  bwd_prop = 2 * kappa * solver(seqsource_sm)
+end
+c3pt_timer('bwd_prop')
+
+
+qcd.ddpairs.write("D",
+                  string.format('output.qlua/backward_%s_%s_x%dy%dz%dt%d_PX%dPY%dPZ%dT%d.dd',
+                                baryon, flavor,
+                                csrc[1],csrc[2],csrc[3],csrc[4],
+                                psnk[1],psnk[2],psnk[3], tsnk),
+                  "", seqsource_sm, "", tsrc, bwd_prop, "")
+c3pt_timer('bwd_prop-write')
+
+-- compute building blocks
+aff_bb = qcd.aff.Writer(
+            string.format('output.qlua/bb_%s_%s_x%dy%dz%dt%d_PX%dPY%dPZ%dT%d.aff',
+                          baryon, flavor,
+                          csrc[1],csrc[2],csrc[3],csrc[4],
+                          psnk[1], psnk[2], psnk[3], tsnk))
+
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 2, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath2,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-2links-nosave')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        0, 2, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        {},
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-2links-nomom')
+
+bb_timer = timer('bb')
+calc_bb(L, 
+        aff_bb, 
+        string.format('/bb/%s/%s', baryon, flavor), -- destination
+        0, 2, -- max links
+        fwd_prop, bwd_prop, U, --fields
+        csrc, tsnk, psnk, t_axis,
+        qext_list_lpath2,
+        time_reverse,
+        bc[1+t_axis], bc_2pt_t)
+bb_timer('bwd_prop-2links')
+
+
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        4, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath3,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links-nosave')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        {},
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links-nomom')
+--
+--bb_timer = timer('bb')
+--calc_bb(L, 
+--        aff_bb, 
+--        string.format('/bb/%s/%s', baryon, flavor), -- destination
+--        3, 3, -- max links
+--        fwd_prop, bwd_prop, U, --fields
+--        csrc, tsnk, psnk, t_axis,
+--        qext_list_lpath3,
+--        time_reverse,
+--        bc[1+t_axis], bc_2pt_t)
+--bb_timer('bwd_prop-3links')

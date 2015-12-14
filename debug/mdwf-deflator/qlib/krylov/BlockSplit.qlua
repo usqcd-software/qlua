@@ -1,0 +1,187 @@
+-- Block Splitter. It makes more assumptions about vectors and matrices than solvers.
+--  Parameters
+--    Blocks          {}   -- blocking factors
+--    KDim             0   -- stop splitting if KDim NK vectors are found
+--    MinDim         256   -- do not split operators if dim(V) <= MinDim
+--    MaxCondition    20   -- if the condition number estimate <= MaxC, do not split
+--    LanczosSize    100   -- K-space dimension for Lanczos algorithm
+--
+-- BlockSplit(t):split(M) returns a table of
+--   .P           projector to the small space
+--   .Q = 1-P     projector to the easy space
+--   .PQ          PQ(v) = P(v),Q(v)
+--   .v2s         canonical map V -> S
+--   .s2v         canonical map S -> V
+--   .Ops         prototype operator on S
+--   .MaxS        an estimate of the maximal singular value of the easy part
+--   .MinS        an estimate of the minimal signular value of the easy part
+-- If the easy space can not built, return false
+require "krylov/Lanczos"
+require "krylov/OpArith"
+
+function BlockSplit(t)
+   local splitter = {}
+
+   local blocks        = t.Blocks         or    {}
+   local kdim          = t.KDim           or     0
+   local min_dim       = t.MinDim         or   256
+   local max_cond      = t.MaxCondition   or  20.0
+   local lanczos_size  = t.LanczosSize    or   100
+
+   local function makeLs(L) --> Ls
+      local Ds = {}
+      local i
+      for i = 0, #L - 1 do
+         Ds[i+1] = math.floor(L[i] / blocks[i+1])
+      end
+      return qcd.lattice(Ds)
+   end
+
+   local function small_lattice(L)
+      local i
+      for i = 0, #L - 1 do
+         if L[i] <= blocks[i+1] then
+            return true
+         end
+      end
+      return false
+   end
+
+   local function makeMD(Lv, Ls) --> Mul, Dot
+      local Ix = {}
+      local i
+      for i = 0, #Lv - 1 do
+         Ix[i+1] = (Lv:pcoord(i) * Ls[i]) / Lv[i]
+      end
+      local G = qcd.gather(Ls, Lv, Ix)
+      local S = qcd.scatter(Lv, Ls, Ix)
+      local function Dot(a,b) -- V:a . V:b -> S:x
+         return G:add(qcd.dot(a,b))
+      end
+      local function Mul(x,a) -- S:x * V:a -> V:b
+         return S(x)*a
+      end
+      return Mul, Dot
+   end
+
+   -- this relys on the ability to do arithmetics on V-vectors
+   local function makePQ(Ls, Lv, ws, Mul, Dot) --> P, Q, v2s, s2v
+      local vs = {}
+      local i
+      for i = 1, #ws do
+         local j
+         local vi = ws[i]
+         for j = 1, i - 1 do
+            vi = vi - Mul(Dot(vs[j],vi), vs[j])
+         end
+         vs[i] = Mul(1/Dot(vi,vi):sqrt(), vi)
+      end
+      local function v2s(v)
+         local s = Ls:ColorVectorN(#vs)
+         local i
+         for i = 1, #vs do
+            s[{c=i-1}] = Ls:Complex(Dot(vs[i],v))
+         end
+         return s
+      end
+      local function s2v(s)
+         local v = Mul(s[{c=0}]:real(),vs[1])
+         local i
+         for i = 2, #vs do
+            v = v + Mul(s[{c=i-1}]:real(),vs[i])
+         end
+         return v
+      end
+      local function P(v)
+         local r = Mul(Dot(vs[1],v), vs[1])
+         local i
+         for i = 2, #vs do
+            r = r + Mul(Dot(vs[i],v), vs[i])
+         end
+         return r
+      end
+      local function Q(v)
+         return v - P(v)
+      end
+      local function PQ(v)
+         local r = P(v)
+         return r, v - r
+      end
+      return P, Q, PQ, v2s, s2v
+   end
+   local function mkrnd(Ls, M, Dot)
+      local r = Dot(M:rnd():gaussian_Real(), M:lattice():Real(1.0))
+      local s = (r * 16777216.0):trunc()
+      return Ls:RandomState(45365367,s)
+   end
+
+   -- operator skeleton
+   local function build_ops(L, kd, M, Dot)
+      local op = {}
+      local i
+      local v = kd
+      for i = 0, #L - 1 do
+         v = v * L[i]
+      end
+      local rnd = mkrnd(L, M, Dot)
+      function op:lattice() return L end
+      function op:dim() return v end
+      function op:rnd() return rnd end
+      function op:zeroVector() return L:ColorVectorN(kd) end
+      function op:randomVector() return rnd:gaussian_ColorVectorN(kd) end
+      function op:axpy(a,x,y) return a * x + y end
+      function op:scale(a,x) return a * x end
+      function op:dot(a,b) return qcd.dot(a,b):sum():real() end
+      function op:residue(x,b) return b - op:apply(x) end
+      function op:error(x,b) return math.sqrt((b - op:apply(x)):norm2()) end
+      function op:norm(v) return math.sqrt(v:norm2()) end
+      return op
+   end
+
+   function splitter:split(M)
+      if M:dim() <= min_dim then
+         -- M:dim() too small
+         return false
+      end
+      local Lv = M:lattice()
+      if small_lattice(Lv) then
+         -- Lv too small
+         return false
+      end
+      local Ls = makeLs(Lv)
+      local Mul, Dot = makeMD(Lv, Ls)
+      local Filter = makeLanczos { Dim = lanczos_size, Scan = false }
+      local vs = {}
+      local zA = M
+      local pdim = kdim
+      local maxS, minS, P, Q, PQ, v2s, s2v
+      local k
+      for k = 0, kdim - 1 do
+         local x = Filter:distill(zA)
+         local l0,v = x.Eigen(0)
+         local ld,vd = x.Eigen(lanczos_size - 1)
+         minS = l0
+         maxS = ld
+         if (maxS <= max_cond * minS) and (k > 0) then
+            if k == 0 then
+               -- Condition number already good
+               return false
+            end
+            pdim = k
+            break
+         end
+         vs[k+1] = v
+         P, Q, PQ, v2s, s2v = makePQ(Ls, Lv, vs, Mul, Dot)
+         zA = OpArith.projected(M, Q)
+      end
+      return { P = P,
+               Q = Q,
+               PQ = PQ,
+               v2s = v2s,
+               s2v = s2v,
+               Ops = build_ops(Ls, pdim, M, Dot),
+               MinS = minS,
+               MaxS = maxS }
+   end
+   return splitter
+end

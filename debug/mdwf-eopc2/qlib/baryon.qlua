@@ -1,0 +1,19 @@
+require "stdlib"
+
+function qcd.proton3(d, u)
+  local S =  gamma{mu=0} * gamma{mu=2} * (1 + gamma{mu=3}) / 2
+  local T =  (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 + gamma{mu=3}) / 2
+  local a2 = T * u
+  local a3 = qcd.quarkContract13(d * S, S * u)
+  return (a2:spintrace() * a3:spintrace() + (a2 * a3):spintrace()):trace()
+end
+
+function qcd.antiproton3(d, u)
+  local S =  gamma{mu=0} * gamma{mu=2} * (1 - gamma{mu=3}) / 2
+  local T =  (1 - gamma{mu=0}*gamma{mu=1}*complex(0,1)) * (1 - gamma{mu=3}) / 2
+  local a2 = T * u
+  local a3 = qcd.quarkContract13(d * S, S * u)
+  return (a2:spintrace() * a3:spintrace() + (a2 * a3):spintrace()):trace()
+end
+
+
