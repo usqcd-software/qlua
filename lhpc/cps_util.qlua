@@ -11,6 +11,7 @@ function cps_eopc_pack(L, a, b, sublat)
   --    sublat  "even"|"odd" support for the eoprec field
 
   -- ignored (complementary) sublattice
+  local xsublat = nil
   if "even" == sublat then xsublat = "odd" 
   elseif "odd" == sublat then xsublat = "even"
   else error(string.format("unknown subat='%s'", sublat)) end
@@ -194,7 +195,7 @@ do
   local cps_ns  = 4
   local cps_nc  = 3
 
-  function R2C(r)
+  local function R2C(r)
     local lenR = #r
     assert(0 == lenR % 2)
     local resC = {}
@@ -202,6 +203,15 @@ do
       resC[1+i] = r[1+2*i] + complex(0,1)*r[1+2*i+1]
     end
     return resC
+  end
+  local function C2R(c)
+    local lenC  = #c
+    local resR  = {}
+    for i = 0, lenC-1 do
+      resR[1+2*i] = c[1+i]:real()
+      resR[2+2*i] = c[1+i]:imag()
+    end
+    return resR
   end
 
   function read_cps_evec(L, cps_evec_file, L5, nev, evec_prec, evec_sublat)
@@ -235,7 +245,25 @@ do
     end
     return index
   end
-
+  function write_cps_evec(L, cps_evec_qiofile, L5, nev, evec_prec, evec_sublat, evec)
+    local evec_flatR = {}
+    for e = 0, nev-1 do
+      for s5 = 0, L5-1 do
+        local df = evec[1+e][1+s5]
+        for c = 0, cps_nc-1 do
+          for d2 = 0, cps_ns/2-1 do
+            local pack_c = cps_eopc_pack(L, df[{c=c,d=d2}], df[{c=c,d=2+d2}], evec_sublat)
+            local indc_f = c + cps_nc * (d2 + cps_ns/2*(s5 + L5*e))
+            evec_flatR[1+2*indc_f] = pack_c:real()
+            evec_flatR[2+2*indc_f] = pack_c:imag()
+          end
+        end
+      end
+    end
+    print_obj(evec_flatR, "evec_flatR")
+    cps_evec_qiofile:Real(evec_prec, evec_flatR, "")
+    printf("qio_w done\n")
+  end
 
   -- cross-checks and validation
   function make_coord_index_gold(L)
