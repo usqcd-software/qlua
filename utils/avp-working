@@ -1,5 +1,5 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/macosx-working
+PACKTOP=$HOME/Local/packages/macosx-working
 DEVTOP=$HOME/Local/packages
 Nc=3
 # noNc=3
@@ -37,7 +37,6 @@ LIBS='-lz' \
    --with-qopqdp=$PACKTOP/qopqdp                           \
    --with-clover=$PACKTOP/clover                           \
    --clover-nc=$Nc                                         \
-   --with-twisted=$DEVTOP/twisted-working                  \
    --twisted-nc=$Nc                                        \
    --with-mdwf=$PACKTOP/mdwf                               \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
@@ -46,6 +45,7 @@ LIBS='-lz' \
    --without-nc=2                                          \
    $*
 
+#   --with-twisted=$PACKTOP/twisted-working                 \
 #   --with-mdwf=$DEVTOP/mdwf-working                        \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
