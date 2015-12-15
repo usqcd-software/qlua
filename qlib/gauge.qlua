@@ -80,6 +80,20 @@ function plaquette(U,i,j)
           U[i+1]:shift(j, "from_forward"):adjoin() *
           U[j+1]:adjoin()
 end
+function plaquette_all(U)
+  local L = U[1].lattice
+  assert(#L == #U)
+  local res = {}
+  for i = 0, #L - 1 do
+    res[1+i] = {}
+    res[1+i][1+i] = L:ColorMatrix(1.)
+    for j = 0, i - 1 do
+      res[1+i][1+j] = plaquette(U, i, j)
+      res[1+j][1+i] = res[1+i][1+j]:conj()
+    end
+  end
+  return res
+end
 
 -- compute clover term in (i,j) plane, i,j=0..(dim-1)
 function clover_term(U, i, j)
@@ -95,4 +109,18 @@ function clover_term(U, i, j)
             C01:shift(j, "to_forward") +
             (C10 + C11:shift(j, "to_forward")):shift(i, "to_forward")
   return (F - F:adjoin()) / complex(0,8)
+end
+function clover_term_all(U)
+  local L = U[1].lattice
+  assert(#L == #U)
+  local res = {}
+  for i = 0, #L - 1 do
+    res[1+i] = {}
+    res[1+i][1+i] = L:ColorMatrix()
+    for j = 0, i - 1 do
+      res[1+i][1+j] = clover_term(U, i, j)
+      res[1+j][1+i] = -res[1+i][1+j]
+    end
+  end
+  return res
 end

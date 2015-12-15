@@ -192,12 +192,14 @@ do
   end
   function latvec_mdwfA(d, M5, mf, b5_s, c5_s, is_dag)
     local L5 = #d
-    local rho, sigL, sigR = mdwfA_coeff(L5, M5, mf, b5_s, c5_s, is_dag)
+    local rho, sigL, sigR = mdwfA_coeff(L5, M5, mf, 
+        latvec_asarray1d(b5_s, L5), latvec_asarray1d(c5_s, L5), is_dag)
     return latvec_apply_apbx5(d, rho, sigL, sigR, is_dag)
   end
   function latvec_inv_mdwfA(d, M5, mf, b5_s, c5_s, is_dag)
     local L5 = #d
-    local rho, sigL, sigR = mdwfA_coeff(L5, M5, mf, b5_s, c5_s, is_dag)
+    local rho, sigL, sigR = mdwfA_coeff(L5, M5, mf, 
+        latvec_asarray1d(b5_s, L5), latvec_asarray1d(c5_s, L5), is_dag)
     return latvec_apply_inv_apbx5(d, rho, sigL, sigR, is_dag)
   end
 
@@ -210,12 +212,14 @@ do
   end
   function latvec_mdwfB(d, mf, b5_s, c5_s, is_dag)
     local L5 = #d
-    local rho, sigL, sigR = mdwfB_coeff(L5, mf, b5_s, c5_s, is_dag)
+    local rho, sigL, sigR = mdwfB_coeff(L5, mf, 
+        latvec_asarray1d(b5_s, L5), latvec_asarray1d(c5_s, L5), is_dag)
     return latvec_apply_apbx5(d, rho, sigL, sigR, is_dag)
   end
   function latvec_inv_mdwfB(d, mf, b5_s, c5_s, is_dag)
     local L5 = #d
-    local rho, sigL, sigR = mdwfB_coeff(L5, mf, b5_s, c5_s, is_dag)
+    local rho, sigL, sigR = mdwfB_coeff(L5, mf, 
+        latvec_asarray1d(b5_s, L5), latvec_asarray1d(c5_s, L5), is_dag)
     return latvec_apply_inv_apbx5(d, rho, sigL, sigR, is_dag)
   end
 
@@ -223,29 +227,27 @@ do
     return latvec_scal_left(-1, latvec_op_xwilson(d, u, is_dag))
   end
 
-  function latvec_mdwf_twokappab(d, M5, b5_s, is_dag)
-    -- multiply by (2\kappa_b) 
+  function latvec_mdwfK(d, M5, b5_s, is_dag)
+    -- multiply by (\kappa_b) 
     -- note : it is s-dependent (a diag matrix in s5-space)
     local L5 = #d
+    if is_dag then b5_s = latvec_conj(b5_s) end
+    b5_s = latvec_asarray1d(b5_s, L5)
     local y = {}
     for s = 1, L5 do
-      local b5
-      if 'table' == type(b5_s) then b5 = b5_s[s] else b5 = b5_s end
-      if is_dag then b5 = scal_conj(b5) end
-      y[s] = d[s] / (b5 * (4 - M5) + 1)
+      y[s] = d[s] / 2. / (b5_s[s] * (4 - M5) + 1)
     end
     return y
   end
-  function latvec_inv_mdwf_twokappab(d, M5, b5_s, is_dag)
+  function latvec_inv_mdwfK(d, M5, b5_s, is_dag)
     -- divide by (2\kappa_b) 
     -- note : it is s-dependent (a diag matrix in s5-space)
     local L5 = #d
+    if is_dag then b5_s = latvec_conj(b5_s) end
+    b5_s = latvec_asarray1d(b5_s, L5)
     local y = {}
     for s = 1, L5 do
-      local b5
-      if 'table' == type(b5_s) then b5 = b5_s[s] else b5 = b5_s end
-      if is_dag then b5 = scal_conj(b5) end
-      y[s] = d[s] * (b5 * (4 - M5) + 1)
+      y[s] = d[s] * 2 * (b5_s[s] * (4 - M5) + 1)
     end
     return y
   end
@@ -291,23 +293,23 @@ do
     -- sym2 : 1 - (2*kappa_b).F.B.A^{-1} . F.B.A^{-1}.(2*kappa_b)^{-1}
     local y = d
     if not is_dag then
-      y = latvec_inv_mdwf_twokappab(y, M5, b5_s, is_dag)
+      y = latvec_inv_mdwfK(y, M5, b5_s, is_dag)
       y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
       y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
       y = latvec_mdwfF(y, u, is_dag)
       y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
       y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
       y = latvec_mdwfF(y, u, is_dag)
-      y = latvec_mdwf_twokappab(y, M5, b5_s, is_dag)
+      y = latvec_mdwfK(y, M5, b5_s, is_dag)
     else 
-      y = latvec_mdwf_twokappab(y, M5, b5_s, is_dag)
+      y = latvec_mdwfK(y, M5, b5_s, is_dag)
       y = latvec_mdwfF(y, u, is_dag)
       y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
       y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
       y = latvec_mdwfF(y, u, is_dag)
       y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
       y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
-      y = latvec_inv_mdwf_twokappab(y, M5, b5_s, is_dag)
+      y = latvec_inv_mdwfK(y, M5, b5_s, is_dag)
     end
     return latvec_sub(d, y)
   end

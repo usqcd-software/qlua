@@ -1,0 +1,46 @@
+package.path = 'fastsmear/?.qlua;qlib/?.qlua;qlib-lhpc/?.qlua;' ..  package.path
+require "stdlib"
+require "lhpc-std"
+require "fastsmear"
+require "latvol"
+require "setup_util"
+require "latvec"
+require "strict"
+require "gauge"
+
+latsize = {4,4,6,20}
+t_axis = #latsize-1
+L = qcd.lattice(latsize)
+S = rnd_init(L, 1973)
+
+dp = S:gaussian_DiracPropagator()
+cml = dp2cml(dp)
+dp2 = cml2dp(cml)
+print_latvec_cmp(dp, dp2, "dp <-> (conv<>cml)")
+
+t0 = 3
+dp_t0 = L:DiracPropagator()
+L:Subset({axis=t_axis, position=t0}):where(function() dp_t0:set(dp) end)
+dp_t0_v2 = L:DiracPropagator()
+L:Subset(qcd.eq(L:pcoord(t_axis),t0)):where(function() dp_t0_v2:set(dp) end)
+print_latvec_cmp(dp_t0, dp_t0_v2, "dp_t0 <=> dp_t0_v2")
+
+Ns  = 4
+cml = dp2cml(dp_t0)
+--print_obj(cml, "cml")
+cml_spread = scatter_axis(t_axis, t0, cml)
+--print_obj(cml_spread, "cml_spread")
+cml2= gather_axis(t_axis, t0, Ns*Ns, cml_spread)
+--print_obj(cml2, "cml2")
+print_latvec_cmp(cml, cml2, "cml <=> gather(scatter(cml))")
+dp_t0_gs = cml2dp(cml2)
+--print_obj(dp_t0_gs, "dp_t0_gs")
+print_latvec_cmp(dp_t0, dp_t0_gs, "dp_t0 <=> dp_t0_v2")
+
+
+wup_a = 0.5
+wup_n = 20
+U = latvec_fromfunction({4}, function()return toSUn(0.12*S:gaussian_ColorMatrix())end)
+sm_dp1 = wuppertal_smear(U, wup_a, wup_n, dp_t0, t_axis)
+sm_dp2 = wuppertal_smear_fast_dp(U, wup_a, wup_n, dp_t0, t_axis, t0)
+print_latvec_cmp(sm_dp1, sm_dp2, "sm(dp_t0) <=> sm_fast(dp_t0)")

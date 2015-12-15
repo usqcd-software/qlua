@@ -1,0 +1,55 @@
+function dp2cml(dp)
+  local L = dp.lattice
+  local Nc, Ns = 3, 4
+  local cml = {}
+  for is = 0, Ns-1 do for js = 0, Ns-1 do 
+    cml[1 + Ns*is + js] = L:ColorMatrix()
+  end end
+  for jc = 0, Nc-1 do for js = 0, Ns-1 do
+    local df = dp[{c=jc,d=js}]
+    for ic = 0, Nc-1 do for is = 0, Ns-1 do
+      cml[1 + Ns*is + js][{a=ic,b=jc}] = df[{c=ic,d=is}]
+    end end
+  end end
+  return cml
+end
+function cml2dp(cml)
+  local Nc, Ns = 3, 4
+  assert(Ns^2 == #cml)
+  local L = cml[1].lattice
+  local dp = L:DiracPropagator()
+  for jc = 0, Nc-1 do for js = 0, Ns-1 do
+    local df = L:DiracFermion()
+    for ic = 0, Nc-1 do for is = 0, Ns-1 do
+      df[{c=ic,d=is}] = cml[1 + Ns*is + js][{a=ic,b=jc}]
+    end end
+    dp[{c=jc,d=js}] = df
+  end end
+  return dp
+end
+function wuppertal_smear_fast_dp(U, alpha, N, G, axis, t0)
+  -- FIXME can break down further into ColorVector's
+  -- FIXME assuming that G is DiracPropagator; modify to deal with any latvec
+  -- (break down into cv -> flatten -> cut into L[axis] segments -> spread 
+  --    -> smear -> gather -> unflatten -> wrap into original types
+  assert('lattice.dirac.propagator' == type(G))
+  local Nc, Ns = 3, 4
+  local L = latvec_lattice(U)
+  latvec_lattice(G, L)
+  local n_spread = Ns^2
+  if (n_spread <= L[axis]) and nil ~= t0 then
+    printf("DO fast smear\n")
+    local U_dup = {}
+    for i = 1, n_spread do U_dup[i] = U end
+    print_obj(U_dup)
+    local U_spread = scatter_axis(axis, t0, U_dup)
+    print_obj(U_spread)
+    local cml_spread = scatter_axis(axis, t0, dp2cml(G))
+    print_obj(cml_spread)
+    return cml2dp(gather_axis(axis, t0, n_spread, 
+            wuppertal_smear(U_spread, alpha, N, cml_spread, axis)))
+  else 
+    printf("DO regular smear\n")
+    return wuppertal_smear(U, alpha, N, G, axis)
+  end
+end

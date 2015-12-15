@@ -2,23 +2,9 @@ require "stdlib"
 require "gauge"
 
 -- common routines for tests
-
 function show_object(name, t)
-   if type(t) == "table" then
-      local i, v;
-      for i, v in pairs(t) do
-         if type(v) == "table" then
-            printf("%s.%s : TABLE\n", name, i)
-            show_object(name .. "." .. i, v)
-         else
-            printf("%s.%s : (%s) %s\n", name, i, type(v), tostring(v));
-         end
-      end
-   else
-      printf("%s : (%s) %s\n", name, type(t), tostring(t))
-   end
+  print_obj(t, name)
 end
-
 function vec_div(a,b)
    local r = {};
    local i;

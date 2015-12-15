@@ -1,0 +1,47 @@
+require "latvec"
+
+function scatter_axis(axis, c_axis, vlist)
+  -- convert list `vlist[c_axis]' into a single field 
+  --    res[c_axis]=vlist[1][c_axis], res[c_axis+1]=vlist[2][c_axis], 
+  -- along `axis' 
+  --  axis = 0 .. (#L-1)
+  --  c_axis = 0 .. [L[axis]-1)
+  local L = assert(latvec_lattice(vlist))
+  assert(#vlist <= L[axis])
+  local res = latvec_zeros_like(vlist[1])
+  local sc_map = {}
+  for mu = 0, #L - 1 do sc_map[1+mu] = L:pcoord(mu) end
+  for i = 0, #vlist - 1 do
+    local dst_c = (c_axis + i) % L[axis]
+    local ss = L:Subset({axis=axis, position=dst_c})
+    ss:where(function() sc_map[1+axis]:set(L:Int(c_axis)) end)
+    local v_i = latvec_apply(qcd.scatter(L, L, sc_map), vlist[1+i])
+    ss:where(function() latvec_set(res, v_i) end)
+    sc_map[1+axis] = L:pcoord(axis)
+  end
+  return res
+end
+function gather_axis(axis, c_axis, n, v)
+  -- convert field `v' into a list of fields with 
+  --    res[1][c_axis]=v[c_axis], res[2][c_axis]=v[c_axis+1],... 
+  -- along `axis' coordinate
+  --  axis    = 0 .. (#L-1)
+  --  c_axis  = 0 .. [L[axis]-1)
+  if (n <= 0) then return {} end
+  local L = assert(latvec_lattice(v))
+  assert(n <= L[axis])
+  local res = {}
+  local sc_map = {}
+  for mu = 0, #L - 1 do sc_map[1+mu] = L:pcoord(mu) end
+  local ss = L:Subset({axis=axis, position=c_axis})
+  for i = 0, n - 1 do 
+    local src_c = (c_axis + i) % L[axis]
+    ss:where(function() sc_map[1+axis]:set(L:Int(src_c)) end)
+    local v_i = latvec_apply(qcd.scatter(L, L, sc_map), v)
+    local w_i = latvec_zeros_like(v_i)
+    ss:where(function() latvec_set(w_i, v_i)end)
+    res[1+i] = w_i
+    sc_map[1+axis] = L:pcoord(axis)
+  end
+  return res
+end

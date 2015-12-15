@@ -90,7 +90,7 @@ typedef struct {
 typedef struct {
     QDP_Lattice *lat;
     QLA_D3_DiracFermion **f;
-    double s;
+    double s;           
 } DW_5_env;
 
 static void
@@ -236,6 +236,32 @@ q_DW_writer_midpoint(const int pos[QOP_MDWF_DIM],
 
     env->dst[i] += value * env->scale;
 }
+
+
+static void
+DW_5_reader(double *v_re, double *v_im,
+            const int p[], int c, int d, void *e)
+{
+    DW_5_env *env = e;
+    int i = QDP_index_L(env->lat, p);
+    QLA_D3_DiracFermion **f = env->f;
+
+    QLA_r_eq_Re_c(*v_re, QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d));
+    QLA_r_eq_Im_c(*v_im, QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d));
+}
+
+static void
+DW_5_writer(const int p[], int c, int d,
+            double v_re, double v_im, void *e)
+{
+    DW_5_env *env = e;
+    int i = QDP_index_L(env->lat, p);
+    QLA_D3_DiracFermion **f = env->f;
+
+    QLA_real(QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d)) = v_re;
+    QLA_imag(QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d)) = v_im;
+}
+
 
 static int
 q_dirac_solver(lua_State *L)
@@ -1209,6 +1235,7 @@ op_MDWF_F3_eoprec_MdagM_double_op(
 static int
 q_DW_make_deflator_lanczos(lua_State *L)
 {
+    const char *err_str = NULL;
 #define LANCZOS_MXM_DOUBLE  1
     /* by default, search for ev with smallest real part */
     const char *lanczos_which= "SR";
@@ -1216,6 +1243,13 @@ q_DW_make_deflator_lanczos(lua_State *L)
     struct QOP_F3_MDWF_HalfFermionMat *hfm = NULL;
     /* operator parameters, init to empty */
     struct QOP_F3_MDWF_Gauge *gaugeF = NULL;
+
+    /* v0 import, all stay NULL unless v0 is specified */
+    mLatDirFerm3 **qlua_v0 = NULL;
+    QLA_D3_DiracFermion **qla_v0 = NULL;
+    struct QOP_F3_MDWF_HalfFermion *lib_v0 = NULL;
+    float complex *blas_v0   = NULL;
+
 #ifdef LANCZOS_MXM_DOUBLE
     op_MDWF_D3_eoprec_MdagM_arg_s op_arg;
 #else
@@ -1235,6 +1269,8 @@ q_DW_make_deflator_lanczos(lua_State *L)
     float complex *evec = NULL,
                   *eval = NULL;
 
+    mLattice *S = qlua_ObjLattice(L, 1);
+    Sidx = lua_gettop(L);
     mMDWF *c = qlua_checkMDWF(L, 1, NULL, 1);
     if (NULL == c->state || NULL == c->gauge)
       return luaL_error(L, "closed MDWF used");
@@ -1255,7 +1291,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
         eigcg_nev   = 0;
     double eigcg_eps= 0.;
 
-    if (qlua_checkopt_table(L, 6)) {
+    if (qlua_checkopt_paramtable(L, 6)) {
         if (qlua_tabpushopt_key(L, 6, "cheb_accel")) {
             /* Chebyshev acceleration parameters */
 #ifdef LANCZOS_MXM_DOUBLE
@@ -1351,6 +1387,20 @@ q_DW_make_deflator_lanczos(lua_State *L)
               return luaL_error(L, "'inplace' : expect boolean");
             lua_pop(L, 1);
         }
+        if (qlua_tabpushopt_key(L, 6, "v0")) {
+            /* parse D5 fermion v0 */
+            qlua_v0 = qlua_malloc(L, c->Ls * sizeof(mLatDirFerm3 *));
+            qla_v0  = qlua_malloc(L, c->Ls * sizeof(QLA_D3_DiracFermion *));
+            if (NULL == qlua_v0 || NULL == qla_v0)
+                return luaL_error(L, "not enough memory");
+            for (i = 0; i < c->Ls ; i++) {  /* FIXME:QLOPT */
+                lua_pushnumber(L, i + 1);   /* [sic] lua indexing */
+                lua_gettable(L, -2);        /* stack top: tab, index */
+                qlua_v0[i] = qlua_checkLatDirFerm3(L, -1, S, 3);
+                lua_pop(L, 1);
+            }
+            lua_pop(L, 1);
+        }
     }
 
 #if 0    // no auto-setting of eigcg
@@ -1370,7 +1420,6 @@ q_DW_make_deflator_lanczos(lua_State *L)
     /* FIXME should be refactored into a separate function?;
        this code duplicates parts of q_DW_make_deflator(qmdwf.c) */
     qlua_ObjLattice(L, 1);
-    Sidx = lua_gettop(L);
     lua_createtable(L, 2, 0);
     lua_pushvalue(L, 1);
     lua_rawseti(L, -2, 1);
@@ -1412,8 +1461,45 @@ q_DW_make_deflator_lanczos(lua_State *L)
 
     MPI_Comm mpi_comm = MPI_COMM_WORLD; /* FIXME any better choice? */
 
-    loc_dim = QOP_MDWF_half_fermion_size(c->state) / 2;
     QLUA_ASSERT(0 == QOP_MDWF_half_fermion_size(c->state) % 2);
+    loc_dim = QOP_MDWF_half_fermion_size(c->state) / 2; /* sic! 
+                loc_dim = number of cplx = number of real / 2 */
+
+    /* import v0 : qdp -> qla -> lib -> blas */
+    if (NULL != qlua_v0) {
+        qla_v0  = malloc(c->Ls * sizeof(qla_v0[0]));
+        blas_v0 = malloc(loc_dim * sizeof(blas_v0[0]));
+        if (NULL == qla_v0  || NULL == blas_v0) {
+            err_str = "not enough memory";
+            goto err_end;
+        };
+        double norm2i, v0_norm5_sq = 0.;
+        for (i = 0; i < c->Ls ; i++) {  
+            QDP_D3_r_eq_norm2_D(&norm2i, qlua_v0[i]->ptr, S->all);
+            v0_norm5_sq += norm2i;
+            qla_v0[i] = QDP_D3_expose_D(qlua_v0[i]->ptr);
+        }
+        if (v0_norm5_sq <= 0.) {
+            err_str = "zero initial vector";
+            goto err_end;
+        }
+        DW_5_env env;
+        env.lat = S->lat;
+        env.f   = qla_v0;
+//        env.s   = 1. / sqrt(v0_norm5_sq);
+        env.s   = 1.;   /* no rescaling : eigensolver will do it */
+        if (QOP_F3_MDWF_import_half_fermion(&lib_v0, c->state, q_DW_5_reader_scaled, &env)) {
+            err_str = "MDWF_import_half_fermion() failed";
+            goto err_end;
+        }
+        for (i = 0; i < c->Ls ; i++)
+            QDP_D3_reset_D(qlua_v0[i]->ptr);
+        QOP_F3_MDWF_blas_from_half_fermion((float *)blas_v0, 2 * loc_dim, lib_v0);
+
+        free(qla_v0);  qla_v0 = NULL;
+        QOP_F3_MDWF_free_half_fermion(&lib_v0);  lib_v0 = NULL;
+    }
+
 
     /* run Arnoldi/Lanczos iterations */
     n_iters = nconv = 0;
@@ -1440,7 +1526,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
                 op_MDWF_F3_eoprec_MdagM_op,
 #endif/*LANCZOS_MXM_DOUBLE*/
                 &op_arg,
-                lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                lanczos_which, loc_dim, nev, ncv, max_iter, tol, blas_v0,
                 eval, (float complex *)hfm_blas_ptr, hfm_ld, hfm_ncol,
                 &n_iters, &nconv, arpack_logfile))) {
             QOP_F3_MDWF_free_half_fermion_matrix(&hfm);
@@ -1460,7 +1546,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
                 op_MDWF_F3_eoprec_MdagM_op,
 #endif/*LANCZOS_MXM_DOUBLE*/
                 &op_arg,
-                lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                lanczos_which, loc_dim, nev, ncv, max_iter, tol, blas_v0,
                 &eval, &evec, &n_iters, &nconv, arpack_logfile)))
           return luaL_error(L, "lanczos_float returned %d", status);
         /* FIXME rewrite with clear explanation for the choice of
@@ -1492,7 +1578,7 @@ q_DW_make_deflator_lanczos(lua_State *L)
         }
 
         if (QOP_F3_MDWF_deflator_stop_load(d->deflator))
-          return luaL_error(L, "MDWF_deflator_end_load() failed");
+            return luaL_error(L, "MDWF_deflator_end_load() failed");
     }
 
     /* initialize MDWF side of deflator */
@@ -1504,7 +1590,13 @@ q_DW_make_deflator_lanczos(lua_State *L)
 
     QOP_F3_MDWF_deflator_eigcg_stop(d->deflator);
 
+err_end:
     /* cleanup */
+    if (NULL != qlua_v0) qlua_free(L, qlua_v0);
+    if (NULL != qla_v0)  free(qla_v0);
+    if (NULL != lib_v0)  QOP_F3_MDWF_free_half_fermion(&lib_v0);
+    if (NULL != blas_v0) free(blas_v0);
+
     if (NULL != evec) free(evec);
     if (NULL != eval) free(eval);
     if (NULL != gaugeF) QOP_F3_MDWF_free_gauge(&(gaugeF));
@@ -1523,6 +1615,11 @@ q_DW_make_deflator_lanczos(lua_State *L)
 
     if (NULL != hfm)  QOP_F3_MDWF_free_half_fermion_matrix(&hfm);
 
+    /* return error, if any */
+    if (NULL != err_str)
+        luaL_error(L, err_str);
+
+    /* successful exit */
     lua_pushnumber(L, nconv);
     lua_pushnumber(L, n_iters);
     return 3; /* deflator object, n_converged, n_iter */
@@ -1586,30 +1683,6 @@ q_DW_close(lua_State *L)
     c->state = 0;
 
     return 0;
-}
-
-static void
-DW_5_reader(double *v_re, double *v_im,
-            const int p[], int c, int d, void *e)
-{
-    DW_5_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion **f = env->f;
-
-    QLA_r_eq_Re_c(*v_re, QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d));
-    QLA_r_eq_Im_c(*v_im, QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d));
-}
-
-static void
-DW_5_writer(const int p[], int c, int d,
-            double v_re, double v_im, void *e)
-{
-    DW_5_env *env = e;
-    int i = QDP_index_L(env->lat, p);
-    QLA_D3_DiracFermion **f = env->f;
-
-    QLA_real(QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d)) = v_re;
-    QLA_imag(QLA_elem_D(f[p[QOP_MDWF_DIM]][i], c, d)) = v_im;
 }
 
 static int
