@@ -22,6 +22,7 @@ typedef struct mClifford_s {
 
 mClifford *qlua_checkClifford(lua_State *L, int idx);
 #ifdef HAS_GSL
+#include "qmatrix.h"
 mMatComplex *gamma2matrix(lua_State *L, int idx);
 #endif
 

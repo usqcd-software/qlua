@@ -171,7 +171,9 @@ ifeq ("@extras@", "true")
 	      laph_common.c \
 	      save_npr.c \
 	      extras_common.c \
-	      lat_ft.c
+	      lat_ft.c \
+	      \
+	      qlopt.c
 
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
