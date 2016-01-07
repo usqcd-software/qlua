@@ -26,6 +26,9 @@
 
 typedef int qlopt_Int;
 typedef double qlopt_Real;
+typedef complex double qlopt_Complex;
+
+
 
 typedef enum qloptType_e {
     QLOPT_NONE = 0,     /* in parsing : skip ; in writing : put nil */
@@ -122,24 +125,29 @@ typedef union qloptData_u {
     /* typed aliases to void *p */
     qlopt_Int       *i;     /* int or bool */
     qlopt_Real      *r;     /* floating-point */
-    double complex  *c;
+    qlopt_Complex   *c;
+
     const char      **s;    /* string is not allocated; only a pointer is copied */
 #endif  
 
 } qloptData;
 
-/* n-dimensional arraos of reg.types or tables */
+/* n-dimensional arrays of reg.types or tables 
+   XXX ALL FIELDS MUST BE INITIALIZED, OR YOUR CODE WILL DIE SCREAMING
+   perhaps TODO init functions for different cases that will check all parameters for correctness
+ */
 typedef struct qloptNdarray_s {
     /* parse and store a multidimensional array of dim[0.. (ndim-1)] dimensions, 
        the last dim changes fastest (C-ordering) */
-    qloptType   argtype;    /* cannot be callback, ndarray 
-                               TODO develop interface for ndarray of tables */
-    size_t      argsize;    /* size (bytes) to allocate for 1 element */
     int         ndim;       /* number of dimensions */
     int         *dim;       /* verify if dimensions >0, parse if -1 and allocate buf */
     int         *maxdim;    /* check that dimensions do not exceed the limit (ignore if NULL or entries <=0) */
+    qloptType   argtype;    /* cannot be callback, ndarray 
+                               TODO develop interface for ndarray of tables */
     void        *buf;       /* allocate if buf == NULL; report error if have undef(==-1) dim[] */
-    int         bufsize;
+    size_t      argsize;    /* size (bytes) to allocate for 1 element; used only if buf==NULL */
+    void        *fill;      /* if not NULL, prefill with the value [fill:fill+argsize) */
+    struct qloptElem_s *elem_list; /* meaningful only if argtype == QLOPT_TABLE */
 } qloptNdarray;
 
 typedef struct qloptElem_s {
@@ -149,5 +157,16 @@ typedef struct qloptElem_s {
     int         flags;      /* how to handle optional / type mismatch / etc */
     union qloptData_u   val;
 } qloptElem;
+    
+/* arg parsing functions */
+int qlopt_read_array(lua_State *L, int pos, qloptNdarray *a);
+int qlopt_read_table(lua_State *L, int pos, qloptElem *elem_list);
+int qlopt_read_stack(lua_State *L, qloptElem *elem_list);
+int q_test_qlopt(lua_State *L);
+/* use these functions to initialize qloptNdarray; direct structure init is discouraged! */
+qloptNdarray qlopt_array_scalar(int ndim, int *dim, int *maxdim, 
+        qloptType argtype, void *buf, void *fill);
+qloptNdarray qlopt_array_struct(int ndim, int *dim, int *maxdim, 
+        qloptElem *elem_list, size_t argsize, void *buf, void *fill);
 
 #endif/*QLOPT_H_*/

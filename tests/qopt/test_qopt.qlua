@@ -1,0 +1,100 @@
+package.path = 'lhpc/?.qlua;' .. package.path
+require "strict"
+require "stdlib"
+
+coeff1 = { 
+  { 1.1,  1.2 },
+  { 2.3,  2.4 },
+  { 3.1415926, 2.718281828 },
+  { 19.73, 20.42 }
+}
+
+mom_list1 = {
+  { 0,  0,  0,  0 },
+  { 1,  0,  0,  0 },
+  { 0,  1,  0,  0 },
+  { 0,  0,  1,  0 },
+  { 0,  0,  0,  1 },
+  { 1,  1,  0,  0 },
+  { 1,  0,  1,  0 },
+  { 1, -1,  2, -4 },
+  {-8, -9,-10,-32 },
+  { 0,  0,  0,  -100000 },
+}
+
+xy1 = { }
+for i = 0, 1 do
+  xy1[1+i] = {}
+  for j = 0, 2 do
+    xy1[1+i][1+j] = {}
+    for k = 0, 3 do
+      local ind = (i+1) + 10*((j+1) + 10*(k+1))
+      xy1[1+i][1+j][1+k] = ind
+    end
+  end
+end
+--print_obj(xy1, "xy1")
+
+abc1 = {}
+for i = 0, 0 do
+  abc1[1+i] = {}
+  for j = 0, 1 do
+    abc1[1+i][1+j] = {}
+    for k = 0, 3 do
+      local ind = (i+1) + 10*((j+1) + 10*(k+1))
+      abc1[1+i][1+j][1+k] = complex(ind, ind / 1000.)
+    end
+  end
+end
+--print_obj(abc1)
+
+
+latsize = {4,4,4,8}
+L = qcd.lattice(latsize)
+cc = L:Complex(0)
+recx_list1 = {}
+for i = 0, 1 do
+  recx_list1[1+i] = {}
+  for j = 0, 2 do
+      local ind = (i+1) + 10*(j+1)
+      recx_list1[1+i][1+j] = { 
+          string.format("rec-%d-%d=%d", i+1, j+1, ind), -- name
+          cc + L:Real(ind),   -- latcomplex
+          (ind % 17) % 2 * 2 - 1  -- int
+      }
+  end
+end
+print_obj(recx_list1, "recx_list1")
+
+str_list1 = {}
+for i = 0, 2 do
+  str_list1[1+i] = {}
+  for j = 0, 3 do
+    local ind = (i+1) + 10*(j+1)
+    str_list1[1+i][1+j] = string.format("str%d--%d:%d", ind, 1+i, 1+j)
+  end
+end
+print_obj(str_list1, "str_list1")
+
+
+qcd.test_qlopt(
+    recx_list1,
+    101,
+    202,
+    303,
+    1e-6,
+    str_list1,
+    {     
+      eigcg = { 51, 62, 1e-3, 73 },         
+      cheb_accel = { 200, 1e-4, 5., -1. },  
+      xy = xy1,
+      mom_list = mom_list1,                 
+      coeff_list = coeff1,                  
+      abc = abc1,
+      which = "LR",                         
+      arpack_logfile = "arpack_lf",
+      inplace = false,
+    },
+    1
+    )
+      

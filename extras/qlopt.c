@@ -12,6 +12,9 @@
 #include "latdirprop.h"                                              /* DEPS */
 #include "qgamma.h"                                                  /* DEPS */
 
+#include <assert.h>
+#include <string.h>
+
 /* aux: calculate a product of integer array */
 static int 
 prod_int_(int n, int *a) 
@@ -49,6 +52,40 @@ qlopt_type_name(qloptType argtype)
     case QLOPT_TABLE        : return "table";
     case QLOPT_ARRAY        : return "array";
     default : return "(unknown)";
+    }
+}
+
+static size_t
+qlopt_type_size(qloptType argtype)
+{
+    switch(argtype) {
+    case QLOPT_INT          : 
+    case QLOPT_BOOL         : 
+        return sizeof(qlopt_Int);
+
+    case QLOPT_REAL         : 
+        return sizeof(qlopt_Real);
+
+    case QLOPT_COMPLEX      : 
+        return sizeof(qlopt_Complex);
+
+    case QLOPT_STRING       : 
+    case QLOPT_LATINT       : 
+    case QLOPT_LATREAL      : 
+    case QLOPT_LATCOMPLEX   : 
+    case QLOPT_LATCOLVEC    : 
+    case QLOPT_LATCOLMAT    : 
+    case QLOPT_LATDIRFERM   : 
+    case QLOPT_LATDIRPROP   : 
+    case QLOPT_GAMMA        : 
+    case QLOPT_SUBSET       : 
+        return sizeof(void *);  /* sic! all pointers of the same size */
+
+    case QLOPT_NONE         : 
+    case QLOPT_TABLE        : 
+    case QLOPT_ARRAY        : 
+    default : 
+        return SIZE_MAX ;       /* size is meaningless, must be handled separately */
     }
 }
 
@@ -96,8 +133,8 @@ static int
 qlopt_read_array_checkdim_alloc(lua_State *L, int pos, 
         qloptNdarray *a, const char *msg_head);
 static int 
-qlopt_read_array_internal(lua_State *L, int i, int pos_i, void *buf_i, 
-        qloptNdarray *a, const char *msg_head);
+qlopt_read_array_internal(lua_State *L, int i, int pos_i, qloptNdarray *a, 
+        void *buf_i, const char *msg_head);
 
 
 /* parse an argument from a Lua stack
@@ -216,7 +253,10 @@ qlopt_read_arg_internal(lua_State *L, int pos, int flags,
             qlopt_arg_mismatch(L, pos, flags, argtype, msg_head);
         if (0 != (status = qlopt_read_array_checkdim_alloc(L, pos, t.arr, msg_head)))
             return status;
-        return qlopt_read_array_internal(L, 0, pos, t.arr, base, msg_head); 
+        if (NULL == t.arr->buf)
+            luaL_error(L, "%s allocation failed", msg_head);
+        /* call top-level read_array */
+        return qlopt_read_array_internal(L, 0, pos, t.arr, t.arr->buf, msg_head); 
     }
     case QLOPT_SUBSET       :
         return luaL_error(L, "%s unsupported opt.type %s", msg_head, 
@@ -225,6 +265,12 @@ qlopt_read_arg_internal(lua_State *L, int pos, int flags,
     }
 }
 
+/* check dimensions of an array on stack
+   * fill those that are undef (<=0)
+   * check that dim_i does not exceed maxdim_i
+   * if buf == NULL, allocate space (prod(a->dim) * a->argsize), 
+     save pointer to a->buf 
+ */
 static int 
 qlopt_read_array_checkdim_alloc(lua_State *L, int pos, qloptNdarray *a, const char *msg_head)
 {
@@ -258,7 +304,7 @@ qlopt_read_array_checkdim_alloc(lua_State *L, int pos, qloptNdarray *a, const ch
         /* next nested array */
         a->dim[i] = dim_i;
         i++;
-        lua_pushinteger(L, 0);
+        lua_pushinteger(L, 1);
         lua_rawget(L, i_pos);
         i_pos = lua_gettop(L);
     } while (i < a->ndim);
@@ -268,24 +314,40 @@ qlopt_read_array_checkdim_alloc(lua_State *L, int pos, qloptNdarray *a, const ch
 
     /* allocate array if necessary */
     int nmemb = prod_int_(a->ndim, a->dim);
+    if (! (QLOPT_ARRAY == a->argtype 
+            || QLOPT_TABLE == a->argtype
+            || QLOPT_NONE == a->argtype)) {
+        if (qlopt_type_size(a->argtype) != a->argsize)
+            return luaL_error(L, "%s internal type size mismatch ; submit bug report",
+                        msg_head);
+    }
     int bufsize = nmemb * a->argsize;
     if (NULL == a->buf) {
         a->buf = malloc(bufsize);
         if (NULL == a->buf)
             return luaL_error(L, "%s not enough memory (try alloc %llu)", 
                               msg_head, (size_t)(bufsize));
-        a->bufsize = bufsize;
-    } else {
-        if (a->bufsize < bufsize)
-            return luaL_error(L, "%s allocated space is not sufficient (%d < %d)", 
-                    msg_head, a->bufsize, bufsize);
+        memset(a->buf, 0, bufsize); 
+    } 
+    /* if fill value specified, fill the buffer */
+    if (NULL != a->fill) {
+        for (int i = 0 ; i < nmemb ; i++)
+            memcpy(a->buf + a->argsize * i, a->fill, a->argsize);
     }
     return 0;
 }
 
+/* read array from stack into a->buf 
+   * pos_i is the location of the current element on stack 
+     (either a value or a nested array)
+   * a->buf must be allocated and have the right size (by checkdim_alloc)
+   * a->dim must all be defined (by checkdim_alloc)
+   * buf_i points to the current location in a->buf 
+     (a->buf is not used directly)
+*/
 static int 
-qlopt_read_array_internal(lua_State *L, int i, int pos_i, void *buf_i, 
-        qloptNdarray *a, const char *msg_head)
+qlopt_read_array_internal(lua_State *L, int i, int pos_i, qloptNdarray *a, 
+        void *buf_i, const char *msg_head)
 {
     int status = 0;
     char strbuf0[128], strbuf[1024];
@@ -293,7 +355,11 @@ qlopt_read_array_internal(lua_State *L, int i, int pos_i, void *buf_i,
         snprintf(strbuf0, sizeof(strbuf0), "(arg %d)", pos_i);
         msg_head = strbuf0;
     }
+    if (NULL == buf_i)
+        return luaL_error(L, "%s buffer has not been allocated", msg_head);
     if (i < a->ndim) {
+        if (a->dim[i] <= 0) 
+            return luaL_error(L, "%s array dim[%d] is undefinded", msg_head, i);
         if (LUA_TTABLE != lua_type(L, pos_i))
             return luaL_error(L, "%s array expected", msg_head);
         if (lua_objlen(L, pos_i) != a->dim[i])
@@ -309,18 +375,24 @@ qlopt_read_array_internal(lua_State *L, int i, int pos_i, void *buf_i,
 
             lua_pushinteger(L, k + 1); /* sic! Lua numbering */
             lua_rawget(L, pos_i);
-            if (0 != (status = qlopt_read_array_internal(L, i + 1, lua_gettop(L), 
-                        buf_i + k * stride_memb * a->argsize, a, strbuf))) {
+            if (0 != (status = qlopt_read_array_internal(L, i + 1, lua_gettop(L), a,
+                        buf_i + k * stride_memb * a->argsize, strbuf))) {
                 lua_pop(L, 1);
                 return status;
             }
             lua_pop(L, 1);
         }
         return status;
-    } else {
-        qloptData zero_off = {.off = 0};
-        return qlopt_read_arg_internal(L, pos_i, 0, a->argtype, zero_off, buf_i, strbuf);
-    }
+    } else if (i == a->ndim) {
+        /* TODO special handling for TABLE : give elem_list in #5 */
+        qloptData val;
+        if (QLOPT_TABLE == a->argtype)
+            val.tab = a->elem_list ;
+        else
+            val.off = 0 ;
+        return qlopt_read_arg_internal(L, pos_i, 0, a->argtype, val, buf_i, msg_head);
+    } else /* should not be here */
+        return luaL_error(L, "%s internal error: submit bug report", msg_head);
 }
 /* parse a table from Lua stack */
 static int
@@ -366,7 +438,7 @@ qlopt_read_table_internal(lua_State *L, int pos,
                 elem->argtype, elem->val, base, strbuf);
         if (status)
             return luaL_error(L, "%s : cannot parse argument", strbuf);
-
+        lua_pop(L, 1);
         elem++;
     }
     return 0;
@@ -381,7 +453,7 @@ qlopt_read_array(lua_State *L, int pos, qloptNdarray *a)
     if (0 != (status = qlopt_read_array_checkdim_alloc(L, pos, a, strbuf))) {
         return status;
     }
-    return qlopt_read_array_internal(L, 0, pos, a->buf, a, strbuf);
+    return qlopt_read_array_internal(L, 0, pos, a, a->buf, strbuf);
 }
 
 int 
@@ -410,7 +482,6 @@ qlopt_read_stack(lua_State *L, qloptElem *elem_list)
                 return luaL_error(L, "(elem %d) no arg next to key", i_elem);
             if (pos_next <= 0)
                 return luaL_error(L, "(elem %d) bad pos_next=%d", i_elem, pos_next);
-            snprintf(strbuf, sizeof(strbuf), "(arg %d)", pos_next);
             pos = pos_next;
             pos_next ++;
         } else {
@@ -419,6 +490,7 @@ qlopt_read_stack(lua_State *L, qloptElem *elem_list)
             pos = elem->pos;
             pos_next = pos + 1;
         }
+        snprintf(strbuf, sizeof(strbuf), "(arg %d)", pos);
         int status = qlopt_read_arg_internal(L, pos, elem->flags, 
                 elem->argtype, elem->val, NULL, strbuf);
         if (status)
@@ -431,9 +503,114 @@ qlopt_read_stack(lua_State *L, qloptElem *elem_list)
 
 }
 
-#if 0
-static int 
-test_compile_struc_init()
+#define printf0(...) do { if (QDP_this_node == qlua_master_node) printf(__VA_ARGS__); } while(0)
+static void 
+print_arr_qloptint(int ndim, int *dim, qlopt_Int *arr, const char *msg_head) 
+{
+    char strbuf[1024];
+    if (0 == ndim)
+        printf0("%s = %lld\n", msg_head, (long long int)(*arr));
+    else if (0 < ndim) {
+        int memb_stride = prod_int_(ndim - 1, dim + 1);
+        for (int i = 0 ; i < *dim ; i++) {
+            snprintf(strbuf, sizeof(strbuf), "%s[%d]", msg_head, i);
+            print_arr_qloptint(ndim - 1, dim + 1, arr + memb_stride * i, strbuf);
+        }
+    }
+    /* if ndim < 0, do nothing */
+}
+static void 
+print_arr_qloptreal(int ndim, int *dim, qlopt_Real *arr, const char *msg_head) 
+{
+    char strbuf[1024];
+    if (0 == ndim)
+        printf0("%s = %e\n", msg_head, (double)(*arr));
+    else if (0 < ndim) {
+        int memb_stride = prod_int_(ndim - 1, dim + 1);
+        for (int i = 0 ; i < *dim ; i++) {
+            snprintf(strbuf, sizeof(strbuf), "%s[%d]", msg_head, i);
+            print_arr_qloptreal(ndim - 1, dim + 1, arr + memb_stride * i, strbuf);
+        }
+    }
+    /* if ndim < 0, do nothing */
+}
+static void 
+print_arr_qloptcomplex(int ndim, int *dim, qlopt_Complex *arr, const char *msg_head) 
+{
+    char strbuf[1024];
+    if (0 == ndim)
+        printf0("%s = (%e, %e)\n", msg_head, creal(*arr), cimag(*arr));
+    else if (0 < ndim) {
+        int memb_stride = prod_int_(ndim - 1, dim + 1);
+        for (int i = 0 ; i < *dim ; i++) {
+            snprintf(strbuf, sizeof(strbuf), "%s[%d]", msg_head, i);
+            print_arr_qloptcomplex(ndim - 1, dim + 1, arr + memb_stride * i, strbuf);
+        }
+    }
+    /* if ndim < 0, do nothing */
+}
+static void
+print_arr_general(int ndim, int *dim, void *buf, size_t argsize, 
+        void (*print_rec)(void *buf, const char *msg_head),  /* print a record in 1 line */ 
+        const char *msg_head)
+{
+    char strbuf[1024];
+    if (0 == ndim)
+        print_rec(buf, msg_head);
+    else if (0 < ndim) {
+        int memb_stride = prod_int_(ndim - 1, dim + 1);
+        for (int i = 0 ; i < *dim ; i++) {
+            snprintf(strbuf, sizeof(strbuf), "%s[%d]", msg_head, i);
+            print_arr_general(ndim - 1, dim + 1, buf + memb_stride * argsize * i, 
+                    argsize, print_rec, strbuf);
+        }
+    }
+    /* if ndim < 0, do nothing */
+}
+
+
+
+static void
+print_dim(int n, const int dim[], const char *msg_head)
+{
+    printf0("%s@{", msg_head);
+    for (int i = 0 ; i < n ; i++)
+        printf0("%d ", dim[i]);
+    printf0("}\n");
+}
+
+/* example for reading an array of records */
+typedef struct recx_s {
+    QDP_D_Complex   *cplx;
+    char            *name;
+    QLA_Real        bc_t;
+} recx;
+qloptElem qlopt_tab_recx[] = {
+    { 1, NULL, QLOPT_STRING,    0, {.off = offsetof(recx, name) } },
+    { 2, NULL, QLOPT_LATCOMPLEX,0, {.off = offsetof(recx, cplx) } },
+    { 3, NULL, QLOPT_REAL,      0, {.off = offsetof(recx, bc_t) } },
+    { QLOPT_END }
+};
+
+static void
+print_recx(void *a_, const char *msg_head) 
+{
+    recx *a = (recx *)a_;
+    QLA_D_Real n2 = 0.;
+    QDP_D_r_eq_norm2_C(&n2, a->cplx, QDP_all_L(QDP_D_get_lattice_C(a->cplx)));
+    printf0("%s = {name='%s'  f=%p(|f|2=%e)  bc_t=%f}\n", 
+            msg_head, a->name, 
+            (void*)a->cplx, (double)n2,
+            (double)(a->bc_t));
+}
+static void
+print_str(void *a_, const char *msg_head)
+{
+    printf0("%s = '%s'\n", msg_head, *(char **)a_);
+}
+
+int 
+q_test_qlopt(lua_State *L)
 {
     int i_arr[3];
     double d_arr[5];
@@ -454,31 +631,21 @@ test_compile_struc_init()
         }
         abc_list)
     */
-    int l_nev = -1,
-        l_ncv = -1,
-        l_maxiter = -1;
-    double l_tol = -1.;
+    qlopt_Int l_nev = -1,
+              l_ncv = -1,
+              l_maxiter = -1;
+    qlopt_Real l_tol = -1.;
 
-    int l_n = -1;
-    double l_a  = DBL_MAX,
-           l_b  = DBL_MAX,
-           l_x0 = DBL_MAX;
-    qloptElem_s parse_tab_cheb_accel[] = {
-        { 1, NULL, QLOPT_INT,   0,   { .i = &l_n } },
-        { 2, NULL, QLOPT_REAL,  0,   { .r = &l_a } },
-        { 3, NULL, QLOPT_REAL,  0,   { .r = &l_a } },
-        { 4, NULL, QLOPT_REAL,  QLOPT_OPT,   { .r = &l_x0 } },
-        { QLOPT_NONE }
-    };
 
     /* variables to fill, with default values ; 
        while default values are not necessary for mandatory options, 
        the table itself will be mandatory, so better initialize */
-    int eigcg_vmax  = -1, 
-        eigcg_nev   = -1, 
-        eigcg_umax  = -1;
-    double eigcg_tol = -1.;
-    qloptElem_s parse_tab_eigcg[] = {
+
+    qlopt_Int eigcg_vmax  = -1, 
+              eigcg_nev   = -1, 
+              eigcg_umax  = -1;
+    qlopt_Real eigcg_tol = -1.;
+    qloptElem qlopt_tab_eigcg[] = {
         { 1, NULL, QLOPT_INT,   0, { .i = &eigcg_vmax } },
         { 2, NULL, QLOPT_INT,   0, { .i = &eigcg_nev  } },
         { 3, NULL, QLOPT_REAL,  0, { .r = &eigcg_tol  } },
@@ -486,38 +653,61 @@ test_compile_struc_init()
         { QLOPT_END }
     };
     
+    qlopt_Int l_n = -1;
+    qlopt_Real l_a  = DBL_MAX,
+           l_b  = DBL_MAX,
+           l_x0 = DBL_MAX;
+    qloptElem qlopt_tab_cheb_accel[] = {
+        { 1, NULL, QLOPT_INT,   0,   { .i = &l_n } },
+        { 2, NULL, QLOPT_REAL,  0,   { .r = &l_a } },
+        { 3, NULL, QLOPT_REAL,  0,   { .r = &l_b } },
+        { 4, NULL, QLOPT_REAL,  QLOPT_OPT,   { .r = &l_x0 } },
+        { QLOPT_END }
+    };
+    
     int coeffs_dim[]    = { -1, 2 },
-        coeffs_maxdim[] = { 10, 3 }; /* '3' is ignored because the coeffs_dim[1] is already known */
-    double *coeffs = NULL;
-    qloptNdarray_s parse_arr_coeffs = { 
-        QLOPT_REAL, 2, coeffs_dim, coeffs_maxdim, &coeffs };
+        coeffs_dim_max[] = { 10, -1 }; 
+    qloptNdarray qlopt_arr_coeffs = { 2, coeffs_dim, coeffs_dim_max, 
+                QLOPT_REAL, NULL, sizeof(qlopt_Real), NULL };
 
-    int mom_dim[] = {10, 4};
-    int mom[10][4],  
-        *p_mom = &mom[0][0];
-    qloptNdarray_s parse_arr_mom   = { 
-            QLOPT_INT, 2, mom_dim, NULL, &p_mom };
+    int mom_dim[] = {-1, 4},
+        mom_dim_max[] = { 10, -1};
+    qloptNdarray qlopt_arr_mom = qlopt_array_scalar(2, mom_dim, mom_dim_max, 
+                QLOPT_INT, NULL, NULL);
 
-    int xy_dim[] = {2,3,4};
-    int xy[2][3][4], 
-        *p_xy = (int*)&xy;
+    int xy_dim[] = { 2, 3, 4 };
+    qlopt_Int xy[2][3][4];
+    qloptNdarray qlopt_arr_xy = qlopt_array_scalar(3, xy_dim, NULL, 
+                QLOPT_INT, xy, NULL);
 
     const char *which = NULL;
     const char *arpack_logfile = NULL;
-    int inplace = 0;
-
+    qlopt_Int inplace = 0;
+    
     int abc_dim[]    = { -1, -1, -1 },
-        abc_maxdim[] = { 10, 10, 10 };
-    complex double *abc = NULL;
+        abc_dim_max[] = { 10, 10, 10 };
+    qloptNdarray qlopt_arr_abc = qlopt_array_scalar(3, abc_dim, abc_dim_max, 
+                QLOPT_COMPLEX, NULL, NULL);
+
+    int recx_dim[] = { -1, -1 };
+    int recx_dim_max[] = { -1, -1 };
+    qloptNdarray qlopt_arr_recx = qlopt_array_struct(2, recx_dim, recx_dim_max, 
+                qlopt_tab_recx, sizeof(recx), NULL, NULL);
+
+    int str_dim[]     = { -1, -1 },
+        str_dim_max[] = {  4,  4 };
+    const char *str_arr_buf[16];
+    qloptNdarray qlopt_arr_str = qlopt_array_scalar(2, str_dim, str_dim_max, 
+                QLOPT_STRING, str_arr_buf, NULL);
 
 
-    qloptElem_s parse_tab_opt[] = {
-        { QLOPT_KEY, "eigcg",       QLOPT_TABLE,  0, { .t = parse_tab_eigcg } },
-        { QLOPT_KEY, "cheb_accel",  QLOPT_TABLE,  0, { .t = parse_tab_cheb_accel } },
-        { QLOPT_KEY, "coeff_list",  QLOPT_ARRAY,  0, { .a = parse_arr_coeffs } },
-        { QLOPT_KEY, "mom_list",    QLOPT_ARRAY,  0, { .a = parse_arr_mom } },
-        { QLOPT_KEY, "xy",          QLOPT_ARRAY,  0,    
-                    { .a = { QLOPT_INT, 3, xy_dim, NULL, &p_xy } } },
+    qloptElem qlopt_tab_opt[] = {
+        { QLOPT_KEY, "eigcg",       QLOPT_TABLE,  0, { .tab = qlopt_tab_eigcg } },
+        { QLOPT_KEY, "cheb_accel",  QLOPT_TABLE,  0, { .tab = qlopt_tab_cheb_accel } },
+        { QLOPT_KEY, "xy",          QLOPT_ARRAY,  0, { .arr = &qlopt_arr_xy } },
+        { QLOPT_KEY, "mom_list",    QLOPT_ARRAY,  0, { .arr = &qlopt_arr_mom } },
+        { QLOPT_KEY, "coeff_list",  QLOPT_ARRAY,  0, { .arr = &qlopt_arr_coeffs } },
+        { QLOPT_KEY, "abc",         QLOPT_ARRAY,  0, { .arr = &qlopt_arr_abc } },
         { QLOPT_KEY, "which",       QLOPT_STRING, 0, { .s = &which } },
         { QLOPT_KEY, "arpack_logfile", QLOPT_STRING, QLOPT_OPT,
                     { .s = &arpack_logfile } },
@@ -525,19 +715,53 @@ test_compile_struc_init()
                     { .i = &inplace } },
         { QLOPT_END }
     } ;
-    qloptElem_s parse_tab_arg[] = {
-        { 1, NULL, QLOPT_INT,   0, { .i = &l_nev } },
-        { 2, NULL, QLOPT_INT,   0, { .i = &l_ncv } },
-        { 3, NULL, QLOPT_INT,   0, { .i = &l_maxiter } },
-        { 4, NULL, QLOPT_REAL,  0, { .r = &l_tol } },
-        { 5, NULL, QLOPT_TABLE, QLOPT_OPT, { .t = parse_tab_opt } },
-        { 6, NULL, QLOPT_ARRAY, QLOPT_OPT, 
-                    { .a = { QLOPT_COMPLEX, 3, abc_dim, abc_maxdim, &abc } } },
+    
+    qloptElem stack_elem[] = {
+        { QLOPT_NEXT, NULL, QLOPT_ARRAY, 0, { .arr = &qlopt_arr_recx } },
+        { QLOPT_NEXT, NULL, QLOPT_INT,   0, { .i = &l_nev } },
+        { QLOPT_NEXT, NULL, QLOPT_INT,   0, { .i = &l_ncv } },
+        { QLOPT_NEXT, NULL, QLOPT_INT,   0, { .i = &l_maxiter } },
+        { QLOPT_NEXT, NULL, QLOPT_REAL,  0, { .r = &l_tol } },
+        { QLOPT_NEXT, NULL, QLOPT_ARRAY, 0, { .arr = &qlopt_arr_str } },
+        { QLOPT_NEXT, NULL, QLOPT_TABLE, QLOPT_OPT, { .tab = qlopt_tab_opt } },
         { QLOPT_END }
     };
 
-    int status;
+    int status = 0;
+    
+    printf0("START lua_gettop(L) = %d\n", lua_gettop(L));
+    status = qlopt_read_stack(L, stack_elem);
+    printf0("qlopt read status = %d\n", status);
+    printf0("STOP lua_gettop(L) = %d\n", lua_gettop(L));
+    /* print parsed values */
+    printf0("l_nev=%d  l_ncv=%d  l_maxiter=%d  l_tol=%e\n", 
+            l_nev, l_ncv, l_maxiter, l_tol);
+    printf0("eigcg = {%d, %d, %e, %d}\n", 
+            eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax);
+    printf0("cheb_accel = {%d, %e, %e, %e}\n",
+            l_n, l_a, l_b, l_x0);
+    
+    printf0("which='%s'  arpack_logfile='%s'  inplace=%d\n", which, arpack_logfile, (int)inplace);
+
+    print_dim(2, coeffs_dim, "coeffs");
+    print_arr_qloptreal(2, coeffs_dim, qlopt_arr_coeffs.buf, "coeffs");
+
+    print_dim(2, mom_dim, "mom");
+    print_arr_qloptint(2, mom_dim, qlopt_arr_mom.buf, "mom");
+    
+    print_dim(3, xy_dim, "xy");
+    print_arr_qloptint(3, xy_dim, (qlopt_Int *)xy, "xy");
+
+    print_dim(3, abc_dim, "abc");
+    print_arr_qloptcomplex(3, abc_dim, qlopt_arr_abc.buf, "abc");
+    
+    print_dim(2, recx_dim, "recx");
+    print_arr_general(2, recx_dim, qlopt_arr_recx.buf, sizeof(recx), print_recx, "recx");
+    
+    print_dim(2, str_dim, "str");
+    print_arr_general(2, str_dim, str_arr_buf, sizeof(char *), print_str, "str");
   
+#if 0
     /* 1st arg : integer */
     status = qlua_parse_scalar(&l_nev, QLOPT_INT, 0, 1); 
     
@@ -554,6 +778,47 @@ test_compile_struc_init()
     /* 6th arg : 3d array */
     abc = qlua_parse_array(3, abc_dim, abc_maxdim, abc, 6);
 
+#endif
     return 0;
 }
-#endif
+
+qloptNdarray 
+qlopt_array_scalar(int ndim, int *dim, int *maxdim, 
+                qloptType argtype, void *buf, void *fill)
+{
+    assert(QLOPT_ARRAY != argtype);
+    assert(QLOPT_TABLE != argtype);
+    assert(QLOPT_NONE != argtype);
+    assert(NULL != dim);
+    assert(0 < ndim);
+    size_t argsize = qlopt_type_size(argtype);
+    assert(argsize < SIZE_MAX);
+    qloptNdarray res;
+    res.ndim        = ndim;
+    res.dim         = dim;
+    res.maxdim      = maxdim; 
+    res.argtype     = argtype;
+    res.buf         = buf;
+    res.argsize     = argsize;
+    res.fill        = fill;
+    res.elem_list   = NULL;
+    return res;
+}
+
+qloptNdarray 
+qlopt_array_struct(int ndim, int *dim, int *maxdim, 
+                qloptElem *elem_list, size_t argsize, void *buf, void *fill)
+{
+    assert(NULL != dim);
+    assert(0 < ndim);
+    qloptNdarray res;
+    res.ndim        = ndim;
+    res.dim         = dim;
+    res.maxdim      = maxdim; 
+    res.argtype     = QLOPT_TABLE;
+    res.buf         = buf;
+    res.argsize     = argsize;
+    res.fill        = fill;
+    res.elem_list   = elem_list;
+    return res;
+}

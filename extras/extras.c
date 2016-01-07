@@ -13,6 +13,7 @@
 #include "latreal.h"                                                /* DEPS */
 #include "latcomplex.h"                                             /* DEPS */
 #include "extras.h"                                                 /* DEPS */
+#include "qlopt.h"                                                  /* DEPS */
 
 #ifdef HAS_GSL
 static int
@@ -251,6 +252,7 @@ static struct luaL_Reg fExtra[] = {
     { "save_q3pt_selectspin",       q_save_q3pt_0deriv_selectspin },
     { "save_npr_prop",              q_save_npr_prop },
     { "save_npr_2qvertex",          q_save_npr_2qvertex },
+    { "test_qlopt",                 q_test_qlopt },
     { NULL,         NULL }
 };
 
