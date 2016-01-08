@@ -77,7 +77,7 @@ end
 print_obj(str_list1, "str_list1")
 
 
-qcd.test_qlopt(
+qcd.test_qopt(
     recx_list1,
     101,
     202,

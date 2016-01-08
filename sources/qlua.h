@@ -102,8 +102,14 @@ typedef enum {
     qMDWFDeflator,            /* 59 */
     qMDWFDeflatorState,       /* 60 */
     qQOPwmgState,             /* 61 */
+    /* types for stack parsing */
+    qOptInt,                  /* 62 */
+    qOptBool,                 /* 63 */
+    qOptArray,                /* 64 */
+    qOptStruct,                /* 65 */
+    qOptNone,                 /* 66 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 62 */
+    qNoType                   /* 67 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
