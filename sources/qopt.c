@@ -131,9 +131,9 @@ qopt_read_table_internal(lua_State *L, int pos,
 
 static int 
 qopt_read_array_checkdim_alloc(lua_State *L, int pos, 
-        qoptNdarray *a, const char *msg_head);
+        qoptArray *a, const char *msg_head);
 static int 
-qopt_read_array_internal(lua_State *L, int i, int pos_i, qoptNdarray *a, 
+qopt_read_array_internal(lua_State *L, int i, int pos_i, qoptArray *a, 
         void *buf_i, const char *msg_head);
 
 
@@ -272,7 +272,7 @@ qopt_read_arg_internal(lua_State *L, int pos, int flags,
      save pointer to a->buf 
  */
 static int 
-qopt_read_array_checkdim_alloc(lua_State *L, int pos, qoptNdarray *a, const char *msg_head)
+qopt_read_array_checkdim_alloc(lua_State *L, int pos, qoptArray *a, const char *msg_head)
 {
     char strbuf[1024];
     if (NULL == msg_head) {
@@ -346,7 +346,7 @@ qopt_read_array_checkdim_alloc(lua_State *L, int pos, qoptNdarray *a, const char
      (a->buf is not used directly)
 */
 static int 
-qopt_read_array_internal(lua_State *L, int i, int pos_i, qoptNdarray *a, 
+qopt_read_array_internal(lua_State *L, int i, int pos_i, qoptArray *a, 
         void *buf_i, const char *msg_head)
 {
     int status = 0;
@@ -445,7 +445,7 @@ qopt_read_table_internal(lua_State *L, int pos,
 }
 
 int 
-qopt_read_array(lua_State *L, int pos, qoptNdarray *a)
+qopt_read_array(lua_State *L, int pos, qoptArray *a)
 {
     int status = 0;
     char strbuf[128];
@@ -505,7 +505,7 @@ qopt_read_stack(lua_State *L, qoptElem *elem_list)
 
 
 
-qoptNdarray 
+qoptArray 
 qopt_array_scalar(int ndim, int *dim, int *maxdim, 
                 QLUA_Type argtype, void *buf, void *fill)
 {
@@ -516,7 +516,7 @@ qopt_array_scalar(int ndim, int *dim, int *maxdim,
     assert(0 < ndim);
     size_t argsize = qopt_type_size(argtype);
     assert(argsize < SIZE_MAX);
-    qoptNdarray res;
+    qoptArray res;
     res.ndim        = ndim;
     res.dim         = dim;
     res.maxdim      = maxdim; 
@@ -528,13 +528,13 @@ qopt_array_scalar(int ndim, int *dim, int *maxdim,
     return res;
 }
 
-qoptNdarray 
+qoptArray 
 qopt_array_struct(int ndim, int *dim, int *maxdim, 
                 qoptElem *elem_list, size_t argsize, void *buf, void *fill)
 {
     assert(NULL != dim);
     assert(0 < ndim);
-    qoptNdarray res;
+    qoptArray res;
     res.ndim        = ndim;
     res.dim         = dim;
     res.maxdim      = maxdim; 

@@ -98,112 +98,113 @@ q_test_qopt(lua_State *L)
     void *xx = NULL;
 
     /*
-    test_parse(
-      l_nev, l_ncv, l_maxiter, l_tol,
-      { ["eigcg"] = {eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax},
-        ["cheb_accel"] = { l_poly_n, l_poly_a, l_poly_b, l_poly_x0 },
-        ["coeff_list"]  = coeffs_list_Nx2,
-        ["mom_list"]    = mom_list_Mx4,
-        ["xy"] = xy_2x3x4,
-        ["which"] = "LR", -- need the largest ev of polynomial T_n(A)
-        ["arpack_logfile"] = arpack_logfile(cfg_key),
-        ["inplace"] = true
+    qcd.test_qopt(
+      i1, 
+      i2, 
+      r3, 
+      c4,
+      recx_MxN,
+      { 
+        cplxMxNxP,
+        str2xN,
+        struct1 = { s1i1, s1i2, s1r3, s1i4},
+        struct2 = { s2i1, s2r2, s2r3, s2r4_opt },
+        int2x3x4= int2x3x4,
+        intNx4  = intNx4,
+        realNx2 = realNx2,
+        str1    = str1, 
+        str2    = str2,
+        bool1   = true
         }
-        abc_list)
+        )
     */
-    qopt_Int l_nev = -1,
-              l_ncv = -1,
-              l_maxiter = -1;
-    qopt_Real l_tol = -1.;
+    qopt_Int i1 = -1,
+             i2 = -1;
+    qopt_Real r3 = -1.;
+    qopt_Complex c4 = -1.;
 
 
-    /* variables to fill, with default values ; 
-       while default values are not necessary for mandatory options, 
-       the table itself will be mandatory, so better initialize */
-
-    qopt_Int eigcg_vmax  = -1, 
-              eigcg_nev   = -1, 
-              eigcg_umax  = -1;
-    qopt_Real eigcg_tol = -1.;
-    qoptElem qopt_tab_eigcg[] = {
-        { 1, NULL, qOptInt,   0, { .i = &eigcg_vmax } },
-        { 2, NULL, qOptInt,   0, { .i = &eigcg_nev  } },
-        { 3, NULL, qReal,  0, { .r = &eigcg_tol  } },
-        { 4, NULL, qOptInt,   0, { .i = &eigcg_umax } },
+    qopt_Int s1i1  = -1,
+             s1i2  = -1,
+             s1i4  = -1;
+    qopt_Real s1r3 = -1.;
+    qoptElem qopt_tab_struct1[] = {
+        { 1, NULL, qOptInt, 0,  { .i = &s1i1 } },
+        { 2, NULL, qOptInt, 0,  { .i = &s1i2 } },
+        { 3, NULL, qReal,   0,  { .r = &s1r3 } },
+        { 4, NULL, qOptInt, 0,  { .i = &s1i4 } },
         { QOPT_END }
     };
     
-    qopt_Int l_n = -1;
-    qopt_Real l_a  = DBL_MAX,
-           l_b  = DBL_MAX,
-           l_x0 = DBL_MAX;
-    qoptElem qopt_tab_cheb_accel[] = {
-        { 1, NULL, qOptInt,   0,   { .i = &l_n } },
-        { 2, NULL, qReal,  0,   { .r = &l_a } },
-        { 3, NULL, qReal,  0,   { .r = &l_b } },
-        { 4, NULL, qReal,  QOPT_OPT,   { .r = &l_x0 } },
+    qopt_Int s2i1 = -1;
+    qopt_Real s2r2  = DBL_MAX,
+              s2r3  = DBL_MAX,
+              s2r4  = DBL_MAX;
+    qoptElem qopt_tab_struct2[] = {
+        { 1, NULL, qOptInt, 0,  { .i = &s2i1 } },
+        { 2, NULL, qReal,   0,  { .r = &s2r2 } },
+        { 3, NULL, qReal,   0,  { .r = &s2r3 } },
+        { 4, NULL, qReal,   QOPT_OPT, { .r = &s2r4 } },
         { QOPT_END }
     };
     
-    int coeffs_dim[]    = { -1, 2 },
-        coeffs_dim_max[] = { 10, -1 }; 
-    qoptNdarray qopt_arr_coeffs = { 2, coeffs_dim, coeffs_dim_max, 
-                qReal, NULL, sizeof(qopt_Real), NULL };
-
-    int mom_dim[] = {-1, 4},
-        mom_dim_max[] = { 10, -1};
-    qoptNdarray qopt_arr_mom = qopt_array_scalar(2, mom_dim, mom_dim_max, 
-                qOptInt, NULL, NULL);
-
-    int xy_dim[] = { 2, 3, 4 };
-    qopt_Int xy[2][3][4];
-    qoptNdarray qopt_arr_xy = qopt_array_scalar(3, xy_dim, NULL, 
-                qOptInt, xy, NULL);
-
-    const char *which = NULL;
-    const char *arpack_logfile = NULL;
-    qopt_Int inplace = 0;
-    
-    int abc_dim[]    = { -1, -1, -1 },
-        abc_dim_max[] = { 10, 10, 10 };
-    qoptNdarray qopt_arr_abc = qopt_array_scalar(3, abc_dim, abc_dim_max, 
-                qComplex, NULL, NULL);
-
-    int recx_dim[] = { -1, -1 };
+    int recx_dim[]     = { -1, -1 };
     int recx_dim_max[] = { -1, -1 };
-    qoptNdarray qopt_arr_recx = qopt_array_struct(2, recx_dim, recx_dim_max, 
+    qoptArray qopt_arr_recx = qopt_array_struct(2, recx_dim, recx_dim_max, 
                 qopt_tab_recx, sizeof(recx), NULL, NULL);
 
-    int str_dim[]     = { -1, -1 },
+    int cplx_dim[]     = { -1, -1, -1 },
+        cplx_dim_max[] = { 10, 10, 10 };
+    qoptArray qopt_arr_cplx = qopt_array_scalar(3, cplx_dim, cplx_dim_max, 
+                qComplex, NULL, NULL);
+
+    int str_dim[]     = {  2, -1 },
         str_dim_max[] = {  4,  4 };
     const char *str_arr_buf[16];
-    qoptNdarray qopt_arr_str = qopt_array_scalar(2, str_dim, str_dim_max, 
+    qoptArray qopt_arr_str = qopt_array_scalar(2, str_dim, str_dim_max, 
                 qString, str_arr_buf, NULL);
+    
+    int int1_dim[] = {-1, 4},
+        int1_dim_max[] = { 10, -1};
+    qoptArray qopt_arr_int1 = qopt_array_scalar(2, int1_dim, int1_dim_max, 
+                qOptInt, NULL, NULL);
 
+    int int2_dim[] = { 2, 3, 4 };
+    qopt_Int int2[2][3][4];
+    qoptArray qopt_arr_int2 = qopt_array_scalar(3, int2_dim, NULL, 
+                qOptInt, int2, NULL);
+    
+    int real_dim[]    = { -1, 2 },
+        real_dim_max[] = { 10, -1 }; 
+    qoptArray qopt_arr_real = { 2, real_dim, real_dim_max, 
+                qReal, NULL, sizeof(qopt_Real), NULL };
+
+    const char *str1 = NULL,
+               *str2 = NULL;
+    qopt_Int bool1 = 0;
+    
 
     qoptElem qopt_tab_opt[] = {
-        { QOPT_KEY, "eigcg",       qOptStruct,  0, { .tab = qopt_tab_eigcg } },
-        { QOPT_KEY, "cheb_accel",  qOptStruct,  0, { .tab = qopt_tab_cheb_accel } },
-        { QOPT_KEY, "xy",          qOptArray,  0, { .arr = &qopt_arr_xy } },
-        { QOPT_KEY, "mom_list",    qOptArray,  0, { .arr = &qopt_arr_mom } },
-        { QOPT_KEY, "coeff_list",  qOptArray,  0, { .arr = &qopt_arr_coeffs } },
-        { QOPT_KEY, "abc",         qOptArray,  0, { .arr = &qopt_arr_abc } },
-        { QOPT_KEY, "which",       qString, 0, { .s = &which } },
-        { QOPT_KEY, "arpack_logfile", qString, QOPT_OPT,
-                    { .s = &arpack_logfile } },
-        { QOPT_KEY, "inplace",     qOptBool, QOPT_OPT,
-                    { .i = &inplace } },
+        { QOPT_NEXT, NULL,      qOptArray,  0,  { .arr = &qopt_arr_cplx } },
+        { QOPT_NEXT, NULL,      qOptArray,  0,  { .arr = &qopt_arr_str } },
+        { QOPT_KEY, "struct1",  qOptStruct, 0,  { .tab = qopt_tab_struct1 } },
+        { QOPT_KEY, "struct2",  qOptStruct, 0,  { .tab = qopt_tab_struct2 } },
+        { QOPT_KEY, "int_Nx4",  qOptArray,  0,  { .arr = &qopt_arr_int1 } },
+        { QOPT_KEY, "int_2x3x4",qOptArray,  0,  { .arr = &qopt_arr_int2 } },
+        { QOPT_KEY, "real_Nx2", qOptArray,  0,  { .arr = &qopt_arr_real } },
+        { QOPT_KEY, "str1",     qString,    0,  { .s = &str1 } },
+        { QOPT_KEY, "str2",     qString,    QOPT_OPT,   { .s = &str2 } },
+        { QOPT_KEY, "bool1",    qOptBool,   QOPT_OPT,   { .i = &bool1 } },
         { QOPT_END }
     } ;
     
     qoptElem stack_elem[] = {
-        { QOPT_NEXT, NULL, qOptArray, 0, { .arr = &qopt_arr_recx } },
-        { QOPT_NEXT, NULL, qOptInt,   0, { .i = &l_nev } },
-        { QOPT_NEXT, NULL, qOptInt,   0, { .i = &l_ncv } },
-        { QOPT_NEXT, NULL, qOptInt,   0, { .i = &l_maxiter } },
-        { QOPT_NEXT, NULL, qReal,  0, { .r = &l_tol } },
-        { QOPT_NEXT, NULL, qOptArray, 0, { .arr = &qopt_arr_str } },
-        { QOPT_NEXT, NULL, qOptStruct, QOPT_OPT, { .tab = qopt_tab_opt } },
+        { QOPT_NEXT, NULL, qOptInt,     0,  { .i = &i1 } },
+        { QOPT_NEXT, NULL, qOptInt,     0,  { .i = &i2 } },
+        { QOPT_NEXT, NULL, qReal,       0,  { .r = &r3 } },
+        { QOPT_NEXT, NULL, qComplex,    0,  { .c = &c4 } },
+        { QOPT_NEXT, NULL, qOptArray,   0,  { .arr = &qopt_arr_recx } },
+        { QOPT_NEXT, NULL, qOptStruct,  QOPT_OPT, { .tab = qopt_tab_opt } },
         { QOPT_END }
     };
 
@@ -214,32 +215,38 @@ q_test_qopt(lua_State *L)
     printf0("qopt read status = %d\n", status);
     printf0("STOP lua_gettop(L) = %d\n", lua_gettop(L));
     /* print parsed values */
-    printf0("l_nev=%d  l_ncv=%d  l_maxiter=%d  l_tol=%e\n", 
-            l_nev, l_ncv, l_maxiter, l_tol);
-    printf0("eigcg = {%d, %d, %e, %d}\n", 
-            eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax);
-    printf0("cheb_accel = {%d, %e, %e, %e}\n",
-            l_n, l_a, l_b, l_x0);
+    printf0("i1=%d  i2=%d  r3=%e  c4=(%e, %e)\n", 
+            (int)i1, (int)i2, (double)r3, creal(c4), cimag(c4));
+    printf0("struct1 = {%d, %d, %e, %d}\n", 
+            s1i1, s1i2, s1r3, s1i4);
+    printf0("struct2 = {%d, %e, %e, %e}\n",
+            s2i1, s2r2, s2r3, s2r4);
     
-    printf0("which='%s'  arpack_logfile='%s'  inplace=%d\n", which, arpack_logfile, (int)inplace);
+    printf0("str1='%s'  str2='%s'  bool1=%d\n", str1, str2, (int)bool1);
 
-    print_dim(2, coeffs_dim, "coeffs");
-    print_arr_general(2, coeffs_dim, qopt_arr_coeffs.buf, sizeof(qopt_Real), print_qoptreal_, "coeffs");
+    print_dim(2, real_dim, "real");
+    print_arr_general(2, real_dim, qopt_arr_real.buf, sizeof(qopt_Real), print_qoptreal_, "real");
 
-    print_dim(2, mom_dim, "mom");
-    print_arr_general(2, mom_dim, qopt_arr_mom.buf, sizeof(qopt_Int), print_qoptint_, "mom");
+    print_dim(2, int1_dim, "int1");
+    print_arr_general(2, int1_dim, qopt_arr_int1.buf, sizeof(qopt_Int), print_qoptint_, "int1");
     
-    print_dim(3, xy_dim, "xy");
-    print_arr_general(3, xy_dim, xy, sizeof(qopt_Int), print_qoptint_, "xy");
+    print_dim(3, int2_dim, "int2");
+    print_arr_general(3, int2_dim, int2, sizeof(qopt_Int), print_qoptint_, "int2");
 
-    print_dim(3, abc_dim, "abc");
-    print_arr_general(3, abc_dim, qopt_arr_abc.buf, sizeof(qopt_Complex), print_qoptcomplex_, "abc");
+    print_dim(3, cplx_dim, "cplx");
+    print_arr_general(3, cplx_dim, qopt_arr_cplx.buf, sizeof(qopt_Complex), print_qoptcomplex_, "cplx");
     
     print_dim(2, recx_dim, "recx");
     print_arr_general(2, recx_dim, qopt_arr_recx.buf, sizeof(recx), print_recx_, "recx");
     
     print_dim(2, str_dim, "str");
     print_arr_general(2, str_dim, str_arr_buf, sizeof(char *), print_str_, "str");
+
+    /* freeing stuff */
+    if (NULL != qopt_arr_real.buf) free(qopt_arr_real.buf);
+    if (NULL != qopt_arr_int1.buf) free(qopt_arr_int1.buf);
+    if (NULL != qopt_arr_cplx.buf) free(qopt_arr_cplx.buf);
+    if (NULL != qopt_arr_recx.buf) free(qopt_arr_recx.buf);
   
     return 0;
 }

@@ -2,14 +2,14 @@ package.path = 'lhpc/?.qlua;' .. package.path
 require "strict"
 require "stdlib"
 
-coeff1 = { 
+real_list1 = { 
   { 1.1,  1.2 },
   { 2.3,  2.4 },
   { 3.1415926, 2.718281828 },
   { 19.73, 20.42 }
 }
 
-mom_list1 = {
+int1_list = {
   { 0,  0,  0,  0 },
   { 1,  0,  0,  0 },
   { 0,  1,  0,  0 },
@@ -22,31 +22,31 @@ mom_list1 = {
   { 0,  0,  0,  -100000 },
 }
 
-xy1 = { }
+int2_list = { }
 for i = 0, 1 do
-  xy1[1+i] = {}
+  int2_list[1+i] = {}
   for j = 0, 2 do
-    xy1[1+i][1+j] = {}
+    int2_list[1+i][1+j] = {}
     for k = 0, 3 do
       local ind = (i+1) + 10*((j+1) + 10*(k+1))
-      xy1[1+i][1+j][1+k] = ind
+      int2_list[1+i][1+j][1+k] = ind
     end
   end
 end
---print_obj(xy1, "xy1")
+--print_obj(int2_list, "int2_list")
 
-abc1 = {}
+cplx_list1 = {}
 for i = 0, 0 do
-  abc1[1+i] = {}
+  cplx_list1[1+i] = {}
   for j = 0, 1 do
-    abc1[1+i][1+j] = {}
+    cplx_list1[1+i][1+j] = {}
     for k = 0, 3 do
       local ind = (i+1) + 10*((j+1) + 10*(k+1))
-      abc1[1+i][1+j][1+k] = complex(ind, ind / 1000.)
+      cplx_list1[1+i][1+j][1+k] = complex(ind, ind / 1000.)
     end
   end
 end
---print_obj(abc1)
+--print_obj(cplx_list1)
 
 
 latsize = {4,4,4,8}
@@ -64,37 +64,36 @@ for i = 0, 1 do
       }
   end
 end
-print_obj(recx_list1, "recx_list1")
+--print_obj(recx_list1, "recx_list1")
 
 str_list1 = {}
-for i = 0, 2 do
+for i = 0, 1 do
   str_list1[1+i] = {}
   for j = 0, 3 do
     local ind = (i+1) + 10*(j+1)
     str_list1[1+i][1+j] = string.format("str%d--%d:%d", ind, 1+i, 1+j)
   end
 end
-print_obj(str_list1, "str_list1")
+--print_obj(str_list1, "str_list1")
 
 
 qcd.test_qopt(
-    recx_list1,
     101,
     202,
-    303,
-    1e-6,
-    str_list1,
+    303.404,
+    complex(0.123, 0.456),
+    recx_list1,
     {     
-      eigcg = { 51, 62, 1e-3, 73 },         
-      cheb_accel = { 200, 1e-4, 5., -1. },  
-      xy = xy1,
-      mom_list = mom_list1,                 
-      coeff_list = coeff1,                  
-      abc = abc1,
-      which = "LR",                         
-      arpack_logfile = "arpack_lf",
-      inplace = false,
-    },
-    1
+      cplx_list1,   -- MxNxP
+      str_list1,    -- 2xN
+      struct1   = { 51, 62, 1e-3, 73 },         
+      struct2   = { 200, 1e-4, 5., -42 },  
+      int_2x3x4 = int2_list,
+      int_Nx4   = int1_list,
+      real_Nx2  = real_list1,                  
+      str1      = "LR",                         
+      str2      = "arpack_lf",
+      bool1     = true,
+    }
     )
       

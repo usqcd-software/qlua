@@ -58,7 +58,7 @@ typedef enum qoptType_e {
 #endif
 
 union  qoptData;
-struct qoptNdarray;
+struct qoptArray;
 struct qoptElem;
 //struct qoptCallback ;
 
@@ -84,7 +84,7 @@ typedef union qoptData_u {
      */
     off_t           off;    /* data offset if base address is specified */
     void            *ptr;   /* data location */
-    struct qoptNdarray_s   
+    struct qoptArray_s   
                     *arr;   /* nd-array */  
     struct qoptElem_s      
                     *tab;   /* parse a table: list of qoptElem_s terminated by QOPT_END */
@@ -104,7 +104,7 @@ typedef union qoptData_u {
    XXX ALL FIELDS MUST BE INITIALIZED, OR YOUR CODE WILL DIE SCREAMING
    perhaps TODO init functions for different cases that will check all parameters for correctness
  */
-typedef struct qoptNdarray_s {
+typedef struct qoptArray_s {
     /* parse and store a multidimensional array of dim[0.. (ndim-1)] dimensions, 
        the last dim changes fastest (C-ordering) */
     int         ndim;       /* number of dimensions */
@@ -116,7 +116,7 @@ typedef struct qoptNdarray_s {
     size_t      argsize;    /* size (bytes) to allocate for 1 element; used only if buf==NULL */
     void        *fill;      /* if not NULL, prefill with the value [fill:fill+argsize) */
     struct qoptElem_s *elem_list; /* meaningful only if argtype == qOptStruct */
-} qoptNdarray;
+} qoptArray;
 
 typedef struct qoptElem_s {
     int         pos;        /* if QOPT_KEY, use key */
@@ -127,14 +127,14 @@ typedef struct qoptElem_s {
 } qoptElem;
     
 /* arg parsing functions */
-int qopt_read_array(lua_State *L, int pos, qoptNdarray *a);
+int qopt_read_array(lua_State *L, int pos, qoptArray *a);
 int qopt_read_table(lua_State *L, int pos, qoptElem *elem_list);
 int qopt_read_stack(lua_State *L, qoptElem *elem_list);
 int q_test_qopt(lua_State *L);
-/* use these functions to initialize qoptNdarray; direct structure init is discouraged! */
-qoptNdarray qopt_array_scalar(int ndim, int *dim, int *maxdim, 
+/* use these functions to initialize qoptArray; direct structure init is discouraged! */
+qoptArray qopt_array_scalar(int ndim, int *dim, int *maxdim, 
         QLUA_Type argtype, void *buf, void *fill);
-qoptNdarray qopt_array_struct(int ndim, int *dim, int *maxdim, 
+qoptArray qopt_array_struct(int ndim, int *dim, int *maxdim, 
         qoptElem *elem_list, size_t argsize, void *buf, void *fill);
 
 #endif/*QOPT_H_*/
