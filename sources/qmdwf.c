@@ -1272,10 +1272,12 @@ static int q_DF_evecs_rawload(lua_State *L)
     fclose(f_cksum_in);
 
     if (crc32_buf[S->node] != crc32) {
-        snprintf(strbuf, sizeof(strbuf), "%lX(data) != %lX(expected)", 
-                (unsigned long)crc32, (unsigned long)(crc32_buf[S->node]));
-        luaL_error(L, "[%4d] %s: crc32 mismatch: %s", 
-                S->node, evecs_file, strbuf);
+        snprintf(strbuf, sizeof(strbuf), 
+                "[%4d] %s: crc32 mismatch: %lX(data) != %lX(expected)", 
+                S->node, evecs_file, (unsigned long)crc32, 
+                (unsigned long)(crc32_buf[S->node]));
+        fprintf(stderr, "%s\n", strbuf);
+        luaL_error(L, strbuf);
     }
     lua_pushnumber(L, n_evec);  /* return the number of loaded e.vectors */
     
