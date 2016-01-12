@@ -835,6 +835,7 @@ q_DF_stop_load(lua_State *L)
  *****************************************************************************/
 #define EVEC_STAGGER_SAVE   1   /* do delay saves */
 #define EVEC_STAGGER_LOAD   1   /* don't delay loads */
+#define EVEC_BUFSIZE        1048576
 typedef struct {
     int         ndim;
     const int   *subvol_dim;
@@ -1064,6 +1065,8 @@ q_DF_evecs_rawdump(lua_State *L)
     FILE *f_evec_out = fopen(evecs_file, "w");
     if (NULL == f_evec_out)
         luaL_error(L, "%s: %s", evecs_file, strerror(errno));
+    if (setvbuf(f_evec_out, NULL, _IOFBF, EVEC_BUFSIZE))
+        printf("[%4d] cannot set bufsize=%d\n", S->node, EVEC_BUFSIZE);
 
     for (int i_evec = 0 ; i_evec < n_evec ; i_evec++) {
         if (QOP_F3_MDWF_deflator_extract_vector(c_evec, d->deflator, i_evec))
@@ -1236,6 +1239,8 @@ static int q_DF_evecs_rawload(lua_State *L)
     FILE *f_evec_in = NULL;
     if (NULL == (f_evec_in = fopen(evecs_file, "r")))
         luaL_error(L, "%s: %s", evecs_file, strerror(errno));
+    if (setvbuf(f_evec_in, NULL, _IOFBF, EVEC_BUFSIZE))
+        printf("[%4d] cannot set bufsize=%d\n", S->node, EVEC_BUFSIZE);
 
     for (int i_evec = 0 ; i_evec < n_evec ; i_evec++) {
 #if EVEC_STAGGER_LOAD 
