@@ -20,7 +20,9 @@
 #include <string.h>
 #include <math.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <errno.h>
+#include <time.h>
 
 #if USE_Nc3
 static const char mdwf_name[] = "MDWF";
@@ -950,6 +952,61 @@ flip_endian(char *buf, size_t wordsize, size_t n_words)
 #undef CHAR_SWAP
 }
 
+#define FWRITE_SHORT_DELAY  3  /*sec*/
+#define FWRITE_SHORT_COUNT  5
+static int 
+fwrite_shortproof(const void *ptr, size_t size, size_t nmemb, FILE *stream, const char *msg)
+{
+    size_t count = 0, 
+           count_tot = 0,
+           i_retry  = 0,
+           n_retry = FWRITE_SHORT_COUNT;
+    n_retry = 0 < n_retry ? n_retry : 1;
+    while (0 < nmemb && i_retry < n_retry) {
+        count = fwrite(ptr, size, nmemb, stream);
+        count_tot   += count;
+
+        if ( (count < nmemb && 0 < count) || (0 == count && EINTR == errno)) {
+            i_retry++;
+            fprintf(stderr, "[%05d] %s: short fwrite %d/%d (size=%d); retry %d/%d in %ds\n", 
+                    QDP_this_node, msg, (int)count, (int)nmemb, (int)size, (int)i_retry, 
+                    (int)n_retry, (int)FWRITE_SHORT_DELAY);
+            ptr     += size * count;
+            nmemb   -= count;
+            sleep(FWRITE_SHORT_DELAY);
+        } else 
+            break;
+    }
+    return count_tot;
+}
+#define FREAD_SHORT_DELAY  3  /*sec*/
+#define FREAD_SHORT_COUNT  5
+static int 
+fread_shortproof(void *ptr, size_t size, size_t nmemb, FILE *stream, const char *msg)
+{
+    size_t count = 0, 
+           count_tot = 0,
+           i_retry  = 0,
+           n_retry = FREAD_SHORT_COUNT;
+    n_retry = 0 < n_retry ? n_retry : 1;
+    while (0 < nmemb && i_retry < n_retry) {
+        count = fread(ptr, size, nmemb, stream);
+        count_tot   += count;
+
+        if ( (count < nmemb && 0 < count) || (0 == count && EINTR == errno)) {
+            i_retry++;
+            fprintf(stderr, "[%05d] %s: short fread %d/%d (size=%d); retry %d/%d in %ds\n", 
+                    QDP_this_node, msg, (int)count, (int)nmemb, (int)size, (int)i_retry, 
+                    (int)n_retry, (int)FREAD_SHORT_DELAY);
+            ptr     += size * count;
+            nmemb   -= count;
+            sleep(FREAD_SHORT_DELAY);
+        } else 
+            break;
+    }
+    return count_tot;
+}
+
 /* (deflator, filename, n_evec, opttable) 
     if 0 < n_evec and n_evec < df->dim, save only the first n_evec
  */
@@ -957,7 +1014,6 @@ static int
 q_DF_evecs_rawdump(lua_State *L)
 {
     int status = 0;
-    char strbuf[1024];
 
     const int evec_ncol     = 3;
     const int evec_nspin    = 4;
@@ -983,7 +1039,7 @@ q_DF_evecs_rawdump(lua_State *L)
     mDeflatorState *d   = q_Deflator_get_State(L, 1, NULL, 1);  /* [-0,+1,v] */
     mMDWF *c            = q_Deflator_get_MDWF(L, 1, NULL, 1);   /* [-0,+1,v] */
     mLattice *S         = qlua_ObjLattice(L, -1);               /* [-0,+1,v] */
-    filename            = strdup(luaL_checkstring(L, 2));       /* [-0,+0,v] */
+    filename            = qlua_strdup(L, luaL_checkstring(L, 2));/* [-0,+0,v] */
     if (NULL == filename)
         luaL_error(L, "invalid filename or strdup error");
     int n_evec          = qlua_checkint(L, 3, "number of eigenvectors to save");
@@ -1037,9 +1093,9 @@ q_DF_evecs_rawdump(lua_State *L)
     /* alloc memory */    
     size_t evec_size_real = QDP_sites_on_node_L(S->lat) / 2 * c->Ls * evec_ncol * evec_nspin * 2;
     size_t evec_size_byte = evec_size_real * wordsize;
-    evecs_buf    = malloc(evec_size_byte);
-    evals_buf    = malloc(df_dim * sizeof(double));
-    crc32_buf   = malloc(n_nodes * sizeof(crc32_buf[0]));
+    evecs_buf   = qlua_malloc(L, evec_size_byte);
+    evals_buf   = qlua_malloc(L, df_dim * sizeof(double));
+    crc32_buf   = qlua_malloc(L, n_nodes * sizeof(crc32_buf[0]));
     if (NULL == evecs_buf || NULL == evals_buf || NULL == crc32_buf)
         luaL_error(L, "not enough memory"); 
     
@@ -1057,20 +1113,20 @@ q_DF_evecs_rawdump(lua_State *L)
 
     if(mkdir(evecs_dir, 0777))
         if (EEXIST != errno)
-            luaL_error(L, "%s: %s", evecs_dir, strerror(errno));
+            luaL_error(L, "mkdir %s: %s", evecs_dir, strerror(errno));
 
 #if EVEC_STAGGER_SAVE
     for (int i_group = 0 ; i_group < n_groups ; i_group++) { if (i_group == my_i_group) {
 #endif/*EVEC_STAGGER_SAVE*/
     FILE *f_evec_out = fopen(evecs_file, "w");
     if (NULL == f_evec_out)
-        luaL_error(L, "%s: %s", evecs_file, strerror(errno));
+        luaL_error(L, "[%05d]fopen %s: %s", QDP_this_node, evecs_file, strerror(errno));
     if (setvbuf(f_evec_out, NULL, _IOFBF, EVEC_BUFSIZE))
         printf("[%4d] cannot set bufsize=%d\n", S->node, EVEC_BUFSIZE);
 
     for (int i_evec = 0 ; i_evec < n_evec ; i_evec++) {
         if (QOP_F3_MDWF_deflator_extract_vector(c_evec, d->deflator, i_evec))
-            luaL_error(L, QOP_MDWF_error(c->state));
+            luaL_error(L, "QOP_F3_MDWF_deflator_extract_vector: %s", QOP_MDWF_error(c->state));
         if (QOP_F3_MDWF_export_half_fermion(q_DW_evec_eopc_rawdump_F, &w_env, c_evec)) 
             luaL_error(L, "MDWF_export_half_fermion() failed");
         /* convert machine->file and update crc */
@@ -1079,11 +1135,13 @@ q_DF_evecs_rawdump(lua_State *L)
             flip_endian(evecs_buf, wordsize, evec_size_real);
         crc32 = crc32_fast(evecs_buf, evec_size_byte, crc32);
 
-        if (1 != fwrite(evecs_buf, evec_size_byte, 1, f_evec_out))
-            luaL_error(L, strerror(errno));
+        if (1 != fwrite_shortproof(evecs_buf, evec_size_byte, 1, f_evec_out, evecs_file))
+            luaL_error(L, "[%05d]fwrite %s: %s", QDP_this_node, evecs_file, strerror(errno));
     }
+    fflush(f_evec_out);
+    fsync(f_evec_out);
     if (fclose(f_evec_out))
-        luaL_error(L, strerror(errno));
+        luaL_error(L, "[%05d]fclose %s: %s", QDP_this_node, evecs_file, strerror(errno));
 #if EVEC_STAGGER_SAVE
     }  QMP_barrier(); }
 #endif/*EVEC_STAGGER_SAVE*/
@@ -1121,6 +1179,7 @@ q_DF_evecs_rawdump(lua_State *L)
     
     /* cleanup */
 #define FREE_NONNULL(p) do { if (NULL != (p)) { free(p) ; (p) = NULL; } } while(0)
+
     FREE_NONNULL(evecs_buf);
     FREE_NONNULL(evals_buf);
     FREE_NONNULL(crc32_buf);
@@ -1139,7 +1198,6 @@ q_DF_evecs_rawdump(lua_State *L)
  */
 static int q_DF_evecs_rawload(lua_State *L)
 {
-    int status = 0;
     char strbuf[1024];
 
     const int evec_ncol     = 3;
@@ -1166,7 +1224,7 @@ static int q_DF_evecs_rawload(lua_State *L)
     mDeflatorState *d   = q_Deflator_get_State(L, 1, NULL, 1);  /* [-0,+1,v] */
     mMDWF *c            = q_Deflator_get_MDWF(L, 1, NULL, 1);   /* [-0,+1,v] */
     mLattice *S         = qlua_ObjLattice(L, -1);               /* [-0,+1,v] */
-    filename            = strdup(luaL_checkstring(L, 2));       /* [-0,+0,v] */
+    filename            = qlua_strdup(L, luaL_checkstring(L, 2));       /* [-0,+0,v] */
     if (NULL == filename)
         luaL_error(L, "invalid filename or strdup error");
     
@@ -1215,8 +1273,8 @@ static int q_DF_evecs_rawload(lua_State *L)
     /* alloc memory */    
     size_t evec_size_real = QDP_sites_on_node_L(S->lat) / 2 * c->Ls * evec_ncol * evec_nspin * 2;
     size_t evec_size_byte = evec_size_real * wordsize;
-    evecs_buf    = malloc(evec_size_byte);
-    crc32_buf   = malloc(n_nodes * sizeof(crc32_buf[0]));
+    evecs_buf   = qlua_malloc(L, evec_size_byte);
+    crc32_buf   = qlua_malloc(L, n_nodes * sizeof(crc32_buf[0]));
     if (NULL == evecs_buf || NULL == crc32_buf)
         luaL_error(L, "not enough memory"); 
    
@@ -1246,7 +1304,7 @@ static int q_DF_evecs_rawload(lua_State *L)
 #if EVEC_STAGGER_LOAD 
         for (int i_group = 0 ; i_group < n_groups ; i_group++) { if (i_group == my_i_group) {
 #endif
-        if (1 != fread(evecs_buf, evec_size_byte, 1, f_evec_in))
+        if (1 != fread_shortproof(evecs_buf, evec_size_byte, 1, f_evec_in, evecs_file))
             luaL_error(L, "%s: %s", evecs_file, strerror(errno));
 #if EVEC_STAGGER_LOAD 
         }  QMP_barrier();  }
@@ -1263,10 +1321,20 @@ static int q_DF_evecs_rawload(lua_State *L)
 
         if (QOP_F3_MDWF_deflator_add_vector(c->params, gaugeF, d->deflator, c_evec))
             luaL_error(L, QOP_MDWF_error(c->state));
+
+        if (NULL != c_evec)         
+            QOP_F3_MDWF_free_half_fermion(&c_evec);
+        if (0 == QDP_this_node) {
+            time_t tv = time(NULL);
+            printf("DF_evecs_rawload: loaded evec[%05d] %s", 
+                    i_evec, ctime_r(&tv, strbuf));
+        }
     }
     fclose(f_evec_in);
     if (QOP_F3_MDWF_deflator_stop_load(d->deflator))
         return luaL_error(L, "MDWF_deflator_start_load() failed");
+
+    QOP_F3_MDWF_deflator_eigcg_stop(d->deflator); /* do not run eigcg by default */
 
     /* read crc32 from file and check */
     FILE *f_cksum_in = NULL;
@@ -1296,7 +1364,6 @@ static int q_DF_evecs_rawload(lua_State *L)
     FREE_NONNULL(evals_file);
     FREE_NONNULL(cksum_file);
 #undef FREE_NONNULL
-    if (NULL != c_evec)         QOP_F3_MDWF_free_half_fermion(&c_evec);
     if (NULL != gaugeF)         QOP_F3_MDWF_free_gauge(&gaugeF);
 
     return 1;
