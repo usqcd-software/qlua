@@ -996,6 +996,7 @@ q_qdpc_writer(lua_State *L)
         ionode_master = 0;
     qdpc_ionode_ctrl_s *ionode_ctrl = NULL;
     QIO_Filesystem fs;
+    QIO_Oflag oflag;
     if (qlua_checkopt_paramtable(L, 5)) {
         if (qlua_tabpushopt_key(L, 5, "rank_stride")) {
             ionode_rank_stride  = luaL_checkint(L, -1);
@@ -1024,8 +1025,13 @@ q_qdpc_writer(lua_State *L)
         ionode_ctrl->master     = ionode_master;
         ionode_ctrl->rank_stride= ionode_rank_stride;
         fs.arg                  = ionode_ctrl;
+
+        oflag.serpar      = QIO_SERIAL;
+        oflag.mode        = QIO_TRUNC;
+        oflag.ildgstyle   = QIO_ILDGLAT;
+        oflag.ildgLFN     = NULL;
         /* TODO perhaps set only those overridden by lua params */
-        writer = QDP_open_write_general_L(S->lat, xml, (char *)name, volfmt, &fs, NULL); /* [ sic ] */
+        writer = QDP_open_write_general_L(S->lat, xml, (char *)name, volfmt, &fs, &oflag); /* [ sic ] */
     } else {
         writer = QDP_open_write_L(S->lat, xml, (char *)name, volfmt); /* [ sic ] */
     }
