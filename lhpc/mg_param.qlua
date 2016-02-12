@@ -1,0 +1,99 @@
+package.path = 'qlib/?.qlua;qlib-lhpc/?.qlua;' .. package.path
+require "stdlib"
+require "strict"
+
+
+function make_mg_params(
+    kappa, csw, ferm_bc, 
+    tol, maxiter, latsize, 
+    mgtab, param)
+  local def = {
+      verbose           =   0,   -- Chroma#Verbose
+      blocking          = {2,2,2,2},
+      null_vecs         =  24,   -- Chroma#NumNullVecs->24
+      null_vecs_extra   =   0,   -- Chroma#NumExtraVecs->0
+      prehits           =   0,   -- Chroma#NumPreHits->0
+      posthits          =   4,   -- Chroma#NumPostHits->4
+      underrelax        =  1.,   -- Chroma#Underrelax->1.0
+      null_res          = 0.4,   -- Chroma#NullResidual->0.4
+      null_maxiter      = 100,   -- Chroma#NullMaxIter->100
+      null_conv         = 0.5,   -- Chroma#NullConvergence->0.5
+      coarse_res        = 0.2,   -- Chroma#CoarseResidual->0.2
+      coarse_maxiter    =  12,   -- Chroma#CoarseMaxIter->12
+      coarse_ngcr       =   8,   -- Chroma#CoarseNumGCRVecs->8
+
+      -- WTF 
+      restart           = 202,
+      max_restarts      = 5,
+      name              = "mg-wilson"
+  }
+  param = param or {}
+  local function vec_div(ls, block)
+    local res = {}
+    assert(#ls == #block)
+    for i = 1, #ls do
+      assert(0 == ls[i] % block[i])
+      res[i] = ls[i] / block[i]
+    end
+    return res
+  end
+  local function get_i(k, i)
+    local res = nil
+    res = mgtab[k] and mgtab[k][i]
+    if nil == res then res = def[k] end
+    assert(res)
+    return res
+  end
+
+  local res = {
+    name      = param.name or def.name,
+    verbose   = param.verbose or def.verbose, -- for -2
+    residual  = { rsqmin  = tol^2 },
+    inverter  = {            
+       max_iter     = maxiter,
+       restart      = param.restart or def.restart,
+       max_restarts = param.max_restarts or def.max_restarts,
+       evenodd      = "evenodd" -- or "odd" or "even"
+    },
+    action = {
+      kappa         = kappa,
+      c_sw          = csw,
+      boundary      = ferm_bc,
+    },
+    global = { -- for -1
+       verbose      = param.verbose or def.verbose,
+       profile      = 1,
+       kappa        = kappa,
+       kappanv      = param.kappanv or kappa,
+       itmax        = maxiter,
+       ngcr         = param.ngcr or def.ngcr
+    }
+  }
+
+  local mg = {}
+  local c_ls = latsize
+  for i=1, #mgtab.blocking do
+    mg[i] = {}
+    for ka, kb in pairs({
+          verbose    = "verbose",           -- Chroma#Verbose,
+          null_vecs  = "nvecs",             -- Chroma#NumNullVecs
+          prehits    = "npre",              -- Chroma#NumPreHits
+          posthits   = "npost",             -- Chroma#NumPostHits
+          underrelax = "scale",             -- Chroma#Underrelax
+          null_res      = "setup_res",         -- Chroma#NullResidual
+          null_maxiter  = "setup_maxit",     -- Chroma#NullMaxIter
+          null_conv     = "setup_change_fac",  -- Chroma#NullConvergence
+          coarse_res    = "cres",              -- Chroma#CoarseResidual
+          coarse_maxiter= "itmax",             -- Chroma#CoarseMaxIter
+          coarse_ngcr   = "ngcr",              -- Chroma#CoarseNumGCRVecs
+          }) do
+      mg[i][kb] = get_i(ka, i)
+    end
+    c_ls = vec_div(c_ls, get_i("blocking", i))
+    mg[i].lattice = c_ls
+    mg[i].setup_nvecs = mg[i].nvecs + get_i("null_vecs_extra", i)
+  end
+  res.multigrid = mg
+  return res
+end
+

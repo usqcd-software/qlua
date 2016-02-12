@@ -97,3 +97,13 @@ function space2full(c, t_axis, c_t)
   end
   return cfull
 end
+
+-- find element in a table by value
+function table_index(clist, cx)
+  for i, c in pairs(clist) do
+    if cx == c then
+      return i
+    end
+  end
+  return nil
+end

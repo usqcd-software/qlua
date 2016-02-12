@@ -48,6 +48,32 @@ function dw_random_latdirferm(L5, rnd)
   return res
 end
 
+function make_solver_general(solver_df, ...)
+  -- make a 4D DiracPropagator solver out of 4d DiracFermion solver
+  -- optional args are added first, then any optional args given 
+  --   to the new solver function
+  local args = {...}
+  local gen_func = function(x, ...)
+    local al = {}   -- collect args
+    for _,a in pairs(args)  do al[#al+1] = a end
+    for _,a in pairs({...}) do al[#al+1] = a end
+    if 'lattice.dirac.fermion' == type(x) then 
+      return solver_df(x, unpack(al))
+    elseif 'lattice.dirac.propagator' == type(x) then
+      local res = x.lattice:DiracPropagator()
+      for js = 0, 3 do for jc = 0, 2 do
+        res[{d=js, c=jc}] = solver_df(x[{d=js, c=jc}], unpack(al))
+      end end
+      return res
+    else 
+      error(string.format('unknown arg type for solver "%s"', type(x)))
+    end
+    -- TODO add list of props?
+  end
+  return gen_func
+end
+-- TODO similar function for 5d solver
+
 
 -- create a (scaled) copy of anything except string, lattice, ???
 function scal_nontable_(v, scal)
