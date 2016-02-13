@@ -955,12 +955,13 @@ flip_endian(char *buf, size_t wordsize, size_t n_words)
 #define FWRITE_SHORT_DELAY  3  /*sec*/
 #define FWRITE_SHORT_COUNT  5
 static int 
-fwrite_shortproof(const void *ptr, size_t size, size_t nmemb, FILE *stream, const char *msg)
+fwrite_shortproof(const void *ptr_, size_t size, size_t nmemb, FILE *stream, const char *msg)
 {
     size_t count = 0, 
            count_tot = 0,
            i_retry  = 0,
            n_retry = FWRITE_SHORT_COUNT;
+    const char *ptr = ptr_;
     n_retry = 0 < n_retry ? n_retry : 1;
     while (0 < nmemb && i_retry < n_retry) {
         count = fwrite(ptr, size, nmemb, stream);
@@ -982,12 +983,13 @@ fwrite_shortproof(const void *ptr, size_t size, size_t nmemb, FILE *stream, cons
 #define FREAD_SHORT_DELAY  3  /*sec*/
 #define FREAD_SHORT_COUNT  5
 static int 
-fread_shortproof(void *ptr, size_t size, size_t nmemb, FILE *stream, const char *msg)
+fread_shortproof(void *ptr_, size_t size, size_t nmemb, FILE *stream, const char *msg)
 {
     size_t count = 0, 
            count_tot = 0,
            i_retry  = 0,
            n_retry = FREAD_SHORT_COUNT;
+    char *ptr = ptr_;
     n_retry = 0 < n_retry ? n_retry : 1;
     while (0 < nmemb && i_retry < n_retry) {
         count = fread(ptr, size, nmemb, stream);
@@ -1139,7 +1141,7 @@ q_DF_evecs_rawdump(lua_State *L)
             luaL_error(L, "[%05d]fwrite %s: %s", QDP_this_node, evecs_file, strerror(errno));
     }
     fflush(f_evec_out);
-    fsync(f_evec_out);
+    fsync(fileno(f_evec_out));
     if (fclose(f_evec_out))
         luaL_error(L, "[%05d]fclose %s: %s", QDP_this_node, evecs_file, strerror(errno));
 #if EVEC_STAGGER_SAVE
