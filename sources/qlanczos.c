@@ -92,7 +92,7 @@ pmcinitdebug(int *logfil,
 //extern struct {
 //    long int logfil, ndigit, mgetv0,
 //             msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd,
-//             mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,
+///             mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,
 //             mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd;
 //} debug;
 
@@ -118,6 +118,7 @@ lanczos_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex **eval,   /* return buffer for evalues,  [nev] */
         float complex **evec,   /* return buffer for evectors, [ld_evec, ncol_evec] */
         int *n_iters,           /* return the iteration count */
@@ -139,7 +140,7 @@ lanczos_float(
     int status = 0;
     if (0 != (status = lanczos_internal_float(
                     L, mpi_comm, op, op_arg, lanczos_which, 
-                    loc_dim, nev, ncv, max_iter, tol, 
+                    loc_dim, nev, ncv, max_iter, tol, v0,
                     w_d_, w_v_, loc_dim,
                     n_iters, nconv, arpack_logfile))) {
         free(w_d_);
@@ -179,6 +180,7 @@ int lanczos_inplace_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex *eval,    /* (allocated) return buffer for evalues,  [nev] */
         float complex *evec,    /* (allocated) return buffer for evectors, [ld_evec, ncol_evec] */
         int ld_evec,            /* BLAS leading dimension, >=loc_dim */
@@ -205,7 +207,7 @@ int lanczos_inplace_float(
     int status = 0;
     if (0 != (status = lanczos_internal_float(
                     L, mpi_comm, op, op_arg, lanczos_which,
-                    loc_dim, nev, ncv, max_iter, tol,
+                    loc_dim, nev, ncv, max_iter, tol, v0,
                     w_d_, evec, ld_evec, 
                     n_iters, nconv, arpack_logfile))) {
         free(w_d_);
@@ -236,6 +238,7 @@ lanczos_internal_float(
         int ncv,
         int max_iter,
         float tol,
+        float complex *v0,      /* if not NULL, contains initial vector */
         float complex *eval,    /* return buffer for evalues,  [nev + 1] */
         float complex *evec,    /* workspace for evectors (BLAS-matrix), [ld_evec, >=ncv] */
         int ld_evec,            /* BLAS leading dimension */
@@ -338,7 +341,11 @@ lanczos_internal_float(
 
     /* cnaupd cycle */
     ido_        = 0;
-    info_       = 0;
+    if (NULL != v0) {   /* have initial vector */
+        memcpy(resid_, v0, sizeof(resid_[0]) * n_);
+        info_   = 1;
+    } else              /* no initial vector */
+        info_       = 0;
     iparam_[0]  = 1;
     iparam_[2]  = max_iter;
     iparam_[3]  = 1;

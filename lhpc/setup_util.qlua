@@ -69,6 +69,7 @@ end
 
 
 function gauge_set_bc(u, bc)
+  -- TODO there is a function in gauge.qlua that does it
   -- modify gauge field links u to have bc
   --  u   array of gauge link fields
   --  bc  array of bc factors (applied from left)
@@ -78,4 +79,25 @@ function gauge_set_bc(u, bc)
       u[1+mu]:set(bc[1+mu] * u[1+mu])
     end)
   end
+end
+-- make a grid of sources x0 + (latsize/n_src)*i_src + dx_c * i_c
+function make_src_grid(n_src, latsize, x0, dx_c, i_c)
+  local dx_g     = { }
+  for i, n_i in pairs(n_src) do
+    dx_g[i] = latsize[i] / n_i
+  end
+
+  local src_list = {}
+  local i_src = 0
+  for ix = 0, n_src[1]-1 do for iy = 0, n_src[2]-1 do 
+  for iz = 0, n_src[3]-1 do for it = 0, n_src[4]-1 do
+    local ii = {ix,iy,iz,it}
+    local s = {}
+    for k = 1, 4 do
+      s[k] = (x0[k] + dx_c[k] * i_c + dx_g[k] * ii[k]) % latsize[k]
+    end
+    i_src = i_src + 1
+    src_list[i_src] = s
+  end end end end
+  return src_list
 end

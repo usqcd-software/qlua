@@ -1,0 +1,94 @@
+require "stdlib"
+
+if lattice_colors == nil then
+   lattice_colors = 3
+end
+
+Lx = 4
+Lt = 8
+-- this is probably a bad (chroma) sample file, but it should read OK
+output = "xxx" .. tostring(lattice_colors)
+
+-- start with some info about QLUA
+printf("QDP I/O test\n")
+printf("  Ns = %d\n", qcd.Ns)
+for i, v in pairs(qcd.version) do
+   printf("  version[%-20s] = %s\n", tostring(i), tostring(v))
+end
+printf("\n")
+printf("Lx = %d\n", Lx)
+printf("Lt = %d\n", Lt)
+
+-- setup gauge
+L = qcd.lattice({Lx, Lx, Lx, Lt})
+L:defaults{colors=lattice_colors}
+
+printf("Default colors: %s\n", tostring(L:defaults().colors))
+
+do
+   local x = L:Int(0)
+   for i = 0, #L - 1 do
+      x = x * L[i] + L:pcoord(i)
+   end
+   S = L:RandomState(54634, x)
+end
+
+U = {}
+for i = 0, #L - 1 do
+   U[i + 1] = S:gaussian_ColorMatrix()
+end
+
+-- try writing now
+function try_write(output, finfo, fmt)
+   printf("try_write(output=%s, fmt=%s)\n", tostring(output), tostring(fmt))
+   local out = qcd.qdpc.Writer(L, output, finfo, fmt)
+
+   if not out then
+      printf("Error creating the writer\n")
+      os.exit(1)
+   end
+
+   if not out:ColorMatrix(U[1], "<?xml version=\"1.0\"?><colormatrix/>") then
+      printf("Error writing a single ColorMatrix\n")
+      os.exit(1)
+   end
+   
+   if not out:ColorMatrix(U, "") then
+      printf("Error writing a vector of ColorMatrix\n")
+      os.exit(1)
+   end
+
+   printf("write complete\n")
+   out:close()
+end
+
+try_write(output, "fmt=none")
+try_write(output .. "-nil", "fmt=nil", nil)
+try_write(output .. "-single", "fmt=single", "single")
+try_write(output .. "-multi", "fmt=multi", "multi")
+try_write(output .. "-part", "fmt=part", "part")
+try_write(output .. "-partdir", "fmt=partdir", "part_dir")
+
+xx, xinfo = qcd.qdpc.Reader(L, output)
+printf("xx  : %s\n", tostring(xx))
+printf("info: %s\n", tostring(xinfo))
+
+s = xx:skip()
+printf("skip()= %s\n", tostring(s))
+
+-- QIO error handling broken in MPI 
+--s,f = xx:info()
+--print("info().s=", s)
+--print("info().f=", f)
+
+s = xx:skip()
+printf("x skip= %s\n", tostring(s))
+
+--QIO error handling broken in MPI 
+--s,f = xx:info()  -- no info, returns nil, nil
+--print("x info().s=", s)
+--print("x info().f=", f)
+
+xx:close()
+
+printf("All done\n")

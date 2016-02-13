@@ -1,0 +1,85 @@
+---- printf() and eprintf() available
+
+function printf(fmt, ...)
+  return io.stdout:write(string.format(fmt, ...))
+end
+
+function eprintf(fmt, ...)
+  return io.stderr:write(string.format(fmt, ...))
+end
+
+---- iterators
+-- interval [lo, hi]
+function interval(lo, hi)
+  local function f(_, x)
+    if x < hi then
+      return x + 1
+    else
+      return nil
+    end
+  end
+  return f, nil, lo - 1
+end
+
+-- exclude a value from an iterator
+function skip(excl, ...)
+  local f,fs,k = ...
+  local function g(gs, x)
+    local y = gs[1](gs[2], x)
+    if y == excl then
+      return g(gs, y)
+    else
+      return y
+    end
+  end
+  return g, {f, fs}, k
+end
+
+-- access an element of parsed XML
+function xml.get(x, n, ...)
+  if n == nil then
+     return x
+  end
+  if type(n) == "number" then
+     return x[n]
+  else
+    for i = 1, #x do
+       local y = x[i]
+       if type(y) == "table" and y["$tag"] == n then
+         return xml.get(y, ...)
+       end
+    end
+    return nil    
+  end
+end
+
+-- create an arithmetic sequence
+function range(lo, hi, step)
+  if nil == step  then step = 1 end
+  local res = {}
+  while (lo < hi) == (0 < step) do -- sic! logical XOR
+    res:insert(lo)
+    lo = lo + step
+  end
+  return res
+end
+
+
+require 'verbose'
+
+
+-------------------------------------------------------------------------------
+-- MISCELLANEOUS FUNCTIONS
+-------------------------------------------------------------------------------
+
+-- complete "spatial" coord to full
+function space2full(c, t_axis, c_t)
+  local cfull = {}
+  if nil == c_t then cfull[1+t_axis] = 0
+  else cfull[1+t_axis] = c_t end
+  for d = 0, #L-1 do
+    if d < t_axis then cfull[1+d] = c[1+d]
+    else cfull[2+d] = c[1+d] end
+  end
+  return cfull
+end

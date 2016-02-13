@@ -1,0 +1,18 @@
+-- perform wuppertal smear of the fermion or propagator
+require("stdlib")
+
+
+function wuppertal_smear(U, alpha, N, G, axis)
+  local dim_smear
+  if axis and (0 <= axis) and (axis < #U) then dim_smear = #U - 1
+  else dim_smear = #U end
+  
+  local v = 1 + 2 * alpha * dim_smear
+  local b = alpha / v
+  local a = 1 / v + 2 * b * dim_smear
+  
+  for k = 1, N do
+    G = qcd.laplacian(a, b, U, G, axis)
+  end
+  return G
+end

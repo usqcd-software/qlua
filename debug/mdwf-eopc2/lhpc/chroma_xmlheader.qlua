@@ -1,0 +1,311 @@
+function chroma_xmlheader_anisoparam(t_dir, xi0, nu)
+  if nil == t_dir then
+    return string.format([[      <AnisoParam>
+        <anisoP>false</anisoP>
+        <t_dir>3</t_dir>
+        <xi_0>1</xi_0>
+        <nu>1</nu>
+      </AnisoParam>
+]])
+  else
+    return string.format([[      <AnisoParam>
+        <anisoP>false</anisoP>
+        <t_dir>%d</t_dir>
+        <xi_0>%f</xi_0>
+        <nu>%f</nu>
+      </AnisoParam>
+]],   t_dir, xi0, nu)
+  end
+end
+
+function chroma_xmlheader_fermion_action(ferm_act_type, qmass, bc,
+      ferm_act_param_xml, aniso_param_xml)
+  if nil == ferm_act_param_xml then ferm_act_param_xml = '' end
+  if nil == aniso_param_xml then aniso_param_xml = chroma_xmlheader_anisoparam() end
+  return string.format([[    <FermionAction>
+      <FermAct>%s</FermAct>
+      <Mass>%f</Mass>
+%s%s      <FermState>
+        <Name>SIMPLE_FERM_STATE</Name>
+        <FermionBC>
+          <FermBC>SIMPLE_FERMBC</FermBC>
+          <boundary>%d %d %d %d</boundary>
+        </FermionBC>
+      </FermState>
+    </FermionAction>
+]],   ferm_act_type, qmass, ferm_act_param_xml, aniso_param_xml, 
+      bc[1], bc[2], bc[3], bc[4])
+end
+
+function chroma_xmlheader_displacement_none()
+  return string.format([[          <Displacement>
+            <version>1</version>
+            <DisplacementType>NONE</DisplacementType>
+          </Displacement>
+]])
+end
+
+function chroma_xmlheader_gauss_smearing(wup_sigma, wup_n, wup_tdir)
+  return string.format([[          <SmearingParam>
+            <wvf_kind>GAUGE_INV_GAUSSIAN</wvf_kind>
+            <wvf_param>%f</wvf_param>
+            <wvfIntPar>%d</wvfIntPar>
+            <no_smear_dir>%d</no_smear_dir>
+          </SmearingParam>
+]],   wup_sigma, wup_n, wup_tdir)
+end
+
+function chroma_xmlheader_linksmearing_ape(ape_alpha, ape_n, ape_tdir, ape_accu, ape_maxiter)
+  return string.format([[      <LinkSmearing>
+       <version>2</version>
+       <LinkSmearingType></LinkSmearingType>
+       <link_smear_fact>%f</link_smear_fact>
+       <link_smear_num>%d</link_smear_num>
+       <no_smear_dir>%d</no_smear_dir>
+       <BlkAccu>%f</BlkAccu>
+       <BlkMax>%f</BlkMax>
+      </LinkSmearing>
+]],   ape_alpha, ape_n, ape_tdir, ape_accu, ape_maxiter)
+end
+
+function chroma_xmlheader_propsource(
+    src_type, csrc, tdir, 
+    smearingparam_xml, linksmearing_xml, displacement_xml)
+  if nil == smearingparam_xml then smearingparam_xml = '      <SmearingParam/>\n' end
+  if nil == linksmearing_xml  then linksmearing_xml  = '      <noLinkSmearing/>\n' end
+  if nil == displacement_xml  then displacement_xml  = '      <Displacement/>\n'  end
+  return string.format([[  <PropSource>
+    <version>6</version>
+    <Source>
+      <version>2</version>
+      <SourceType>%s</SourceType>
+      <t_srce>%d %d %d %d</t_srce>
+      <j_decay>%d</j_decay>
+%s%s%s    </Source>
+    <j_decay>%d</j_decay>
+    <t_source>%d</t_source>
+  </PropSource>
+]],   
+        src_type, csrc[1], csrc[2], csrc[3], csrc[4], tdir,
+        smearingparam_xml, linksmearing_xml, displacement_xml,
+        tdir, csrc[1+tdir])
+end
+
+function chroma_xmlheader_propsink(
+      snk_type, csrc, tdir,
+      smearingparam_xml, linksmearing_xml, displacement_xml)
+  if nil == smearingparam_xml then smearingparam_xml = '      <SmearingParam/>\n' end
+  if nil == linksmearing_xml  then linksmearing_xml  = '      <noLinkSmearing/>\n' end
+  if nil == displacement_xml  then displacement_xml  = '      <Displacement/>\n'  end
+  return string.format([[      <PropSink>
+        <version>5</version>
+        <Sink>
+          <version>2</version>
+          <SinkType>%s</SinkType>
+          <t_srce>%d %d %d %d</t_srce>
+          <j_decay>%d</j_decay>
+%s%s%s        </Sink>
+        <j_decay>%d</j_decay>
+      </PropSink>
+]],  
+      snk_type, csrc[1], csrc[2], csrc[3], csrc[4], tdir,
+      smearingparam_xml, linksmearing_xml, displacement_xml,
+      tdir)
+end
+
+function chroma_xmlheader_frwprop(
+    quarkspintype, 
+    ferm_act_xml)
+  return string.format([[  <ForwardProp>
+    <version>9</version>
+    <quarkSpinType>%s</quarkSpinType>
+    <obsvP>false</obsvP>
+    <InvertParam>
+      <invType>CG_INVERTER</invType>
+      <RsdCG>0</RsdCG>
+      <MaxCG>0</MaxCG>
+      <numRestarts>1</numRestarts>
+    </InvertParam>
+%s  </ForwardProp>
+]],
+      quarkspintype,
+      ferm_act_xml)
+end
+
+
+function chroma_xmlheader_frwprop_record_info(propsrc_xml, frwprop_xml, config_info)
+  if nil == config_info then config_info = '  <Config_info></Config_info>\n' end
+  return string.format([[<?xml version="1.0"?>
+<Propagator>
+  <version>1</version>
+%s%s%s</Propagator>
+]],
+    propsrc_xml, frwprop_xml, config_info)
+end
+
+function chroma_xmlheader_frwprop_record_info_generic(
+      quarkspintype, src_type, csrc, 
+      ferm_act_type, qmass, bc, tdir)
+  local s = xml.unparse(xml.parse(   -- fixing XML alignment
+        chroma_xmlheader_frwprop_record_info(
+              chroma_xmlheader_propsource(src_type,  csrc, tdir),
+              chroma_xmlheader_frwprop(
+                  quarkspintype,
+                  chroma_xmlheader_fermion_action(ferm_act_type, qmass, bc))
+              )
+        ))
+  force_gc('XML parse/unparse')
+  return s
+end
+
+
+-- BACKWARD PROPAGATORS
+function chroma_xmlheader_sink(
+      snk_type, tdir,
+      smearingparam_xml, linksmearing_xml, displacement_xml)
+  if nil == smearingparam_xml then smearingparam_xml = '<SmearingParam/>'  end
+  if nil == linksmearing_xml  then linksmearing_xml  = '<noLinkSmearing/>' end
+  if nil == displacement_xml  then displacement_xml  = '<Displacement/>'   end
+  string.format([[   <Sink>
+      <version>5</version>
+      <SinkType>%s</SinkType>
+      <j_decay>%d</j_decay>
+%s%s%s    </Sink>
+]],   
+      snk_type, tdir, 
+      smearingparam_xml, linksmearing_xml, displacement_xml)
+end
+
+
+function chroma_xmlheader_seqsourcesinksmear(
+      snk_type, tdir,
+      smearingparam_xml, linksmearing_xml, displacement_xml)
+  if nil == smearingparam_xml then smearingparam_xml = '<SmearingParam/>'  end
+  if nil == linksmearing_xml  then linksmearing_xml  = '<noLinkSmearing/>' end
+  if nil == displacement_xml  then displacement_xml  = '<Displacement/>'   end
+  return string.format([[  <SeqSourceSinkSmear>
+    <version>5</version>
+    <Sink>
+      <version>5</version>
+      <SinkType>%s</SinkType>
+      <j_decay>%d</j_decay>
+%s%s%s    </Sink>
+    <j_decay>%d</j_decay>
+  </SeqSourceSinkSmear>
+]],
+        snk_type, tdir, 
+        smearingparam_xml, linksmearing_xml, displacement_xml,
+        tdir)
+end
+
+function chroma_xmlheader_seqsource(seqsrc_type, psnk, tsnk, tdir)
+  return string.format([[  <SeqSource>
+    <version>2</version>
+    <SeqSource>
+      <version>1</version>
+      <SeqSourceType>%s</SeqSourceType>
+      <sink_mom>%d %d %d</sink_mom>
+      <t_sink>%d</t_sink>
+      <j_decay>%d</j_decay>
+    </SeqSource>
+  </SeqSource>
+]],   
+        seqsrc_type, psnk[1], psnk[2], psnk[3], tsnk, tdir)
+end
+
+function chroma_xmlheader_seqprop(quarkspintype, ferm_act_xml)
+  return string.format([[  <SeqProp>
+    <version>9</version>
+    <quarkSpinType>%s</quarkSpinType>
+    <obsvP>false</obsvP>
+%s    <InvertParam>
+        <invType>CG_INVERTER</invType>
+        <RsdCG>0</RsdCG>
+        <MaxCG>0</MaxCG>
+        <numRestarts>1</numRestarts>
+    </InvertParam>
+  </SeqProp>
+]],
+        quarkspintype, ferm_act_xml)
+end
+
+function chroma_xmlheader_bkwprop_record_info(
+      seqprop_xml, seqsourcesinksmear_xml, seqsource_xml, frwp_list, config_info)
+  if nil == config_info then config_info = '  <Config_info></Config_info>\n' end
+  local forwardprops_str = ''
+  for i_frwp, frwp in pairs(frwp_list) do
+    forwardprops_str = forwardprops_str .. string.format('    <elem>\n%s%s%s    </elem>\n',
+            frwp[1], frwp[2], frwp[3])
+  end
+
+  local s = xml.unparse(xml.parse(string.format([[<?xml version="1.0"?>
+<SequentialProp>
+  <version>1</version>
+%s%s%s<ForwardProps>
+%s  </ForwardProps>
+%s</SequentialProp>
+]],
+        seqprop_xml,
+        seqsourcesinksmear_xml,
+        seqsource_xml,
+        forwardprops_str,
+        config_info)))
+  force_gc('XML parse/unparse')
+  return s
+end
+
+function chroma_xmlheader_bkwprop_record_info_generic(
+    frw_quarkspintype, src_type, csrc, 
+    bkw_quarkspintype, snk_type, psnk, tsnk, 
+    seqsrc_type, num_frw_prop,
+    ferm_act_type, qmass, bc, tdir)
+  -- generate generic header with the same smearing and action
+  local ferm_act_xml = chroma_xmlheader_fermion_action(ferm_act_type, qmass, bc)
+
+  local frwsrc_xml   = chroma_xmlheader_propsource(src_type, csrc, tdir)
+  local frwprop_xml  = chroma_xmlheader_frwprop(frw_quarkspintype, ferm_act_xml)
+  local frwsnk_xml   = chroma_xmlheader_propsink(snk_type, csrc, tdir)
+  local frwp_list = {}
+  for i = 1, num_frw_prop do frwp_list[i] = { frwsrc_xml, frwprop_xml, frwsnk_xml } end
+
+  local seqprop_xml  = chroma_xmlheader_seqprop(bkw_quarkspintype, ferm_act_xml)
+  local seqsourcesinksmear_xml = chroma_xmlheader_seqsourcesinksmear(snk_type, tdir)
+  local seqsource_xml= chroma_xmlheader_seqsource(seqsrc_type, psnk, tsnk, tdir)
+  
+  return chroma_xmlheader_bkwprop_record_info(
+            seqprop_xml, seqsourcesinksmear_xml, 
+            seqsource_xml, frwp_list)
+end
+  
+  
+  
+-- FIXME convert to xml tables parse/unparse : leave it for better times ...
+--function chroma_xmlheadertab_inverter_generic(rsdcg, maxcg, numrestarts)
+--  if nil == rsdcg then rsdcg = 0 end
+--  if nil == maxcg then maxcg = 0 end
+--  if nil == numrestarts then numrestarts = 0 end
+--  return  {['$tag'] = 'InvertParam',
+--            {['$tag'] = 'invType',  'CG_INVERTER' },
+--            {['$tag'] = 'RsdCG',    tostring(rsdcg) },
+--            {['$tag'] = 'MaxCG',    tostring(maxcg) },
+--            {['$tag'] = 'numRestarts', tostring(numrestarts) } }
+--end
+--function chroma_xmlheadertab_sequential_prop()
+--  return  {['$tag'] = 'SequentialProp',
+--            {['$tag'] = 'version', '1' },
+--            {['$tag'] = 'SeqProp', {
+--              {['$tag'] = 'version', '9' }
+--              {['obsvP']}}}}
+--end
+
+--function chroma_xmlheader_sink(
+--      snk_type, tdir,
+--      smearingparam_xmltab, linksmearing_xmltab, displacement_xmltab)
+--  if nil == smearingparam_xmltab then smearingparam_xmltab = {['$tag'] = 'SmearingParam' } end
+--  if nil == linksmearing_xmltab  then linksmearing_xmltab  = {['$tag'] = 'noLinkSmearing'} end
+--  if nil == displacement_xmltab  then displacement_xmltab  = {['$tag'] = 'Displacement'  } end
+--  return  { ['$tag'] = 'Sink',
+--            { ['$tag'] = 'version',     '5' },
+--            { ['$tag'] = 'SinkType',    snk_type },
+--            { ['$tag'] = 'j_decay',     tostring(tdir) } }
+--end

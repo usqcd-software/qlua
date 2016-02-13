@@ -66,3 +66,44 @@ end
 
 
 require 'verbose'
+
+
+-------------------------------------------------------------------------------
+-- FILE MANAGEMENT
+-------------------------------------------------------------------------------
+function basename(str)
+--  printf("%s\n", str:gsub("/+$", ""))
+  return str:gsub("/+$", ""):gsub("(.*)/([^/]+)", "%2")
+end                 
+function dirname(str)
+  local s = str:gsub("/+$", "")
+  if s:match(".-/.-") then return s:gsub("/([^/]+)$", "")
+  else return '.' end
+end
+
+
+-------------------------------------------------------------------------------
+-- MISCELLANEOUS FUNCTIONS
+-------------------------------------------------------------------------------
+
+-- complete "spatial" coord to full
+function space2full(c, t_axis, c_t)
+  local cfull = {}
+  if nil == c_t then cfull[1+t_axis] = 0
+  else cfull[1+t_axis] = c_t end
+  for d = 0, #L-1 do
+    if d < t_axis then cfull[1+d] = c[1+d]
+    else cfull[2+d] = c[1+d] end
+  end
+  return cfull
+end
+
+-- find element in a table by value
+function table_index(clist, cx)
+  for i, c in pairs(clist) do
+    if cx == c then
+      return i
+    end
+  end
+  return nil
+end

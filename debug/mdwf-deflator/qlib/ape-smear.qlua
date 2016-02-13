@@ -1,0 +1,26 @@
+-- perform APE smearing
+require("stdlib")
+
+function APE_smear(U, A, N, accu, imax, axis)
+  local function ape_step(u)
+     local w = {}
+     for i, v in pairs(u) do w[i] = v end
+     for i in skip(axis+1, interval(1, #U)) do
+       local v = A * u[i]
+       for j in skip(i, skip(axis+1, interval(1, #U))) do
+         local ux = u[j]:shift(i - 1, "from_forward")
+         v = v + u[j] * u[i]:shift(j-1, "from_forward") * ux:adjoin() +
+                 (u[j]:adjoin() * u[i] * ux):shift(j-1, "from_backward")
+       end
+       w[i] = v:proj(accu, imax, u[i])
+     end
+     return w
+  end
+ 
+  local v = U 
+  for i = 1, N do
+    v = ape_step(v)
+  end
+
+  return v
+end

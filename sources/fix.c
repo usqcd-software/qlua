@@ -362,6 +362,13 @@ qlua_nodetime(void)
 }
 
 static int
+q_nodetime(lua_State *L) 
+{
+  lua_pushnumber(L, qlua_nodetime());
+  return 1;
+}
+
+static int
 qlua_time(lua_State *L)
 {
   lua_pushnumber(L, qlua_timeofday());
@@ -640,6 +647,8 @@ init_qlua_io(lua_State *L)
     lua_setfield(L, -2, "exit");
     lua_pushcfunction(L, qlua_time);
     lua_setfield(L, -2, "time");
+    lua_pushcfunction(L, q_nodetime);
+    lua_setfield(L, -2, "nodetime");
     lua_pushcfunction(L, qlua_ctime);
     lua_setfield(L, -2, "ctime");
     rf = fopen("/dev/urandom", "rb");

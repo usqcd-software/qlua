@@ -1,0 +1,137 @@
+-- compute & save eigenvectors
+-- 1. Run Lanczos to convergence
+-- 2. Compute MxM(v) on evecs and print vH.v and vH. MxM(v) for all pairs
+
+package.path = 'qlib/?.qlua;lhpc/?.qlua;' .. package.path
+require "gauge"
+require "ape-smear"
+require "stdlib"
+require "lhpc-std"
+require "latvec"
+require "setup_util"
+require "mdwf_eopc"
+
+job_key = "TEST4c8"
+latsize = {4,4,4,8}
+t_axis  = #latsize - 1
+rnd_seed = 1984
+ferm_bc = {1,1,1,-1}
+
+
+mdwf_M5 = 1.5
+mdwf_mf = 0.05
+-- zMoebius params 
+mdwf_L5  = 10
+mdwf_bmc5 = 1.
+mdwf_bpc5 = {
+  complex(4.541923631679675,  4.531939470776543),
+  complex(4.541923631679675, -4.531939470776543),
+  complex(5.652976503137655,  1.093597911594768),
+  complex(5.652976503137655, -1.093597911594768),
+  4.000932091136246,
+  2.657143269244066,
+  1.816561728993252,
+  1.294373624144743,
+  0.990294765182691,
+  0.850294614608136 }
+assert(#mdwf_bpc5 == mdwf_L5)
+mdwf_b5, mdwf_c5 = {}, {}
+for s = 1, mdwf_L5 do 
+  mdwf_b5[s] = .5 * (mdwf_bpc5[s] + mdwf_bmc5)
+  mdwf_c5[s] = .5 * (mdwf_bpc5[s] - mdwf_bmc5)
+end
+
+eigcg_nev = 1
+eigcg_vmax= 3
+eigcg_umax= 3
+eigcg_tol = 1e-6
+l_nev         = 4
+l_ncv         = 10
+l_maxiter     = 3000
+l_tol         = 1e-6
+l_poly_n      = 1
+l_poly_a      = -1
+l_poly_b      = 1.
+l_poly_x0     = 1.
+
+function get_file_gauge(x) return "gauge_disord_4c8.NERSC" end
+function arpack_logfile(x) return "arpack.log" end
+
+tot_timer = timer("total")
+-------------------------------------------------------------------------------
+-- SETUP
+-------------------------------------------------------------------------------
+L = qcd.lattice(latsize, {network=network_geom})
+print_network_settings()
+print_subgrid_settings(L)
+
+if nil == job_key then 
+  error("nil job_key")
+  os.exit(1)
+end
+cfg_key = job_key
+
+rnd = rnd_init(L, rnd_seed)
+
+-- load & smear gauge
+cur_timer = timer("gauge_read")
+gauge_u = qcd.nersc.read_gauge(L, get_file_gauge(cfg_key))
+gauge_u_bc = latvec_copy(gauge_u)
+gauge_apply_boundary(gauge_u_bc, ferm_bc)
+
+-- construct Moebius obj
+mdwf = qcd.MDWF.generic(gauge_u, ferm_bc, mdwf_L5, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5)
+
+-------------------------------------------------------------------------------
+-- EIGENVECTOR CALCULATION
+-------------------------------------------------------------------------------
+-- run Lanczos
+l_timer = timer("deflator_lanczos")
+mdwf_eigcg_df, lanczos_nconv, lanczos_niter = mdwf:eig_deflator_lanczos(
+      l_nev, l_ncv, l_maxiter, l_tol,
+      { ["eigcg"] = {eigcg_vmax, eigcg_nev, eigcg_tol, eigcg_umax},
+        ["which"] = "LR", -- need the largest ev of polynomial T_n(A)
+        ["arpack_logfile"] = arpack_logfile(cfg_key),
+        ["inplace"] = true
+        })
+l_timer("done")
+printf("df_lanczos: nconv=%d  n_iter=%d\n", lanczos_nconv, lanczos_niter)
+
+-- print evalues
+evals = mdwf_eigcg_df:eigenvalues()
+for i=0, #evals - 1 do
+  printf("eval[%04d]=%e\n", i, evals[i])
+end
+
+------------------------------------------------------------------------------
+-- EIGENVECTOR CHECK
+------------------------------------------------------------------------------
+df_dim = mdwf_eigcg_df:current_dim()
+function m_eopc_gold(x, is_dag)
+  return mdwf_eopc_sym1mit(x, gauge_u_bc, mdwf_M5, mdwf_mf, mdwf_b5, mdwf_c5, is_dag)
+end
+
+vl  = {}
+for i = 0, df_dim - 1 do vl[1+i] = mdwf_eigcg_df:get_vector(i) end
+Avl = {}
+for i = 0, df_dim - 1 do 
+  Avl[1+i] = m_eopc_gold(m_eopc_gold(vl[1+i], false), true) 
+  print_latvec_cmp(Avl[1+i], vl[1+i], string.format("Av<->v [%04d]", i))
+end
+printf("# V^H.V")
+for i = 0, df_dim - 1 do
+  for j = 0, df_dim - 1 do
+    local vdv = latvec_vdot(vl[1+i], vl[1+j])
+    printf("%e %e\n", vdv:real(), vdv:imag())
+  end
+end
+printf("# V^H.MxM.V")
+for i = 0, df_dim - 1 do
+  for j = 0, df_dim - 1 do
+    local vdAv = latvec_vdot(vl[1+i], Avl[1+j])
+    printf("%e %e\n", vdAv:real(), vdAv:imag())
+  end
+end 
+os.exit(0)
+
+tot_timer("done")

@@ -59,7 +59,6 @@ typedef struct {
 typedef struct {
   struct QNc(QOP_, _CLOVER_State) *state;
   struct QNc(QOP_, _CLOVER_Gauge) *gauge;
-  double kappa, c_sw;
 } mClover;
 
 typedef struct {
@@ -1117,7 +1116,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
     eigcg_nev   = 0;
   double eigcg_eps= 0.;
 
-  if (qlua_checkopt_table(L, 6)) {
+  if (qlua_checkopt_paramtable(L, 6)) {
     if (qlua_tabpushopt_key(L, 6, "cheb_accel")) {
       /* Chebyshev acceleration parameters */
 #ifdef LANCZOS_MXM_DOUBLE
@@ -1301,7 +1300,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
                                              QNc(op_CLOVER_F, _eoprec_MdagM_op),
 #endif/*LANCZOS_MXM_DOUBLE*/
                                              &op_arg,
-                                             lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                                             lanczos_which, loc_dim, nev, ncv, max_iter, tol, NULL/*TODO implement v0*/,
                                              eval, (float complex *)hfm_blas_ptr, hfm_ld, hfm_ncol,
                                              &n_iters, &nconv, arpack_logfile))) {
       return luaL_error(L, "lanczos_float_inplace returned %d", status);
@@ -1320,7 +1319,7 @@ q_CL_make_deflator_lanczos(lua_State *L)
                                      QNc(op_CLOVER_F, _eoprec_MdagM_op),
 #endif/*LANCZOS_MXM_DOUBLE*/
                                      &op_arg,
-                                     lanczos_which, loc_dim, nev, ncv, max_iter, tol,
+                                     lanczos_which, loc_dim, nev, ncv, max_iter, tol, NULL/*TODO implement v0*/,
                                      &eval, &evec, &n_iters, &nconv, arpack_logfile)))
       return luaL_error(L, "lanczos_float returned %d", status);
     /* FIXME rewrite with clear explanation for the choice of
@@ -1400,7 +1399,7 @@ q_CL_fmt(lua_State *L)
     mClover *c = qlua_checkClover(L, 1, NULL, 0);
 
     if (c->state)
-        sprintf(fmt, "Clover[%g,%g]", c->kappa, c->c_sw);
+        sprintf(fmt, "Clover[%p]", c);
     else
         sprintf(fmt, "Clover(closed)");
 
@@ -1807,122 +1806,139 @@ found:
     return xx;
 }
 
-/*
- *  qcd.Clover(U,         -- 1, {U0,U1,U2,U3}, a table of color matrices
- *             kappa,     -- 2, double, the hopping parameter
- *             c_sw,      -- 3, double, the clover term
- *             boundary)  -- 4, {r/c, ...}, a table of boundary phases
- */
-static int
-q_clover(lua_State *L)
+typedef struct {
+  QDP_Lattice *lat;
+  int lattice[QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex kappa[QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex c_sw[QNc(QOP_, _CLOVER_DIM)][QNc(QOP_, _CLOVER_DIM)];
+  QLA_D_Complex boundary[QNc(QOP_, _CLOVER_DIM)];
+  QNc(QLA_D, _ColorMatrix) *uf[Nu + Nf];
+} QAniCloArgs;
+
+static double
+q_AniC_u_reader(int d, const int p[], int a, int b, int re_im, void *env)
 {
-    int i;
+  QLA_D_Complex z, w;
+  QAniCloArgs *args = env;
+  int i = QDP_index_L(args->lat, p);
+  
+  if (p[d] == (args->lattice[d] - 1)) {
+    QLA_c_eq_c_times_c(z, args->boundary[d], QLA_elem_M(args->uf[d][i], a, b));
+  } else {
+    QLA_c_eq_c(z, QLA_elem_M(args->uf[d][i], a, b));
+  }
+  QLA_c_eq_c_times_c(w, z, args->kappa[d]);
+  if (re_im == 0)
+    return QLA_real(w);
+  else
+    return QLA_imag(w);
+}
 
-    luaL_checktype(L, 1, LUA_TTABLE);
-    lua_pushnumber(L, 1);
+static double
+q_AniC_f_reader(int mu, int nu, const int p[], int a, int b, int re_im, void *env)
+{
+  QLA_D_Real x;
+  QLA_D_Complex z, w;
+  QAniCloArgs *args = env;
+  int i = QDP_index_L(args->lat, p);
+  int d, xm, xn;
+
+  for (d = 0, xm = 0; xm < QNc(QOP_, _CLOVER_DIM); xm++) {
+    for (xn = xm + 1; xn < QNc(QOP_, _CLOVER_DIM); xn++, d++) {
+      if ((xn == nu) && (xm == mu))
+	goto found;
+    }
+  }
+  return 0.0; /* should never happen */
+  
+ found:
+  QLA_c_eq_c(z, QLA_elem_M(args->uf[Nu + d][i], a, b));
+  QLA_c_eq_c_times_c(w, z, args->c_sw[mu][nu]);
+  if (re_im == 0) {
+    QLA_r_eq_Im_c(x, w);
+    x = x / 8;
+  } else {
+    QLA_r_eq_Re_c(x, w);
+    x = - x / 8;
+  }
+  return x;
+}
+
+
+static int
+build_clover(lua_State *L,
+	     mLattice *S,
+	     double kappa,
+	     double c_sw,
+	     mClover *clover,
+	     QNc(QLA_D, _ColorMatrix) *uf[],
+	     double (*u_reader)(int, const int [], int, int, int, void *),
+	     double (*f_reader)(int, int, const int [], int, int, int, void *),
+	     void *args)
+{
+  QNc(QDP_D, _ColorMatrix) *UF[Nz];
+
+  luaL_checktype(L, 1, LUA_TTABLE);
+  CALL_QDP(L);
+  
+  /* create a temporary F, and temp M */
+  int i;
+  for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+    UF[i] = QNc(QDP_D, _create_M_L)(S->lat);
+  
+  /* extract U from the arguments */
+  for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
+    lua_pushnumber(L, i + 1); /* [sic] lua indexing */
     lua_gettable(L, 1);
-    QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
-    mLattice *S = qlua_ObjLattice(L, -1);
-    int Sidx = lua_gettop(L);
-    mClover *c = qlua_newClover(L, Sidx);
+    UF[i] = QNz(qlua_checkLatColMat)(L, -1, S, QLUA_CLOVER_NC)->ptr;
+    lua_pop(L, 1);
+  }
 
-    if (S->rank != QNc(QOP_, _CLOVER_DIM))
-        return luaL_error(L, "clover is not implemented for #L=%d", S->rank);
-    if (QDP_Ns != QNc(QOP_,  _CLOVER_FERMION_DIM))
-        return luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
-
-    QCArgs args;
-    luaL_checktype(L, 4, LUA_TTABLE);
-    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
-        lua_pushnumber(L, i + 1);
-        lua_gettable(L, 4);
-        switch (qlua_qtype(L, -1)) {
-        case qReal:
-            QLA_c_eq_r_plus_ir(args.bf[i], lua_tonumber(L, -1), 0);
-            break;
-        case qComplex:
-            QLA_c_eq_c(args.bf[i], *qlua_checkComplex(L, -1));
-            break;
-        default:
-            luaL_error(L, "bad clover boundary condition type");
-        }
-        lua_pop(L, 1);
+  int mu, nu;
+  QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
+  CALL_QDP(L); /* just in case, because we touched LUA state above */
+  /* compute 8i*F[mu,nu] in UF[Nf...] */
+  for (i = 0, mu = 0; mu < QNc(QOP_, _CLOVER_DIM); mu++) {
+    for (nu = mu + 1; nu < QNc(QOP_, _CLOVER_DIM); nu++, i++) {
+      /* clover in [mu, nu] --> UF[Nu + i] */
+      QNc(QDP_D, _M_eq_sM)(UF[Nt], UF[nu], neighbor[mu], QDP_forward, S->all);
+      QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+1], UF[nu], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_M_times_M)(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward, S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward, S->all);
+      QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
+      QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
+      QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
+      QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
+      QNc(QDP_D, _M_eq_sM)(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward, S->all);
+      QNc(QDP_D, _M_peq_M)(UF[Nt+4], UF[Nt+2], S->all);
+      QNc(QDP_D, _M_eq_M)(UF[Nu+i], UF[Nt+4], S->all);
+      QNc(QDP_D, _M_meq_Ma)(UF[Nu+i], UF[Nt+4], S->all);
     }
+  }
 
-    double kappa = luaL_checknumber(L, 2);
-    double c_sw = luaL_checknumber(L, 3);
-    c->kappa = kappa;
-    c->c_sw = c_sw;
-
-    QNc(QDP_D, _ColorMatrix) *UF[Nz];
-
-    luaL_checktype(L, 1, LUA_TTABLE);
-    CALL_QDP(L);
-
-    /* create a temporary F, and temp M */
-    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
-      UF[i] = QNc(QDP_D, _create_M_L)(S->lat);
-
-    /* extract U from the arguments */
-    for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
-        lua_pushnumber(L, i + 1); /* [sic] lua indexing */
-        lua_gettable(L, 1);
-        UF[i] = QNz(qlua_checkLatColMat)(L, -1, S, QLUA_CLOVER_NC)->ptr;
-        lua_pop(L, 1);
-    }
-
-    int mu, nu;
-    QDP_Shift *neighbor = QDP_neighbor_L(S->lat);
-    CALL_QDP(L); /* just in case, because we touched LUA state above */
-    /* compute 8i*F[mu,nu] in UF[Nf...] */
-    for (i = 0, mu = 0; mu < QNc(QOP_, _CLOVER_DIM); mu++) {
-        for (nu = mu + 1; nu < QNc(QOP_, _CLOVER_DIM); nu++, i++) {
-            /* clover in [mu, nu] --> UF[Nu + i] */
-            QNc(QDP_D, _M_eq_sM)(UF[Nt], UF[nu], neighbor[mu], QDP_forward,
-                           S->all);
-            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+1], UF[nu], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_M_times_M)(UF[Nt+2], UF[Nt+1], UF[Nt], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+3], UF[Nt+2], neighbor[nu], QDP_backward,
-                           S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+4], UF[Nt+3], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+1], UF[mu], neighbor[nu], QDP_forward,
-                        S->all);
-            QNc(QDP_D, _M_eq_Ma_times_M)(UF[Nt+5], UF[mu], UF[Nt+3], S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+2], UF[Nt], UF[Nt+1], S->all);
-            QNc(QDP_D, _M_eq_M_times_Ma)(UF[Nt+3], UF[Nt+2], UF[nu], S->all);
-            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+4], UF[mu], UF[Nt+3], S->all);
-            QNc(QDP_D, _M_peq_M_times_M)(UF[Nt+5], UF[Nt+3], UF[mu], S->all);
-            QNc(QDP_D, _M_eq_sM)(UF[Nt+2], UF[Nt+5], neighbor[mu], QDP_backward,
-                        S->all);
-            QNc(QDP_D, _M_peq_M)(UF[Nt+4], UF[Nt+2], S->all);
-            QNc(QDP_D, _M_eq_M)(UF[Nu+i], UF[Nt+4], S->all);
-            QNc(QDP_D, _M_meq_Ma)(UF[Nu+i], UF[Nt+4], S->all);
-        }
-    }
-
-    args.lat = S->lat;
-    /* create the clover state */
-    QDP_latsize_L(S->lat, args.lattice);
-    struct QNc(QOP_, _CLOVER_Config) cc;
-    cc.self = S->node;
-    cc.master_p = QMP_is_primary_node();
-    cc.rank = S->rank;
-    cc.lat = S->dim;
-    cc.net = S->net;
-    cc.neighbor_up = S->neighbor_up;
-    cc.neighbor_down = S->neighbor_down;
-    cc.sublattice = qlua_sublattice;
-    cc.env = S;
-    if (QNc(QOP_, _CLOVER_init)(&c->state, &cc))
-        return luaL_error(L, "CLOVER_init() failed");
+  struct QNc(QOP_, _CLOVER_Config) cc;
+  cc.self = S->node;
+  cc.master_p = QMP_is_primary_node();
+  cc.rank = S->rank;
+  cc.lat = S->dim;
+  cc.net = S->net;
+  cc.neighbor_up = S->neighbor_up;
+  cc.neighbor_down = S->neighbor_down;
+  cc.sublattice = qlua_sublattice;
+  cc.env = S;
+  if (QNc(QOP_, _CLOVER_init)(&clover->state, &cc))
+    return luaL_error(L, "CLOVER_init() failed");
 
     /* import the gauge field */
     for (i = 0; i < Nt; i++) {
-      args.uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
+      uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
     }
 
-    if (QNc(QOP_, _CLOVER_import_gauge)(&c->gauge, c->state, kappa, c_sw,
-                                q_CL_u_reader, q_CL_f_reader, &args)) {
+    if (QNc(QOP_, _CLOVER_import_gauge)(&clover->gauge, clover->state, kappa, c_sw,
+                                u_reader, f_reader, args)) {
         return luaL_error(L, "CLOVER_import_gauge() failed");
     }
 
@@ -1934,6 +1950,91 @@ q_clover(lua_State *L)
       QNc(QDP_D, _destroy_M)(UF[i]);
 
     return 1;
+}
+
+static void
+start_clover(lua_State *L, mLattice **ptr_S, mClover **ptr_clover)
+{
+  luaL_checktype(L, 1, LUA_TTABLE);
+  lua_pushnumber(L, 1);
+  lua_gettable(L, 1);
+  QNz(qlua_checkLatColMat)(L, -1, NULL, QLUA_CLOVER_NC);
+  *ptr_S = qlua_ObjLattice(L, -1);
+  int Sidx = lua_gettop(L);
+  *ptr_clover = qlua_newClover(L, Sidx);
+  if ((*ptr_S)->rank != QNc(QOP_, _CLOVER_DIM))
+    luaL_error(L, "clover is not implemented for #L=%d", (*ptr_S)->rank);
+  if (QDP_Ns != QNc(QOP_,  _CLOVER_FERMION_DIM))
+    luaL_error(L, "clover does not support Ns=%d", QDP_Ns);
+}
+
+/*
+ *  qcd.Clover(U,         -- 1, {U0,U1,U2,U3}, a table of color matrices
+ *             kappa,     -- 2, double, the hopping parameter
+ *             c_sw,      -- 3, double, the clover term
+ *             boundary)  -- 4, {r/c, ...}, a table of boundary phases
+ */
+static int
+q_clover(lua_State *L)
+{
+    mLattice *S = NULL;
+    mClover *clover = NULL;
+    QCArgs args;
+    double kappa = luaL_checknumber(L, 2);
+    double c_sw = luaL_checknumber(L, 3);
+
+    qlua_get_complex_vector(L, 4, QNc(QOP_, _CLOVER_DIM), args.bf, "boundary");
+    start_clover(L, &S, &clover);
+    args.lat = S->lat;
+    QDP_latsize_L(S->lat, args.lattice);
+
+    return build_clover(L, S, kappa, c_sw, clover, args.uf, q_CL_u_reader, q_CL_f_reader, &args);
+}
+
+/*
+ * qcd.AnisotropicClover(U,                                -- gauge field, { Ux,Uy,Uz,Ut }
+ *                       {kappa = { kx, ky, kz, kt },      -- complex kappa's in each direction
+ *                        c_sw  = { {cxx,cxy,cxy,cxt },    -- complex clover factors
+ *                                  {cyx,cyy,cyz,cyt },
+ *                                  {czx,czy,czz,czt },
+ *                                  {ctx,cty,ctz,ctt } },
+ *                        boundary = { bx, by, bz, bt } })  -- complex boundary conditions
+ */
+static int
+q_anisotropic_clover(lua_State *L)
+{
+  mLattice     *S = NULL;
+  mClover      *clover = NULL;
+  QAniCloArgs   args;
+  int i, j;
+
+  if (qlua_tabkey_tableopt(L, 2, "kappa") == 0)
+    luaL_error(L, "missing kappa values");
+  qlua_get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.kappa, "kappa");
+  lua_pop(L, 1);
+  if (qlua_tabkey_tableopt(L, 2, "boundary") == 0)
+    luaL_error(L, "missing boundary values");
+  qlua_get_complex_vector(L, lua_gettop(L),  QNc(QOP_, _CLOVER_DIM), args.boundary, "boundary");
+  lua_pop(L, 1);
+  if (qlua_tabkey_tableopt(L, 2, "c_sw") == 0)
+    luaL_error(L, "missing c_sw values");
+  for (i = 0; i < QNc(QOP_, _CLOVER_DIM); i++) {
+    if (qlua_tabidx_tableopt(L, lua_gettop(L), i + 1) == 0)
+      luaL_error(L, "missing c_sw values for i = %d", i);
+    int idx_i = lua_gettop(L);
+    for (j = 0; j <  QNc(QOP_, _CLOVER_DIM); j++) {
+      double rv, iv;
+      qlua_tabidx_complex(L, idx_i, j + 1, &rv, &iv, "c_sw element");
+      QLA_c_eq_r_plus_ir(args.c_sw[i][j], rv, iv);
+    }
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
+  start_clover(L, &S, &clover);
+  args.lat = S->lat;
+  QDP_latsize_L(S->lat, args.lattice);
+
+  return build_clover(L, S, 1.0, 1.0, clover, args.uf, q_AniC_u_reader, q_AniC_f_reader, &args);
 }
 
 static struct luaL_Reg mtClover[] = {
@@ -1985,8 +2086,9 @@ qlua_checkClover(lua_State *L, int idx, mLattice *S, int live)
 }
 
 static struct luaL_Reg fClover[] = {
-    { "Clover",       q_clover },
-    { NULL,           NULL }
+    { "Clover",                  q_clover },
+    { "AnisotropicClover",       q_anisotropic_clover },
+    { NULL,                      NULL }
 };
 
 int

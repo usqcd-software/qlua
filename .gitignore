@@ -7,5 +7,7 @@ qlua-config
 modules.h
 *.h5
 *.o
+versions.inc
+versions.inc.in
 .DS_Store
 qlua.dSYM

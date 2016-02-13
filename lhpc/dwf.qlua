@@ -16,32 +16,44 @@ function dwf_sol_5to4(sol_5d, L5)
   return (.5*(1 - gamma{mu=5})) *sol_5d[1] + (.5*(1 + gamma{mu=5})) *sol_5d[L5]
 end
 
-function latvec_op_mdwf_dminus(gauge_u, mdwf_M5, mdwf_b5, mdwf_c5, x)
+function latvec_op_mdwf_dminus(gauge_u, M5, c5, x, unused)
+  -- multiply (array of) fermions with Dminus operator from Moebius definition
+  -- if x is an array, then b5,c5 are 
+  -- TODO add conj version
+  assert(gauge_u and M5 and c5 and x)
+  assert(nil == unused)
   local xw_x = latvec_op_xwilson(x, gauge_u)
-  return latvec_scalsum_left(
-            mdwf_c5 * (4. - mdwf_M5) - 1.,  x,
-            -mdwf_c5,                       xw_x)
+  if 'table' == x then
+    local L5 = #x
+    local c5 = latvec_asarray1d(c5, L5)
+    local res = {}
+    for s = 0, L5 - 1 do
+      res[1+s] = latvec_scalsum_left(
+              c5[1+s] * (4. - M5) - 1., x[1+s],
+              -c5[1+s],                 xw_x[1+s])
+    end
+    return res
+  else
+    return latvec_scalsum_left(
+            c5 * (4. - M5) - 1.,  x,
+            -c5,                  xw_x)
+  end
 end
 
 --* compute propagator including Dminus, i.e with action 
 --* S_fermion = \bar q [ Dminus^{-1} DMoebiusSlash ] q
-function calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5, 
-                        mdwf_b5_s, mdwf_c5_s, src,
+function calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, L5, M5, 
+                        b5_s, c5_s, src,
                         is_relaxed, is_verbose)
-  if 'table' ~= type(mdwf_b5_s) then 
-    mdwf_b5_s = make_list_const(mdwf_b5_s, mdwf_L5) 
-  end
-  if 'table' ~= type(mdwf_c5_s) then 
-    mdwf_c5_s = make_list_const(mdwf_c5_s, mdwf_L5) 
-  end
-  
+  local b5_s = latvec_asarray1d(b5_s, L5)
+  local c5_s = latvec_asarray1d(c5_s, L5)
 
   if type(src) == 'lattice.dirac.propagator' then
     local sol_4d = (src.lattice):DiracPropagator()
     for is = 0, 3 do
       for ic = 0, src:colors()-1 do
         sol_4d[{d=is,c=ic}] = calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc,
-                                      mdwf_L5, mdwf_M5, mdwf_b5_s, mdwf_c5_s,
+                                      L5, M5, b5_s, c5_s,
                                       src[{d=is, c=ic}], is_relaxed, is_verbose)
       end
     end
@@ -49,20 +61,16 @@ function calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5,
   elseif type(src) == 'lattice.dirac.fermion' then
     local gauge_u_bc = gauge_copy(gauge_u)
     gauge_apply_boundary(gauge_u_bc, ferm_bc)
-    local src_5d = dwf_src_4to5(src, mdwf_L5)
-    src_5d[1]       = -1. * latvec_op_mdwf_dminus(gauge_u_bc, mdwf_M5, 
-                                    mdwf_b5_s[1], mdwf_c5_s[1], src_5d[1])
-    src_5d[mdwf_L5] = -1. * latvec_op_mdwf_dminus(gauge_u_bc, mdwf_M5,   
-                                    mdwf_b5_s[mdwf_L5], mdwf_c5_s[mdwf_L5], 
-                                    src_5d[mdwf_L5])
-    return dwf_sol_5to4(mdwf_solver(src_5d, is_relaxed, is_verbose), mdwf_L5)
+    local src_5d = dwf_src_4to5(src, L5)
+    src_5d[1]  = -1.*latvec_op_mdwf_dminus(gauge_u_bc, M5, c5_s[1], src_5d[1])
+    src_5d[L5] = -1.*latvec_op_mdwf_dminus(gauge_u_bc, M5, c5_s[L5], src_5d[L5])
+    return dwf_sol_5to4(mdwf_solver(src_5d, is_relaxed, is_verbose), L5)
   elseif type(src) == 'table' then --works only for a 5d fermion; FIXME for 5d prop
     local gauge_u_bc = gauge_copy(gauge_u)
     gauge_apply_boundary(gauge_u_bc, ferm_bc)
     local src_dminus = {}
-    for s = 0, mdwf_L5 - 1 do
-      src_dminus[1+s] = -1. * latvec_op_mdwf_dminus(gauge_u_bc, mdwf_M5, 
-                                    mdwf_b5_s[1+s], mdwf_c5_s[1+s], src[1+s])
+    for s = 0, L5 - 1 do
+      src_dminus[1+s] = -1.*latvec_op_mdwf_dminus(gauge_u_bc, M5, c5_s[1+s], src[1+s])
     end
     return mdwf_solver(src_dminus, is_relaxed, is_verbose)
   else
@@ -71,9 +79,9 @@ function calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5,
   end
 end
 -- wrapper including Dminus application
-function make_calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5, mdwf_b5_s, mdwf_c5_s)
+function make_calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, L5, M5, b5_s, c5_s)
   return function(x, is_relaxed, is_verbose)
-    return calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, mdwf_L5, mdwf_M5, mdwf_b5_s, mdwf_c5_s, 
+    return calc_mdwf_prop(mdwf_solver, gauge_u, ferm_bc, L5, M5, b5_s, c5_s, 
                           x, is_relaxed, is_verbose)
   end
 end

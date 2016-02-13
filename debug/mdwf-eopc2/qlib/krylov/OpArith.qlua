@@ -1,0 +1,208 @@
+-- Arithmetics on operators
+
+--   OpArith.count(A)         -- build a copy of A that counts the number of applications
+--   OpArith.leftPrecond(P,A) -- left precondition A with P
+--   OpArith.fromFunc(A,f,fT) -- make a linear op from f and fT acting on A-space
+--   OpArith.ident(A)         -- identity operator in A-space
+--   OpArith.projected(A,Q)   -- make a projection of A into the image of Q
+--   OpArith.adjoin(A)        -- hermitian conjugate of A
+--   OpArith.mul(A,B,...)     -- A * B * ...
+--   OpArith.add(A,B,...)     -- A + B + ...
+--   OpArith.sub(A,B,...)     -- A - B - ...
+--   OpArith.scale(s,A)       -- s * A
+--   OpArith.axpy(a,X,Y)      -- a * X + Y
+--   OpArith.axpby(a,X,b,Y)   -- a * X + b * Y
+--   OpArith.axpb(a,X,b)      -- a * X + b * I
+
+OpArith = {
+   -- add a counter of apply*()s to A's methods
+   count = function(A)
+              local op = {}
+              local n = 0
+              function op:count() return n end
+              local function idx(q,i)
+                 if i == "apply" or i == "applyT" then n = n + 1 end
+                 return rawget(op, i) or A[i]
+              end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   leftPrecond = function(P, A)
+                    local op = {}
+                    function op:apply(v) return P:apply(A:apply(v)) end
+                    function op:applyT(v) return A:applyT(P:applyT(v)) end
+                    function op:residue(x,b) return P:apply(A:residue(x,b)) end
+                    local function idx(q,i) return rawget(op,i) or A[i] end
+                    setmetatable(op, { __index = idx })
+                    return op
+                 end,
+   -- build an operator from two functions that inherits other methods from A
+   fromFunc = function(A,f,fT)
+                 local op = {}
+                 function op:apply(x) return f(x) end
+                 function op:applyT(x) return fT(x) end
+                 function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
+                 function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+                 local function idx(q,i) return rawget(op,i) or A[i] end
+                 setmetatable(op, { __index = idx })
+                 return op
+              end,
+   -- build an operator from two functions that inherits other methods from A
+   ident = function(A)
+              local op = {}
+              function op:apply(x) return x end
+              function op:applyT(x) return x end
+              function op:residue(x,b) return A:axpy(-1, x, b) end
+              function op:error(x,b) return A:norm(A:axpy(-1, x, b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- build projected operator q(A(q(v)))
+   projected = function(A,q)
+                 local op = {}
+                 function op:randomVector() return q(A:randomVector()) end
+                 function op:apply(x) return q(A:apply(q(x))) end
+                 function op:applyT(x) return q(A:applyT(q(x))) end
+                 function op:scale(a,v) return q(A:scale(a,v)) end
+                 function op:axpy(a,v,w) return q(A:axpy(a,v,w)) end
+                 function op:residue(x,b) return q(A:axpy(-1,op:apply(x), b)) end
+                 function op:error(x,b) return A:norm(op:residue(x,b)) end
+                 local function idx(q,i) return rawget(op,i) or A[i] end
+                 setmetatable(op, { __index = idx })
+                 return op
+              end,
+   -- build the adjoint of A
+   adjoin = function(A)
+               local op = {}
+               function op:apply(x) return A:applyT(x) end
+               function op:applyT(x) return A:apply(x) end
+               function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
+               function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+               local function idx(q,i) return rawget(op,i) or A[i] end
+               setmetatable(op, { __index = idx })
+               return op
+           end,
+   -- the sum of operators
+   add   = function(A,...)
+              local op = {}
+              local s = {...}
+              function op:apply(x)
+                 local r = A:apply(x)
+                 local i
+                 for i = 1, #s do
+                    r = A:axpy(1,s[i]:apply(x),r)
+                 end
+                 return r
+              end
+              function op:apply(x)
+                 local r = A:applyT(x)
+                 local i
+                 for i = 1, #s do
+                    r = A:axpy(1,s[i]:applyT(x),r)
+                 end
+                 return r
+              end
+              function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- operator difference
+   sub   = function(A,...)
+              local op = {}
+              local s = {...}
+              function op:apply(x)
+                 local r = A:apply(x)
+                 local i
+                 for i = 1, #s do
+                    r = A:axpy(-1,s[i]:apply(x),r)
+                 end
+                 return r
+              end
+              function op:apply(x)
+                 local r = A:applyT(x)
+                 local i
+                 for i = 1, #s do
+                    r = A:axpy(-1,s[i]:applyT(x),r)
+                 end
+                 return r
+              end
+              function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- Composition
+   mul   = function(A, ...)
+              local op = {}
+              local s = {...}
+              function op:apply(x)
+                 local r = x
+                 local i
+                 for i = #s, 1, -1 do
+                    r = s[i]:apply(r)
+                 end
+                 return A:apply(r)
+              end
+              function op:applyT(x)
+                 local r = A:applyT(x)
+                 local i
+                 for i = 1, #s do
+                    r = s[i]:applyT(r)
+                 end
+                 return r
+              end
+              function op:residue(x,b) return A:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return A:norm(A:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- s X
+   scale = function(s,X)
+              local op = {}
+              function op:apply(x) return X:scale(s,X:apply(x)) end
+              function op:applyT(x) return X:scale(s,X:applyT(x)) end
+              function op:residue(x,b) return X:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return X:norm(X:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- a X + Y
+   axpy  = function(a,X,Y)
+              local op = {}
+              function op:apply(x) return X:axpy(a,X:apply(x),Y:apply(x)) end
+              function op:applyT(x) return X:axpy(a,X:applyT(x),Y:applyT(x)) end
+              function op:residue(x,b) return X:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return X:norm(X:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- a X + b Y
+   axpby = function(a,X,b,Y)
+              local op = {}
+              function op:apply(x) return X:axpy(a,X:apply(x),Y:scale(b,Y:apply(x))) end
+              function op:applyT(x) return X:axpy(a,X:applyT(x),Y:scale(b,Y:applyT(x))) end
+              function op:residue(x,b) return X:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return X:norm(X:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+   -- a X + b I
+   axpb =  function(a,X,b)
+              local op = {}
+              function op:apply(x) return X:axpy(a,X:apply(x),X:scale(b,x)) end
+              function op:applyT(x) return X:axpy(a,X:applyT(x),X:scale(b,x)) end
+              function op:residue(x,b) return X:axpy(-1,op:apply(x), b) end
+              function op:error(x,b) return X:norm(X:axpy(-1,op:apply(x), b)) end
+              local function idx(q,i) return rawget(op,i) or A[i] end
+              setmetatable(op, { __index = idx })
+              return op
+           end,
+}

@@ -95,12 +95,15 @@ typedef enum {
     qClover,                  /* 52 */
     qCloverDeflator,          /* 53 */
     qCloverDeflatorState,     /* 54 */
-    qMDWF,                    /* 55 */
-    qMDWFDeflator,            /* 56 */
-    qMDWFDeflatorState,       /* 57 */
-    qQOPwmgState,             /* 58 */
+    qTwisted,                 /* 55 */
+    qTwistedDeflator,         /* 56 */
+    qTwistedDeflatorState,    /* 57 */
+    qMDWF,                    /* 58 */
+    qMDWFDeflator,            /* 59 */
+    qMDWFDeflatorState,       /* 60 */
+    qQOPwmgState,             /* 61 */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 59 */
+    qNoType                   /* 62 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -170,6 +173,8 @@ int qlua_checkgammaindex(lua_State *L, int idx);
 int qlua_gammabinary(lua_State *L, int idx);                  /* n = 0 .. 15 */
 int qlua_checkgammabinary(lua_State *L, int idx);
 
+void qlua_get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const char *msg);
+
 const char *qlua_checkstring(lua_State *L, int idx, const char *fmt, ...);
 int qlua_checkint(lua_State *L, int idx, const char *fmt, ...);
 double qlua_checknumber(lua_State *L, int idx, const char *fmt, ...);
@@ -180,6 +185,7 @@ int *qlua_checkintarray(lua_State *L, int idx, int dim, int *out_dim);
 double *qlua_checknumberarray(lua_State *L, int idx, int dim, int *out_dim);
 int qlua_checkcomplexarray(lua_State *L, int idx, int dim, QLA_D_Complex *a);
 
+int qlua_checkopt_paramtable(lua_State *L, int idx);
 int qlua_checkopt_table(lua_State *L, int idx);
 int qlua_tabpushopt_key(lua_State *L, int idx, const char *key);
 int qlua_tabpushopt_idx(lua_State *L, int idx, int subindex);
@@ -189,12 +195,16 @@ int qlua_push_key_number(lua_State *L, int idx, const char *key, double val);
 int qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val);
 int qlua_push_key_object(lua_State *L, int idx, const char *key);
 
+int qlua_tabkey_bool(lua_State *L, int idx, const char *key);
+int qlua_tabkey_boolopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);
 int qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabidx_int(lua_State *L, int idx, int subidx);
 double qlua_tabkey_double(lua_State *L, int idx, const char *key);
 double qlua_tabkey_doubleopt(lua_State *L, int idx, const char *key, double def);
 double qlua_tabidx_double(lua_State *L, int idx, int subidx);
+void qlua_tabkey_complex(lua_State *L, int idx, const char *key, double *rptr, double *iptr, const char *msg);
+void qlua_tabidx_complex(lua_State *L, int idx, int subidx, double *rptr, double *iptr, const char *msg);
 const char *qlua_tabkey_string(lua_State *L, int idx, const char *key);
 const char *qlua_tabidx_string(lua_State *L, int idx, int subidx);
 const char *qlua_tabkey_stringopt(lua_State *L, int idx, const char *key, const char *def);

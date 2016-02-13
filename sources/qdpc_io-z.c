@@ -206,6 +206,7 @@ Qs(dwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
         lua_gettable(L, Didx);
         xi = Qs(qlua_check)(L, -1, S, nc);
         X[i] = xi->ptr;
+	lua_pop(L, 1);
         }
         
     /* do the write */
@@ -257,6 +258,7 @@ Qs(fwt_)(lua_State *L, mLattice *S, int Sidx, mWriter *writer, int nc, int Didx)
         Y[i] = SopL(create)(S->lat);
 #endif
         DtoF(Y[i], X[i], S->all);
+	lua_pop(L, 1);
         }
         
     /* do the write */

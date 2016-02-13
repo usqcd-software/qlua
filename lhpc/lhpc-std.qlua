@@ -48,6 +48,13 @@ do
   end
 end
 
+function make_source_point(csrc)
+  local cm = L:ColorMatrix()
+  for a = 0, cm:colors() - 1 do
+    cm[{csrc[1], csrc[2], csrc[3], csrc[4],a=a,b=a}] = complex(1,0)
+  end
+  return L:DiracPropagator(cm)
+end
 function make_source(Z, csrc, wup_a, wup_n, t_axis)
   local cm = L:ColorMatrix()
   for a = 0, cm:colors() - 1 do
@@ -117,12 +124,13 @@ function complex2dirprop(c)
   return c.lattice:DiracPropagator(complex2colmat(c))
 end
 function force_gc(title)
-  if nil == title then title = '' end
   local m0 = collectgarbage("count")
   local t0 = os.time()
   collectgarbage("collect")
   local m1 = collectgarbage("count")
   local t1 = os.time()
-  printf("GC_COLLECT('%s') %dk->%dk (%dk) ; %dsec\n", 
-         title, m0, m1, m0 - m1, t1 - t0)
+  if nil ~= title then 
+    printf("GC_COLLECT('%s') %dk->%dk (%dk) ; %dsec\n", 
+           title, m0, m1, m0 - m1, t1 - t0)
+  end
 end

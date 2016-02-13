@@ -1,0 +1,115 @@
+require "stdlib"
+
+function optimize_brent(ax, bx, cx, f, tol, ITMAX, verbose)
+  -- <<snatched from Numerical Recipes>> 1d function minimum search
+  -- Given a function f, and given a bracketing triplet of abscissas ax, bx, ex (such that bx is
+  -- between ax and ex, and f (bx) is less than both f (ax) and f (ex)), this routine isolates
+  -- the minimum to a fractional precision of about tol using Brent's method. The abscissa of
+  -- the minimum is returned as xmin, and the minimum function value is returned as brent,
+  -- the returned function value.
+  -- Parameters: Maximum allowed number of iterations; golden ratio; and a small number that
+  -- protects against trying to achieve fractional accuracy for a minimum that happens to be
+  -- exactly zero.
+
+  -- return xmin, f(xmin), iter=<number of f(x) evals>
+  local function sign_f(a,b)
+    if b < 0 
+    then return -math.abs(a)
+    else return math.abs(a) end
+  end
+
+  local CGOLD = .3819660
+  local ZEPS  = 1.0e-10
+  local iter
+  local a, b, d, e, fu, fv, fw, fx, p, q, r, u, v, w, x
+  local e_cgold, d_cgold
+
+  -- the bracket: reorder : ax < bx < cx
+  a, b = math.min(ax, cx), math.max(ax, cx)    
+  assert(ax <= bx and bx <= cx)
+  -- init: x, w, v are the (last), (last-1), (last-2) points, fx<=fw<=fv
+  v, w, x = bx, bx, bx
+  fx  = f(x)
+  fv, fw  = fx, fx
+  -- distance moved on the step before last.
+  e   = 0.  
+
+  iter = 1
+  while iter <= ITMAX do
+    local xm    = 0.5 * (a + b)
+    local tol1  = tol * math.abs(x) + ZEPS
+    local tol2  = 2. * tol1
+    if (math.abs(x - xm) <= (tol2 - .5 * (b - a))) then
+      break -- TODO goto 3 Test for done here,
+    end
+    
+    -- pre-compute the gold.sect. step into the larger of the two segments.
+    if (x >= xm) then e_cgold = a - x
+    else e_cgold = b - x end
+    d_cgold = CGOLD * e_cgold 
+    
+    -- Construct a trial parabolic fit or CG fit
+    local use_parabolic = false
+    if (math.abs(e) > tol1) then 
+      r   = (x - w) * (fx - fv)
+      q   = (x - v) * (fx - fw)
+      p   = (x - v) * q - (x - w) * r
+      q   = 2. * (q - r)
+      if (q > 0.) then p = -p end 
+      q   = math.abs(q)
+      -- now q >= 0, parabolic xnew = x + p/q
+      local etemp = e
+      e   = d
+      -- check the acceptability of the parabolic fit
+      if (math.abs(p) >= math.abs( .5 * q * etemp) -- step > prev.step/2
+          or p <= q * (a - x) or p >= q * (b - x)) -- (x+p/q) is out of (a,b)
+      then  -- take gold.sect. step
+        e, d = e_cgold, d_cgold
+      else  --Take the parabolic step
+        use_parabolic = true
+        d   = p / q 
+        u   = x + d
+        if (u - a <= tol2) or (b - u) <= tol2 then -- close to range boundary??
+          d = sign_f(tol1, xm - x) -- |tol1| shift towards xm=(a+b)/2
+        end
+      end
+    else
+      e, d = e_cgold, d_cgold
+    end -- d, e == current, prev steps
+
+    -- take the step, by no less than |tol1|
+    if (math.abs(d) >= tol1) then u = x + d
+    else u = x + sign_f(tol1,d) end 
+
+    -- This is the one function evaluation per iteration,
+    fu = f(u)
+    -- housekeeping : shift points & values ; maintain fx <= fw <= fv; keep (a,b) as the bracket
+    if (fu <= fx) then
+      if (u >= x) then a = x
+      else             b = x end
+      v, fv = w, fw
+      w, fw = x, fx
+      x, fx = u, fu
+    else
+      if (u < x) then a = u
+      else            b = u end
+      if (fu <= fw or w == x) then
+        v, fv   = w, fw
+        w, fw   = u, fu
+      else 
+        if (fu <= fv or v == x or v == w) then
+          v, fv = u, fu
+        end
+      end -- Done with housekeeping. Back for another iteration,
+    end
+
+    if verbose then
+      printf("%d\t[%13.8e,%13.8e]\t(%13.8e  %13.8e  %13.8e)\t(%13.8e  %13.8e  %13.8e)\t%s\n", 
+             iter, a, b, x, w, v, fx, fw, fv, tostring(use_parabolic))
+    end
+
+    iter = iter + 1
+  end
+
+  return x, fx, iter
+end

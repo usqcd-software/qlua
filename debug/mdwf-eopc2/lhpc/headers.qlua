@@ -1,0 +1,53 @@
+function rbc_ddpairs_header_fermbc(ferm_bc)
+  local res = ''
+  for i_bc, bc in pairs(ferm_bc) do
+    if 1 == bc then res = res .. 'P'
+    elseif -1 == bc then res = res .. 'A'
+    else
+      error(string.format("incorrect bc=%s", bc))
+    end
+  end
+  return res
+end
+
+function rbc_ddpairs_header_proptype(mf, tol, ferm_bc, gf_string, ferm_act_string)
+  local function rbc_ddpairs_header_fermbc(ferm_bc)
+    local res = ''
+    for i_bc, bc in pairs(ferm_bc) do
+      if 1 == bc then res = res .. 'P'
+      elseif -1 == bc then res = res .. 'A'
+      else
+        error(string.format("incorrect bc=%s", bc))
+      end
+    end
+    return res
+  end
+
+  return string.format([[
+4D propagator, mass=%f, StpCond=%E,
+BC=%s,
+%s,
+%s]],
+            mf, tol, rbc_ddpairs_header_fermbc(ferm_bc), gf_string, ferm_act_string)
+end
+
+function rbc_ddpairs_header(srctype_str, proptype_str, ens_id, ens_label, seq_number)
+  return string.format([[
+<?xml version="1.0" encoding=\"UTF-8\"?><usqcdPropFile><version>1.0</version><type>USQCD_DiracFermion_Source_Sink_Pairs</type><info>DATATYPE = 4D_PROPAGATOR
+PROPAGATORTYPE = %s
+SOURCETYPE = %s
+ENSEMBLE_ID = %s
+ENSEMBLE_LABEL = test
+SEQUENCE_NUMBER = 4540</info></usqcdPropFile>]],
+            proptype_str, srctype_str, ens_id, ens_label, seq_number)
+end
+
+function scidac_propagator_header(id)
+  return string.format([[<?xml version="1.0"?>
+<propagator>
+  <id>%s</id>
+</propagator>
+]], 
+        id)
+end
+require 'chroma_xmlheader'

@@ -196,6 +196,7 @@ X_ID(qdpc_w_)(lua_State *L)
             lua_gettable(L, Didx);
             xi = QLUA_NAME(qlua_check)(L, -1, S);
             X[i] = xi->ptr;
+            lua_pop(L, 1);
         }
 
 #ifdef X_DF

@@ -9,40 +9,41 @@
  * QLUA. If they ever do, changes are required!
  */
 
-static QDP_Lattice *q_lat = NULL; 
+//static QDP_Lattice *q_lat = NULL; 
 
 static int
-x_node_number(const int coord[])
+x_node_number_a(const int coord[], void *arg)
 {
-    return QDP_node_number_L(q_lat, coord);
+    return QDP_node_number_L((QDP_Lattice *)arg, coord);
 }
 
 static int
-x_index(const int coord[])
+x_index_a(const int coord[], void *arg)
 {
-    return QDP_index_L(q_lat, coord);
+    return QDP_index_L((QDP_Lattice *)arg, coord);
 }
 
 static void
-x_get_coords(int x[], int node, int index)
+x_get_coords_a(int x[], int node, int index, void *arg)
 {
-    QDP_get_coords_L(q_lat, x, node, index);
+    QDP_get_coords_L((QDP_Lattice *)arg, x, node, index);
 }
 
 static int
-x_numsites(int node)
+x_numsites_a(int node, void *arg)
 {
-    return QDP_numsites_L(q_lat, node);
+    return QDP_numsites_L((QDP_Lattice *)arg, node);
 }
 
 static void
 init_layout(QIO_Layout *layout, mLattice *S)
 {
-    q_lat = S->lat;
-    layout->node_number     = &x_node_number;
-    layout->node_index      = &x_index;
-    layout->get_coords      = &x_get_coords;
-    layout->num_sites       = &x_numsites;
+//    q_lat = S->lat;
+    layout->arg             = S->lat;
+    layout->node_number_a   = &x_node_number_a;
+    layout->node_index_a    = &x_index_a;
+    layout->get_coords_a    = &x_get_coords_a;
+    layout->num_sites_a     = &x_numsites_a;
     layout->latsize         = S->dim;
     layout->latdim          = S->rank;
     layout->volume          = QDP_volume_L(S->lat);
@@ -61,8 +62,9 @@ qlua_qio_std_reader(mLattice *S, const char *fname, QIO_String *file_xml)
     init_layout(&layout, S);
     iflag.serpar       = QIO_SERIAL;
     iflag.volfmt       = QIO_SINGLEFILE;
-    fs.my_io_node      = NULL;
-    fs.master_io_node  = NULL;
+    fs.my_io_node_a    = NULL;
+    fs.master_io_node_a= NULL;
+    fs.arg             = NULL;
     QIO_string_set(file_xml, "");
 
     return QIO_open_read(file_xml, fname, &layout, &fs, &iflag);
@@ -81,8 +83,9 @@ qlua_qio_std_writer(mLattice *S, const char *fname, QIO_String *file_xml,
     oflag.mode         = QIO_TRUNC;
     oflag.ildgstyle    = QIO_ILDGNO;
     oflag.ildgLFN      = NULL;
-    fs.my_io_node      = NULL;
-    fs.master_io_node  = NULL;
+    fs.my_io_node_a    = NULL;
+    fs.master_io_node_a= NULL;
+    fs.arg             = NULL;
 
     return QIO_open_write(file_xml, fname, volfmt, &layout, &fs, &oflag);
 }

@@ -174,3 +174,31 @@ function deflator_save_espace_d5(
   force_gc('deflator_save_espace_d5|')
   return df_dim
 end
+
+
+function evecs_rawdump_sync(src, dst, io_stride)
+  local status = 0
+  local n = os.node()
+  if (0 == n % io_stride) then  -- one copier per node
+    local dir_i  = n / io_stride
+    local src_bn  = basename(src)
+    local dst_bn  = basename(dst)
+    local src_dir = dirname(src)
+    local dst_dir = dirname(dst)
+    local src_dir_n = string.format("%s/%04d", src_dir, dir_i)
+    local dst_dir_n = string.format("%s/%04d", dst_dir, dir_i)
+    status = os.execute(string.format("mkdir -p %s", dst_dir_n))
+    for i = 0, io_stride - 1 do
+      local f_ind = dir_i * io_stride + i
+      os.execute(string.format("cp -v %s/%s.%07d %s/%s.%07d",     
+              src_dir_n, src_bn, f_ind,
+              dst_dir_n, dst_bn, f_ind))
+    end
+    os.execute(string.format("cp -v %s/%s.CRC32 %s/%s.CRC32",    
+          src_dir, src_bn, dst_dir, dst_bn))
+    os.execute(string.format("cp -v %s/%s.evals %s/%s.evals",    
+          src_dir, src_bn, dst_dir, dst_bn))
+    print("OK sync: src=", src, " -> dst=", dst)
+  end
+  printf("sync OK\n")
+end

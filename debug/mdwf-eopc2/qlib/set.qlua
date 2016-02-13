@@ -1,0 +1,13 @@
+-- shamelessly stolen from https://stackoverflow.com/questions/2282444/how-to-check-if-a-table-contains-an-element-in-lua
+-- TODO make constructors that create a table and add add/remove/contains as methods to the metatable
+
+require "stdlib"
+function set_add(set, key)      set[key] = true         end
+function set_remove(set, key)   set[key] = nil          end
+function set_contains(set, key) return set[key] ~= nil  end
+function set_print(set) 
+  for k,v in pairs(set) do
+    printf("%s : %s\n", tostring(k), tostring(v))
+  end
+end
+

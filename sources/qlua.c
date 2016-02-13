@@ -49,6 +49,9 @@
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
+#ifdef HAS_TWISTED
+#include "qtwisted.h"                                                /* DEPS */
+#endif
 #ifdef HAS_MDWF
 #include "qmdwf.h"                                                   /* DEPS */
 #endif
@@ -65,6 +68,7 @@
 #include "qqopqdp.h"                                                 /* DEPS */
 #endif
 
+#include "versions.inc"                                              /* DEPS */
 
 #define NORMALIZE_INDEX(L, idx) do if (idx < 0) idx = lua_gettop(L) + 1 + idx; while (0)
 
@@ -83,17 +87,20 @@ static struct {
     char *name;
     char *value;
 } versions[] = {
-    {"qlua",  "QLUA version " QLUA_VERSION},
+    {"qlua",   QLUA_VERSION},
     {"lua",    LUA_VERSION },
     {"qdp",    QDP_VERSION },
 #ifdef HAS_AFF
-    {"aff",    LHPC_AFF_VERSION },
+    {"aff",    AFF_VERSION },
 #endif
 #ifdef HAS_HDF5
     {"hdf5",    HDF5_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
+#endif
+#ifdef HAS_TWISTED
+    {"twisted", TWISTED_VERSION },
 #endif
 #ifdef HAS_MDWF
     {"mdwf", MDWF_VERSION },
@@ -112,6 +119,29 @@ static struct {
 #endif
 #ifdef HAS_QOPQDP
     {"qopqdp", QOPQDP_VERSION },
+#endif
+#ifdef SFC_VERSION
+    {"sfc", SFC_VERSION },
+#endif
+#ifdef QA0_VERSION
+    {"qa0", QA0_VERSION },
+#endif
+#ifdef QMP_VERSION
+    {"qmp", QMP_VERSION },
+#endif
+#ifdef QLA_VERSION
+    {"qla", QLA_VERSION },
+#endif
+#ifdef QIO_VERSION
+    {"qio", QIO_VERSION },
+#endif
+#ifdef HAS_ARPACK
+#ifdef ARPACK_VERSION
+    {"arpack", ARPACK_VERSION },
+#endif
+#ifdef LAPACK_VERSION
+    {"lapack", LAPACK_VERSION },
+#endif
 #endif
     {"colors",   (
 #if USE_Nc2
@@ -536,6 +566,20 @@ qlua_checktable(lua_State *L, int idx, const char *fmt, ...)
 }
 
 int
+qlua_checkopt_paramtable(lua_State *L, int idx)
+{
+  if (lua_gettop(L) < idx)
+    return 0;
+  if (lua_type(L, idx) == LUA_TNONE 
+        || lua_type(L, idx) == LUA_TNIL)
+    return 0;
+  qlua_checktable(L, idx, "optional argument");
+  if (lua_objlen(L, 2) <= 0)
+    return 0;
+  return 1;
+}
+
+int
 qlua_checkopt_table(lua_State *L, int idx)
 {
   if (lua_gettop(L) < idx)
@@ -616,6 +660,34 @@ qlua_push_key_object(lua_State *L, int idx, const char *key)
 }
 
 int
+qlua_tabkey_bool(lua_State *L, int idx, const char *key)
+{
+  int v;
+  
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting boolean in { %s = ...}", key);
+  v = lua_toboolean(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+int
+qlua_tabkey_boolopt(lua_State *L, int idx, const char *key, int def)
+{
+  int v;
+
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    return def;
+  v = lua_toboolean(L, -1);
+  lua_pop(L, 1);
+
+  return v;
+}
+
+int
 qlua_tabkey_int(lua_State *L, int idx, const char *key)
 {
   int v;
@@ -650,8 +722,8 @@ qlua_tabidx_int(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting integer in { %s = ...}", key);
-  v = qlua_checkint(L, -1, "expecting interger in { %s = ...}", key);
+    luaL_error(L, "expecting integer in { [%d] = ...}", key);
+  v = qlua_checkint(L, -1, "expecting interger in { [%d] = ...}", key);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
   return v;
@@ -692,11 +764,50 @@ qlua_tabidx_double(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting double in { %s = ...}", key);
+    luaL_error(L, "expecting double in { [%d] = ...}", key);
   v = luaL_checknumber(L, -1);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
   return v;
+}
+
+static void
+get_complex(lua_State *L, double *rptr, double *iptr, const char *msg)
+{
+  switch (qlua_qtype(L, -1)) {
+  case qReal:
+    *rptr = lua_tonumber(L, -1);
+    *iptr = 0.0;
+    break;
+  case qComplex: {
+    QLA_D_Complex *z = qlua_checkComplex(L, -1);
+    *rptr = QLA_real(*z);
+    *iptr = QLA_imag(*z);
+  } break;
+  default:
+    luaL_error(L, "expecting real or complex for %s", msg);
+  }
+  lua_pop(L, 1);
+}
+
+void
+qlua_tabkey_complex(lua_State *L, int idx, const char *key, double *rptr, double *iptr, const char *msg)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting complex in { %s = ...}", key);
+  get_complex(L, rptr, iptr, msg);
+  return;
+}
+
+void
+qlua_tabidx_complex(lua_State *L, int idx, int key, double *rptr, double *iptr, const char *msg)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_idx(L, idx, key))
+    luaL_error(L, "expecting complex in { [%d] = ...}", key);
+  get_complex(L, rptr, iptr, msg);
+  return;
 }
 
 const char *
@@ -732,7 +843,7 @@ qlua_tabidx_string(lua_State *L, int idx, int key)
 
   NORMALIZE_INDEX(L, idx);
   if (!qlua_tabpushopt_idx(L, idx, key))
-    luaL_error(L, "expecting string in { %s = ...}", key);
+    luaL_error(L, "expecting string in { [%d] = ...}", key);
   v = luaL_checkstring(L, -1);
   lua_pop(L, 1); /* expect the user not to drop the object */
 
@@ -885,6 +996,19 @@ int
 qlua_checkgammabinary(lua_State *L, int n)
 {
     return qlua_checkindex(L, n, "n", 16);
+}
+
+void
+qlua_get_complex_vector(lua_State *L, int idx, int dim, QLA_D_Complex cv[], const char *msg)
+{
+  int i;
+
+  luaL_checktype(L, idx, LUA_TTABLE);
+  for (i = 0; i < dim; i++) {
+    double rv, iv;
+    qlua_tabidx_complex(L, idx, i + 1, &rv, &iv, msg);
+    QLA_c_eq_r_plus_ir(cv[i], rv, iv);
+  }
 }
 
 void *
@@ -1270,6 +1394,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_CLOVER
         init_clover,
 #endif
+#ifdef HAS_TWISTED
+        init_twisted,
+#endif
 #ifdef HAS_MDWF
         init_mdwf,
 #endif
@@ -1346,6 +1473,9 @@ qlua_fini(void)
 #endif
 #ifdef HAS_MDWF
         fini_mdwf,
+#endif
+#ifdef HAS_TWISTED
+        fini_twisted,
 #endif
 #ifdef HAS_CLOVER
         fini_clover,

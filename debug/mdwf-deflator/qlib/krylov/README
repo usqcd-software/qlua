@@ -1,0 +1,17 @@
+Generic linear solvers
+
+An operator is expected to provide the following methods:
+
+:rnd()          -- return the random generator state
+:lattice()      -- return the lattice object of the operator
+:zeroVector()   -- return a zero vector
+:randomVector() -- return a random vector
+:apply(v)       -- apply the operator to a vector
+:applyT(v)      -- apply the transpose of M to v
+:dot(v,w)       -- returns a dot product of two vectors (real number)
+:norm(v)        -- returns the norm of the vector
+:axpy(a,v,w)    -- computes a * v + w, a is a real number
+:scale(a,v)     -- computs a * v, a is a real number
+:residue(x,b)   -- computes b - M x
+:error(x,b)     -- computes |b - M x|
+

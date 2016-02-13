@@ -20,6 +20,8 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 #LD='mpicc -m64 -fno-underscoring' \
 #
 
+#CC='mpicc -fopenmp -m64 -std=c99 -DDEBUG_MDWF_EOPC2' \
+
 CC='mpicc -fopenmp -m64 -std=c99' \
 LD='mpif77 -fopenmp -m64 -fno-underscoring' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
@@ -33,16 +35,18 @@ LIBS='-lz' \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-hdf5=$PACKTOP/hdf5                               \
    --with-qopqdp=$PACKTOP/qopqdp                           \
+   --with-clover=$PACKTOP/clover                           \
+   --clover-nc=$Nc                                         \
+   --twisted-nc=$Nc                                        \
+   --with-mdwf=$PACKTOP/mdwf                               \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
-#   --with-clover=$DEVTOP/clover-working                    \
-#   --clover-nc=$Nc                                         \
+#   --with-twisted=$PACKTOP/twisted-working                 \
 #   --with-mdwf=$DEVTOP/mdwf-working                        \
-#   --with-mdwf=$PACKTOP/mdwf                               \
-#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
 #   --with-nc=N                                             \
