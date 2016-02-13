@@ -154,16 +154,17 @@ ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
               gen_laplace.c \
-	      h5common.c \
 	      qparam.c \
-	      laph_wf_baryon.c \
-	      save-q2pt.c \
-	      save-q3pt.c \
-	      laph_common.c \
 	      save_npr.c \
 	      extras_common.c \
 	      lat_ft.c
-
+ifneq ("$(HAVE_HDF5)", "")
+  extrasrc += h5common.c \
+	      laph_wf_baryon.c \
+	      save-q2pt.c \
+	      save-q3pt.c \
+	      laph_common.c 
+endif
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
 endif
