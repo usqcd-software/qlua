@@ -2,19 +2,53 @@
 --require "latvec"
 require "gauge"
 
--- conversion between 4d and 5d sources, compatible with the built-in solvers
-function dwf_src_4to5(src_4d, L5)
-  local src_5d = {}
-  src_5d[1]  = (.5*(1 + gamma{mu=5})) *src_4d
+function dwf_y4to5(x_4d, L5)
+  -- extend 4d->5d with 'Y' vector
+  local x_5d = {}
+  x_5d[1]  = (.5*(1 - gamma{mu=5})) *x_4d
   for s = 1, L5-2 do
-    src_5d[1+s] = 0.*src_4d
+    x_5d[1+s] = 0.*x_4d
   end
-  src_5d[L5] = (.5*(1 - gamma{mu=5})) *src_4d
-  return src_5d
+  x_5d[L5] = (.5*(1 + gamma{mu=5})) *x_4d
+  return x_5d
 end
-function dwf_sol_5to4(sol_5d, L5)
-  return (.5*(1 - gamma{mu=5})) *sol_5d[1] + (.5*(1 + gamma{mu=5})) *sol_5d[L5]
+function dwf_y5to4(x_5d, L5)
+  -- project 5d->4d with 'Y' vector
+  return (.5*(1 - gamma{mu=5})) *x_5d[1] + (.5*(1 + gamma{mu=5})) *x_5d[L5]
 end
+
+function dwf_z4to5(x_4d, L5)
+  -- extend 4d->5d with 'Z' vector
+  local x_5d = {}
+  x_5d[1]  = (.5*(1 + gamma{mu=5})) *x_4d
+  for s = 1, L5-2 do
+    x_5d[1+s] = 0.*x_4d
+  end
+  x_5d[L5] = (.5*(1 - gamma{mu=5})) *x_4d
+  return x_5d
+end
+function dwf_z5to4(x_5d, L5)
+  -- project 5d->4d with 'Z' vector
+  return (.5*(1 + gamma{mu=5})) *x_5d[1] + (.5*(1 - gamma{mu=5})) *x_5d[L5]
+end
+
+dwf_src_4to5  = dwf_z4to5
+dwf_sol_5to4  = dwf_y5to4
+
+
+function dwf_reflect_inplace(x_5d, L5)
+  for i = 1, L5/2 do
+    local aux = x_5d[i]
+    x_5d[i] = x_5d[L5+1-i]
+    x_5d[L5+1-i] = x_5d[i]
+  end
+end
+function dwf_reflect(x_5d, L5)
+  local rx_5d = latvec_copy(x_5d)
+  dwf_reflect_inplace(rx_5d, L5)
+  return rx_5d
+end
+
 
 function latvec_op_mdwf_dminus(gauge_u, M5, c5, x, unused)
   -- multiply (array of) fermions with Dminus operator from Moebius definition
@@ -23,7 +57,7 @@ function latvec_op_mdwf_dminus(gauge_u, M5, c5, x, unused)
   assert(gauge_u and M5 and c5 and x)
   assert(nil == unused)
   local xw_x = latvec_op_xwilson(x, gauge_u)
-  if 'table' == x then
+  if 'table' == type(x) then
     local L5 = #x
     local c5 = latvec_asarray1d(c5, L5)
     local res = {}

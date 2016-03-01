@@ -187,7 +187,7 @@ do
     end
 
     local function solver_dirprop(rhs, print_residual, p1, p2)
-      sol = L:DiracPropagator()
+      local sol = L:DiracPropagator()
       for c = 0, 2 do
         for d = 0, 3 do
           local src = rhs[{c=c,d=d}]
@@ -262,7 +262,7 @@ do
     end
 
     local function solver_dirprop(rhs, print_residual, p1, p2)
-      sol = L:DiracPropagator()
+      local sol = L:DiracPropagator()
       for c = 0, 2 do
         for d = 0, 3 do
           local src = rhs[{c=c,d=d}]
