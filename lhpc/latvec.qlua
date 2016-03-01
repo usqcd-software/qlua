@@ -564,11 +564,11 @@ function print_latvec_cmp(a, b, title)
   end
 end
 function latvec_rdiff(a,b) -- compute 2*|a - b| / (|a| + |b|)
-  local a_n2 = latvec_norm2(a)
-  local b_n2 = latvec_norm2(b)
-  local amb  = latvec_norm2(latvec_axpy(-1., a, b))
-  if 0. == a_n2 and 0. == b_n2 then return 0.
-  else return 2.*amb / (a_n2 + b_n2) end
+  local a_nrm = math.sqrt(latvec_norm2(a))
+  local b_nrm = math.sqrt(latvec_norm2(b))
+  local amb_nrm  = math.sqrt(latvec_norm2(latvec_axpy(-1., a, b)))
+  if 0. == a_nrm and 0. == b_nrm then return 0.
+  else return 2.*amb_nrm / (a_nrm + b_nrm) end
 end
   
 
