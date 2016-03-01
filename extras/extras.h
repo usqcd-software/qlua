@@ -66,10 +66,12 @@ gen_laplace_P(lua_State *L,
 int q_save_bb(lua_State *L);
 
 
+#ifdef HAS_HDF5
 int q_save_laph_wf_baryon_pwave(lua_State *L);
 int q_save_q2pt_list(lua_State *L);
 int q_save_q2pt(lua_State *L);
 int q_save_q3pt_0deriv_selectspin(lua_State *L);
+#endif /* defined(HAS_HDF5) */
 int q_save_npr_prop(lua_State *L);
 int q_save_npr_2qvertex(lua_State *L);
 

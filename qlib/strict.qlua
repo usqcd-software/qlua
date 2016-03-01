@@ -25,6 +25,9 @@ mt.__newindex = function (t, n, v)
   if not mt.__declared[n] then
     local w = what()
     if w ~= "main" and w ~= "C" then
+      -- Hokusai fix to see the error
+      io.stderr:write(string.format("assign to undeclared variable '%s'", n))
+      io.stderr:flush()
       error("assign to undeclared variable '"..n.."'", 2)
     end
     mt.__declared[n] = true
@@ -34,6 +37,8 @@ end
   
 mt.__index = function (t, n)
   if not mt.__declared[n] and what() ~= "C" then
+    io.stderr:write(string.format("variable '%s' is not declared", n))
+    io.stderr:flush()
     error("variable '"..n.."' is not declared", 2)
   end
   return rawget(t, n)

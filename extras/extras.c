@@ -245,10 +245,12 @@ static struct luaL_Reg fExtra[] = {
 #ifdef HAS_GSL
     { "baryon_duu",                 q_baryon_duu },
 #endif /* defined(HAS_GSL) */
+#ifdef HAS_HDF5
     { "save_laph_wf_baryon_pwave",  q_save_laph_wf_baryon_pwave },
     { "save_q2pt",                  q_save_q2pt },
     { "save_q2pt_list",             q_save_q2pt_list },
     { "save_q3pt_selectspin",       q_save_q3pt_0deriv_selectspin },
+#endif /* defined(HAS_HDF5) */
     { "save_npr_prop",              q_save_npr_prop },
     { "save_npr_2qvertex",          q_save_npr_2qvertex },
     { NULL,         NULL }
