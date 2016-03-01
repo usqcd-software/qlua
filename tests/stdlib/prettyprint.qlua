@@ -1,0 +1,14 @@
+package.path = 'qlib/?.qlua;qlib-lhpc/?.qlua;' .. package.path
+require "strict"
+require "stdlib"
+require "setup_util"
+
+pm1={-1,0,1}
+range_hyp = range_prod({pm1, pm1, pm1, {0}}, 
+                    function(x)return(x[1]^2+x[2]^2+x[3]^2<=5)end)
+--print_obj(range_hyp, "range_hyp")
+spprint = function(x) return string.format('%2d', x) end
+--print(spprint_table(range_hyp, '', nil))
+--print(spprint_table(range_hyp, '', 0, spprint))
+print(spprint_table(range_hyp, '', 1, spprint))
+--print(spprint_table(range_hyp, '', 2, spprint))
