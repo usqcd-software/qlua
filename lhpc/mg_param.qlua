@@ -97,3 +97,20 @@ function make_mg_params(
   return res
 end
 
+function check_mg_param(mg_param, opt)
+  local status = true
+  if nil ~= opt.network then
+    for lev,t in pairs(mg_param.multigrid) do
+      assert (#(t.lattice) == #(opt.network))
+      for mu = 1, #(t.lattice) do
+        if 0 ~= t.lattice[mu] % opt.network[mu] then
+          error(string.format("check_mg_param: bad mg[%d].lattice[%d]=%d: not divisible by network[%d]=%d\n",
+                  lev, mu, t.lattice[mu], mu, opt.network[mu]))
+          return false
+        end
+      end
+    end
+  end
+  
+  return status
+end
