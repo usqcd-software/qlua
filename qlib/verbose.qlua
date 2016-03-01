@@ -37,3 +37,32 @@ function print_obj(t, name)
     printf("%s : (%s) %s\n", name, type(t), tostring(t))
   end
 end
+
+function spprint_table(t, indent, level, spprint_elem)
+  -- pretty-print a table into a string 
+  -- level: how many nested levels to put onto a separate line
+  spprint_elem = spprint_elem or tostring
+  local ind_sh = '  ' -- for each new level
+  local tab_start = '{ '
+  local tab_end   = ' }'
+  local tab_sep   = ', '
+  if 'table' == type(t) then
+    local sep = tab_sep
+    local newindent = indent .. ind_sh
+    local newlevel = nil
+    if nil ~= level then newlevel = level - 1 end
+    if nil == level or 0 < level then
+      sep = string.format(',\n%s', newindent)
+    end
+    if #t <= 0 then return '{}'
+    else
+      local res = string.format('%s%s', tab_start, 
+          spprint_table(t[1], newindent, newlevel, spprint_elem))
+      for it=2, #t do
+        res = string.format('%s%s%s', res, sep,
+          spprint_table(t[it], newindent, newlevel, spprint_elem))
+      end
+      return string.format('%s%s', res, tab_end)
+    end
+  else return spprint_elem(t) end
+end

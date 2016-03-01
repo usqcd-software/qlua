@@ -67,6 +67,37 @@ function make_mom_list_4d(mom2_max, mom_t)
   return mom_list
 end
 
+function range_prod(ranges, filter)
+  -- create direct product of ranges : 
+  --    ranges = {range1, range2, ....}
+  --    return { {x1,x2, ...} for x1 in range1 for x2 in range2 ... }
+  --    XXX x1 changes fastest
+  if #ranges <= 0 then return {} 
+  elseif 1 == #ranges then
+    local res = {}
+    for _,x in pairs(ranges[1]) do 
+      if ( (not filter) or filter({x}) ) then 
+        res[1+#res] = {x} 
+      end
+    end
+    return res
+  else
+    local rhead = {}
+    for ir=1, #ranges-1 do rhead[ir] = ranges[ir] end -- first (n-1) ranges
+    local res = {}
+    local chead_list = range_prod(rhead)
+    for ix,x in pairs(ranges[#ranges]) do --iteration over the last coord
+      for _,chead in pairs(chead_list) do
+        local c = copy_table(chead)
+        c[1+#c] = x
+        if ( (not filter) or filter(c) ) then 
+          res[1+#res] = c
+        end
+      end
+    end
+    return res
+  end
+end
 
 function gauge_set_bc(u, bc)
   -- TODO there is a function in gauge.qlua that does it

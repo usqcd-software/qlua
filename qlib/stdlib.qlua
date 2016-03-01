@@ -58,7 +58,7 @@ function range(lo, hi, step)
   if nil == step  then step = 1 end
   local res = {}
   while (lo < hi) == (0 < step) do -- sic! logical XOR
-    res:insert(lo)
+    table.insert(res, lo)
     lo = lo + step
   end
   return res
@@ -107,3 +107,23 @@ function table_index(clist, cx)
   end
   return nil
 end
+--function table_copy(
+function copy_table(tab, level)
+  -- deep-copy a table down to `level' 
+  -- no non-table elements are duplicated (only copied by reference)
+  -- examples : all the following will return a new table (a,b,c,d are tables)
+  --    copy_table({a,b,{c,d}}, 0) will return {a,b,{c,d}}
+  --    copy_table({a,b,{c,d}}, 1) will return {a1,b1,{c,d}} where a1,b1 are duplicates of a,b
+  --    copy_table({a,b,{c,d}}, 2) will return {a1,b1,{c1,d1}} where a1,b1,c1,d1 are duplicates of a,b,c,d
+  --    copy_table({a,b,{c,d}}) will complete deep-copy of the argument table
+  local res = {}
+  for k,v in pairs(tab) do
+    if 'table' == type(v) then
+      if nil == level then res[k] = copy_table(v) 
+      elseif (0 < level) then res[k] = copy_table(v, level - 1)
+      else res[k] = v end
+    else res[k] = v end
+  end
+  return res
+end
+table_copy = copy_table
