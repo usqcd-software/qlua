@@ -168,7 +168,7 @@ ifeq ("@extras@", "true")
 	      save_npr.c \
 	      extras_common.c \
 	      lat_ft.c
-ifneq ("$(HAVE_HDF5)", "")
+ifneq ("$(HDF5)", "")
   extrasrc += h5common.c \
 	      laph_wf_baryon.c \
 	      save-q2pt.c \
