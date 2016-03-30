@@ -117,13 +117,14 @@ do  -- sns, flexible with matter(fundamental rep) fields, inc. adjoint flow
     -- and f_adj_tab from t+eps to t
     --  return u, f_tab, f_adj_tab
     local u0123 = gradflow_rkstep_gauge_nodes(eps, u)
+    u = u0123[#u0123]
     local fres_tab = {}
     for k, f in pairs(f_tab or {}) do
       fres_tab[k] = gradflow_rkstep_field(eps, u0123, f)
     end
     local fres_adj_tab = {}
     for k, fadj in pairs(f_adj_tab or {}) do
-      fres_adj_tab[k] = gradflow_rkstep_field(eps, u0123, fadj)
+      fres_adj_tab[k] = gradflow_rkstep_field_adj(eps, u0123, fadj)
     end
     return u, fres_tab, fres_adj_tab
   end
