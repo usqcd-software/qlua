@@ -39,3 +39,137 @@ function wilson_flow(U, eps, opt)
    end
    return update(U,tmp);
 end
+
+
+do  -- sns, flexible with matter(fundamental rep) fields, inc. adjoint flow
+  -- 1302.5246
+  local function staple(u, mu)
+    assert(0 < #u)
+    local L = u[1].lattice
+    assert(#L == #u)
+    local st = u[1] * 0.
+    for nu in skip(mu, interval(1,#L)) do
+      st = (st +  u[nu] * u[mu]:shift(nu-1,"from_forward") * u[nu]:shift(mu-1,"from_forward"):adjoin()
+               + (u[nu]:adjoin() * u[mu] * u[nu]:shift(mu-1,"from_forward")):shift(nu-1,"from_backward"))
+    end
+    return st
+  end
+
+  function gradflow_rkstep_gauge_nodes(eps, u)
+    -- compute and return gauge field at rk nodes :
+    --  u1=u(t+1/4*eps), u2=u(t+2/3*eps), u3=u(t+eps)
+    local u1, u2, u3 = {}, {}, {}
+    local st = {}
+    for mu = 1,#u do
+      st[mu] = staple(u, mu) * u[mu]:adjoin()
+      u1[mu] = toSUn((eps/4.0) * st[mu]) * u[mu]
+    end
+    for mu = 1,#u do
+      st[mu]  = (8.0/9.0)*(staple(u1, mu) * u1[mu]:adjoin()) - (17.0/36.0)*st[mu]
+      u2[mu]  = toSUn(eps * st[mu]) * u1[mu]
+    end
+    for mu = 1,#u do
+      st[mu] = (3.0/4.0)*(staple(u2, mu) * u2[mu]:adjoin()) - st[mu]
+      u3[mu] = toSUn(eps * st[mu]) * u2[mu]
+    end
+    return { u, u1, u2, u3 }
+  end
+  function gradflow_rkstep_gauge(eps, u)
+    local un = gradflow_rkstep_gauge_nodes(eps, u)
+    return un[#un]
+  end
+  function gradflow_rkint_gauge(eps, n, u)
+    -- integrate gauge from t to t+n*eps, return u(t+n*eps)
+    for i = 1, n do
+      u = gradflow_rkstep_gauge(eps, u)
+    end
+    return u
+  end
+  function gradflow_rkint_gaugelist(eps, n, u)
+    -- integrate gauge from t to t+n*eps, return
+    --  ulist = { u(t), u(t+eps), ..., u(t+n*eps) }, #ulist==(n+1)
+    local u_list = { u }
+    for i = 1, n do
+      u = gradflow_rkstep_gauge(eps, u)
+      u_list[i+1] = u
+    end
+    return u_list
+  end
+
+  function gradflow_rkstep_field(eps, u012, f)
+    -- integrate f from t to t+eps
+    --  u012 = { u(t), u(t+1/4*eps), u(t+2/3*eps) }
+    local k0  = qcd.laplacian(0, eps, u012[1], f)
+    local k1  = qcd.laplacian(0, eps, u012[2], f + 0.25*k0)
+    local k2  = qcd.laplacian(0, eps, u012[3], f - (2./9.)*k0 + (8./9.)*k1)
+    return f + 0.25*k0 + 0.75*k2
+  end
+  function gradflow_rkstep_field_adj(eps, u012, f3)
+    -- integrate fadj from t+eps to t
+    --  u012 = { u(t), u(t+1/4*eps), u(t+2/3*eps) }
+    local k2  = qcd.laplacian(0, eps, u012[3], f3)
+    local k1  = qcd.laplacian(0, eps, u012[2],      0.75*k2)
+    local k0  = qcd.laplacian(0, eps, u012[1], f3 - (2./3.)*k2 + (8./9.)*k1)
+    return f3 + 0.75*k2 + (8./9.)*k1 + 0.25*k0
+  end
+  function gradflow_rkstep_gauge_field(eps, u, f_tab, f_adj_tab)
+    -- integrate gauge u, f_tab from t to t+eps
+    -- and f_adj_tab from t+eps to t
+    --  return u, f_tab, f_adj_tab
+    local u0123 = gradflow_rkstep_gauge_nodes(eps, u)
+    local fres_tab = {}
+    for k, f in pairs(f_tab or {}) do
+      fres_tab[k] = gradflow_rkstep_field(eps, u0123, f)
+    end
+    local fres_adj_tab = {}
+    for k, fadj in pairs(f_adj_tab or {}) do
+      fres_adj_tab[k] = gradflow_rkstep_field(eps, u0123, fadj)
+    end
+    return u, fres_tab, fres_adj_tab
+  end
+  function gradflow_rkint_gaugelist_field(eps, n, u, ftab0)
+    -- integrate u and ftab from t to t+n*eps
+    --  return ftab(t+n*eps), ulist:
+    --  ulist = { u(t), u(t+eps), ..., u(t+n*eps) }, #ulist==(n+1)
+    -- NOTE ftab0 is copied, not overwritten, but only on the top level
+    --  use deepcopy (or latvec_copy) for nested tables
+    -- FIXME replace table iteration with latvec_.. version
+    local ulist = { u }
+    local ftab = ftab0
+    if 'table' == type(ftab0) then
+      ftab = {}
+      for k,f in pairs(ftab0) do ftab[k] = f end
+    end
+    for i = 1, n do
+      local u0123 = gradflow_rkstep_gauge_nodes(eps, u)
+      u = u0123[#u0123]
+      ulist[i + 1] = u
+      if 'table' == type(ftab0) then
+        for k,f in pairs(ftab) do
+          ftab[k] = gradflow_rkstep_field(eps, u0123, f)
+        end
+      else ftab = gradflow_rkstep_field(eps, u0123, ftab) end
+    end
+    return ulist, ftab
+  end
+  function gradflow_rkint_field_adj(eps, n, ulist, ftab_n)
+    -- integrate ftab from t+n*eps to t using precomputed ulist,
+    --  ulist = { u(t), u(t+eps), ..., u(t+n*eps) }, #ulist==(n+1)
+    assert(n + 1 <= #ulist)
+    local ftab = ftab_n
+    if 'table' == type(ftab_n) then
+      ftab = {}
+      for k,f in pairs(ftab_n) do ftab[k] = f end
+    end
+    for i = 1, n do
+      local u0123 = gradflow_rkstep_gauge_nodes(eps, ulist[n + 1 - i])
+      if 'table' == type(ftab_n) then
+        for k,f in pairs(ftab) do
+          ftab[k] = gradflow_rkstep_field_adj(eps, u0123, f)
+        end
+      else ftab = gradflow_rkstep_field_adj(eps, u0123, ftab) end
+    end
+    return ftab
+  end
+
+end
