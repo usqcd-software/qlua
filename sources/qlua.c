@@ -666,6 +666,16 @@ qlua_push_key_object(lua_State *L, int idx, const char *key)
 }
 
 int
+qlua_tabkey(lua_State *L, int idx, const char *key)
+{
+  NORMALIZE_INDEX(L, idx);
+  if (!qlua_tabpushopt_key(L, idx, key))
+    luaL_error(L, "expecting { %s = ...}", key);
+
+  return lua_gettop(L);
+}
+
+int
 qlua_tabkey_bool(lua_State *L, int idx, const char *key)
 {
   int v;

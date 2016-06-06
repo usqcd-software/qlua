@@ -13,6 +13,10 @@ CC           = @cc@
 COPTS        = @copts@
 CFLAGS       = @cflags@
 
+CXX          = @cxx@
+CXXOPTS      = @cxxopts@
+CXXFLAGS     = @cxxflags@
+
 LD           = @ld@
 LDFLAGS      = @ldflags@
 LIBS         = @libs@
@@ -122,6 +126,8 @@ libsrc = fix.c \
          qdpcc_io.c \
          qomp.c
 
+libsrcxx =
+
 ###############################################################################
 ifneq ("$(AFF)", "")
   libsrc += aff_io.c
@@ -138,6 +144,7 @@ ifneq ("$(QOPQDP)", "")
 endif
 
 ifneq ("$(QUDA)", "")
+#  libsrcxx += qqudaxx.cpp
   libsrc += qquda.c
 endif
 
@@ -199,6 +206,7 @@ endif
 ###############################################################################
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
+libobjxx = $(libsrcxx:%.cpp=%.o)
 extraobj = $(extrasrc:%.c=%.o)
 hypreobj = $(hypresrc:%.c=%.o)
 program = $(driver:%.c=%)
@@ -214,6 +222,9 @@ endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
               $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(QUDA_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
+              $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS) $(QOPQDP_CF)
+CXXCMD  = $(CXX) -c $(CXXOPTS) -I. $(LUA:%=-I%/include) \
+              $(CXXFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(QUDA_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
               $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS) $(QOPQDP_CF)
 LCMD  = $(LD) $(COPTS) $(LDFLAGS) $(LUA:%=-L%/lib) \
               $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(QUDA_LF) $(CLOVER_LF) $(TWISTED_LF) $(MDWF_LF) $(HYPRE_LF) \
@@ -232,7 +243,7 @@ lib: $(library)
 
 clean:
 	$ECLEAN objects
-	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(hypreobj) $(library)
+	$C$(RM) $(drvobj) $(libobj) $(libobjxx) $(extraobj) $(hypreobj) $(library)
 
 realclean: clean
 	$ECLEAN executables
@@ -258,6 +269,11 @@ $(drvobj) $(libobj): %.o: sources/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Iextras -Ihypre -o $@ $<
 
+#XXX
+#$(libobjxx): %.o: sources/%.cpp
+#	$ECXX $@
+#	$C$(CXXCMD) -Isources -o $@ $<
+
 $(extraobj): %.o: extras/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Iextras -o $@ $<
@@ -266,12 +282,12 @@ $(hypreobj): %.o: hypre/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Ihypre -o $@ $<
 
-$(library): $(libobj) $(extraobj) $(hypreobj)
+$(library): $(libobj) $(libobjxx) $(extraobj) $(hypreobj)
 	$EAR $(library)
-	$C$(AR) cr $(library) $(libobj) $(extraobj) $(hypreobj)
+	$C$(AR) cr $(library) $(libobj) $(libobjxx) $(extraobj) $(hypreobj)
 	$C$(RANLIB) $(library)
 
-$(drvobj) $(libobj): Makefile deps
+$(drvobj) $(libobj) $(libobjxx): Makefile deps
 qlua.o: modules.h
 
 # dependencies not discoverable by utils/mkdeps

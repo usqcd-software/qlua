@@ -23,25 +23,25 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 
 #CC='mpicc -fopenmp -m64 -std=c99 -DDEBUG_MDWF_EOPC2' \
 
-CC='mpicc -fopenmp -m64 -std=c99' \
-LD='mpif77 -fopenmp -m64 -fno-underscoring' \
+CC='mpicc -m64' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
 COPTS='-g' \
-LIBS='-lz' \
+LD='mpic++ -fopenmp -m64 -fno-underscoring' \
+LIBS='-L/usr/local/cuda/lib -lz -lcudart_static -lc++' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
    --with-quda=$QUDATOP                                    \
-   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-hdf5=$PACKTOP/hdf5                               \
-   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
+#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
 #   --with-qopqdp=$PACKTOP/qopqdp                           \
 #   --with-clover=$PACKTOP/clover                           \
 #   --clover-nc=$Nc                                         \
