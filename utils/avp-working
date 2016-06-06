@@ -1,5 +1,6 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-working
+PACKTOP=$HOME/Local/packages/macosx-20160127
+QUDATOP=$HOME/Sandbox/USQCD/quda/build
 DEVTOP=$HOME/Local/packages
 Nc=3
 # noNc=3
@@ -32,21 +33,21 @@ LIBS='-lz' \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
+   --with-quda=$QUDATOP                                    \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-hdf5=$PACKTOP/hdf5                               \
-   --with-qopqdp=$PACKTOP/qopqdp                           \
-   --with-clover=$PACKTOP/clover                           \
-   --clover-nc=$Nc                                         \
-   --twisted-nc=$Nc                                        \
-   --with-mdwf=$PACKTOP/mdwf                               \
    --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
+#   --with-qopqdp=$PACKTOP/qopqdp                           \
+#   --with-clover=$PACKTOP/clover                           \
+#   --clover-nc=$Nc                                         \
 #   --with-twisted=$PACKTOP/twisted-working                 \
-#   --with-mdwf=$DEVTOP/mdwf-working                        \
+#   --twisted-nc=$Nc                                        \
+#   --with-mdwf=$PACKTOP/mdwf                               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
 #   --with-nc=N                                             \

@@ -46,6 +46,9 @@
 #ifdef HAS_HDF5
 #include "hdf5_io.h"                                                 /* DEPS */
 #endif
+#ifdef HAS_QUDA
+#include "qquda.h"                                                   /* DEPS */
+#endif
 #ifdef HAS_CLOVER
 #include "qclover.h"                                                 /* DEPS */
 #endif
@@ -95,6 +98,9 @@ static struct {
 #endif
 #ifdef HAS_HDF5
     {"hdf5",    HDF5_VERSION },
+#endif
+#ifdef HAS_QUDA
+    {"quda", QUDA_VERSION },
 #endif
 #ifdef HAS_CLOVER
     {"clover", CLOVER_VERSION },
@@ -1391,6 +1397,9 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_qdpc_io,
         init_ddpairs_io,
         init_qdpcc_io,
+#ifdef HAS_QUDA
+        init_quda,
+#endif
 #ifdef HAS_CLOVER
         init_clover,
 #endif
@@ -1479,6 +1488,9 @@ qlua_fini(void)
 #endif
 #ifdef HAS_CLOVER
         fini_clover,
+#endif
+#ifdef HAS_QUDA
+        fini_quda,
 #endif
         fini_qdpcc_io,
         fini_ddpairs_io,

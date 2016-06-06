@@ -37,6 +37,11 @@ HDF5_CF       = @hdf5_cflags@
 HDF5_LF       = @hdf5_ldflags@
 HDF5_LIBS     = @hdf5_libs@
 
+QUDA         = @quda@
+QUDA_CF      = @quda_cflags@
+QUDA_LF      = @quda_ldflags@
+QUDA_LIBS    = @quda_libs@
+
 CLOVER       = @clover@
 CLOVER_CF    = @clover_cflags@
 CLOVER_LF    = @clover_ldflags@
@@ -132,6 +137,10 @@ ifneq ("$(QOPQDP)", "")
              qqq-wmg.c
 endif
 
+ifneq ("$(QUDA)", "")
+  libsrc += qquda.c
+endif
+
 ifneq ("$(CLOVER)", "")
   libsrc += qclover.c
 endif
@@ -204,12 +213,13 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(QUDA_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
               $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS) $(QOPQDP_CF)
 LCMD  = $(LD) $(COPTS) $(LDFLAGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(TWISTED_LF) $(MDWF_LF) $(HYPRE_LF) \
+              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(QUDA_LF) $(CLOVER_LF) $(TWISTED_LF) $(MDWF_LF) $(HYPRE_LF) \
 	      $(ARPACK_LDFLAGS) $(QOPQDP_LF)
-LLIBS = $(QOPQDP_LIBS) $(CLOVER_LIBS) $(TWISTED_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
+LLIBS = $(QOPQDP_LIBS) $(QUDA_LIBS) \
+        $(CLOVER_LIBS) $(TWISTED_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
         $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) $(ARPACK_LIBS) \
         -llua $(LIBS)
 
