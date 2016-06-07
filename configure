@@ -46,8 +46,6 @@ show_help() {
    Environment variables:
      CC                      C compiler to use
      CFLAGS                  Flags to pass to the compiler
-     CXX                     C++ compiler to use
-     CXXFLAGS                Flags to pass to the C++ compiler
      LD                      Link editor to use
      LDFLAGS                 Flags to pass to the linker
      LIBS                    Additional libraries to use
@@ -80,9 +78,6 @@ docdir_loc=share/doc/qlua
 default_cc=gcc
 default_copts="-Wall -g"
 default_cflags=""
-default_cxx="g++"
-default_cxxopts="-Wall -g"
-default_cxxflags=""
 default_ld="gcc -g"
 default_ldflags=""
 default_ar=ar
@@ -171,9 +166,6 @@ normalize() {
   cc="${CC:-$default_cc}"
   copts="${COPTS:-$default_copts}"
   cflags="${CFLAGS:-$default_cflags}"
-  cxx="${CXX:-$default_cxx}"
-  cxxopts="${CXXOPTS:-$default_cxxopts}"
-  cxxflags="${CXXFLAGS:-$default_cxxflags}"
   default_ld="${cc:-$default_ld}"
   ld="${LD:-$default_ld}"
   ldflags="${LDFLAGS:-$default_ldflags}"
@@ -280,9 +272,6 @@ show_config() {
    echo "C compiler              $cc"
    [ -z "$copts" ] || echo "C optimization flags    $copts"
    [ -z "$cflags" ] || echo "Compiler flags          $cflags"
-   echo "C++ compiler            $cxx"
-   [ -z "$cxxopts" ]  || echo "  C++ options           $cxxopts"
-   [ -z "$cxxflags" ] || echo "  C++ flags             $cxxflags"
    echo "Link editor             $ld"
    [ -z "$ldflags" ] || echo "Linking flags           $ldflags"
    [ -z "$libs" ] || echo "Additional libraries    $libs"
@@ -323,9 +312,6 @@ build() {
       -e "s|@cc@|$cc|g" \
       -e "s|@cflags@|$cflags|g" \
       -e "s|@copts@|$copts|g" \
-      -e "s|@cxx@|$cxx|g" \
-      -e "s|@cxxflags@|$cxxflags|g" \
-      -e "s|@cxxopts@|$cxxopts|g" \
       -e "s|@ld@|$ld|g" \
       -e "s|@ldflags@|$ldflags|g" \
       -e "s|@libs@|$libs|g" \

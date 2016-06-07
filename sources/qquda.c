@@ -3,6 +3,8 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "qquda.h"                                                   /* DEPS */
 // #include "qqudaxx.hpp"                                               /* DEPS */
+#if 0 /* XXX */
+#include "quda.h"
 #include "quda_milc_interface.h"
 #include <string.h>
 
@@ -26,6 +28,7 @@ static int
 create_quda(lua_State *L)
 {
   if (in_quda_p == 0) {
+    /* extract arguments from lua */
     qlua_checktable(L, 1, "qcd.quda()");
     int dev = qlua_tabkey_intopt(L, 1, "device", 0);
     const char *verbose_name = qlua_tabkey_stringopt(L, 1, "verbosity", "silent");
@@ -50,7 +53,8 @@ create_quda(lua_State *L)
     args.layout.device = dev;
     args.layout.latsize = S->dim;
     args.layout.machsize = S->net;
-    
+
+    /* initialize the device */
     qudaInit(args);
     in_quda_p = 1;
     
@@ -60,9 +64,10 @@ create_quda(lua_State *L)
   luaL_error(L, "qcd.quda() called second time");
   return 0;
 }
+#endif /* XXX */
 
 static struct luaL_Reg fquda[] = {
-  { "quda",   create_quda },
+  /* XXXX { "quda",   create_quda }, */
   { NULL,     NULL }
 };
 
@@ -76,7 +81,10 @@ init_quda(lua_State *L)
 void
 fini_quda(void)
 {
+  /* free resources of GPU */
+#if 0 /* XXX */
   if (in_quda_p)
     qudaFinalize();
   in_quda_p = 0;
+#endif /* XXX */
 }
