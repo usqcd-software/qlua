@@ -76,12 +76,12 @@ QQ_ENUM(QudaGaugeFieldOrder)
   CHECK_VALUE("FLOAT_GAUGE_ORDER", QUDA_FLOAT_GAUGE_ORDER);
   CHECK_VALUE("FLOAT2_GAUGE_ORDER", QUDA_FLOAT2_GAUGE_ORDER);
   CHECK_VALUE("FLOAT4_GAUGE_ORDER", QUDA_FLOAT4_GAUGE_ORDER);
-  CHECK_VALUE("QDP_GAUGE_ORDER,", QUDA_QDP_GAUGE_ORDER);
-  CHECK_VALUE("QDPJIT_GAUGE_ORDER,", QUDA_QDPJIT_GAUGE_ORDER);
-  CHECK_VALUE("CPS_WILSON_GAUGE_ORDER,", QUDA_CPS_WILSON_GAUGE_ORDER);
-  CHECK_VALUE("MILC_GAUGE_ORDER,", QUDA_MILC_GAUGE_ORDER);
-  CHECK_VALUE("BQCD_GAUGE_ORDER,", QUDA_BQCD_GAUGE_ORDER);
-  CHECK_VALUE("TIFR_GAUGE_ORDER,", QUDA_TIFR_GAUGE_ORDER);
+  CHECK_VALUE("QDP_GAUGE_ORDER", QUDA_QDP_GAUGE_ORDER);
+  CHECK_VALUE("QDPJIT_GAUGE_ORDER", QUDA_QDPJIT_GAUGE_ORDER);
+  CHECK_VALUE("CPS_WILSON_GAUGE_ORDER", QUDA_CPS_WILSON_GAUGE_ORDER);
+  CHECK_VALUE("MILC_GAUGE_ORDER", QUDA_MILC_GAUGE_ORDER);
+  CHECK_VALUE("BQCD_GAUGE_ORDER", QUDA_BQCD_GAUGE_ORDER);
+  CHECK_VALUE("TIFR_GAUGE_ORDER", QUDA_TIFR_GAUGE_ORDER);
 #undef CHECK_VALUE
   luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
 }
@@ -230,17 +230,24 @@ QQ_ENUM(QudaCloverFieldOrder)
   luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
 }
 
-QQ_ENUM(QudaVerbosity)
+static QudaVerbosity
+qq_str2verbosity(lua_State *L, const char *val, const char *tp, const char *name, QudaVerbosity def)
 {
-  const char *val = qlua_tabkey_stringopt(L, idx, name, NULL);
-  if (val == NULL) return;
-#define CHECK_VALUE(str_val, t_val) if (strcmp(val, str_val) == 0) { *ptr = t_val; return; }
+  if (val == NULL) return def;
+#define CHECK_VALUE(str_val, t_val) if (strcmp(val, str_val) == 0) return t_val;
   CHECK_VALUE("SILENT", QUDA_SILENT);
   CHECK_VALUE("SUMMARIZE", QUDA_SUMMARIZE);
   CHECK_VALUE("VERBOSE", QUDA_VERBOSE);
   CHECK_VALUE("DEBUG_VERBOSE", QUDA_DEBUG_VERBOSE);
 #undef CHECK_VALUE
   luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return def;
+}
+
+QQ_ENUM(QudaVerbosity)
+{
+  const char *val = qlua_tabkey_stringopt(L, idx, name, NULL);
+  *ptr = qq_str2verbosity(L, val, tp, name, *ptr);
 }
 
 QQ_ENUM(QudaTune)
@@ -618,80 +625,200 @@ qq_invert_param(lua_State *L)
   return 1;
 }
 
-#if 0 /* XXX no QudaEig related stuff yet */
-/***** QudaEigParam */
-#if 0 /* XXX */
-QudaEigType eig_type;
-QudaInvertParam *invert_param; /* XXX this is troublesome */
-QudaSolutionType  RitzMat_Convcheck;
-QudaSolutionType  RitzMat_lanczos;
-double *MatPoly_param; /* XXX this is troublesome too */
-double Stp_residual;
-double eigen_shift;
-int NPoly;
-int f_size;
-int nk;
-int np;
-#endif /* XXX */
-
-static struct luaL_Reg mtEigParam[] = {
-  { NULL, NULL }
-};
-
 static int
-qq_eig_param(lua_State *L)
+qq_initQudaMemory(lua_State *L)
 {
-  /* XXX */
+  initQudaMemory();
   return 0;
 }
-#endif /* XXX Eig-related stuff off */
 
-#if 0 /* XXXX Quda interface functions */
-void initQudaMemory();
-void endQuda();
-void freeGaugeQuda();
-void freeCloverQuda();
-double qChargeCuda();
-void openMagma();
-void closeMagma();
+static int
+qq_endQuda(lua_State *L)
+{
+  endQuda();
+  return 0;
+}
 
-void initQudaDevice(int device);
-void initQuda(int device);
+static int
+qq_freeGaugeQuda(lua_State *L)
+{
+  freeGaugeQuda();
+  return 0;
+}
 
-void plaqQuda(double plaq[3]);
+static int
+qq_freeCloverQuda(lua_State *L)
+{
+  freeCloverQuda();
+  return 0;
+}
 
-void setVerbosityQuda(QudaVerbosity verbosity, const char prefix[], FILE *outfile);
-void initCommsGridQuda(int nDim, const int *dims, QudaCommsMap func, void *fdata);
-void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param);
-void saveGaugeQuda(void *h_gauge, QudaGaugeParam *param);
-void loadCloverQuda(void *h_clover, void *h_clovinv, QudaInvertParam *inv_param);
-void invertQuda(void *h_x, void *h_b, QudaInvertParam *param);
-void performAPEnStep(unsigned int nSteps, double alpha);
-void projectSU3Quda(void *gauge_h, double tol, QudaGaugeParam *param);
-void destroyDeflationQuda(QudaInvertParam *param, const int *X, void *_h_u, double *inv_eigenvals);
+static int
+qq_qChargeCuda(lua_State *L)
+{
+  double q = qChargeCuda();
+  lua_pushnumber(L, q);
+  return 1;
+}
 
-void dslashQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity);
-void dslashQuda_4dpc(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
-void dslashQuda_mdwf(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
-void cloverQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity *parity, int inverse);
-void MatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
-void MatDagMatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
-void* createExtendedGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param);
-void* createGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param);
-void saveGaugeFieldQuda(void* outGauge, void* inGauge, QudaGaugeParam* param);
-void  extendGaugeFieldQuda(void* outGauge, void* inGauge);
-void destroyGaugeFieldQuda(void* gauge);
-void createCloverQuda(QudaInvertParam* param);
-void computeCloverTraceQuda(void* out, void* dummy, int mu, int nu, int dim[4]);
+static int
+qq_openMagma(lua_State *L)
+{
+  openMagma();
+  return 0;
+}
 
-#endif /* XXXX Quda interface functions */
+static int
+qq_closeMagma(lua_State *L)
+{
+  closeMagma();
+  return 0;
+}
+
+static int
+qq_initQudaDevice(lua_State *L)
+{
+  int dev = luaL_checkint(L, 1);
+  initQudaDevice(dev);
+
+  return 0;
+}
+
+static int
+qq_initQuda(lua_State *L)
+{
+  int dev = luaL_checkint(L, 1);
+  initQuda(dev);
+
+  return 0;
+}
+
+static int
+qq_plaqQuda(lua_State *L)
+{
+  double plaq[3];
+  plaqQuda(plaq);
+  lua_pushnumber(L, plaq[0]);
+  lua_pushnumber(L, plaq[1]);
+  lua_pushnumber(L, plaq[2]);
+
+  return 3;
+}
+
+static int
+qq_setVerbosityQuda(lua_State *L)
+{
+  QudaVerbosity verb = qq_str2verbosity(L, luaL_checkstring(L, 1),
+					"setQudaVerbosity", "verbosity", QUDA_SILENT);
+  const char *prefix = luaL_checkstring(L, 2);
+  setVerbosityQuda(verb, prefix, stdout);
+
+  return 0;
+}
+
+static int
+qq_initCommsGridQuda(lua_State *L)
+{
+  // XXXX void initCommsGridQuda(int nDim, const int *dims, QudaCommsMap func, void *fdata); // from Lattice
+  return 0;
+}
+
+static int
+qq_loadGaugeQuda(lua_State *L)
+{
+  // XXXX void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param); // ? see milc and chroma
+  return 0;
+}
+
+static int
+qq_loadCloverQuda(lua_State *L)
+{
+  // XXXX void loadCloverQuda(void *h_clover, void *h_clovinv, QudaInvertParam *inv_param); //?
+  return 0;
+}
+
+static int
+qq_invertQuda(lua_State *L)
+{
+  // XXXX void invertQuda(void *h_x, void *h_b, QudaInvertParam *param); //?
+  return 0;
+}
+
+static int
+qq_performAPEnStep(lua_State *L)
+{
+  int nSteps = luaL_checkint(L, 1);
+  double alpha = luaL_checknumber(L, 2);
+  performAPEnStep(nSteps, alpha);
+
+  return 0;
+}
+
+static int
+qq_projectSU3Quda(lua_State *L)
+{
+  // XXXX void projectSU3Quda(void *gauge_h, double tol, QudaGaugeParam *param); // ?
+  return 0;
+}
+
+static int
+qq_destroyDeflationQuda(lua_State *L)
+{
+  // XXXX void destroyDeflationQuda(QudaInvertParam *param, const int *X, void *_h_u, double *inv_eigenvals); //?
+  return 0;
+}
+
+static int
+qq_dslashQuda(lua_State *L)
+{
+  // XXXX void dslashQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity);
+  return 0;
+}
+
+#if 0 /* XXXX quda functions that are not used by MILC and/or CHROMA */
+// not used in Chroma
+// void saveGaugeQuda(void *h_gauge, QudaGaugeParam *param); // ?
+// void* createExtendedGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param); // used in milc interface
+// void* createGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param);
+// void destroyGaugeFieldQuda(void* gauge);
+//
+
+// void createCloverQuda(QudaInvertParam* param);
+// void dslashQuda_4dpc(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
+// void dslashQuda_mdwf(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
+// void cloverQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity *parity, int inverse);
+// void MatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
+// void MatDagMatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
+// void saveGaugeFieldQuda(void* outGauge, void* inGauge, QudaGaugeParam* param);
+// void  extendGaugeFieldQuda(void* outGauge, void* inGauge);
+// void computeCloverTraceQuda(void* out, void* dummy, int mu, int nu, int dim[4]);
+#endif
 
 static struct luaL_Reg fquda[] = {
-  {"GaugeParam",    qq_gauge_param },
-  {"InvertParam",   qq_invert_param },
-  // XXX {"EigParam",      qq_eig_param },
-  /* XXX */
-  { NULL,     NULL }
+  /* QUDA structures */
+  {"GaugeParam",              qq_gauge_param           },
+  {"InvertParam",             qq_invert_param          },
+  /* QUDA functions */
+  {"initCommsGridQuda",       qq_initCommsGridQuda     },
+  {"initQuda",                qq_initQuda              },
+  {"initQudaDevice",          qq_initQudaDevice        },
+  {"initQudaMemory",          qq_initQudaMemory        },
+  {"endQuda",                 qq_endQuda               },
+  {"destroyDeflationQuda",    qq_destroyDeflationQuda  },
+  {"dslashQuda",              qq_dslashQuda            },
+  {"freeCloverQuda",          qq_freeCloverQuda        },
+  {"freeGaugeQuda",           qq_freeGaugeQuda         },
+  {"invertQuda",              qq_invertQuda            },
+  {"loadCloverQuda",          qq_loadCloverQuda        },
+  {"loadGaugeQuda",           qq_loadGaugeQuda         },
+  {"projectSU3Quda",          qq_projectSU3Quda        },
+  {"performAPEnStep",         qq_performAPEnStep       },
+  {"plaqQuda",                qq_plaqQuda              },
+  {"qChargeCuda",             qq_qChargeCuda           },
+  {"setVerbosityQuda",        qq_setVerbosityQuda      },
+  {"openMagma",               qq_openMagma             },
+  {"closeMagma",              qq_closeMagma            },
+  { NULL,                     NULL                     }
 };
 
 int
@@ -700,17 +827,11 @@ init_quda(lua_State *L)
   luaL_register(L, qudalib, fquda);
   qlua_metatable(L, mtnGaugeParam, mtGaugeParam, qQudaGaugeParam);
   qlua_metatable(L, mtnInvertParam, mtInvertParam, qQudaInvertParam);
-  // XXX qlua_metatable(L, mtnEigParam, mtEigParam, qQudaEigParam);
   return 0;
 }
 
 void
 fini_quda(void)
 {
-  /* free resources of GPU */
-#if 0 /* XXX */
-  if (in_quda_p)
-    qudaFinalize();
-  in_quda_p = 0;
-#endif /* XXX */
+  /* free resources of GPU ?? */
 }
