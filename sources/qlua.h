@@ -108,6 +108,11 @@ typedef enum {
     qOptArray,                /* 64 */
     qOptStruct,                /* 65 */
     qOptNone,                 /* 66 */
+#ifdef HAS_QUDA
+    qQudaGaugeParam,
+    qQudaInvertParam,
+    qQudaEigParam,
+#endif /* defined(HAVE_QUDA) */
     /* ZZZ add types for other packages here */
     qNoType                   /* 67 */
 } QLUA_Type;
