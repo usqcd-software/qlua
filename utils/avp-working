@@ -2,6 +2,7 @@
 PACKTOP=$HOME/Local/packages/macosx-20160127
 QUDATOP=$HOME/Sandbox/USQCD/quda/build
 DEVTOP=$HOME/Local/packages
+CUDAROOT=/usr/local/cuda
 Nc=3
 # noNc=3
 
@@ -26,8 +27,8 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 CC='mpicc -m64' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
 COPTS='-g' \
-LD='mpic++ -fopenmp -m64 -fno-underscoring' \
-LIBS='-L/usr/local/cuda/lib -lz -lcudart_static -lc++' \
+LD='mpic++ -fopenmp -m64 -fno-underscoring -Xlinker -rpath -Xlinker '$CUDAROOT'/lib' \
+LIBS='-L'$CUDAROOT'/lib -lz -lcudart -lc++' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \

@@ -1,6 +1,8 @@
 #include "modules.h"                                                 /* DEPS */
 #include "qlua.h"                                                    /* DEPS */
 #include "lattice.h"                                                 /* DEPS */
+#include "qlayout.h"                                                 /* DEPS */
+#include "latcolmat.h"                                               /* DEPS */
 #include "qquda.h"                                                   /* DEPS */
 #include "quda.h"
 #include <string.h>
@@ -678,7 +680,7 @@ qq_closeMagma(lua_State *L)
 static int
 qq_initQudaDevice(lua_State *L)
 {
-  int dev = luaL_checkint(L, 1);
+  int dev = lua_gettop(L) > 0? luaL_checkint(L, 1): -1;
   initQudaDevice(dev);
 
   return 0;
@@ -687,7 +689,7 @@ qq_initQudaDevice(lua_State *L)
 static int
 qq_initQuda(lua_State *L)
 {
-  int dev = luaL_checkint(L, 1);
+  int dev = lua_gettop(L) > 0? luaL_checkint(L, 1): -1;
   initQuda(dev);
 
   return 0;
@@ -710,7 +712,7 @@ qq_setVerbosityQuda(lua_State *L)
 {
   QudaVerbosity verb = qq_str2verbosity(L, luaL_checkstring(L, 1),
 					"setQudaVerbosity", "verbosity", QUDA_SILENT);
-  const char *prefix = luaL_checkstring(L, 2);
+  const char *prefix = lua_gettop(L) >= 2? luaL_checkstring(L, 2): "QUDA> ";
   setVerbosityQuda(verb, prefix, stdout);
 
   return 0;
@@ -719,14 +721,33 @@ qq_setVerbosityQuda(lua_State *L)
 static int
 qq_initCommsGridQuda(lua_State *L)
 {
-  // XXXX void initCommsGridQuda(int nDim, const int *dims, QudaCommsMap func, void *fdata); // from Lattice
+  mLattice *S = qlua_checkLattice(L, 1);
+  initCommsGridQuda(S->rank, S->net, qlua_comm_map, S);
   return 0;
 }
 
 static int
 qq_loadGaugeQuda(lua_State *L)
 {
-  // XXXX void loadGaugeQuda(void *h_gauge, QudaGaugeParam *param); // ? see milc and chroma
+  int i;
+  QudaGaugeParam *p = qq_checkGaugeParam(L, 2);
+  QDP_D3_ColorMatrix *U[4];
+  QLA_D3_ColorMatrix *Ulock[4];
+
+  CALL_QDP(L);
+  luaL_checktype(L, 1, LUA_TTABLE);
+  /* XXX sloppy: no checking that all components of arg[1] are on the same lattice.... */
+  for (i = 0; i < 4; i++) {
+    lua_pushnumber(L, i + 1); /* lua indexing */
+    lua_gettable(L, 1);
+    U[i] = qlua_checkLatColMat3(L, -1, NULL, 3)->ptr;
+    Ulock[i] = QDP_D3_expose_M(U[i]); 
+    lua_pop(L, 1);
+  }
+  loadGaugeQuda(Ulock, p); /* XXX may be wrong: QUDA and QDP need to agree on gauge field layout ... */
+  for (i = 0; i < 4; i++)
+    QDP_D3_reset_M(U[i]);
+  
   return 0;
 }
 
@@ -755,13 +776,6 @@ qq_performAPEnStep(lua_State *L)
 }
 
 static int
-qq_projectSU3Quda(lua_State *L)
-{
-  // XXXX void projectSU3Quda(void *gauge_h, double tol, QudaGaugeParam *param); // ?
-  return 0;
-}
-
-static int
 qq_destroyDeflationQuda(lua_State *L)
 {
   // XXXX void destroyDeflationQuda(QudaInvertParam *param, const int *X, void *_h_u, double *inv_eigenvals); //?
@@ -776,6 +790,7 @@ qq_dslashQuda(lua_State *L)
 }
 
 #if 0 /* XXXX quda functions that are not used by MILC and/or CHROMA */
+// void projectSU3Quda(void *gauge_h, double tol, QudaGaugeParam *param); // ?
 // not used in Chroma
 // void saveGaugeQuda(void *h_gauge, QudaGaugeParam *param); // ?
 // void* createExtendedGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param); // used in milc interface
@@ -790,7 +805,7 @@ qq_dslashQuda(lua_State *L)
 // void MatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
 // void MatDagMatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
 // void saveGaugeFieldQuda(void* outGauge, void* inGauge, QudaGaugeParam* param);
-// void  extendGaugeFieldQuda(void* outGauge, void* inGauge);
+// void extendGaugeFieldQuda(void* outGauge, void* inGauge);
 // void computeCloverTraceQuda(void* out, void* dummy, int mu, int nu, int dim[4]);
 #endif
 
@@ -811,7 +826,6 @@ static struct luaL_Reg fquda[] = {
   {"invertQuda",              qq_invertQuda            },
   {"loadCloverQuda",          qq_loadCloverQuda        },
   {"loadGaugeQuda",           qq_loadGaugeQuda         },
-  {"projectSU3Quda",          qq_projectSU3Quda        },
   {"performAPEnStep",         qq_performAPEnStep       },
   {"plaqQuda",                qq_plaqQuda              },
   {"qChargeCuda",             qq_qChargeCuda           },
