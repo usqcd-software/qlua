@@ -91,11 +91,20 @@ function space2full(c, t_axis, c_t)
   local cfull = {}
   if nil == c_t then cfull[1+t_axis] = 0
   else cfull[1+t_axis] = c_t end
-  for d = 0, #L-1 do
+  for d = 0, #c-1 do -- dimension of space-only is #c
     if d < t_axis then cfull[1+d] = c[1+d]
     else cfull[2+d] = c[1+d] end
   end
   return cfull
+end
+-- extract "spatial" coords from full
+function full2space(cfull, t_axis)
+  local cspace = {}
+  for d = 0, #cfull - 2 do  -- dimension of space-only is #cfull-1
+    if d < t_axis then cspace[1+d] = cfull[1+d]
+    else cspace[1+d] = cfull[2+d] end
+  end
+  return cspace
 end
 
 -- find element in a table by value
