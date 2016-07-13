@@ -136,3 +136,11 @@ function copy_table(tab, level)
   return res
 end
 table_copy = copy_table
+
+-- compute average and variance of a real field
+function calc_avg_var(f)
+  local L   = f.lattice
+  local avg = f:sum() / L:volume()
+  local var = (f - avg):norm2() / L:volume()
+  return avg, var
+end
