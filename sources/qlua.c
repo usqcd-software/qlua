@@ -423,6 +423,7 @@ qlua_intarray(lua_State *L, int n, int *dim)
     int d, i;
     int *idx;
 
+    NORMALIZE_INDEX(L, n);
     if (lua_type(L, n) != LUA_TTABLE)
         return NULL;
 

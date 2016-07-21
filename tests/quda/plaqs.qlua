@@ -1,0 +1,134 @@
+require "stdlib";
+require "gauge";
+
+Lx = 8;
+Lt = 16;
+
+L = qcd.lattice {Lx, Lx, Lx, Lt};
+do
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  S = L:RandomState(1984, l_id)
+end
+
+
+-- build a zero, unit, and a somewhat random fields
+U0 = {};
+U1 = {};
+U1x = {};
+Ux = {};
+do
+   local one = L:ColorMatrix(1.0);
+   local zero = L:ColorMatrix(0.0);
+   for d = 1, #L do
+      U0[d] = zero;
+      U1[d] = one;
+      U1x[d] = one;
+      Ux[d] = toSUn(S:gaussian_ColorMatrix() * 0.1);
+   end
+   Ux[#L] = toSUn(S:gaussian_ColorMatrix() * 0.8);
+   U1x[#L] = zero;
+end
+
+function ref_plaqs(V)
+   local i, j;
+   local px = 0;
+   local pt = 0;
+   local Nt = 0;
+   local Nx = 0;
+
+   local function pl(V, a, b)
+      local R = V[a] * V[b]:shift(a-1, "from_forward");
+      local L = V[b] * V[a]:shift(b-1, "from_forward");
+      return qcd.dot(L,R):real():sum();
+   end
+   
+   for i = 1, #L-1 do
+      for j = i + 1, #L-1 do
+         px = px + pl(V, i, j);
+         Nx = Nx + 1;
+      end
+      pt = pt + pl(V, #L, i);
+      Nt = Nt + 1;
+   end
+   pt = pt / (V[1]:colors() * L:volume());
+   px = px / (V[1]:colors() * L:volume());
+   return (pt + px)/(Nt + Nx), px/Nx, pt/Nt;
+end
+
+function show_plaqs(name, V, fn)
+   local pa, pt, px = fn(V);
+   printf("%s %20.15f %20.15f %20.15f\n", name, pa, pt, px);
+end
+
+
+if false then
+   printf("Test of QUDA interface\n");
+   a,b,c = qcd.network();
+   printf("qcd.network().a = %s\n", tostring(a));
+   printf("qcd.network().b = %s\n", tostring(b));
+   printf("qcd.network().c = %s\n", tostring(c));
+   lnet = L:network();
+   for i = 1, #lnet do
+      printf("L:network().[%d] = %d\n", i, lnet[i]);
+   end
+   
+   for i = 1, #lnet do
+      printf("L:dims().[%d] = %d\n", i, L[i-1]);
+   end
+end
+
+function quda_plaqs(V)
+   -- load gauge attempt
+   local L = V[1].lattice;
+   local gparams = quda.GaugeParam();
+   -- this is magic
+   local nxyz = L[0] * L[1] * L[2];
+   gparams:set{type                = "WILSON_LINKS",
+               gauge_order         = "QDP_GAUGE_ORDER",
+               t_boundary          = "ANTI_PERIODIC_T",
+--               t_boundary          = "PERIODIC_T",
+               gauge_fix           = "GAUGE_FIXED_NO",
+               cpu_prec            = "DOUBLE_PRECISION",
+               ga_pad              = nxyz, -- ??? seems to be lattice size dependent...
+               cuda_prec           = "DOUBLE_PRECISION",
+               reconstruct         = "RECONSTRUCT_NO",
+               cuda_prec_sloppy    = "HALF_PRECISION",
+               reconstruct_sloppy  = "RECONSTRUCT_12",
+               anisotropy          = 1.0, -- ?? Or what should it be for non-anisotropic case?
+               X                   = {L[0], L[1], L[2], L[3]}};
+   quda.loadGaugeQuda(V, gparams);
+   local a, b, c = quda.plaqQuda();
+   quda.freeGaugeQuda();
+   return a, b, c;
+end
+
+
+function test_plaqs(name, V)
+   printf("\nTest of plaqs for %s gauge\n", name);
+   show_plaqs("  quda", V, quda_plaqs);
+   show_plaqs("  ref ", V, ref_plaqs);
+   printf("-------------\n");
+end
+
+
+printf("\n------ openning QUDA\n");
+--quda.setVerbosityQuda("DEBUG_VERBOSE", "[QUDA]  ");
+quda.setVerbosityQuda("SILENT");
+quda.initCommsGridQuda(L);
+quda.initQuda(); -- use device = -1 by default
+
+test_plaqs("random", Ux);
+test_plaqs("unit", U1);
+test_plaqs("zero", U0);
+test_plaqs("unit/zero", U1x);
+
+quda.endQuda();
+
+printf("DONE\n");
+
+       

@@ -114,7 +114,8 @@ QQ_ENUM(QudaLinkType)
 {
   const char *val = qlua_tabkey_stringopt(L, idx, name, NULL);
   if (val == NULL) return;
-#define CHECK_VALUE(str_val, t_val) if (strcmp(val, str_val) == 0) { *ptr = t_val; return; }
+#define CHECK_VALUE(str_val, t_val) if (strcmp(val, str_val) == 0) { \
+    *ptr = t_val; return; }
   CHECK_VALUE("SU3_LINKS", QUDA_SU3_LINKS);
   CHECK_VALUE("GENERAL_LINKS", QUDA_GENERAL_LINKS);
   CHECK_VALUE("THREE_LINKS", QUDA_THREE_LINKS);
