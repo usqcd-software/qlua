@@ -86,7 +86,7 @@ end
 function quda_plaqs(V)
    -- load gauge attempt
    local L = V[1].lattice;
-   local gparams = quda.GaugeParam();
+   local gparams = _quda.GaugeParam();
    -- this is magic
    local vol = L:volume();
    local i;
@@ -109,9 +109,9 @@ function quda_plaqs(V)
                reconstruct_sloppy  = "RECONSTRUCT_12",
                anisotropy          = 1.0, -- ?? Or what should it be for non-anisotropic case?
                X                   = {L[0], L[1], L[2], L[3]}};
-   quda.loadGaugeQuda(V, gparams);
-   local a, b, c = quda.plaqQuda();
-   quda.freeGaugeQuda();
+   _quda.loadGaugeQuda(V, gparams);
+   local a, b, c = _quda.plaqQuda();
+   _quda.freeGaugeQuda();
    return a, b, c;
 end
 
@@ -136,11 +136,10 @@ function test_plaqs(name, V)
 end
 
 
-printf("\n------ openning QUDA\n");
 --quda.setVerbosityQuda("DEBUG_VERBOSE", "[QUDA]  ");
-quda.setVerbosityQuda("SILENT");
-quda.initCommsGridQuda(L);
-quda.initQuda(); -- use device = -1 by default
+_quda.setVerbosityQuda("SILENT");
+_quda.initCommsGridQuda(L);
+_quda.initQuda(); -- use device = -1 by default
 
 test_plaqs("random", Ux);
 test_plaqs("unit", U1);
@@ -152,7 +151,7 @@ if (err_count > 0) then
    os.exit(1);
 end
 
-quda.endQuda();
+_quda.endQuda();
 
 printf("DONE\n");
 

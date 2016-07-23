@@ -11,10 +11,10 @@
 #define QUDA_Nc 3
 #define QUDA_DIM 4
 
-static const char qudalib[] = "quda";
-static const char mtnGaugeParam[] = "quda.mtGaugeParam";
-static const char mtnInvertParam[] = "quda.mtInvertParam";
-static const char mtnEigParam[] = "quda.mtEigParam";
+static const char qudalib[] = "_quda";
+static const char mtnGaugeParam[] = "_quda.mtGaugeParam";
+static const char mtnInvertParam[] = "_quda.mtInvertParam";
+static const char mtnEigParam[] = "_quda.mtEigParam";
 
 /**** QudaGaugeParam */
 static QudaGaugeParam *
