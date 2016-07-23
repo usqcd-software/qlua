@@ -63,6 +63,7 @@ end
 function show_plaqs(name, V, fn)
    local pa, pt, px = fn(V);
    printf("%s %20.15f %20.15f %20.15f\n", name, pa, pt, px);
+   return pa, pt, px;
 end
 
 
@@ -107,11 +108,23 @@ function quda_plaqs(V)
    return a, b, c;
 end
 
+function norm3(a,b,c)
+   return a * a + b * b + c * c;
+end
+
+local err_count = 0;
 
 function test_plaqs(name, V)
    printf("\nTest of plaqs for %s gauge\n", name);
-   show_plaqs("  quda", V, quda_plaqs);
-   show_plaqs("  ref ", V, ref_plaqs);
+   local qa, qb, qc = show_plaqs("  quda", V, quda_plaqs);
+   local ra, rb, rc = show_plaqs("  ref ", V, ref_plaqs);
+   local v = norm3(qa - ra, qb - rb, qc - rc);
+   local n = norm3(ra,rb,rc);
+   printf(" diff2/norm2: %20.10e (%20.10e / %20.10e)\n", v / n, v, n);
+   if (v / n > 1e-16) then
+      printf("XXX error: plaq diff is too large\n");
+      err_count = err_count + 1;
+   end
    printf("-------------\n");
 end
 
@@ -126,6 +139,11 @@ test_plaqs("random", Ux);
 test_plaqs("unit", U1);
 test_plaqs("zero", U0);
 test_plaqs("unit/zero", U1x);
+
+if (err_count > 0) then
+   printf("MISTAKES WERE MADE\n");
+   os.exit(1);
+end
 
 quda.endQuda();
 

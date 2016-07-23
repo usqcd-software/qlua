@@ -7,6 +7,10 @@
 #include "quda.h"
 #include <string.h>
 
+#define QUDA_REAL double
+#define QUDA_Nc 3
+#define QUDA_DIM 4
+
 static const char qudalib[] = "quda";
 static const char mtnGaugeParam[] = "quda.mtGaugeParam";
 static const char mtnInvertParam[] = "quda.mtInvertParam";
@@ -439,9 +443,9 @@ qq_gauge_param_set(lua_State *L)
 #undef GET_DOUBLE_VALUE
 #undef GET_INT_VALUE
   if (qlua_tabkey_tableopt(L, 2, "X")) {
-    int *xx = qlua_checkintarray(L, -1, 4, NULL);
+    int *xx = qlua_checkintarray(L, -1, QUDA_DIM, NULL);
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < QUDA_DIM; i++)
       p->X[i] = xx[i];
     qlua_free(L, xx);
     lua_pop(L, 1);
@@ -728,26 +732,83 @@ qq_initCommsGridQuda(lua_State *L)
 }
 
 static int
+quda_index(const int x[], const int lo[], const int hi[])
+{
+  int d, k, p, v;
+  for (d = QUDA_DIM, v = 1, k = 0, p = 0; d--;) {
+    k *= hi[d] - lo[d];
+    k += x[d] - lo[d];
+    p += x[d];
+    v *= hi[d] - lo[d];
+  }
+  k /= 2;
+  if (p & 1) k += v / 2;
+  return k;
+}
+
+static void
+get_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, int d)
+{
+  QLA_D3_ColorMatrix *Ux;
+  mLattice *S = NULL;
+  int lo[QUDA_DIM];
+  int hi[QUDA_DIM];
+  int subvol;
+  int i;
+
+  lua_pushnumber(L, d + 1); /* lua indexing */
+  lua_gettable(L, idx);
+  *U = qlua_checkLatColMat3(L, -1, NULL, QUDA_Nc)->ptr;
+  S = qlua_ObjLattice(L, -1);
+  qlua_assert(S->rank == QUDA_DIM, "expected rank 4 lattice");
+  qlua_sublattice(lo, hi, S->node, S);
+  for (i = 0, subvol = 1; i < QUDA_DIM; i++) {
+    //    printf("   XXXX [%d] lo, hi  %5d %5d\n", i, lo[i], hi[i]);
+    subvol *= hi[i] - lo[i];
+  }
+  //  printf("   XXXX subvol = %d\n", subvol);
+  
+  *q = qlua_malloc(L, subvol * 2 * QUDA_Nc * QUDA_Nc * sizeof (QUDA_REAL));
+  Ux = QDP_D3_expose_M(*U);
+  for (i = 0; i < subvol; i++) {
+    int a, b, ci, x[QUDA_DIM];
+    QUDA_REAL *ptr;
+    QDP_get_coords_L(S->lat, x, S->node, i);
+    ci = quda_index(x, lo, hi);
+    //    printf("XXX indices [%d]: i = %6d, ci = %6d\n", d, i, ci);
+    ptr = (*q) + ci * 2 * QUDA_Nc * QUDA_Nc;
+    for (a = 0; a < QUDA_Nc; a++) {
+      for (b = 0; b < QUDA_Nc; b++) {
+	ptr[2 * QUDA_Nc * a + 2 * b] = QLA_real(QLA_elem_M(Ux[i], a, b));
+	ptr[2 * QUDA_Nc * a + 2 * b + 1] = QLA_imag(QLA_elem_M(Ux[i], a, b));
+      }
+    }
+  }
+  QDP_D3_reset_M(*U);
+  lua_pop(L, 2);
+}
+
+static void
+free_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, int d)
+{
+  qlua_free(L, *q);
+}
+
+static int
 qq_loadGaugeQuda(lua_State *L)
 {
   int i;
   QudaGaugeParam *p = qq_checkGaugeParam(L, 2);
-  QDP_D3_ColorMatrix *U[4];
-  QLA_D3_ColorMatrix *Ulock[4];
+  QDP_D3_ColorMatrix *U[QUDA_DIM];
+  QUDA_REAL *qu[QUDA_DIM];
 
-  CALL_QDP(L);
   luaL_checktype(L, 1, LUA_TTABLE);
-  /* XXX sloppy: no checking that all components of arg[1] are on the same lattice.... */
-  for (i = 0; i < 4; i++) {
-    lua_pushnumber(L, i + 1); /* lua indexing */
-    lua_gettable(L, 1);
-    U[i] = qlua_checkLatColMat3(L, -1, NULL, 3)->ptr;
-    Ulock[i] = QDP_D3_expose_M(U[i]); 
-    lua_pop(L, 1);
-  }
-  loadGaugeQuda(Ulock, p); /* XXX may be wrong: QUDA and QDP need to agree on gauge field layout ... */
-  for (i = 0; i < 4; i++)
-    QDP_D3_reset_M(U[i]);
+  CALL_QDP(L);
+  for (i = 0; i < QUDA_DIM; i++)
+    get_gauge_field(&qu[i], &U[i], L, 1, i);
+  loadGaugeQuda(qu, p);
+  for (i = 0; i < QUDA_DIM; i++)
+    free_gauge_field(&qu[i], &U[i], L, 1, i);
   
   return 0;
 }
