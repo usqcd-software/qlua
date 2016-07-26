@@ -1,0 +1,118 @@
+require "stdlib";
+require "gauge";
+require "quda";
+
+-- parameters.
+Lx = 8;
+Lt = 16;
+kappa = 1.4235
+c_sw = 2.3344
+
+printf("---- Test of QUDA Clover inverter: Lx=%d, Lt=%d, kappa=%g, c_sw=%g\n", Lx, Lt, kappa, c_sw);
+
+-- the lattice and a random generator state.
+L = qcd.lattice {Lx, Lx, Lx, Lt};
+do
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  S = L:RandomState(1984, l_id)
+end
+
+--- random SU(3) gauge field.
+U = {};
+do
+   for d = 1, #L do
+      U[d] = toSUn(S:gaussian_ColorMatrix() * 0.2);
+   end
+end
+
+--- random Dirac fermion field.
+F_ref = S:gaussian_DiracFermion();
+
+---- reference Clover Dirac operator with antiperiodic BCs in time
+function clover_std(U, kappa, c_sw, F)
+   local function clovF(i,j)
+      local Ujp = U[j]:shift(i - 1, "from_forward");
+      local Uipx = U[i]:shift(j - 1, "from_forward"):adjoin();
+      local Sl = U[j]:adjoin() * U[i] * Ujp;
+      local C01 = Sl * Uipx;  -- at (0,1)
+      local C11 = Uipx * Sl;  -- at (1,1)
+      local Su = Ujp * Uipx * U[j]:adjoin();
+      local C00 = U[i] * Su; -- at (0,0)
+      local C10 = Su * U[i]; -- at (1,0)
+      local F = C00 +
+                C01:shift(j - 1, "to_forward") +
+               (C10 + C11:shift(j - 1, "to_forward")):shift(i - 1, "to_forward");
+      return (F - F:adjoin()) / complex(0,8);
+   end
+
+   local X = F;
+
+   for i = 0, #L - 2 do
+      X = X - kappa * 
+         ((1-gamma{mu=i}) * (U[i+1] * (F:shift(i, "from_forward"))) +
+          (1+gamma{mu=i}) * ((U[i+1]:adjoin() * F):shift(i, "from_backward")));
+   end
+
+   -- antiperiodic bc in d=3 !!!
+   local U4 = U[4]:copy();
+   L:Subset{axis=3, position=L[3]-1}:where(function () U4:set(-U[4]) end);
+   X = X - kappa * 
+            ((1-gamma{mu=3}) * (U4 * (F:shift(3, "from_forward"))) +
+             (1+gamma{mu=3}) * ((U4:adjoin() * F):shift(3, "from_backward")));
+
+   for i = 1, #L do
+      for j = i + 1, #L do
+         X = X - kappa * c_sw * clovF(i,j) * 
+                     ((gamma{mu=i-1} * gamma{mu=j-1}) * complex(0,1) * F);
+      end
+   end
+
+   return X;
+end
+
+--- test of the inverter
+function run_solver(U, kappa, c_sw, rhs)
+   local QS = qcd.quda.solver(U,
+                              {t_boundary          = "ANTI_PERIODIC_T"},
+                              {clover_coeff        = c_sw * kappa,
+                               dslash_type         = "CLOVER_WILSON_DSLASH",
+                               kappa               = kappa,
+                               tol                 = 1e-8,
+                               maxiter             = 10000});
+   local rhs = QS:solve(rhs);
+   QS:close();
+   return rhs;
+end
+
+--- compare two fermions
+function check_result(f1, f2)
+   local df = f1 - f2;
+   local nd = df:norm2();
+   local nn = f1:norm2();
+   printf("DiracFermion rel diff %g (%g / %g)\n", nd / nn, nd, nn);
+   if nd / nn < 1e-10 then
+      return true;
+   else
+      return false;
+   end
+end
+
+-- the right hand side Dirac Fermion
+qcd.quda.init(L);
+F_rhs = clover_std(U, kappa, c_sw, F_ref);
+F_sol = run_solver(U, kappa, c_sw, F_rhs);
+qcd.quda.fini(L);
+
+status = check_result(F_sol, F_ref);
+if status then
+   printf("DONE\n");
+   os.exit(0);
+else
+   printf("ERROR: Quda clover inverter test failed\n");
+   os.exit(1);
+end

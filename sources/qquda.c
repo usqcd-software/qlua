@@ -3,12 +3,14 @@
 #include "lattice.h"                                                 /* DEPS */
 #include "qlayout.h"                                                 /* DEPS */
 #include "latcolmat.h"                                               /* DEPS */
+#include "latdirferm.h"                                              /* DEPS */
 #include "qquda.h"                                                   /* DEPS */
 #include "quda.h"
 #include <string.h>
 
 #define QUDA_REAL double
 #define QUDA_Nc 3
+#define QUDA_Ns 4
 #define QUDA_DIM 4
 
 static const char qudalib[] = "_quda";
@@ -779,8 +781,8 @@ get_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, in
     ptr = (*q) + ci * 2 * QUDA_Nc * QUDA_Nc;
     for (a = 0; a < QUDA_Nc; a++) {
       for (b = 0; b < QUDA_Nc; b++) {
-	ptr[2 * QUDA_Nc * a + 2 * b] = QLA_real(QLA_elem_M(Ux[i], a, b));
-	ptr[2 * QUDA_Nc * a + 2 * b + 1] = QLA_imag(QLA_elem_M(Ux[i], a, b));
+	ptr[2 * QUDA_Nc * a + 2 * b] = QLA_real(QLA_D3_elem_M(Ux[i], a, b));
+	ptr[2 * QUDA_Nc * a + 2 * b + 1] = QLA_imag(QLA_D3_elem_M(Ux[i], a, b));
       }
     }
   }
@@ -790,6 +792,77 @@ get_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, in
 
 static void
 free_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, int d)
+{
+  qlua_free(L, *q);
+}
+
+
+static void
+get_fermion_field(QUDA_REAL **q, QDP_D3_DiracFermion *f, lua_State *L, mLattice *S)
+{
+  QLA_D3_DiracFermion *fx;
+  int lo[QUDA_DIM];
+  int hi[QUDA_DIM];
+  int subvol;
+  int i;
+
+  qlua_assert(S->rank == QUDA_DIM, "expected rank 4 lattice");
+  qlua_sublattice(lo, hi, S->node, S);
+  for (i = 0, subvol = 1; i < QUDA_DIM; i++) {
+    subvol *= hi[i] - lo[i];
+  }
+  *q = qlua_malloc(L, subvol * 2 * QUDA_Nc * QUDA_Ns * sizeof (QUDA_REAL));
+  fx = QDP_D3_expose_D(f);
+  for (i = 0; i < subvol; i++) {
+    int c, d, ci, x[QUDA_DIM];
+    QUDA_REAL *ptr;
+    QDP_get_coords_L(S->lat, x, S->node, i);
+    ci = quda_index(x, lo, hi);
+    ptr = (*q) + ci * 2 * QUDA_Ns * QUDA_Nc;
+    for (c = 0; c < QUDA_Nc; c++) {
+      for (d = 0; d < QUDA_Ns; d++) {
+	ptr[2 * QUDA_Ns * c + 2 * d] = QLA_real(QLA_D3_elem_D(fx[i], c, d));
+	ptr[2 * QUDA_Ns * c + 2 * d + 1] = QLA_imag(QLA_D3_elem_D(fx[i], c, d));
+      }
+    }
+  }
+  QDP_D3_reset_D(f);
+}
+
+static void
+put_fermion_field(QDP_D3_DiracFermion *f, QUDA_REAL *q, lua_State *L, mLattice *S)
+{
+  QLA_D3_DiracFermion *fx;
+  int lo[QUDA_DIM];
+  int hi[QUDA_DIM];
+  int subvol;
+  int i;
+
+  qlua_assert(S->rank == QUDA_DIM, "expected rank 4 lattice");
+  qlua_sublattice(lo, hi, S->node, S);
+  for (i = 0, subvol = 1; i < QUDA_DIM; i++) {
+    subvol *= hi[i] - lo[i];
+  }
+  fx = QDP_D3_expose_D(f);
+  for (i = 0; i < subvol; i++) {
+    int c, d, ci, x[QUDA_DIM];
+    QUDA_REAL *ptr;
+    QDP_get_coords_L(S->lat, x, S->node, i);
+    ci = quda_index(x, lo, hi);
+    ptr = q + ci * 2 * QUDA_Ns * QUDA_Nc;
+    for (c = 0; c < QUDA_Nc; c++) {
+      for (d = 0; d < QUDA_Ns; d++) {
+	double v_re = ptr[2 * QUDA_Ns * c + 2 * d];
+	double v_im = ptr[2 * QUDA_Ns * c + 2 * d + 1];
+	QLA_c_eq_r_plus_ir(QLA_D3_elem_D(fx[i], c, d), v_re, v_im);
+      }
+    }
+  }
+  QDP_D3_reset_D(f);
+}
+
+static void
+free_fermion_field(QUDA_REAL **q, QDP_D3_DiracFermion *f, lua_State *L, mLattice *S)
 {
   qlua_free(L, *q);
 }
@@ -816,15 +889,32 @@ qq_loadGaugeQuda(lua_State *L)
 static int
 qq_loadCloverQuda(lua_State *L)
 {
-  // XXXX void loadCloverQuda(void *h_clover, void *h_clovinv, QudaInvertParam *inv_param); //?
+  QudaInvertParam *p = qq_checkInvertParam(L, 1);
+  CALL_QDP(L);
+  loadCloverQuda(NULL, NULL, p);
   return 0;
 }
 
 static int
 qq_invertQuda(lua_State *L)
 {
-  // XXXX void invertQuda(void *h_x, void *h_b, QudaInvertParam *param); //?
-  return 0;
+  QDP_D3_DiracFermion *rhs = qlua_checkLatDirFerm3(L, 1, NULL, 3)->ptr;
+  QudaInvertParam *p = qq_checkInvertParam(L, 2);
+  mLattice *S = qlua_ObjLattice(L, 1);
+  QDP_D3_DiracFermion *sol = qlua_newZeroLatDirFerm3(L, lua_gettop(L), 3)->ptr;
+  QUDA_REAL *q_rhs;
+  QUDA_REAL *q_sol;
+  
+  CALL_QDP(L);
+  get_fermion_field(&q_rhs, rhs, L, S);
+  /// XXX  get_fermion_field(&q_sol, sol, L, S);
+  get_fermion_field(&q_sol, rhs, L, S);
+  
+  invertQuda(q_sol, q_rhs, p);
+  put_fermion_field(sol, q_sol, L, S);
+  free_fermion_field(&q_rhs, rhs, L, S);
+  free_fermion_field(&q_sol, sol, L, S);
+  return 1;
 }
 
 static int
