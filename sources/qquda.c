@@ -907,8 +907,7 @@ qq_invertQuda(lua_State *L)
   
   CALL_QDP(L);
   get_fermion_field(&q_rhs, rhs, L, S);
-  /// XXX  get_fermion_field(&q_sol, sol, L, S);
-  get_fermion_field(&q_sol, rhs, L, S);
+  get_fermion_field(&q_sol, sol, L, S);
   
   invertQuda(q_sol, q_rhs, p);
   put_fermion_field(sol, q_sol, L, S);

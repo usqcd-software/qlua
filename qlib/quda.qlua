@@ -114,7 +114,7 @@ do
                   dirac_order               = "QDP_DIRAC_ORDER",
                   gamma_basis               = "DEGRAND_ROSSI_GAMMA_BASIS",
                   inv_type                  = "BICGSTAB_INVERTER",
-                  mass_normalization        = "MASS_NORMALIZATION",
+                  mass_normalization        = "KAPPA_NORMALIZATION",
                   matpc_type                = "MATPC_EVEN_EVEN",
                   preserve_source           = "PRESERVE_SOURCE_NO",
                   reliable_delta            = 0.1,
@@ -124,8 +124,7 @@ do
                   cl_pad                    = padding,
                   tune                      = "TUNE_YES",
                   use_init_guess            = "USE_INIT_GUESS_NO",
-                  --   verbosity                 = "SILENT"
-                  verbosity  = "DEBUG_VERBOSE"
+                  verbosity                 = "SILENT"
                };
       iparams:set(ipx);
       _quda.loadGaugeQuda(U, gparams);
