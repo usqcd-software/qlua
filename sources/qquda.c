@@ -584,22 +584,6 @@ qq_invert_param_set(lua_State *L)
   GET_INT_VALUE(use_reduced_vector_set);
   GET_INT_VALUE(use_resident_solution);
   GET_INT_VALUE(use_sloppy_partial_accumulator);
-  /* XXX no clover trace log computation */
-  // int compute_clover_trlog;
-  // double trlogA[2];
-  /* XXX no DWF stuff yet */
-  // double b_5[QUDA_MAX_DWF_LS];
-  //   double c_5[QUDA_MAX_DWF_LS];
-  //   double m5;
-  //   int Ls;
-  /* XXX no multishift solvers for now */
-  //   double iter_res_offset[QUDA_MAX_MULTI_SHIFT];
-  //   double offset[QUDA_MAX_MULTI_SHIFT];
-  //   double tol_hq_offset[QUDA_MAX_MULTI_SHIFT];
-  //   double tol_offset[QUDA_MAX_MULTI_SHIFT];     
-  //   double true_res_hq_offset[QUDA_MAX_MULTI_SHIFT]; 
-  //   double true_res_offset[QUDA_MAX_MULTI_SHIFT]; 
-
 #undef GET_NAMED_VALUE
 #undef GET_DOUBLE_VALUE
 #undef GET_INT_VALUE
@@ -765,10 +749,8 @@ get_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, in
   qlua_assert(S->rank == QUDA_DIM, "expected rank 4 lattice");
   qlua_sublattice(lo, hi, S->node, S);
   for (i = 0, subvol = 1; i < QUDA_DIM; i++) {
-    //    printf("   XXXX [%d] lo, hi  %5d %5d\n", i, lo[i], hi[i]);
     subvol *= hi[i] - lo[i];
   }
-  //  printf("   XXXX subvol = %d\n", subvol);
   
   *q = qlua_malloc(L, subvol * 2 * QUDA_Nc * QUDA_Nc * sizeof (QUDA_REAL));
   Ux = QDP_D3_expose_M(*U);
@@ -777,7 +759,6 @@ get_gauge_field(QUDA_REAL **q, QDP_D3_ColorMatrix **U, lua_State *L, int idx, in
     QUDA_REAL *ptr;
     QDP_get_coords_L(S->lat, x, S->node, i);
     ci = quda_index(x, lo, hi);
-    //    printf("XXX indices [%d]: i = %6d, ci = %6d\n", d, i, ci);
     ptr = (*q) + ci * 2 * QUDA_Nc * QUDA_Nc;
     for (a = 0; a < QUDA_Nc; a++) {
       for (b = 0; b < QUDA_Nc; b++) {
@@ -926,39 +907,6 @@ qq_performAPEnStep(lua_State *L)
   return 0;
 }
 
-static int
-qq_destroyDeflationQuda(lua_State *L)
-{
-  // XXXX void destroyDeflationQuda(QudaInvertParam *param, const int *X, void *_h_u, double *inv_eigenvals); //?
-  return 0;
-}
-
-static int
-qq_dslashQuda(lua_State *L)
-{
-  // XXXX void dslashQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity);
-  return 0;
-}
-
-#if 0 /* XXXX quda functions that are not used by MILC and/or CHROMA */
-// void projectSU3Quda(void *gauge_h, double tol, QudaGaugeParam *param); // ?
-// not used in Chroma
-// void saveGaugeQuda(void *h_gauge, QudaGaugeParam *param); // ?
-// void* createExtendedGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param); // used in milc interface
-// void* createGaugeFieldQuda(void* gauge, int geometry, QudaGaugeParam* param);
-// void destroyGaugeFieldQuda(void* gauge);
-//
-
-// void createCloverQuda(QudaInvertParam* param);
-// void dslashQuda_4dpc(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
-// void dslashQuda_mdwf(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity parity, int test_type);
-// void cloverQuda(void *h_out, void *h_in, QudaInvertParam *inv_param, QudaParity *parity, int inverse);
-// void MatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
-// void MatDagMatQuda(void *h_out, void *h_in, QudaInvertParam *inv_param);
-// void saveGaugeFieldQuda(void* outGauge, void* inGauge, QudaGaugeParam* param);
-// void extendGaugeFieldQuda(void* outGauge, void* inGauge);
-// void computeCloverTraceQuda(void* out, void* dummy, int mu, int nu, int dim[4]);
-#endif
 
 static struct luaL_Reg fquda[] = {
   /* QUDA structures */
@@ -970,8 +918,6 @@ static struct luaL_Reg fquda[] = {
   {"initQudaDevice",          qq_initQudaDevice        },
   {"initQudaMemory",          qq_initQudaMemory        },
   {"endQuda",                 qq_endQuda               },
-  {"destroyDeflationQuda",    qq_destroyDeflationQuda  },
-  {"dslashQuda",              qq_dslashQuda            },
   {"freeCloverQuda",          qq_freeCloverQuda        },
   {"freeGaugeQuda",           qq_freeGaugeQuda         },
   {"invertQuda",              qq_invertQuda            },

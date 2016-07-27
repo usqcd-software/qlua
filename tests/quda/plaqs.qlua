@@ -88,8 +88,8 @@ function test_plaqs(name, V)
    local ra, rb, rc = show_plaqs("  ref ", V, ref_plaqs);
    local v = norm3(qa - ra, qb - rb, qc - rc);
    local n = norm3(ra,rb,rc);
-   printf(" diff2/norm2: %20.10e (%20.10e / %20.10e)\n", v / n, v, n);
-   if (v / n > 1e-16) then
+   printf("    diff2/norm2: %20.10e (%g/%g)\n", v / (n + 1e-30), v, n);
+   if (v / (n + 1e-30) > 1e-16) then
       printf("XXX error: plaq diff is too large\n");
       err_count = err_count + 1;
    end

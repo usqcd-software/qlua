@@ -47,11 +47,7 @@ do
          if not gparams then
             error("Solver is closed");
          end
-         printf("\n-------------\nXXX qcd.quda.solver:solve() ... before solve iparams = \n"); iparams:print();
-         printf("\n---------- XXXX calling invertQuda()\n");
          local sol = _quda.invertQuda(rhs, iparams);
-         printf("-------------\nXXX qcd.quda.solver:solve() ... after solve iparams = \n"); iparams:print();
-         printf("\n---------- XXX QI:solve() done()\n");
          return sol;
       end
       function obj:plaqs()
@@ -102,6 +98,12 @@ do
             error("Gauge field component on a wrong lattice");
          end
       end
+      local V4 = U[4];
+      if (gpx.t_boundary == "ANTI_PERIODIC_T") then
+         local U4 = V4:copy();
+         lattice:Subset{axis=3, position=lattice[3]-1}:where(function () U4:set(-V4) end);
+         V4 = U4;
+      end
       iparams = _quda.InvertParam();
       iparams:set{clover_cpu_prec           = "DOUBLE_PRECISION",
                   clover_cuda_prec          = "DOUBLE_PRECISION",
@@ -127,7 +129,7 @@ do
                   verbosity                 = "SILENT"
                };
       iparams:set(ipx);
-      _quda.loadGaugeQuda(U, gparams);
+      _quda.loadGaugeQuda({U[1],U[2],U[3],V4}, gparams);
       if ((ipx.dslash_type == "CLOVER_WILSON_DSLASH") or
        (ipx.dslash_type == "TWISTED_CLOVER_DSLASH")) then
          _quda.loadCloverQuda(iparams);
