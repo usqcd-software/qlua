@@ -1,0 +1,62 @@
+-- examples of accessing and modifying elements of GaugeParam
+require "stdlib";
+
+x = _quda.GaugeParam();
+
+x.t_boundary = "PERIODIC_T";
+x.X = {1, 2, 3, 5};
+
+printf("GaugeParam x = %s\n", tostring(x));
+printf("  x.use_resident_gauge = %d\n", x.use_resident_gauge);
+printf("  x.t_boundary         = %s\n", x.t_boundary);
+printf("  x.gauge_fix          = %s\n", x.gauge_fix);
+printf("  x.reconstruct        = %s\n", x["reconstruct"]);
+
+local fields = {
+   { "%d", "ga_pad"},
+   { "%d", "site_ga_pad"},
+   { "%d", "staple_pad" },
+   { "%d", "llfat_ga_pad"},
+   { "%d", "mom_ga_pad" },
+   { "%d", "preserve_gauge"},
+   { "%d", "staggered_phase_applied" },
+   { "%d", "overlap"},
+   { "%d", "overwrite_mom" },
+   { "%d", "use_resident_gauge"},
+   { "%d", "use_resident_mom" },
+   { "%d", "make_resident_gauge" },
+   { "%d", "make_resident_mom" },
+   { "%d", "return_result_gauge" },
+   { "%d", "return_result_mom" },
+   { "%g", "anisotropy" },
+   { "%g", "tadpole_coeff" },
+   { "%g", "scale" },
+   { "%g", "gaugeGiB" },
+   { "%g", "i_mu" },
+   { "%s", "reconstruct" },
+   { "%s", "reconstruct_precondition" },
+   { "%s", "reconstruct_sloppy" },
+   { "%s", "cpu_prec" },
+   { "%s", "cuda_prec" },
+   { "%s", "cuda_prec_precondition" },
+   { "%s", "cuda_prec_sloppy" },
+   { "%s", "location" },
+   { "%s", "gauge_order" },
+   { "%s", "gauge_fix" },
+   { "%s", "type" },
+   { "%s", "staggered_phase_type" },
+   { "%s", "t_boundary" }};
+
+printf("\n-----\nDUMP of GaugeParam x:\n");
+for i = 1, #fields do
+   printf("    x.%-25s = ", fields[i][2]);
+   printf(fields[i][1], x[fields[i][2]]);
+   printf("\n");
+end
+local x = x.X;
+for i = 1, #x do
+   printf( "    x.X[%d]                      = %d\n", i - 1, x[i]);
+end
+printf("\n----------\n");
+
+printf("DONE\n");

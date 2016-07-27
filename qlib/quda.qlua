@@ -75,21 +75,23 @@ do
          end
       end
       gparams = _quda.GaugeParam();
-      gparams:set{type                = "WILSON_LINKS",
-                  gauge_order         = "QDP_GAUGE_ORDER",
-                  gauge_fix           = "GAUGE_FIXED_NO",
-                  cpu_prec            = "DOUBLE_PRECISION",
-                  ga_pad              = padding,
-                  cuda_prec           = "DOUBLE_PRECISION",
-                  reconstruct         = "RECONSTRUCT_NO",
-                  cuda_prec_sloppy    = "HALF_PRECISION",
-                  reconstruct_sloppy  = "RECONSTRUCT_12",
-                  anisotropy          = 1.0,
-                  X                   = {lattice[0],
-                                         lattice[1],
-                                         lattice[2],
-                                         lattice[3]}};
-      gparams:set(gpx);
+      gparams.type                = "WILSON_LINKS";
+      gparams.gauge_order         = "QDP_GAUGE_ORDER";
+      gparams.gauge_fix           = "GAUGE_FIXED_NO";
+      gparams.cpu_prec            = "DOUBLE_PRECISION";
+      gparams.ga_pad              = padding;
+      gparams.cuda_prec           = "DOUBLE_PRECISION";
+      gparams.reconstruct         = "RECONSTRUCT_NO";
+      gparams.cuda_prec_sloppy    = "HALF_PRECISION";
+      gparams.reconstruct_sloppy  = "RECONSTRUCT_12";
+      gparams.anisotropy          = 1.0;
+      gparams.X                   = {lattice[0],
+                                     lattice[1],
+                                     lattice[2],
+                                     lattice[3]};
+      for i,v in pairs(gpx) do
+         gparams[i] = v;
+      end
       if not (#U == #lattice) then
          error("Wrong number of color matrices in the gauge field");
       end

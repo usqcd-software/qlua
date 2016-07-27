@@ -1,0 +1,306 @@
+QQ_ENUM(QudaReconstructType)
+{
+  CHECK_VALUE(val, RECONSTRUCT_NO);
+  CHECK_VALUE(val, RECONSTRUCT_12);
+  CHECK_VALUE(val, RECONSTRUCT_8);
+  CHECK_VALUE(val, RECONSTRUCT_9);
+  CHECK_VALUE(val, RECONSTRUCT_13);
+  CHECK_VALUE(val, RECONSTRUCT_10);
+  CHECK_VALUE(val, RECONSTRUCT_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(RECONSTRUCT_INVALID);
+}
+
+QQ_ENUM(QudaPrecision)
+{
+  CHECK_VALUE(val, HALF_PRECISION);
+  CHECK_VALUE(val, SINGLE_PRECISION);
+  CHECK_VALUE(val, DOUBLE_PRECISION);
+  CHECK_VALUE(val, INVALID_PRECISION);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_PRECISION);
+}
+
+
+QQ_ENUM(QudaFieldLocation)
+{
+  CHECK_VALUE(val, CPU_FIELD_LOCATION);
+  CHECK_VALUE(val, CUDA_FIELD_LOCATION);
+  CHECK_VALUE(val, INVALID_FIELD_LOCATION);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_FIELD_LOCATION);
+}
+
+QQ_ENUM(QudaGaugeFieldOrder)
+{
+  CHECK_VALUE(val, FLOAT_GAUGE_ORDER);
+  CHECK_VALUE(val, FLOAT2_GAUGE_ORDER);
+  CHECK_VALUE(val, FLOAT4_GAUGE_ORDER);
+  CHECK_VALUE(val, QDP_GAUGE_ORDER);
+  CHECK_VALUE(val, QDPJIT_GAUGE_ORDER);
+  CHECK_VALUE(val, CPS_WILSON_GAUGE_ORDER);
+  CHECK_VALUE(val, MILC_GAUGE_ORDER);
+  CHECK_VALUE(val, BQCD_GAUGE_ORDER);
+  CHECK_VALUE(val, TIFR_GAUGE_ORDER);
+  CHECK_VALUE(val, INVALID_GAUGE_ORDER);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_GAUGE_ORDER);
+}
+
+QQ_ENUM(QudaTboundary)
+{
+  CHECK_VALUE(val, ANTI_PERIODIC_T);
+  CHECK_VALUE(val, PERIODIC_T);
+  CHECK_VALUE(val, INVALID_T_BOUNDARY);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_T_BOUNDARY);
+}
+
+QQ_ENUM(QudaGaugeFixed)
+{
+  CHECK_VALUE(val, GAUGE_FIXED_NO);
+  CHECK_VALUE(val, GAUGE_FIXED_YES);
+  CHECK_VALUE(val, GAUGE_FIXED_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(GAUGE_FIXED_INVALID);
+}
+
+QQ_ENUM(QudaLinkType)
+{
+  CHECK_VALUE(val, SU3_LINKS);
+  CHECK_VALUE(val, GENERAL_LINKS);
+  CHECK_VALUE(val, THREE_LINKS);
+  CHECK_VALUE(val, MOMENTUM);
+  CHECK_VALUE(val, WILSON_LINKS);
+  CHECK_VALUE(val, ASQTAD_FAT_LINKS);
+  CHECK_VALUE(val, ASQTAD_LONG_LINKS);
+  CHECK_VALUE(val, ASQTAD_MOM_LINKS);
+  CHECK_VALUE(val, ASQTAD_GENERAL_LINKS);
+  CHECK_VALUE(val, INVALID_LINKS);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_LINKS);
+}
+
+QQ_ENUM(QudaStaggeredPhase)
+{
+  CHECK_VALUE(val, MILC_STAGGERED_PHASE);
+  CHECK_VALUE(val, CPS_STAGGERED_PHASE);
+  CHECK_VALUE(val, TIFR_STAGGERED_PHASE);
+  CHECK_VALUE(val, INVALID_STAGGERED_PHASE);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_STAGGERED_PHASE);
+}
+
+QQ_ENUM(QudaInverterType)
+{
+  CHECK_VALUE(val, CG_INVERTER);
+  CHECK_VALUE(val, BICGSTAB_INVERTER);
+  CHECK_VALUE(val, GCR_INVERTER);
+  CHECK_VALUE(val, MR_INVERTER);
+  CHECK_VALUE(val, MPBICGSTAB_INVERTER);
+  CHECK_VALUE(val, SD_INVERTER);
+  CHECK_VALUE(val, XSD_INVERTER);
+  CHECK_VALUE(val, PCG_INVERTER);
+  CHECK_VALUE(val, MPCG_INVERTER);
+  CHECK_VALUE(val, EIGCG_INVERTER);
+  CHECK_VALUE(val, INC_EIGCG_INVERTER);
+  CHECK_VALUE(val, GMRESDR_INVERTER);
+  CHECK_VALUE(val, GMRESDR_PROJ_INVERTER);
+  CHECK_VALUE(val, GMRESDR_SH_INVERTER);
+  CHECK_VALUE(val, FGMRESDR_INVERTER);
+  CHECK_VALUE(val, INVALID_INVERTER);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_INVERTER);
+}
+
+QQ_ENUM(QudaDslashType)
+{
+  CHECK_VALUE(val, WILSON_DSLASH);
+  CHECK_VALUE(val, CLOVER_WILSON_DSLASH);
+  CHECK_VALUE(val, DOMAIN_WALL_DSLASH);
+  CHECK_VALUE(val, DOMAIN_WALL_4D_DSLASH);
+  CHECK_VALUE(val, MOBIUS_DWF_DSLASH);
+  CHECK_VALUE(val, STAGGERED_DSLASH);
+  CHECK_VALUE(val, ASQTAD_DSLASH);
+  CHECK_VALUE(val, TWISTED_MASS_DSLASH);
+  CHECK_VALUE(val, TWISTED_CLOVER_DSLASH);
+  CHECK_VALUE(val, INVALID_DSLASH);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_DSLASH);
+}
+
+QQ_ENUM(QudaGammaBasis)
+{
+  CHECK_VALUE(val, DEGRAND_ROSSI_GAMMA_BASIS);
+  CHECK_VALUE(val, UKQCD_GAMMA_BASIS);
+  CHECK_VALUE(val, CHIRAL_GAMMA_BASIS);
+  CHECK_VALUE(val, INVALID_GAMMA_BASIS);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_GAMMA_BASIS);
+}
+
+QQ_ENUM(QudaMassNormalization)
+{
+  CHECK_VALUE(val, KAPPA_NORMALIZATION);
+  CHECK_VALUE(val, MASS_NORMALIZATION);
+  CHECK_VALUE(val, ASYMMETRIC_MASS_NORMALIZATION);
+  CHECK_VALUE(val, INVALID_NORMALIZATION);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_NORMALIZATION);
+}
+
+QQ_ENUM(QudaSolverNormalization)
+{
+  CHECK_VALUE(val, DEFAULT_NORMALIZATION);
+  CHECK_VALUE(val, SOURCE_NORMALIZATION);
+  /*   CHECK_VALUE(val, ); XXX */
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(DEFAULT_NORMALIZATION);
+}
+
+QQ_ENUM(QudaCloverFieldOrder)
+{
+  CHECK_VALUE(val, FLOAT_CLOVER_ORDER);
+  CHECK_VALUE(val, FLOAT2_CLOVER_ORDER);
+  CHECK_VALUE(val, FLOAT4_CLOVER_ORDER);
+  CHECK_VALUE(val, PACKED_CLOVER_ORDER);
+  CHECK_VALUE(val, QDPJIT_CLOVER_ORDER);
+  CHECK_VALUE(val, BQCD_CLOVER_ORDER);
+  CHECK_VALUE(val, INVALID_CLOVER_ORDER);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_CLOVER_ORDER);
+}
+
+QQ_ENUM(QudaTune)
+{
+  CHECK_VALUE(val, TUNE_NO);
+  CHECK_VALUE(val, TUNE_YES);
+  CHECK_VALUE(val, TUNE_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(TUNE_INVALID);
+}
+
+QQ_ENUM(QudaDagType)
+{
+  CHECK_VALUE(val, DAG_NO);
+  CHECK_VALUE(val, DAG_YES);
+  CHECK_VALUE(val, DAG_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(DAG_INVALID);
+}
+  
+QQ_ENUM(QudaDiracFieldOrder)
+{
+  CHECK_VALUE(val, INTERNAL_DIRAC_ORDER);
+  CHECK_VALUE(val, DIRAC_ORDER);
+  CHECK_VALUE(val, QDP_DIRAC_ORDER);
+  CHECK_VALUE(val, QDPJIT_DIRAC_ORDER);
+  CHECK_VALUE(val, CPS_WILSON_DIRAC_ORDER);
+  CHECK_VALUE(val, LEX_DIRAC_ORDER);
+  CHECK_VALUE(val, INVALID_DIRAC_ORDER);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_DIRAC_ORDER);
+}
+
+QQ_ENUM(QudaMatPCType)
+{
+  CHECK_VALUE(val, MATPC_EVEN_EVEN);
+  CHECK_VALUE(val, MATPC_ODD_ODD);
+  CHECK_VALUE(val, MATPC_EVEN_EVEN_ASYMMETRIC);
+  CHECK_VALUE(val, MATPC_ODD_ODD_ASYMMETRIC);
+  CHECK_VALUE(val, MATPC_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(MATPC_INVALID);
+}
+
+QQ_ENUM(QudaPreserveSource)
+{
+  CHECK_VALUE(val, PRESERVE_SOURCE_NO);
+  CHECK_VALUE(val, PRESERVE_SOURCE_YES);
+  CHECK_VALUE(val, PRESERVE_SOURCE_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(PRESERVE_SOURCE_INVALID);
+}
+
+QQ_ENUM(QudaResidualType)
+{
+  CHECK_VALUE(val, L2_RELATIVE_RESIDUAL);
+  CHECK_VALUE(val, L2_ABSOLUTE_RESIDUAL);
+  CHECK_VALUE(val, HEAVY_QUARK_RESIDUAL);
+  CHECK_VALUE(val, INVALID_RESIDUAL);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_RESIDUAL);
+}
+
+QQ_ENUM(QudaSchwarzType)
+{
+  CHECK_VALUE(val, ADDITIVE_SCHWARZ);
+  CHECK_VALUE(val, MULTIPLICATIVE_SCHWARZ);
+  CHECK_VALUE(val, INVALID_SCHWARZ);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_SCHWARZ);
+}
+
+QQ_ENUM(QudaSolutionType)
+{
+  CHECK_VALUE(val, MAT_SOLUTION);
+  CHECK_VALUE(val, MATDAG_MAT_SOLUTION);
+  CHECK_VALUE(val, MATPC_SOLUTION);
+  CHECK_VALUE(val, MATPC_DAG_SOLUTION);
+  CHECK_VALUE(val, MATPCDAG_MATPC_SOLUTION);
+  CHECK_VALUE(val, MATPCDAG_MATPC_SHIFT_SOLUTION);
+  CHECK_VALUE(val, INVALID_SOLUTION);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_SOLUTION);
+}
+
+QQ_ENUM(QudaSolveType)
+{
+  CHECK_VALUE(val, DIRECT_SOLVE);
+  CHECK_VALUE(val, NORMOP_SOLVE);
+  CHECK_VALUE(val, DIRECT_PC_SOLVE);
+  CHECK_VALUE(val, NORMOP_PC_SOLVE);
+  CHECK_VALUE(val, NORMERR_SOLVE);
+  CHECK_VALUE(val, NORMERR_PC_SOLVE);
+  CHECK_VALUE(val, NORMEQ_SOLVE);
+  CHECK_VALUE(val, NORMEQ_PC_SOLVE);
+  CHECK_VALUE(val, INVALID_SOLVE);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_SOLVE);
+}
+
+QQ_ENUM(QudaTwistFlavorType)
+{
+  CHECK_VALUE(val, TWIST_MINUS);
+  CHECK_VALUE(val, TWIST_PLUS);
+  CHECK_VALUE(val, TWIST_NONDEG_DOUBLET);
+  CHECK_VALUE(val, TWIST_DEG_DOUBLET);
+  CHECK_VALUE(val, TWIST_NO);
+  CHECK_VALUE(val, TWIST_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(TWIST_INVALID);
+}
+
+QQ_ENUM(QudaUseInitGuess)
+{
+  CHECK_VALUE(val, USE_INIT_GUESS_NO);
+  CHECK_VALUE(val, USE_INIT_GUESS_YES);
+  CHECK_VALUE(val, USE_INIT_GUESS_INVALID);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(USE_INIT_GUESS_INVALID);
+}
+
+QQ_ENUM(QudaVerbosity)
+{
+  CHECK_VALUE(val, SILENT);
+  CHECK_VALUE(val, SUMMARIZE);
+  CHECK_VALUE(val, VERBOSE);
+  CHECK_VALUE(val, DEBUG_VERBOSE);
+  CHECK_VALUE(val, INVALID_VERBOSITY);
+  luaL_error(L, "unexpected value for quda.%s.%s", tp, name);
+  return DUMMY_VALUE(INVALID_VERBOSITY);
+}
+
+#undef DUMMY_VALUE
+#undef CHECK_VALUE
+#undef QQ_ENUM

@@ -28,14 +28,29 @@ qq_checkGaugeParam(lua_State *L, int idx)
 }
 
 static int
-qq_gauge_param_fmt(lua_State *L)
+qq_gp_fmt(lua_State *L)
 {
   QudaGaugeParam *p = qq_checkGaugeParam(L, 1);
   lua_pushfstring(L, "quda.GaugeParam(%p)", p);
   return 1;
 }
 
-#define QQ_ENUM(t) static void qq_named_##t(lua_State *L, int idx, t *ptr, const char *name, const char *tp)
+/* conversions between QUDA enums and Qlua strings */
+#define QQ_ENUM(t) /* static */ t qlua2quda_##t(lua_State *L, const char *name, const char *tp, const char *val)
+#define CHECK_VALUE(val, str_val) if (strcmp(val, #str_val) == 0) { return QUDA_##str_val; }
+#define DUMMY_VALUE(str_val) QUDA_##str_val
+#include "qq-enum.c"   /* DEPS */
+
+#define QQ_ENUM(t) /* static */ const char * quda2qlua_##t(lua_State *L, const char *name, const char *tp, t val)
+#define CHECK_VALUE(val, str_val) if (val == QUDA_##str_val) { return #str_val; }
+#define DUMMY_VALUE(str_val) #str_val
+#define QQ_GET
+#include "qq-enum.c"   /* DEPS */
+#undef QQ_GET
+
+/* XXX */
+
+#define QQ_ENUM(t) /* XXX static */ void qq_named_##t(lua_State *L, int idx, t *ptr, const char *name, const char *tp)
 
 QQ_ENUM(QudaReconstructType)
 {
@@ -401,13 +416,21 @@ QQ_ENUM(QudaUseInitGuess)
 }
 #undef QQ_ENUM
 
+/* XXX */
+
 static int
-qq_gauge_param_set(lua_State *L)
+qq_gp_get(lua_State *L)
 {
   QudaGaugeParam *p = qq_checkGaugeParam(L, 1);
-#define GET_INT_VALUE(name)  p->name = qlua_tabkey_intopt(L, 2, #name, p->name)
-#define GET_DOUBLE_VALUE(name)  p->name = qlua_tabkey_doubleopt(L, 2, #name, p->name)
-#define GET_NAMED_VALUE(t,n) qq_named_##t(L, 2, &p->n, #n, "GaugeParam")
+  const char *fld = luaL_checkstring(L, 2);
+  
+#define GET_INT_VALUE(name) if (strcmp(fld, #name) == 0) { \
+    lua_pushnumber(L, p->name); return 1; }
+#define GET_DOUBLE_VALUE(name) if (strcmp(fld, #name) == 0) { \
+    lua_pushnumber(L, p->name); return 1; }
+#define GET_NAMED_VALUE(t,name)  if (strcmp(fld, #name) == 0) { \
+    lua_pushstring(L, quda2qlua_##t(L, #name, "GaugeParam", p->name)); return 1; }
+
   GET_INT_VALUE(ga_pad);
   GET_INT_VALUE(site_ga_pad);
   GET_INT_VALUE(staple_pad);
@@ -441,32 +464,114 @@ qq_gauge_param_set(lua_State *L)
   GET_NAMED_VALUE(QudaLinkType, type);
   GET_NAMED_VALUE(QudaStaggeredPhase, staggered_phase_type);
   GET_NAMED_VALUE(QudaTboundary, t_boundary);
+
 #undef GET_NAMED_VALUE
 #undef GET_DOUBLE_VALUE
 #undef GET_INT_VALUE
-  if (qlua_tabkey_tableopt(L, 2, "X")) {
+  if (strcmp(fld, "X") == 0) {
+    int i;
+    lua_createtable(L, QUDA_DIM, 0);
+    for (i = 0; i < QUDA_DIM; i++) {
+      lua_pushinteger(L, p->X[i]);
+      lua_rawseti(L, -2, i+1); /* lua indexing */
+    }
+    return 1;
+  }
+  return qlua_lookup(L, 2, mtnGaugeParam);
+}
+
+static int
+qq_gp_put(lua_State *L)
+{
+  QudaGaugeParam *p = qq_checkGaugeParam(L, 1);
+  const char *fld = luaL_checkstring(L, 2);
+  
+#define PUT_INT_VALUE(name) if (strcmp(fld, #name) == 0) { \
+    p->name = luaL_checkint(L, 3); return 0; }
+#define PUT_DOUBLE_VALUE(name) if (strcmp(fld, #name) == 0) { \
+    p->name = luaL_checknumber(L, 3); return 1; }
+#define PUT_NAMED_VALUE(t,name)  if (strcmp(fld, #name) == 0) { \
+    p->name = qlua2quda_##t(L, #name, "GaugeParam", luaL_checkstring(L, 3)); return 0; }
+
+  PUT_INT_VALUE(ga_pad);
+  PUT_INT_VALUE(site_ga_pad);
+  PUT_INT_VALUE(staple_pad);
+  PUT_INT_VALUE(llfat_ga_pad);
+  PUT_INT_VALUE(mom_ga_pad);
+  PUT_INT_VALUE(preserve_gauge);
+  PUT_INT_VALUE(staggered_phase_applied);
+  PUT_INT_VALUE(overlap);
+  PUT_INT_VALUE(overwrite_mom);
+  PUT_INT_VALUE(use_resident_gauge);
+  PUT_INT_VALUE(use_resident_mom);
+  PUT_INT_VALUE(make_resident_gauge);
+  PUT_INT_VALUE(make_resident_mom);
+  PUT_INT_VALUE(return_result_gauge);
+  PUT_INT_VALUE(return_result_mom);
+  PUT_DOUBLE_VALUE(anisotropy);
+  PUT_DOUBLE_VALUE(tadpole_coeff);
+  PUT_DOUBLE_VALUE(scale);
+  PUT_DOUBLE_VALUE(gaugeGiB);
+  PUT_DOUBLE_VALUE(i_mu);
+  PUT_NAMED_VALUE(QudaReconstructType, reconstruct);
+  PUT_NAMED_VALUE(QudaReconstructType, reconstruct_precondition);
+  PUT_NAMED_VALUE(QudaReconstructType, reconstruct_sloppy);
+  PUT_NAMED_VALUE(QudaPrecision, cpu_prec);
+  PUT_NAMED_VALUE(QudaPrecision, cuda_prec);
+  PUT_NAMED_VALUE(QudaPrecision, cuda_prec_precondition);
+  PUT_NAMED_VALUE(QudaPrecision, cuda_prec_sloppy);
+  PUT_NAMED_VALUE(QudaFieldLocation, location);
+  PUT_NAMED_VALUE(QudaGaugeFieldOrder, gauge_order);
+  PUT_NAMED_VALUE(QudaGaugeFixed, gauge_fix);
+  PUT_NAMED_VALUE(QudaLinkType, type);
+  PUT_NAMED_VALUE(QudaStaggeredPhase, staggered_phase_type);
+  PUT_NAMED_VALUE(QudaTboundary, t_boundary);
+
+#undef PUT_NAMED_VALUE
+#undef PUT_DOUBLE_VALUE
+#undef PUT_INT_VALUE
+  if (strcmp(fld, "X") == 0) {
     int *xx = qlua_checkintarray(L, -1, QUDA_DIM, NULL);
     int i;
     for (i = 0; i < QUDA_DIM; i++)
       p->X[i] = xx[i];
     qlua_free(L, xx);
     lua_pop(L, 1);
-  }
+    return 0;
+  }    
+  luaL_error(L, "invalid or unsettable GaugeParam element");
   return 0;
 }
 
 static int
-qq_gauge_param_print(lua_State *L)
+qq_gp_print(lua_State *L)
 {
   QudaGaugeParam *p = qq_checkGaugeParam(L, 1);
+
   printQudaGaugeParam(p);
+
   return 0;
 }
 
+static int
+qq_gp_copy(lua_State *L)
+{
+  QudaGaugeParam *p = qq_checkGaugeParam(L, 1);
+  QudaGaugeParam *v = lua_newuserdata(L, sizeof (QudaGaugeParam));
+
+  luaL_getmetatable(L, mtnGaugeParam);
+  lua_setmetatable(L, -2);
+  *v = *p;
+
+  return 1;
+}
+
 static struct luaL_Reg mtGaugeParam[] = {
-  { "__tostring", qq_gauge_param_fmt },
-  { "set",        qq_gauge_param_set },
-  { "print",      qq_gauge_param_print },
+  { "__tostring", qq_gp_fmt },
+  { "__index",    qq_gp_get },
+  { "__newindex", qq_gp_put },
+  { "copy",       qq_gp_copy },
+  { "print",      qq_gp_print },
   { NULL, NULL }
 };
 
@@ -474,6 +579,7 @@ static int
 qq_gauge_param(lua_State *L)
 {
   QudaGaugeParam *v = lua_newuserdata(L, sizeof (QudaGaugeParam));
+
   luaL_getmetatable(L, mtnGaugeParam);
   lua_setmetatable(L, -2);
   *v = newQudaGaugeParam();
