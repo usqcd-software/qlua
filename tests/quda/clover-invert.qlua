@@ -87,7 +87,10 @@ function run_solver(U, kappa, c_sw, rhs)
                                maxiter             = 10000,
                                -- verbosity  = "DEBUG_VERBOSE"
                             });
-   local rhs = QS:solve(rhs);
+   local rhs,ipres = QS:solve(rhs);
+   printf("  QS solver iparams output:\n");
+   printf("     .iter      = %d\n", ipres.iter);
+   printf("     .true_res  = %g\n", ipres.true_res);
    QS:close();
    return rhs;
 end

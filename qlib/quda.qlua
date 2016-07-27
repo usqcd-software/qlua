@@ -47,8 +47,9 @@ do
          if not gparams then
             error("Solver is closed");
          end
-         local sol = _quda.invertQuda(rhs, iparams);
-         return sol;
+         local ip = iparams:copy();
+         local sol = _quda.invertQuda(rhs, ip);
+         return sol, ip;
       end
       function obj:plaqs()
          if not gparams then
@@ -107,30 +108,31 @@ do
          V4 = U4;
       end
       iparams = _quda.InvertParam();
-      iparams:set{clover_cpu_prec           = "DOUBLE_PRECISION",
-                  clover_cuda_prec          = "DOUBLE_PRECISION",
-                  clover_cuda_prec_sloppy   = "HALF_PRECISION",
-                  clover_order              = "PACKED_CLOVER_ORDER",
-                  cpu_prec                  = "DOUBLE_PRECISION",
-                  cuda_prec                 = "DOUBLE_PRECISION",
-                  cuda_prec_sloppy          = "HALF_PRECISION",
-                  dagger                    = "DAG_NO",
-                  dirac_order               = "QDP_DIRAC_ORDER",
-                  gamma_basis               = "DEGRAND_ROSSI_GAMMA_BASIS",
-                  inv_type                  = "BICGSTAB_INVERTER",
-                  mass_normalization        = "KAPPA_NORMALIZATION",
-                  matpc_type                = "MATPC_EVEN_EVEN",
-                  preserve_source           = "PRESERVE_SOURCE_NO",
-                  reliable_delta            = 0.1,
-                  solution_type             = "MAT_SOLUTION",
-                  solve_type                = "DIRECT_PC_SOLVE",
-                  sp_pad                    = padding,
-                  cl_pad                    = padding,
-                  tune                      = "TUNE_YES",
-                  use_init_guess            = "USE_INIT_GUESS_NO",
-                  verbosity                 = "SILENT"
-               };
-      iparams:set(ipx);
+      iparams.clover_cpu_prec           = "DOUBLE_PRECISION";
+      iparams.clover_cuda_prec          = "DOUBLE_PRECISION";
+      iparams.clover_cuda_prec_sloppy   = "HALF_PRECISION";
+      iparams.clover_order              = "PACKED_CLOVER_ORDER";
+      iparams.cpu_prec                  = "DOUBLE_PRECISION";
+      iparams.cuda_prec                 = "DOUBLE_PRECISION";
+      iparams.cuda_prec_sloppy          = "HALF_PRECISION";
+      iparams.dagger                    = "DAG_NO";
+      iparams.dirac_order               = "QDP_DIRAC_ORDER";
+      iparams.gamma_basis               = "DEGRAND_ROSSI_GAMMA_BASIS";
+      iparams.inv_type                  = "BICGSTAB_INVERTER";
+      iparams.mass_normalization        = "KAPPA_NORMALIZATION";
+      iparams.matpc_type                = "MATPC_EVEN_EVEN";
+      iparams.preserve_source           = "PRESERVE_SOURCE_NO";
+      iparams.reliable_delta            = 0.1;
+      iparams.solution_type             = "MAT_SOLUTION";
+      iparams.solve_type                = "DIRECT_PC_SOLVE";
+      iparams.sp_pad                    = padding;
+      iparams.cl_pad                    = padding;
+      iparams.tune                      = "TUNE_YES";
+      iparams.use_init_guess            = "USE_INIT_GUESS_NO";
+      iparams.verbosity                 = "SILENT";
+      for i,v in pairs(ipx) do
+         iparams[i] = v;
+      end
       _quda.loadGaugeQuda({U[1],U[2],U[3],V4}, gparams);
       if ((ipx.dslash_type == "CLOVER_WILSON_DSLASH") or
        (ipx.dslash_type == "TWISTED_CLOVER_DSLASH")) then
