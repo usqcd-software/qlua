@@ -24,28 +24,31 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 
 #CC='mpicc -fopenmp -m64 -std=c99 -DDEBUG_MDWF_EOPC2' \
 
+# LD='mpic++ -fopenmp -m64 -fno-underscoring -Xlinker -rpath -Xlinker '$CUDAROOT'/lib' \
+# LIBS='-L'$CUDAROOT'/lib -lz -lcudart -lc++' \
+
 CC='mpicc -m64' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
 COPTS='-g' \
-LD='mpic++ -fopenmp -m64 -fno-underscoring -Xlinker -rpath -Xlinker '$CUDAROOT'/lib' \
-LIBS='-L'$CUDAROOT'/lib -lz -lcudart -lc++' \
+LD='mpif77 -fopenmp -m64 -fno-underscoring' \
+LIBS='-lz' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-quda=$QUDATOP                                    \
+   --with-lhpc-aff=$PACKTOP/aff                            \
    --with-hdf5=$PACKTOP/hdf5                               \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+   --with-clover=$PACKTOP/clover                           \
+   --clover-nc=$Nc                                         \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
-#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
-#   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+#   --with-quda=$QUDATOP                                    \
 #   --with-qopqdp=$PACKTOP/qopqdp                           \
-#   --with-clover=$PACKTOP/clover                           \
-#   --clover-nc=$Nc                                         \
 #   --with-twisted=$PACKTOP/twisted-working                 \
 #   --twisted-nc=$Nc                                        \
 #   --with-mdwf=$PACKTOP/mdwf                               \
