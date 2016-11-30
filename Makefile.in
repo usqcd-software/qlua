@@ -120,7 +120,8 @@ libsrc = fix.c \
          qdpc_io.c \
          ddpairs_io.c \
          qdpcc_io.c \
-         qomp.c
+         qomp.c \
+	 qopt.c
 
 libsrcxx =
 
@@ -183,8 +184,7 @@ ifeq ("@extras@", "true")
 	      save_npr.c \
 	      extras_common.c \
 	      lat_ft.c \
-	      \
-	      qlopt.c
+	      test_qopt.c \
 
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
