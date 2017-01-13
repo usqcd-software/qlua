@@ -1,0 +1,99 @@
+package.path = 'lhpc/?.qlua;' .. package.path
+require "strict"
+require "stdlib"
+
+real_list1 = { 
+  { 1.1,  1.2 },
+  { 2.3,  2.4 },
+  { 3.1415926, 2.718281828 },
+  { 19.73, 20.42 }
+}
+
+int1_list = {
+  { 0,  0,  0,  0 },
+  { 1,  0,  0,  0 },
+  { 0,  1,  0,  0 },
+  { 0,  0,  1,  0 },
+  { 0,  0,  0,  1 },
+  { 1,  1,  0,  0 },
+  { 1,  0,  1,  0 },
+  { 1, -1,  2, -4 },
+  {-8, -9,-10,-32 },
+  { 0,  0,  0,  -100000 },
+}
+
+int2_list = { }
+for i = 0, 1 do
+  int2_list[1+i] = {}
+  for j = 0, 2 do
+    int2_list[1+i][1+j] = {}
+    for k = 0, 3 do
+      local ind = (i+1) + 10*((j+1) + 10*(k+1))
+      int2_list[1+i][1+j][1+k] = ind
+    end
+  end
+end
+--print_obj(int2_list, "int2_list")
+
+cplx_list1 = {}
+for i = 0, 0 do
+  cplx_list1[1+i] = {}
+  for j = 0, 1 do
+    cplx_list1[1+i][1+j] = {}
+    for k = 0, 3 do
+      local ind = (i+1) + 10*((j+1) + 10*(k+1))
+      cplx_list1[1+i][1+j][1+k] = complex(ind, ind / 1000.)
+    end
+  end
+end
+--print_obj(cplx_list1)
+
+
+latsize = {4,4,4,8}
+L = qcd.lattice(latsize)
+cc = L:Complex(0)
+recx_list1 = {}
+for i = 0, 1 do
+  recx_list1[1+i] = {}
+  for j = 0, 2 do
+      local ind = (i+1) + 10*(j+1)
+      recx_list1[1+i][1+j] = { 
+          string.format("rec-%d-%d=%d", i+1, j+1, ind), -- name
+          cc + L:Real(ind),   -- latcomplex
+          (ind % 17) % 2 * 2 - 1  -- int
+      }
+  end
+end
+--print_obj(recx_list1, "recx_list1")
+
+str_list1 = {}
+for i = 0, 1 do
+  str_list1[1+i] = {}
+  for j = 0, 3 do
+    local ind = (i+1) + 10*(j+1)
+    str_list1[1+i][1+j] = string.format("str%d--%d:%d", ind, 1+i, 1+j)
+  end
+end
+--print_obj(str_list1, "str_list1")
+
+
+qcd.test_qopt(
+    101,
+    202,
+    303.404,
+    complex(0.123, 0.456),
+    recx_list1,
+    {     
+      cplx_list1,   -- MxNxP
+      str_list1,    -- 2xN
+      struct1   = { 51, 62, 1e-3, 73 },         
+      struct2   = { 200, 1e-4, 5., -42 },  
+      int_2x3x4 = int2_list,
+      int_Nx4   = int1_list,
+      real_Nx2  = real_list1,                  
+      str1      = "LR",                         
+      str2      = "arpack_lf",
+      bool1     = true,
+    }
+    )
+      

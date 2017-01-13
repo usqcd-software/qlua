@@ -1,0 +1,116 @@
+require "stdlib";
+require "gauge";
+require "quda";
+
+Lx = 8;
+Lt = 16;
+
+L = qcd.lattice {Lx, Lx, Lx, Lt};
+do
+  local l_s = 1
+  l_id = L:Int(0)
+  for d = 0, #L - 1 do
+    l_id = l_id + l_s * L:pcoord(d)
+    l_s = l_s * L[d]
+  end
+  S = L:RandomState(1984, l_id)
+end
+
+
+-- build a zero, unit, and a somewhat random fields
+U0 = {};
+U1 = {};
+U1x = {};
+Ux = {};
+do
+   local one = L:ColorMatrix(1.0);
+   local zero = L:ColorMatrix(0.0);
+   for d = 1, #L do
+      U0[d] = zero;
+      U1[d] = one;
+      U1x[d] = one;
+      Ux[d] = toSUn(S:gaussian_ColorMatrix() * 0.1);
+   end
+   Ux[#L] = toSUn(S:gaussian_ColorMatrix() * 0.8);
+   U1x[#L] = zero;
+end
+
+function ref_plaqs(V)
+   local i, j;
+   local px = 0;
+   local pt = 0;
+   local Nt = 0;
+   local Nx = 0;
+
+   local function pl(V, a, b)
+      local R = V[a] * V[b]:shift(a-1, "from_forward");
+      local L = V[b] * V[a]:shift(b-1, "from_forward");
+      return qcd.dot(L,R):real():sum();
+   end
+   
+   for i = 1, #L-1 do
+      for j = i + 1, #L-1 do
+         px = px + pl(V, i, j);
+         Nx = Nx + 1;
+      end
+      pt = pt + pl(V, #L, i);
+      Nt = Nt + 1;
+   end
+   pt = pt / (V[1]:colors() * L:volume());
+   px = px / (V[1]:colors() * L:volume());
+   return (pt + px)/(Nt + Nx), px/Nx, pt/Nt;
+end
+
+function show_plaqs(name, V, fn)
+   local pa, pt, px = fn(V);
+   printf("%s %20.15f %20.15f %20.15f\n", name, pa, pt, px);
+   return pa, pt, px;
+end
+
+
+function quda_plaqs(V)
+   -- load gauge attempt
+   QS = qcd.quda.solver(V, { t_boundary          = "ANTI_PERIODIC_T" }, {});
+   local a, b, c = QS:plaqs();
+   QS:close();
+   return a, b, c;
+end
+
+function norm3(a,b,c)
+   return a * a + b * b + c * c;
+end
+
+local err_count = 0;
+
+function test_plaqs(name, V)
+   printf("\nTest of plaqs for %s gauge\n", name);
+   local qa, qb, qc = show_plaqs("  quda", V, quda_plaqs);
+   local ra, rb, rc = show_plaqs("  ref ", V, ref_plaqs);
+   local v = norm3(qa - ra, qb - rb, qc - rc);
+   local n = norm3(ra,rb,rc);
+   printf("    diff2/norm2: %20.10e (%g/%g)\n", v / (n + 1e-30), v, n);
+   if (v / (n + 1e-30) > 1e-16) then
+      printf("XXX error: plaq diff is too large\n");
+      err_count = err_count + 1;
+   end
+   printf("-------------\n");
+end
+
+
+qcd.quda.init(L);
+
+test_plaqs("random", Ux);
+test_plaqs("unit", U1);
+test_plaqs("zero", U0);
+test_plaqs("unit/zero", U1x);
+
+qcd.quda.fini();
+
+if (err_count > 0) then
+   printf("MISTAKES WERE MADE\n");
+   os.exit(1);
+end
+
+printf("DONE\n");
+
+       

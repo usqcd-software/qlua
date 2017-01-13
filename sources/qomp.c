@@ -1,3 +1,5 @@
+const char qomp_name[] = "openmp";
+
 #ifdef _OPENMP
 #include "modules.h"                                           /* DEPS */
 #include "qlua.h"                                              /* DEPS */
@@ -5,7 +7,6 @@
 #include <string.h>
 #include <omp.h>
 
-static const char qomp_name[] = "openmp";
 
 /* OpenMP controls */
 

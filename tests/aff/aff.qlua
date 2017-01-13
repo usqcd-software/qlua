@@ -1,9 +1,11 @@
+require "stdlib";
+
 -- check aff writer first
 -- file = "/tmp/qlua/test-file.aff"
 file = "test-file.aff"
 
 w,m = qcd.aff.Writer(file)
-print("writer:", w, m)
+printf("writer: %s %s\n", tostring(w), tostring(m));
 
 if not w then
    os.exit(1)
@@ -11,12 +13,12 @@ end
 
 function mk_path(x, p)
   local s = x:mkpath(p)
-  print("mkpath:", p, s)
+  printf("mkpath: %s %s\n", p, tostring(s));
 end
 
 function ch_path(x, p)
   local s = x:chpath(p)
-  print("chpath:", p, s)
+  printf("chpath: %s %s\n", p, tostring(s));
 end
 
 lx = vector.int(4)
@@ -36,51 +38,49 @@ end
 
 mk_path(w, "/foo/barr/x")
 -- successful writes return with 0 results, force them to nils
-print("write string:", (w:write("/const/name", "Jaberwokky")))
-print("write ints", (w:write("/lattice/size", lx)))
-print("write doubles", (w:write("/data", dxx)))
-print("write complex", (w:write("/comlpex/angles", cxx)))
+printf("write string: %s\n", tostring(w:write("/const/name", "Jaberwokky")));
+printf("write ints: %s\n", tostring(w:write("/lattice/size", lx)));
+printf("write doubles: %s\n", tostring(w:write("/data", dxx)));
+printf("write complex: %s\n", tostring(w:write("/comlpex/angles", cxx)));
 mk_path(w, "/foo")
 ch_path(w, "bazz")
 mk_path(w, "fourth")
 -- ch_path(w, "..")
 
 s = w:close()
-print("w:close()", s)
+printf("w:close(): %s\n", tostring(s));
 
-print()
+printf("\n");
 
 r,m = qcd.aff.Reader(file)
 
+printf("reader: %s %s\n", tostring(r), tostring(m));
 if not r then
-   print("reader:", r, w)
    os.exit(1)
 end
 
-print("reader:", r, m)
-
 x = r:read("/foo/barr/x")
-print("reading empty element:", x)
+printf("reading empty element: %s\n", tostring(x));
 
 x = r:read("/const/name")
-print("reading string:", x)
+printf("reading string: %s\n", tostring(x));
 
 x = r:read("/lattice/size")
-print("reading ints:", x)
+printf("reading ints: %s\n", tostring(x));
 for i = 0, #x - 1 do
-  print("  x[" .. i .. "] = ", x[i])
+   printf("  x[ %2d ] = %d\n",  i, x[i]);
 end
 
 x = r:read("/data")
-print("reading doubles:", x)
+printf("reading doubles: %s\n", tostring(x));
 for i = 0, #x - 1 do
-  print("  x[" .. i .. "] = ", x[i])
+   printf("  x[ %2d ] = %g\n", i, x[i])
 end
 
 x = r:read("/comlpex/angles")
-print("reading complex:", x)
+printf("reading complex: %s\n", tostring(x));
 for i = 0, #x - 1 do
-  print("  x[" .. i .. "] = ", x[i])
+   printf("  x[ %2d ] = %s\n", i, tostring(x[i]));
 end
 
 ch_path(r, "bazz")
@@ -88,13 +88,13 @@ ch_path(r, "/foo")
 ch_path(r, "barr/x")
 ch_path(r, "/foo/barr")
 
-print("list of /")
+printf("list of /\n")
 for i,f in ipairs(r:list("/")) do
-   print(i, f)
+   printf(" %4d %20s   %s\n", i, r:kind("/" .. f), f);
 end
 -- ch_path(r, "/usr/bin")
 -- ch_path(r, "/foo/barr")
 
 r:close()
 
-print("done")
+printf("done\n")

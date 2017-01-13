@@ -102,8 +102,19 @@ typedef enum {
     qMDWFDeflator,            /* 59 */
     qMDWFDeflatorState,       /* 60 */
     qQOPwmgState,             /* 61 */
+    /* types for stack parsing */
+    qOptInt,                  /* 62 */
+    qOptBool,                 /* 63 */
+    qOptArray,                /* 64 */
+    qOptStruct,                /* 65 */
+    qOptNone,                 /* 66 */
+#ifdef HAS_QUDA
+    qQudaGaugeParam,
+    qQudaInvertParam,
+    qQudaEigParam,
+#endif /* defined(HAVE_QUDA) */
     /* ZZZ add types for other packages here */
-    qNoType                   /* 62 */
+    qNoType                   /* 67 */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */
@@ -195,6 +206,7 @@ int qlua_push_key_number(lua_State *L, int idx, const char *key, double val);
 int qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val);
 int qlua_push_key_object(lua_State *L, int idx, const char *key);
 
+int qlua_tabkey(lua_State *L, int idx, const char *key);
 int qlua_tabkey_bool(lua_State *L, int idx, const char *key);
 int qlua_tabkey_boolopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);

@@ -315,7 +315,7 @@ q_dirac_solver(lua_State *L)
         double norm5;
         int status;
         int i;
-                char *err_str = NULL;
+        const char *err_str = NULL;
 
         CALL_QDP(L);
         norm5 = 0;
@@ -360,6 +360,9 @@ q_dirac_solver(lua_State *L)
                 }
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
+
+        if (status)
+            err_str = QOP_MDWF_error(c->state);
 
         QOP_MDWF_performance(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
@@ -412,6 +415,7 @@ q_dirac_solver(lua_State *L)
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
         int status;
+        const char *err_str;
 
         CALL_QDP(L);
         QDP_D3_r_eq_norm2_D(&rhs_norm2, psi->ptr, S->all);
@@ -443,6 +447,9 @@ q_dirac_solver(lua_State *L)
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
+        if (status)
+            err_str = QOP_MDWF_error(c->state);
+
         QOP_MDWF_performance(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
@@ -455,12 +462,8 @@ q_dirac_solver(lua_State *L)
 
         QOP_D3_MDWF_free_fermion(&c_psi);
 
-        if (status) {
-            if (relaxed_p)
-                return 0;
-            else
-                return luaL_error(L, QOP_MDWF_error(c->state));
-        }
+        if (status && !relaxed_p)
+            return luaL_error(L, QOP_MDWF_error(c->state));
 
         env.lat = S->lat;
         env.f = QDP_D3_expose_D(eta->ptr);
@@ -518,10 +521,10 @@ q_dirac_solver(lua_State *L)
         mLatDirProp3 *eta = qlua_newZeroLatDirProp3(L, Sidx, 3);
         struct QOP_D3_MDWF_Fermion *c_psi;
         struct QOP_D3_MDWF_Fermion *c_eta;
-        int gstatus = 0;
         DW_P_env env;
         QLA_D_Real rhs_norm2 = 0;
         int status;
+        const char *err_str;
 
         lua_createtable(L, QOP_MDWF_COLORS, 0);  /* eps */
         lua_createtable(L, QOP_MDWF_COLORS, 0);  /* iters */
@@ -576,6 +579,9 @@ q_dirac_solver(lua_State *L)
                 status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
                                       log_level);
 
+                if (status)
+                    err_str = QOP_MDWF_error(c->state);
+
                 QOP_MDWF_performance(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
@@ -587,12 +593,8 @@ q_dirac_solver(lua_State *L)
                            env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
                 QOP_D3_MDWF_free_fermion(&c_psi);
-                if (status) {
-                    if (relaxed_p)
-                        gstatus = 1;
-                    else
-                        return luaL_error(L, QOP_MDWF_error(c->state));
-                }
+                if (status && !relaxed_p)
+                    return luaL_error(L, QOP_MDWF_error(c->state));
 
                 if (c->type == DW_Shamir) {
                     if (QOP_D3_MDWF_axial_current(q_DW_writer_axial_current,
@@ -622,8 +624,6 @@ q_dirac_solver(lua_State *L)
 
         QDP_D_reset_R(mp_ps);
 
-        if (gstatus)
-            return 0;
         if (c->type != DW_Shamir) {
             lua_pop(L, 2);
             return 3;

@@ -1,0 +1,7 @@
+#ifndef MARK_5AADC81D_F311_4747_AAB7_CC1C1B42084F
+#define MARK_5AADC81D_F311_4747_AAB7_CC1C1B42084F
+
+int init_quda(lua_State *L);
+void fini_quda(void);
+
+#endif /* defined(MARK_5AADC81D_F311_4747_AAB7_CC1C1B42084F) */

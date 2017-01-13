@@ -1,6 +1,8 @@
 #!/bin/sh
-PACKTOP=$HOME/Local/packages/macosx-working
+PACKTOP=$HOME/Local/packages/macosx-20160127
+QUDATOP=$HOME/Sandbox/USQCD/quda/build
 DEVTOP=$HOME/Local/packages
+CUDAROOT=/usr/local/cuda
 Nc=3
 # noNc=3
 
@@ -22,31 +24,34 @@ LAPACK_LIBS="-L$PACKTOP/lapack/lib -llapack"
 
 #CC='mpicc -fopenmp -m64 -std=c99 -DDEBUG_MDWF_EOPC2' \
 
-CC='mpicc -fopenmp -m64 -std=c99' \
-LD='mpif77 -fopenmp -m64 -fno-underscoring' \
+# LD='mpic++ -fopenmp -m64 -fno-underscoring -Xlinker -rpath -Xlinker '$CUDAROOT'/lib' \
+# LIBS='-L'$CUDAROOT'/lib -lz -lcudart -lc++' \
+
+CC='mpicc -m64' \
 CFLAGS="-Wall $WOPTS -DQDP_Nc=$Nc -g" \
 COPTS='-g' \
+LD='mpif77 -fopenmp -m64 -fno-underscoring' \
 LIBS='-lz' \
 ./configure                                                \
    --prefix=$TARGET                                        \
    --with-qdp=$PACKTOP/qdp                                 \
    --with-lua=$PACKTOP/lua                                 \
    --with-gsl=$PACKTOP/gsl                                 \
-   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
+   --with-lhpc-aff=$PACKTOP/aff                            \
    --with-hdf5=$PACKTOP/hdf5                               \
-   --with-qopqdp=$PACKTOP/qopqdp                           \
+   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --with-clover=$PACKTOP/clover                           \
    --clover-nc=$Nc                                         \
-   --twisted-nc=$Nc                                        \
-   --with-mdwf=$PACKTOP/mdwf                               \
-   --with-arpack="$ARPACK_LIBS $LAPACK_LIBS"               \
    --without-nc=N                                          \
    --with-nc=3                                             \
    --without-nc=2                                          \
    $*
 
+#   --with-quda=$QUDATOP                                    \
+#   --with-qopqdp=$PACKTOP/qopqdp                           \
 #   --with-twisted=$PACKTOP/twisted-working                 \
-#   --with-mdwf=$DEVTOP/mdwf-working                        \
+#   --twisted-nc=$Nc                                        \
+#   --with-mdwf=$PACKTOP/mdwf                               \
 #   --without-nc=$noNc                                      \
 #   --without-nc=N                                          \
 #   --with-nc=N                                             \
