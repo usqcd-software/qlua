@@ -1932,24 +1932,24 @@ build_clover(lua_State *L,
   if (QNc(QOP_, _CLOVER_init)(&clover->state, &cc))
     return luaL_error(L, "CLOVER_init() failed");
 
-    /* import the gauge field */
-    for (i = 0; i < Nt; i++) {
-      uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
-    }
+  /* import the gauge field */
+  for (i = 0; i < Nt; i++) {
+    uf[i] = QNc(QDP_D, _expose_M)(UF[i]);
+  }
 
-    if (QNc(QOP_, _CLOVER_import_gauge)(&clover->gauge, clover->state, kappa, c_sw,
-                                u_reader, f_reader, args)) {
-        return luaL_error(L, "CLOVER_import_gauge() failed");
-    }
+  if (QNc(QOP_, _CLOVER_import_gauge)(&clover->gauge, clover->state, kappa, c_sw,
+                              u_reader, f_reader, args)) {
+      return luaL_error(L, "CLOVER_import_gauge() failed");
+  }
 
-    for (i = 0; i < Nt; i++)
-      QNc(QDP_D, _reset_M)(UF[i]);
+  for (i = 0; i < Nt; i++)
+    QNc(QDP_D, _reset_M)(UF[i]);
 
-    /* clean up temporaries */
-    for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
-      QNc(QDP_D, _destroy_M)(UF[i]);
+  /* clean up temporaries */
+  for (i = QNc(QOP_, _CLOVER_DIM); i < Nz; i++)
+    QNc(QDP_D, _destroy_M)(UF[i]);
 
-    return 1;
+  return 1;
 }
 
 static void

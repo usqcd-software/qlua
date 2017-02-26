@@ -1,6 +1,9 @@
 #ifndef MARK_E390D5B2_478D_48BF_B753_64072003402B
 #define MARK_E390D5B2_478D_48BF_B753_64072003402B
 
+#define MAX_NDIM    10      /* MAX number of dimensions for coord, latsize, 
+                               etc. arrays to avoid unnecessary malloc/free */
+
 #ifdef HAS_GSL
 #define GSL_RANGE_CHECK_OFF
 #define HAVE_INLINE
@@ -64,6 +67,7 @@ gen_laplace_P(lua_State *L,
               int skip_axis);
 
 int q_save_bb(lua_State *L);
+int q_save_momproj(lua_State *L);
 
 
 #ifdef HAS_HDF5

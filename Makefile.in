@@ -163,6 +163,7 @@ ifeq ("@use_nc3@", "1")
 ifeq ("@extras@", "true")
   extrasrc += extras.c \
               save_bb.c \
+	      save_c1_momproj.c \
               gen_laplace.c \
 	      qparam.c \
 	      save_npr.c \

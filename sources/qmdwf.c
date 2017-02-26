@@ -1050,7 +1050,6 @@ q_DF_evecs_rawdump(lua_State *L)
     if (qlua_checkopt_paramtable(L, 4)) {
         rank_stride = qlua_tabkey_intopt(L, 4, "rank_stride",  1);
         verbose     = qlua_tabkey_intopt(L, 4, "verbose",      0);
-        lua_pop(L, 1);
     }                                                           /* [-0,+0,-] */
     int df_dim  = QOP_F3_MDWF_deflator_current_dim(d->deflator);
     if (n_evec <= 0 || df_dim < n_evec)
@@ -1236,7 +1235,6 @@ static int q_DF_evecs_rawload(lua_State *L)
     if (qlua_checkopt_paramtable(L, 4)) {
         rank_stride = qlua_tabkey_intopt(L, 4, "rank_stride",  1);
         verbose     = qlua_tabkey_intopt(L, 4, "verbose",      0);
-        lua_pop(L, 1);
     }                                                           /* [-0,+0,-] */
 
     /* get mesh */
