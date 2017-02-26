@@ -254,6 +254,7 @@ static struct luaL_Reg fExtra[] = {
 #endif /* defined(HAS_HDF5) */
     { "save_npr_prop",              q_save_npr_prop },
     { "save_npr_2qvertex",          q_save_npr_2qvertex },
+    { "test_qopt",                  q_test_qopt },
     { NULL,         NULL }
 };
 

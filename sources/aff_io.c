@@ -310,6 +310,35 @@ qar_get_list(struct AffNode_s *n, void *arg)
 }
 
 static int
+qaff_r_kind(lua_State *L)
+{
+    mAffReader *b = qlua_checkAffReader(L, 1);
+    struct AffNode_s *r;
+    const char *p = luaL_checkstring(L, 2);
+    enum AffNodeType_e kind;
+    const char *kind_name = "Invalid";
+    
+    check_reader(L, b);
+
+    qlua_Aff_enter(L);
+    r = qlua_AffReaderChPath(b, p);
+    if (r == 0)
+        return luaL_error(L, aff_reader_errstr(b->ptr));
+    kind = aff_node_type(r);
+    switch (kind) {
+    case affNodeVoid:    kind_name = "Group"; break;
+    case affNodeChar:    kind_name = "String"; break;
+    case affNodeInt:     kind_name = "VectorInt"; break;
+    case affNodeDouble:  kind_name = "VectorReal"; break;
+    case affNodeComplex: kind_name = "VectorComplex"; break;
+    default: break;
+    }
+    qlua_Aff_leave();
+    lua_pushstring(L, kind_name);
+    return 1;
+}
+
+static int
 qaff_r_list(lua_State *L)
 {
     mAffReader *b = qlua_checkAffReader(L, 1);
@@ -518,8 +547,10 @@ qaff_w_write(lua_State *L)
     qlua_Aff_leave();
     QMP_sum_int(&status);
 
-    if (status)
-        return 0;
+    if (status) {
+      lua_pushnil(L);
+      return 1;
+    }
 
     if (b->master)
         return luaL_error(L, msg);
@@ -670,6 +701,7 @@ static const struct luaL_Reg mtReader[] = {
     { "read",             qaff_r_read},
     { "chpath",           qaff_r_chpath },
     { "status",           qaff_r_status },
+    { "kind",             qaff_r_kind },
     { "list",             qaff_r_list },
     { NULL,               NULL}
 };

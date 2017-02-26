@@ -1,0 +1,65 @@
+require "stdlib"
+
+-- check aff writer first
+file_root = "test"
+
+file_format = "data-%s.%s.aff";
+
+Lt = 64
+
+function mk_data()
+  local x = vector.complex(Lt)
+  for i = 0, Lt - 1 do
+    x[i] = complex(os.random(), os.random())
+  end
+  return x
+end 
+
+function put_data(id, state, x, aw)
+  aw:write(string.format("/two-point/%s/id%s", state, id), x)
+end
+
+function do_id(id)
+  local aw = qcd.aff.Writer(string.format(file_format, file_root, id))
+  put_data(id, "proton", mk_data(), aw)
+  put_data(id, "pion", mk_data(), aw)
+  aw:close()
+end
+
+confs = {
+ "12345_43564",
+ "34564_85678",
+ "86742_35462"}
+
+function check_id(id)
+   local function scan_data(rd, path)
+      printf("scan of %s:\n", path);
+      local k = rd:kind(path);
+      if k == "Group" then
+         local ls = rd:list(path);
+         local i;
+         for i = 1, #ls do
+            printf(" %s\n", ls[i]);
+         end
+         for i = 1, #ls do
+            scan_data(rd, path .. "/" .. ls[i]);
+         end
+         
+      else
+         printf(" %-20s %s\n", k, path);
+      end
+   end
+   local ar = qcd.aff.Reader(string.format(file_format, file_root, id));
+   printf("check_id(%s) : ar = %s\n", id, tostring(ar));
+   scan_data(ar, "");
+   ar:close();
+end
+
+
+for i = 1, #confs do
+  printf("\ndo %s\n", confs[i])
+  do_id(confs[i])
+  check_id(confs[i]);
+end
+
+printf("---- done\n")

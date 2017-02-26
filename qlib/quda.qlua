@@ -1,0 +1,145 @@
+-- quda interface
+do
+   local inited = false;
+   local solver = false;
+   local lattice = false;
+   local has_clover = false;
+   qcd.quda = {};
+   function qcd.quda.init(L)
+      if inited then
+         error("Quda is already inited");
+      else
+         _quda.setVerbosityQuda("SILENT");
+         _quda.initCommsGridQuda(L);
+         _quda.initQuda();
+         lattice = L;
+      end
+      inited = true;
+   end
+   function qcd.quda.fini()
+      if inited then
+         if solver then
+            solver:fini();
+         end
+         _quda.endQuda();
+         lattice = false;
+         inited = false;
+      else
+         error("Quda is not initialized\n");
+      end
+   end
+   function qcd.quda.solver(U, gpx, ipx)
+      local obj = {};
+      local gparams = nil;
+      local iparams = nil;
+      function obj:close()
+         if has_clover then
+            _quda.freeCloverQuda();
+            has_clover = false;
+         end
+         _quda.freeGaugeQuda();
+         gparams = nil;
+         iparams = nil;
+         obj = {};
+         solver = false;
+      end
+      function obj:solve(rhs)
+         if not gparams then
+            error("Solver is closed");
+         end
+         local ip = iparams:copy();
+         local sol = _quda.invertQuda(rhs, ip);
+         return sol, ip;
+      end
+      function obj:plaqs()
+         if not gparams then
+            error("Solver is closed");
+         end
+         return _quda.plaqQuda();
+      end
+      function obj:__gc()
+         obj:close();
+      end
+      if not inited then
+         error("qcd.quda is not initialized");
+      end
+      if solver then
+         error("qcd.quda does not support multiple solvers");
+      end
+      local vol = lattice:volume();
+      local i;
+      local padding = 0;
+      for i = 0, #L - 1 do
+         local face = vol / lattice[i];
+         if face > padding then
+            padding = face;
+         end
+      end
+      gparams = _quda.GaugeParam();
+      gparams.type                = "WILSON_LINKS";
+      gparams.gauge_order         = "QDP_GAUGE_ORDER";
+      gparams.gauge_fix           = "GAUGE_FIXED_NO";
+      gparams.cpu_prec            = "DOUBLE_PRECISION";
+      gparams.ga_pad              = padding;
+      gparams.cuda_prec           = "DOUBLE_PRECISION";
+      gparams.reconstruct         = "RECONSTRUCT_NO";
+      gparams.cuda_prec_sloppy    = "HALF_PRECISION";
+      gparams.reconstruct_sloppy  = "RECONSTRUCT_12";
+      gparams.anisotropy          = 1.0;
+      gparams.X                   = {lattice[0],
+                                     lattice[1],
+                                     lattice[2],
+                                     lattice[3]};
+      for i,v in pairs(gpx) do
+         gparams[i] = v;
+      end
+      if not (#U == #lattice) then
+         error("Wrong number of color matrices in the gauge field");
+      end
+      for i = 1, #L do
+         if not (U[i].lattice == lattice) then
+            error("Gauge field component on a wrong lattice");
+         end
+      end
+      local V4 = U[4];
+      if (gpx.t_boundary == "ANTI_PERIODIC_T") then
+         local U4 = V4:copy();
+         lattice:Subset{axis=3, position=lattice[3]-1}:where(function () U4:set(-V4) end);
+         V4 = U4;
+      end
+      iparams = _quda.InvertParam();
+      iparams.clover_cpu_prec           = "DOUBLE_PRECISION";
+      iparams.clover_cuda_prec          = "DOUBLE_PRECISION";
+      iparams.clover_cuda_prec_sloppy   = "HALF_PRECISION";
+      iparams.clover_order              = "PACKED_CLOVER_ORDER";
+      iparams.cpu_prec                  = "DOUBLE_PRECISION";
+      iparams.cuda_prec                 = "DOUBLE_PRECISION";
+      iparams.cuda_prec_sloppy          = "HALF_PRECISION";
+      iparams.dagger                    = "DAG_NO";
+      iparams.dirac_order               = "QDP_DIRAC_ORDER";
+      iparams.gamma_basis               = "DEGRAND_ROSSI_GAMMA_BASIS";
+      iparams.inv_type                  = "BICGSTAB_INVERTER";
+      iparams.mass_normalization        = "KAPPA_NORMALIZATION";
+      iparams.matpc_type                = "MATPC_EVEN_EVEN";
+      iparams.preserve_source           = "PRESERVE_SOURCE_NO";
+      iparams.reliable_delta            = 0.1;
+      iparams.solution_type             = "MAT_SOLUTION";
+      iparams.solve_type                = "DIRECT_PC_SOLVE";
+      iparams.sp_pad                    = padding;
+      iparams.cl_pad                    = padding;
+      iparams.tune                      = "TUNE_YES";
+      iparams.use_init_guess            = "USE_INIT_GUESS_NO";
+      iparams.verbosity                 = "SILENT";
+      for i,v in pairs(ipx) do
+         iparams[i] = v;
+      end
+      _quda.loadGaugeQuda({U[1],U[2],U[3],V4}, gparams);
+      if ((ipx.dslash_type == "CLOVER_WILSON_DSLASH") or
+       (ipx.dslash_type == "TWISTED_CLOVER_DSLASH")) then
+         _quda.loadCloverQuda(iparams);
+         has_clover = true;
+      end
+      solver = obj;
+      return obj;
+   end
+end

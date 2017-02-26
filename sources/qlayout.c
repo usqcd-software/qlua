@@ -37,7 +37,7 @@ node2coord(int *x, int n, mLattice *S)
 }
 
 static int
-coord2node(int *x, mLattice *S)
+coord2node(const int *x, mLattice *S)
 {
     int i;
     int l = 0;
@@ -48,6 +48,12 @@ coord2node(int *x, mLattice *S)
         f = f * S->net[i];
     }
     return l;
+}
+
+int
+qlua_comm_map(const int *net_coord, void *env)
+{
+  return coord2node(net_coord, env);
 }
 
 static int prime[] = {

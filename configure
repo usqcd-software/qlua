@@ -20,8 +20,8 @@ show_help() {
      --with-lua=DIR           use DIR/lib and DIR/include for lua installation
      --with-qdp=DIR           use DIR/bin/qdp-config to query QDP configuration
      --with-<package>=DIR     use DIR/bin/<package>-config to query package
-     --clover-nc=[23]         setup Nc for CLOVER inverter 
-     --twisted-nc=[23]        setup Nc for TWISTED inverter 
+     X --clover-nc=[23]         setup Nc for CLOVER inverter 
+     X --twisted-nc=[23]        setup Nc for TWISTED inverter 
      --with[out]-nc=2         include [exclude] Nc=2 special case
      --with[out]-nc=3         include [exclude] Nc=3 special case
      --with[out]-nc=N         include [exclude] Nc=N special case
@@ -32,10 +32,11 @@ show_help() {
                               [default=no]
 
    Supported packages:
-     clover                   SciDAC L3 clover inverter
-     twisted                  SciDAC L3 twisted inverter
-     mdwf                     SciDAC L3 Moebius Domain Wall inverter
-     qopqdp                   SciDAC L3 qop package
+     X clover                   SciDAC L3 clover inverter
+     X twisted                  SciDAC L3 twisted inverter
+     X mdwf                     SciDAC L3 Moebius Domain Wall inverter
+     X qopqdp                   SciDAC L3 qop package
+     quda                     SciDAC L3 QUDA package
      lhpc-aff                 LHPC AFF library
      gsl                      GSL library
      atlas                    Use ATLAS for CBLAS
@@ -99,6 +100,7 @@ process_args() {
       --docdir=*)       docdir=$(echo "$1" | sed -e 's/--docdir=//')   ;;
       --with-lua=*)     lua=$(echo "$1" | sed -e 's/--with-lua=//')    ;;
       --with-qdp=*)     qdp=$(echo "$1" | sed -e 's/--with-qdp=//')    ;;
+      --with-quda=*)      quda=$(echo "$1" | sed -e 's/--with-quda=//') ;;
       --with-clover=*)    clover=$(echo "$1" | sed -e 's/--with-clover=//') ;;
       --with-twisted=*)   twisted=$(echo "$1" | sed -e 's/--with-twisted=//') ;;
       --with-mdwf=*)      mdwf=$(echo "$1" | sed -e 's/--with-mdwf=//') ;;
@@ -186,6 +188,11 @@ normalize() {
      qopqdp_ldflags="-L$qopqdp/lib"
      qopqdp_libs="-lqopqdp"
   fi
+  if [ ! -z "$quda" ] ; then
+     quda_cflags="-I$quda/include" #XXX
+     quda_ldflags="-L$quda/lib" #XXX
+     quda_libs="-lquda" #XXX
+  fi
   if [ ! -z "$clover" ] ; then
      [ -x "$clover/bin/clover-config-$clover_nc" ] \
         || show_error "No clover-config-$clover_nc under $clover"
@@ -272,10 +279,11 @@ show_config() {
    [ -z "$ranlib" ] || echo "Ranlib                  $ranlib"
    echo "LUA location            $lua"
    echo "QDP location            $qdp"
-   [ -z "$clover" ]  || echo "Clover location         $clover"
-   [ -z "$clover_nc" ] || echo "Clover Nc               $clover_nc"
-   [ -z "$twisted" ]  || echo "Twisted location        $twisted"
-   [ -z "$twisted_nc" ] || echo "Twisted Nc              $twisted_nc"
+   [ -z "$quda" ]        || echo "QUDA location           $quda"
+   [ -z "$clover" ]      || echo "Clover location         $clover"
+   [ -z "$clover_nc" ]   || echo "Clover Nc               $clover_nc"
+   [ -z "$twisted" ]     || echo "Twisted location        $twisted"
+   [ -z "$twisted_nc" ]  || echo "Twisted Nc              $twisted_nc"
    [ -z "$mdwf" ]    || echo "MDWF location           $mdwf"
    [ -z "$aff" ]     || echo "AFF location            $aff"
    [ -z "$hdf5" ]    || echo "HDF5 location           $hdf5"
@@ -326,6 +334,10 @@ build() {
         -e "s|@hdf5_cflags@|$hdf5_cflags|g" \
         -e "s|@hdf5_ldflags@|$hdf5_ldflags|g" \
         -e "s|@hdf5_libs@|$hdf5_libs|g" \
+  | sed -e "s|@quda@|$quda|g" \
+        -e "s|@quda_cflags@|$quda_cflags|g" \
+        -e "s|@quda_ldflags@|$quda_ldflags|g" \
+        -e "s|@quda_libs@|$quda_libs|g" \
   | sed -e "s|@clover@|$clover|g" \
         -e "s|@clover_cflags@|$clover_cflags|g" \
         -e "s|@clover_ldflags@|$clover_ldflags|g" \
@@ -371,6 +383,7 @@ build_versions() {
   echo "#define QDP_VERSION \"$qdp\""
   if [ ! -z "$aff" ] ;         then echo "#define LHPC_AFF_VERSION \"$aff\""      ; fi
   if [ ! -z "$hdf5" ] ;        then echo "#define HDF5_VERSION \"$hdf5\""         ; fi
+  if [ ! -z "$quda" ] ;        then echo "#define QUDA_VERSION \"$quda\""         ; fi
   if [ ! -z "$clover" ] ;      then echo "#define CLOVER_VERSION \"$clover\""     ; fi
   if [ ! -z "$twisted" ] ;     then echo "#define TWISTED_VERSION \"$twisted\""   ; fi
   if [ ! -z "$mdwf" ] ;        then echo "#define MDWF_VERSION \"$mdwf\""         ; fi
@@ -388,6 +401,9 @@ build_modules() {
   fi
   if [ ! -z "$hdf5" ] ; then
     echo "#define HAS_HDF5"
+  fi
+  if [ ! -z "$quda" ] ; then
+    echo "#define HAS_QUDA"
   fi
   if [ ! -z "$clover" ] ; then
     echo "#define HAS_CLOVER"

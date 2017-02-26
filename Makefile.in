@@ -37,6 +37,11 @@ HDF5_CF       = @hdf5_cflags@
 HDF5_LF       = @hdf5_ldflags@
 HDF5_LIBS     = @hdf5_libs@
 
+QUDA         = @quda@
+QUDA_CF      = @quda_cflags@
+QUDA_LF      = @quda_ldflags@
+QUDA_LIBS    = @quda_libs@
+
 CLOVER       = @clover@
 CLOVER_CF    = @clover_cflags@
 CLOVER_LF    = @clover_ldflags@
@@ -116,7 +121,13 @@ libsrc = fix.c \
          ddpairs_io.c \
          qdpcc_io.c \
          qomp.c \
+<<<<<<< HEAD
 	 crc32.c \
+=======
+	 qopt.c
+
+libsrcxx =
+>>>>>>> origin/aff-kind
 
 ###############################################################################
 ifneq ("$(AFF)", "")
@@ -131,6 +142,10 @@ endif
 ifneq ("$(QOPQDP)", "")
    libsrc += qqopqdp.c \
              qqq-wmg.c
+endif
+
+ifneq ("$(QUDA)", "")
+  libsrc += qquda.c
 endif
 
 ifneq ("$(CLOVER)", "")
@@ -168,6 +183,7 @@ ifeq ("@extras@", "true")
 	      qparam.c \
 	      save_npr.c \
 	      extras_common.c \
+	      test_qopt.c \
 	      lat_ft.c
 ifneq ("$(HDF5)", "")
   extrasrc += h5common.c \
@@ -176,6 +192,7 @@ ifneq ("$(HDF5)", "")
 	      save-q3pt.c \
 	      laph_common.c 
 endif
+
 ifneq ("$(GSL)", "")
   extrasrc += baryon.c
 endif
@@ -191,6 +208,7 @@ endif
 ###############################################################################
 drvobj = $(driver:%.c=%.o)
 libobj = $(libsrc:%.c=%.o)
+libobjxx = $(libsrcxx:%.cpp=%.o)
 extraobj = $(extrasrc:%.c=%.o)
 hypreobj = $(hypresrc:%.c=%.o)
 program = $(driver:%.c=%)
@@ -205,12 +223,13 @@ else
 endif
 
 CCMD  = $(CC) -c $(COPTS) -I. $(LUA:%=-I%/include) \
-              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
+              $(CFLAGS) $(QDP_CF) $(AFF_CF) $(HDF5_CF) $(QUDA_CF) $(CLOVER_CF) $(TWISTED_CF) $(MDWF_CF)\
               $(GSL_CF) $(HYPRE_CF) $(ARPACK_CFLAGS) $(QOPQDP_CF)
 LCMD  = $(LD) $(COPTS) $(LDFLAGS) $(LUA:%=-L%/lib) \
-              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(CLOVER_LF) $(TWISTED_LF) $(MDWF_LF) $(HYPRE_LF) \
+              $(QDP_LF) $(AFF_LF) $(HDF5_LF) $(QUDA_LF) $(CLOVER_LF) $(TWISTED_LF) $(MDWF_LF) $(HYPRE_LF) \
 	      $(ARPACK_LDFLAGS) $(QOPQDP_LF)
-LLIBS = $(QOPQDP_LIBS) $(CLOVER_LIBS) $(TWISTED_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
+LLIBS = $(QOPQDP_LIBS) $(QUDA_LIBS) \
+        $(CLOVER_LIBS) $(TWISTED_LIBS) $(MDWF_LIBS) $(AFF_LIBS) $(HDF5_LIBS) $(QDP_LIBS) \
         $(GSL_LIBS) $(CBLAS_LIBS) $(HYPRE_LIBS) $(ARPACK_LIBS) \
         -llua $(LIBS)
 
@@ -223,7 +242,7 @@ lib: $(library)
 
 clean:
 	$ECLEAN objects
-	$C$(RM) $(drvobj) $(libobj) $(extraobj) $(hypreobj) $(library)
+	$C$(RM) $(drvobj) $(libobj) $(libobjxx) $(extraobj) $(hypreobj) $(library)
 
 realclean: clean
 	$ECLEAN executables
@@ -257,12 +276,12 @@ $(hypreobj): %.o: hypre/%.c
 	$ECC $@
 	$C$(CCMD) -Isources -Ihypre -o $@ $<
 
-$(library): $(libobj) $(extraobj) $(hypreobj)
+$(library): $(libobj) $(libobjxx) $(extraobj) $(hypreobj)
 	$EAR $(library)
-	$C$(AR) cr $(library) $(libobj) $(extraobj) $(hypreobj)
+	$C$(AR) cr $(library) $(libobj) $(libobjxx) $(extraobj) $(hypreobj)
 	$C$(RANLIB) $(library)
 
-$(drvobj) $(libobj): Makefile deps
+$(drvobj) $(libobj) $(libobjxx): Makefile deps
 qlua.o: modules.h
 
 # dependencies not discoverable by utils/mkdeps
