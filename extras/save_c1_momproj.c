@@ -258,7 +258,7 @@ save_c1_momproj(lua_State *L,
                     errstr = aff_writer_errstr(aff_w->ptr);
                     goto clearerr_1_1;
                 }
-                if (aff_node_put_complex(aff_w->ptr, node, cplx_buf, lt)) {
+                if (aff_node_put_complex(aff_w->ptr, node, cplx_buf, tlen)) {
                     errstr = aff_writer_errstr(aff_w->ptr);
                     goto clearerr_1_1;
                 }

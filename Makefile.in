@@ -121,13 +121,10 @@ libsrc = fix.c \
          ddpairs_io.c \
          qdpcc_io.c \
          qomp.c \
-<<<<<<< HEAD
 	 crc32.c \
-=======
 	 qopt.c
 
 libsrcxx =
->>>>>>> origin/aff-kind
 
 ###############################################################################
 ifneq ("$(AFF)", "")
