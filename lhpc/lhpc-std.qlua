@@ -101,7 +101,7 @@ function copy_table(tab)
   return a
 end
 
-function apply_bc(gauge_links, bc)
+function apply_bc(gauge_links, bc)  -- use qlib/gauge.qlua:gauge_apply_bc
   assert (#gauge_links == #bc)
   if #gauge_links < 1 then return end
   L = gauge_links[1].lattice
