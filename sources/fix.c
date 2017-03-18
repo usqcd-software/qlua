@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <stdio.h>
 #include <sys/resource.h>
+#include <errno.h>
 
 static char self[72];
 
@@ -483,6 +484,49 @@ qlua_qcdmem(lua_State *L)
   return 1;
 }
 
+static int
+qlua_log_rusage(lua_State *L)
+{ /*file name must be unique! */
+  const char *fname = NULL,
+             *msg   = "";
+  if (0 < lua_gettop(L)) {
+    fname = qlua_checkstring(L, 1, "");
+  }
+  if (1 < lua_gettop(L)) {
+    msg = qlua_checkstring(L, 2, "");
+  }
+  struct rusage ru;
+  if (getrusage(RUSAGE_SELF, &ru)) {
+    luaL_error(L, "'getrusage' call failed: %s\n", strerror(errno));
+  };
+  char buf[1024];
+  char buf_timestr[64];
+
+  time_t tv = time(NULL);
+  struct tm tm_loc;
+  localtime_r(&tv, &tm_loc);
+  snprintf(buf_timestr, sizeof(buf_timestr), "%02d%02d%02d_%02d%02d%02d", 
+           tm_loc.tm_year % 100, 1 + tm_loc.tm_mon, tm_loc.tm_mday,
+           tm_loc.tm_hour, tm_loc.tm_min, tm_loc.tm_sec);
+  snprintf(buf, sizeof(buf), "%s maxrss=%12ld\t%s\n",
+           buf_timestr, ru.ru_maxrss, msg);
+
+  if (NULL != fname) {
+    FILE *fo = fopen(fname, "a");
+    if (NULL == fo) {
+      luaL_error(L, "cannot open '%s' for appeding: %s\n", 
+              fname, strerror(errno));
+      return 0;
+    }
+    fprintf(fo, buf);
+    fflush(fo);
+    fclose(fo);
+  } else {
+    printf(buf);
+  }
+  return 0;
+}
+
 void
 qlua_qdp_memuse(lua_State *L, const char *name, int count)
 {
@@ -684,6 +728,11 @@ init_qlua_io(lua_State *L)
     lua_getglobal(L, qcdlib);
     lua_pushcfunction(L, qlua_qcdmem);
     lua_setfield(L, -2, "memory_usage");
+    
+    /* print rusage */
+    lua_getglobal(L, qcdlib);
+    lua_pushcfunction(L, qlua_log_rusage);
+    lua_setfield(L, -2, "log_rusage");
 
     return 0;
 }

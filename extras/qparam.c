@@ -150,3 +150,73 @@ qlua_check_latcolvec_table(lua_State *L, int idx,
     return res;
 }
 
+int 
+qlua_table_objcount(lua_State *L, int idx) 
+{
+    if (LUA_TTABLE != lua_type(L, idx)) 
+        return 0;
+
+    int cnt = 0;
+    lua_pushnil(L);
+    while (0 != lua_next(L, idx)) {
+        cnt ++;
+        lua_pop(L, 1);
+    }
+    return cnt;
+}
+
+
+int
+qlua_check_latcomplex_strmap(lua_State *L, int idx, mLattice **S, 
+        int *len, const char ***strkey, QDP_D_Complex ***latcomplex)
+/* 
+    *S      check that all lattice objects have this lattice type; 
+            if ==NULL, initialize from input
+    *len    check that the number of elements is <= *len
+            if ==-1, initialize from data; also, *strkey and *latcomplex must 
+            be NULL to avoid memleaks
+    *strkey array for strkeys; malloc if ==NULL or *len==-1
+    *latcomplex array for fields; malloc if ==NULL or *len==-1
+*/            
+{
+    assert(NULL != len);
+    assert(NULL != strkey);
+    assert(NULL != latcomplex);
+    assert(NULL != S);
+    if (LUA_TTABLE != lua_type(L, idx)) {
+        luaL_error(L, "strmap(LatComplex) expected");
+        return 1;
+    }
+
+    int d = qlua_table_objcount(L, idx);
+    if (*len < 0) {
+        assert(NULL == *strkey);
+        *strkey = qlua_malloc(L, sizeof(char *) * d);
+        assert(NULL == *latcomplex);
+        *latcomplex = qlua_malloc(L, sizeof(QDP_D3_ColorVector *) * d);
+    } else {
+        assert(d <= *len);
+    }
+    *len = d;
+    
+    int cnt = 0;
+    lua_pushnil(L);
+    while (0 != lua_next(L, idx)) {
+        assert(cnt < d);
+        (*strkey)[cnt] = luaL_checkstring(L, -2);
+        (*latcomplex)[cnt]  = qlua_checkLatComplex(L, -1, *S)->ptr;
+//        /**/printf("[%s(%s)] : %s\n", (*strkey)[cnt], 
+//                        lua_typename(L, lua_type(L,-2)), 
+//                        lua_typename(L, lua_type(L,-1)));
+        if (NULL == *S) {
+            mLattice *S1 = qlua_ObjLattice(L, lua_gettop(L));
+            lua_pop(L, 1);
+            *S = S1;
+        }
+        lua_pop(L, 1);
+        cnt++;
+    }
+
+    return 0;   /* OK */
+}
+

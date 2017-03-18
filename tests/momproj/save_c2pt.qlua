@@ -1,0 +1,55 @@
+package.path='lhpc/?.qlua;' .. package.path
+require 'strict'
+require 'stdlib'
+require 'setup_util'
+require 'hadspec'
+require 'lhpc-std'
+
+rnd_seed = 1973
+t_axis = #latsize - 1
+ferm_bc = {1,1,1,-1}
+aff1_c2pt_file = "c2pt1.aff"
+aff2_c2pt_file = "c2pt2.aff"
+
+csrc0 = {1,2,3,5}
+csrc_str = string.format('x%d_y%d_z%d_t%d', csrc0[1], csrc0[2], csrc0[3], csrc0[4])
+psnk_list = make_mom_list(4)
+
+
+L = qcd.lattice(latsize, {network=network_geom})
+S = rnd_init(L, rnd_seed)
+  
+aff1_w = qcd.aff.Writer(aff1_c2pt_file)
+aff2_w = qcd.aff.Writer(aff2_c2pt_file)
+
+cplx1_tab = {}
+cplx2_tab = {}
+for cnt = 0, 10 do
+  local k = string.format('gauss_cplx%02d', cnt)
+  local c = S:gaussian_Complex()
+  cplx1_tab[k] = c
+  cplx2_tab[string.format('%s/%s', k, csrc_str)] = c
+end
+
+cur_timer = timer('x_pbc_orig')
+save_2pt_list(L, aff1_w, 'x_pbc',  cplx1_tab, csrc0, psnk_list, t_axis, 1)
+cur_timer('done')
+
+cur_timer = timer('x_pbc_fast')
+qcd.save_momproj(aff2_w, 'x_pbc', cplx2_tab, csrc0, psnk_list, t_axis, 1, {ft_sign=-1})
+cur_timer('done')
+
+
+cur_timer = timer('x_apbc_orig')
+save_2pt_list(L, aff1_w, 'x_apbc', cplx1_tab, csrc0, psnk_list, t_axis, -1)
+cur_timer('done')
+
+cur_timer = timer('x_apbc_fast')
+qcd.save_momproj(aff2_w, 'x_apbc', cplx2_tab, csrc0, psnk_list, t_axis, -1, {ft_sign=-1})
+cur_timer('done')
+
+
+aff1_w:close()
+aff2_w:close()
+
+printf("QLUA_RUN_SUCCESS\n")

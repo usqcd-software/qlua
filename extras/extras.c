@@ -240,6 +240,7 @@ q_fourier_transf(lua_State *L)
 
 static struct luaL_Reg fExtra[] = {
     { "save_bb",    q_save_bb },
+    { "save_momproj",  q_save_momproj },
     { "laplacian",  q_laplacian },
     { "fourier_transf", q_fourier_transf },
 #ifdef HAS_GSL
