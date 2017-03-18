@@ -36,7 +36,7 @@ save_2pt_list(L, aff1_w, 'x_pbc',  cplx1_tab, csrc0, psnk_list, t_axis, 1)
 cur_timer('done')
 
 cur_timer = timer('x_pbc_fast')
-qcd.save_momproj(aff2_w, 'x_pbc', cplx2_tab, csrc0, psnk_list, t_axis, 1, {ft_sign=-1})
+qcd.save_momproj(aff2_w, 'x_pbc', cplx2_tab, csrc0, psnk_list, t_axis, 1, {ft_sign=-1, tlen=10})
 cur_timer('done')
 
 
@@ -45,7 +45,7 @@ save_2pt_list(L, aff1_w, 'x_apbc', cplx1_tab, csrc0, psnk_list, t_axis, -1)
 cur_timer('done')
 
 cur_timer = timer('x_apbc_fast')
-qcd.save_momproj(aff2_w, 'x_apbc', cplx2_tab, csrc0, psnk_list, t_axis, -1, {ft_sign=-1})
+qcd.save_momproj(aff2_w, 'x_apbc', cplx2_tab, csrc0, psnk_list, t_axis, -1, {ft_sign=1, tlen=10})
 cur_timer('done')
 
 
