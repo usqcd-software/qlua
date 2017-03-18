@@ -9,8 +9,8 @@
 -- TODO replace D(m)^{-1}.D(1) -> (1+(1-m)*D(m)^{-1} ZY)
 -- TODO try iterations wrt 4d vector only (check if applicable for the full 5d)
 
-require "strict"
-require "latvec"
+require 'strict'
+require 'latvec'
 require 'lhpc-std'
 
 
@@ -52,7 +52,7 @@ do
 
   local function convert_fermion_D4_to_D5(src_d4, L5)
     local src_d5 = {}
-    for s = 0, L5-1 do src_d5[1+s] = L:DiracFermion() end
+    for s = 1, L5-2 do src_d5[1+s] = L:DiracFermion() end
     -- includes reversal of 5th dimension
     src_d5[1] = 0.5 * (1 + gamma{n=15}) * src_d4
     src_d5[L5]= 0.5 * (1 - gamma{n=15}) * src_d4
@@ -206,7 +206,7 @@ do
       local madcg_timer = timer("MADCG")
       local norm2_srce = nil
       local rhs0  = rhs
-      local rhs = mdminus_f(rhs)    -- XXX debug
+      local rhs = mdminus_f(rhs)        ; force_gc()  -- XXX debug
       print_latvec_cmp(rhs0, rhs, "rhs<->mdminus(rhs)")
       if print_residual then norm2_srce = mdwf_norm2(rhs) end
 
@@ -214,7 +214,7 @@ do
       local sol = solver_i(rhs, p1, p2)
       do
         local Dx = DW_f_D(sol)
-        rhs = mdwf_sub(rhs, Dx)
+        rhs = mdwf_sub(rhs, Dx)         ; Dx = nil ; force_gc()
       end
 
       if print_residual then
@@ -225,52 +225,56 @@ do
 
       -- Mobius solves
       for i = 1, iterations do
+        force_gc()
         local a = solver_m1(rhs, p1, p2)
-        local c = project_m(a, L5_f)
-        a = extract_first_component(c)
-        a = add_zeros_in_5d(a, L5_c) -- c_moebius
-        a = project_p(a, L5_c)
-        a = DW_c_m1_D(a) -- b_moebius
-        a = solver_moeb(a, p1, p2) -- y_moebius
-	a = project_m(a, L5_c)
-        a = extract_first_component(a) -- y1
-        a = add_zeros_in_5d(a, L5_f)
-        c = mdwf_add(c, a) -- (y1,0,...,0)+c
-        a = project_p(a, L5_f)
-        a = DW_f_D(a)
-        a = solver_m1(a, p1, p2)
-        a = project_m(a, L5_f)
-        a = mdwf_sub(c, a) -- y
-        a = project_p(a, L5_f) -- x
-        sol = mdwf_add(sol, a)
-        a = DW_f_D(a) -- Dx
-        rhs = mdwf_sub(rhs, a)
+        local c = project_m(a, L5_f)    ; force_gc()
+        a = extract_first_component(c)  ; force_gc()
+        a = add_zeros_in_5d(a, L5_c)    ; force_gc() -- c_moebius
+        a = project_p(a, L5_c)          ; force_gc()
+        a = DW_c_m1_D(a)                ; force_gc() -- b_moebius
+        a = solver_moeb(a, p1, p2)      ; force_gc() -- y_moebius
+	a = project_m(a, L5_c)          ; force_gc()
+        a = extract_first_component(a)  ; force_gc() -- y1
+        a = add_zeros_in_5d(a, L5_f)    ; force_gc()
+        c = mdwf_add(c, a)              ; force_gc() -- (y1,0,...,0)+c
+        a = project_p(a, L5_f)          ; force_gc()
+        a = DW_f_D(a)                   ; force_gc()
+        a = solver_m1(a, p1, p2)        ; force_gc()
+        a = project_m(a, L5_f)          ; force_gc()
+        a = mdwf_sub(c, a)              ; c = nil ; force_gc() -- y   
+        a = project_p(a, L5_f)          ; force_gc() -- x
+        sol = mdwf_add(sol, a)          ; force_gc()
+        a = DW_f_D(a)                   ; force_gc() -- Dx
+        rhs = mdwf_sub(rhs, a)          ; a = nil ; force_gc()
         if print_residual then
           local norm2_diff = mdwf_norm2(rhs)
           printf("norm2_diff/norm2_srce = %25.15e\n", norm2_diff/norm2_srce)
         end
+        force_gc()
       end
 
       -- final solve
       do
         local x = solver_f(rhs, p1, p2)
-        sol = mdwf_add(sol, x)
+        sol = mdwf_add(sol, x)          ; x = nil ; force_gc()
         if print_residual then
           x = DW_f_D(x)
-          rhs = mdwf_sub(rhs, x)
+          rhs = mdwf_sub(rhs, x)        ; x = nil ; force_gc()
           local norm2_diff = mdwf_norm2(rhs)
           printf("norm2_diff/norm2_srce = %25.15e\n", norm2_diff/norm2_srce)
         end
       end
 
       madcg_timer("done")
+      rhs = nil ; rhs0 = nil ; force_gc()
       return sol
     end
 
     local function solver_dirferm(rhs, print_residual, p1, p2)
       local x = convert_fermion_D4_to_D5(rhs, L5_f)
-      x = solver_5d(x, print_residual, p1, p2)
-      return convert_fermion_D5_to_D4(x, L5_f)
+      x = solver_5d(x, print_residual, p1, p2) ; force_gc()
+      x = convert_fermion_D5_to_D4(x, L5_f) ; force_gc()
+      return x
     end
 
     local function solver_dirprop(rhs, print_residual, p1, p2)
@@ -279,7 +283,7 @@ do
         for d = 0, 3 do
           local src = rhs[{c=c,d=d}]
           printf("solving DiracPropagator c = %d, d = %d\n", c, d)
-          sol[{c=c,d=d}] = solver_dirferm(src, print_residual, p1, p2)
+          sol[{c=c,d=d}] = solver_dirferm(src, print_residual, p1, p2) ; src = nil ; force_gc()
         end
       end
       return sol

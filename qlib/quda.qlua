@@ -75,6 +75,7 @@ do
             padding = face;
          end
       end
+      local net = lattice:network();
       gparams = _quda.GaugeParam();
       gparams.type                = "WILSON_LINKS";
       gparams.gauge_order         = "QDP_GAUGE_ORDER";
@@ -86,10 +87,10 @@ do
       gparams.cuda_prec_sloppy    = "HALF_PRECISION";
       gparams.reconstruct_sloppy  = "RECONSTRUCT_12";
       gparams.anisotropy          = 1.0;
-      gparams.X                   = {lattice[0],
-                                     lattice[1],
-                                     lattice[2],
-                                     lattice[3]};
+      gparams.X                   = {lattice[0] / net[1],
+                                     lattice[1] / net[2],
+                                     lattice[2] / net[3],
+                                     lattice[3] / net[4]};
       for i,v in pairs(gpx) do
          gparams[i] = v;
       end

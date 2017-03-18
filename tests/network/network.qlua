@@ -1,0 +1,32 @@
+-- check how network topology is handled.
+require "stdlib";
+
+function show_network(name)
+   printf("qlua network %s\n", name);
+   local ms, t, s = qcd.network();
+   local i;
+   printf("   %s network of %d nodes\n", t, ms);
+
+   if s then
+      for i = 1, #s do
+         printf("  Machine network %4d: %5d\n", i, s[i]);
+      end
+   else
+      printf("  s is nil\n");
+   end
+end
+
+function show_lattice_network(name, lat)
+   printf("%s lattice %s network\n", name, tostring(lat));
+   local i, ln;
+   ln = lat:network();
+   for i = 1, #ln do
+      printf("Lattice net %4d: %5d\n", i - 1, ln[i]);
+   end
+end
+
+
+show_network("inital");
+L = qcd.lattice{8,8,8,16};
+show_network("after 8c16 lattice is created");
+show_lattice_network("8c16 default", L);

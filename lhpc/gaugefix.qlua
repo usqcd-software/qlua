@@ -92,6 +92,10 @@ function sun_gaugefix_landau_relax(g, u, ic, jc, lss, aniso, or_param)
   -- update
   lss:where(function()
     for mu = 0, Nd - 1 do 
+      assert(nil=="FIXME : do not assign to variables out of subset:scope")
+      -- FIXME because complement to subset will have undefiled numbers
+      -- FIXME use field:set instead
+      -- however, 'v' is not used outside : move v into the scope???
       v = v + (ug[1+mu] + ug[1+mu]:shift(mu, "from_backward"):adjoin()) *(aniso[1+mu]*aniso[1+mu])
     end
     local r = su2extract(v, ic,jc)

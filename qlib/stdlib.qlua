@@ -137,6 +137,18 @@ function copy_table(tab, level)
 end
 table_copy = copy_table
 
+function table_append(res, x) res[1+#res] = x end
+-- extend table `res' with values in table `t', ignoring keys
+function table_extend(res, t)
+  for ia, a in pairs(t) do res[1+#res] = a end
+end
+-- join tables into a single list of values, ignoring keys
+function table_join(...)
+  local res = {}
+  for k, t in pairs({...}) do table_extend(res, t) end
+  return res
+end
+
 -- compute average and variance of a real field
 function calc_avg_var(f)
   local L   = f.lattice

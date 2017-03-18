@@ -66,3 +66,28 @@ function spprint_table(t, indent, level, spprint_elem)
     end
   else return spprint_elem(t) end
 end
+
+function print_mem_usage_short(msg)
+  if nil == msg then msg = "" end
+  local mem_str = string.format("%s:", msg)
+  local mem_tab = {}
+  for i,v in pairs(qcd.memory_usage()) do
+    local data_str = '?'
+    if      'Random'  == i then data_str = 'S'
+    elseif  'Int'     == i then data_str = 'I'
+    elseif  'Real'    == i then data_str = 'R'
+    elseif  'Complex' == i then data_str = 'C'
+    elseif  string.find(i, '^ColorVector')      then data_str = 'V'
+    elseif  string.find(i, '^ColorMatrix')      then data_str = 'M'
+    elseif  string.find(i, '^DiracFermion')     then data_str = 'D'
+    elseif  string.find(i, '^DiracPropagator')  then data_str = 'P'
+    end
+    mem_tab[data_str] = (mem_tab[data_str] or 0) + v
+  end
+  for i,data_str in pairs({'S', 'I', 'R', 'C', 'V', 'M', 'D', 'P' }) do
+    mem_str = string.format("%s %6d%s", mem_str,
+                (mem_tab[data_str] or 0), data_str)
+  end
+  printf("%s\n", mem_str)
+end
+

@@ -99,7 +99,7 @@ function range_prod(ranges, filter)
   end
 end
 
-function gauge_set_bc(u, bc)
+function gauge_set_bc(u, bc)    -- use qlib/gauge.qlua:gauge_apply_bc
   -- TODO there is a function in gauge.qlua that does it
   -- modify gauge field links u to have bc
   --  u   array of gauge link fields
@@ -111,6 +111,7 @@ function gauge_set_bc(u, bc)
     end)
   end
 end
+
 -- make a grid of sources x0 + (latsize/n_src)*i_src + dx_c * i_c
 function make_src_grid(n_src, latsize, x0, dx_c, i_c)
   local dx_g     = { }
@@ -132,3 +133,32 @@ function make_src_grid(n_src, latsize, x0, dx_c, i_c)
   end end end end
   return src_list
 end
+-- make groups of sources on a grid x0 + (latsize/n_src)*i_src + dx_c * i_c
+-- grouped by spatial coord
+function make_srcgrp_grid(n_src, latsize, x0, dx_c, i_c)
+  local dx_g     = { }
+  for i, n_i in pairs(n_src) do
+    dx_g[i] = latsize[i] / n_i
+  end
+
+  local srcgrp_list = {}
+  local i_srcgrp = 0
+  for ix = 0, n_src[1]-1 do for iy = 0, n_src[2]-1 do 
+  for iz = 0, n_src[3]-1 do 
+    local i_src = 0
+    local srcgrp = {}
+    for it = 0, n_src[4]-1 do
+      local ii = {ix,iy,iz,it}
+      local s = {}
+      for k = 1, 4 do
+        s[k] = (x0[k] + dx_c[k] * i_c + dx_g[k] * ii[k]) % latsize[k]
+      end
+      i_src = i_src + 1
+      srcgrp[i_src] = s
+    end
+    i_srcgrp = i_srcgrp + 1
+    srcgrp_list[i_srcgrp] = srcgrp
+  end end end
+  return srcgrp_list
+end
+

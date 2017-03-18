@@ -198,6 +198,7 @@ q_dirac_solver(lua_State *L)
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
         int status;
+        const char *err_str;
 
         CALL_QDP(L);
         QNc(QDP_D,_r_eq_norm2_D)(&rhs_norm2, psi->ptr, S->all);
@@ -222,6 +223,9 @@ q_dirac_solver(lua_State *L)
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
+        if (status)
+            err_str =  QNc(QOP_,_CLOVER_error)(c->state);
+
         QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
@@ -241,12 +245,8 @@ q_dirac_solver(lua_State *L)
         QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
         QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
 
-        if (status) {
-            if (relaxed_p)
-                return 0;
-            else
-                return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
-        }
+        if (status && !relaxed_p)
+            return luaL_error(L, err_str);
 
         /* eta is on the stack already */
         lua_pushnumber(L, out_eps);
@@ -262,11 +262,11 @@ q_dirac_solver(lua_State *L)
         QNz(mLatDirProp) *eta = QNz(qlua_newZeroLatDirProp)(L, Sidx, QLUA_CLOVER_NC);
         struct QNc(QOP_, _CLOVER_Fermion) *c_psi;
         struct QNc(QOP_, _CLOVER_Fermion) *c_eta;
-        int gstatus = 0;
         int status;
         qCL_P_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
+        const char *err_str;
 
         lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* eps */
         lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* iters */
@@ -294,6 +294,9 @@ q_dirac_solver(lua_State *L)
                 status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
                                       log_level);
 
+                if (status)
+                    err_str =  QNc(QOP_,_CLOVER_error)(c->state);
+
                 QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
@@ -305,12 +308,8 @@ q_dirac_solver(lua_State *L)
                            env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
                 QNc(QOP_, _CLOVER_free_fermion)(&c_psi);
-                if (status) {
-                    if (relaxed_p)
-                        gstatus = 1;
-                    else
-                        return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
-                }
+                if (status && !relaxed_p)
+                    return luaL_error(L, err_str);
 
                 env.s = rhs_n;
                 QNc(QOP_, _CLOVER_export_fermion)(q_CL_P_writer_scaled, &env, c_eta);
@@ -326,10 +325,7 @@ q_dirac_solver(lua_State *L)
         QNc(QDP_D, _reset_P)(eta->ptr);
         QNc(QOP_, _CLOVER_free_fermion)(&c_eta);
 
-        if (gstatus)
-            return 0;
-        else
-            return 3;
+        return 3;
     }
     default:
         break;
@@ -381,6 +377,7 @@ q_mxm_solver(lua_State *L)
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
         int status;
+        const char *err_str;
 
         CALL_QDP(L);
         QNc(QDP_D,_r_eq_norm2_D)(&rhs_norm2, psi->ptr, S->all);
@@ -405,6 +402,9 @@ q_mxm_solver(lua_State *L)
 
         status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
 
+        if (status)
+            err_str =  QNc(QOP_,_CLOVER_error)(c->state);
+
         QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
         if (t1 == 0)
             t1 = -1;
@@ -424,12 +424,8 @@ q_mxm_solver(lua_State *L)
         QNc(QOP_, _CLOVER_free_half_fermion)(&c_eta);
         QNc(QOP_, _CLOVER_free_half_fermion)(&c_psi);
 
-        if (status) {
-            if (relaxed_p)
-                return 0;
-            else
-                return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
-        }
+        if (status && !relaxed_p)
+            return luaL_error(L, err_str);
 
         /* eta is on the stack already */
         lua_pushnumber(L, out_eps);
@@ -445,11 +441,11 @@ q_mxm_solver(lua_State *L)
         QNz(mLatDirProp) *eta = QNz(qlua_newZeroLatDirProp)(L, Sidx, QLUA_CLOVER_NC);
         struct QNc(QOP_, _CLOVER_HalfFermion) *c_psi;
         struct QNc(QOP_, _CLOVER_HalfFermion) *c_eta;
-        int gstatus = 0;
         int status;
         qCL_P_env env;
         QLA_D_Real rhs_norm2 = 0;
         double rhs_n;
+        const char *err_str;
 
         lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* eps */
         lua_createtable(L, QNc(QOP_, _CLOVER_COLORS), 0);  /* iters */
@@ -477,6 +473,9 @@ q_mxm_solver(lua_State *L)
                 status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi,
                                       log_level);
 
+                if (status)
+                    err_str =  QNc(QOP_,_CLOVER_error)(c->state);
+
                 QNc(QOP_, _CLOVER_performance)(&t1, &fl1, NULL, NULL, c->state);
                 if (t1 == 0)
                     t1 = -1;
@@ -488,12 +487,8 @@ q_mxm_solver(lua_State *L)
                            env.c, env.d, out_eps, out_iters, t1,
                            fl1 * 1e-6 / t1);
                 QNc(QOP_, _CLOVER_free_half_fermion)(&c_psi);
-                if (status) {
-                    if (relaxed_p)
-                        gstatus = 1;
-                    else
-                        return luaL_error(L, QNc(QOP_, _CLOVER_error)(c->state));
-                }
+                if (status && !relaxed_p)
+                    return luaL_error(L, err_str);
 
                 env.s = rhs_n;
                 QNc(QOP_, _CLOVER_export_half_fermion)(q_CL_P_writer_scaled, &env, c_eta);
@@ -509,10 +504,7 @@ q_mxm_solver(lua_State *L)
         QNc(QDP_D, _reset_P)(eta->ptr);
         QNc(QOP_, _CLOVER_free_half_fermion)(&c_eta);
 
-        if (gstatus)
-            return 0;
-        else
-            return 3;
+        return 3;
     }
     default:
         break;

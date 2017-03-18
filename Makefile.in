@@ -180,8 +180,9 @@ ifeq ("@extras@", "true")
 	      qparam.c \
 	      save_npr.c \
 	      extras_common.c \
+	      lat_ft.c \
 	      test_qopt.c \
-	      lat_ft.c
+
 ifneq ("$(HDF5)", "")
   extrasrc += h5common.c \
 	      laph_wf_baryon.c \

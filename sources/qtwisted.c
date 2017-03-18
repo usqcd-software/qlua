@@ -144,6 +144,7 @@ q_dirac_solver(lua_State *L)
   QLA_D_Real rhs_norm2 = 0;
   double rhs_n;
   int status;
+  const char *err_str;
   
   CALL_QDP(L);
   QNc(QDP_D,_r_eq_norm2_D)(&rhs_norm2, psi->ptr, S->all);
@@ -168,6 +169,9 @@ q_dirac_solver(lua_State *L)
   
   status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
   
+  if (status)
+    err_str = QNc(QOP_, _TWISTED_error)(c->state);
+
   QNc(QOP_, _TWISTED_performance)(&t1, &fl1, NULL, NULL, c->state);
   if (t1 == 0)
     t1 = -1;
@@ -187,12 +191,8 @@ q_dirac_solver(lua_State *L)
   QNc(QOP_, _TWISTED_free_fermion)(&c_eta);
   QNc(QOP_, _TWISTED_free_fermion)(&c_psi);
   
-  if (status) {
-    if (relaxed_p)
-      return 0;
-    else
-      return luaL_error(L, QNc(QOP_, _TWISTED_error)(c->state));
-  }
+  if (status && !relaxed_p)
+    return luaL_error(L, QNc(QOP_, _TWISTED_error)(c->state));
   
   /* eta is on the stack already */
   lua_pushnumber(L, out_eps);
@@ -235,6 +235,7 @@ q_mxm_solver(lua_State *L)
   QLA_D_Real rhs_norm2 = 0;
   double rhs_n;
   int status;
+  const char *err_str;
   
   CALL_QDP(L);
   QNc(QDP_D,_r_eq_norm2_D)(&rhs_norm2, psi->ptr, S->all);
@@ -258,6 +259,9 @@ q_mxm_solver(lua_State *L)
     return luaL_error(L, "TWISTED_allocate_fermion() failed");
   
   status = solver->proc(L, c_eta, &out_iters, &out_eps, c_psi, log_level);
+
+  if (status)
+    err_str = QNc(QOP_, _TWISTED_error)(c->state);
   
   QNc(QOP_, _TWISTED_performance)(&t1, &fl1, NULL, NULL, c->state);
   if (t1 == 0)
@@ -278,12 +282,8 @@ q_mxm_solver(lua_State *L)
   QNc(QOP_, _TWISTED_free_half_fermion)(&c_eta);
   QNc(QOP_, _TWISTED_free_half_fermion)(&c_psi);
   
-  if (status) {
-    if (relaxed_p)
-      return 0;
-    else
-      return luaL_error(L, QNc(QOP_, _TWISTED_error)(c->state));
-  }
+  if (status && !relaxed_p)
+    return luaL_error(L, QNc(QOP_, _TWISTED_error)(c->state));
   
   /* eta is on the stack already */
   lua_pushnumber(L, out_eps);
