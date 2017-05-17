@@ -186,7 +186,7 @@ save_c1_momproj(lua_State *L,
         for (int i_c2 = 0 ; i_c2 < n_fields ; i_c2++) {
             QLA_D_Complex qla_c = exp_c2[i_c2][i_site];
             c2lat_arr(i_c2, tcoord, i_x3) = bc_factor * (
-                    QLA_real(qla_c) + 1j*QLA_imag(qla_c));
+                    QLA_real(qla_c) + I*QLA_imag(qla_c));
         }
     }
     for (int i_c2 = 0 ; i_c2 < n_fields ; i_c2++)
