@@ -97,7 +97,7 @@ function gauge_plaquette_all(U)
     res[1+i] = {}
     res[1+i][1+i] = L:ColorMatrix(1.)
     for j = 0, i - 1 do
-      res[1+i][1+j] = plaquette(U, i, j)
+      res[1+i][1+j] = gauge_plaquette(U, i, j)
       res[1+j][1+i] = res[1+i][1+j]:conj()
     end
   end

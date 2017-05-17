@@ -448,10 +448,11 @@ Qs(X_sun_proj_step)(Qx(QLA_D,_ColorMatrix) *u, Qx(QLA_D,_ColorMatrix) *w)
     Qx(QLA_D,_ColorMatrix) v;
     Qx(QLA_D,_ColorMatrix) tmp;
     double r0, r1, r2, r3;
-    int i1, i2;
+    int di, i1, i2;
 
-    for (i1 = 1; i1 < QC(xxx); i1++) {
-        for (i2 = 0; i2 < i1; i2++) {
+    for (di = 1 ; di < QC(xxx) ; di++) {
+        for (i1 = 0 ; i1 < QC(xxx) - di ; i1++) {
+            i2 = i1 + di;
             int j;
             double r_l;
             double a0, a1, a2, a3;
@@ -520,14 +521,14 @@ Qs(X_reunit)(Qx(QLA_D,_ColorMatrix) *u)
 #define Mu(i,j)   Qx(QLA_D,_elem_M)(*u, i, j)
     /* norm of the first column */
     for (t = 0, i = 0; i < QC(xxx); i++) {
-        QLA_Complex *ui0 = &Mu(i, 0);
+        QLA_Complex *ui0 = &Mu(0, i);
         t = hypot(t, QLA_real(*ui0));
         t = hypot(t, QLA_imag(*ui0));
     }
     t = 1.0 / t;
     /* rescale the first column */
     for (i = 0; i < QC(xxx); i++) {
-        QLA_Complex *ui0 = &Mu(i, 0);
+        QLA_Complex *ui0 = &Mu(0, i);
 
         QLA_real(*ui0) *= t;
         QLA_imag(*ui0) *= t;
@@ -535,35 +536,35 @@ Qs(X_reunit)(Qx(QLA_D,_ColorMatrix) *u)
     /* compute u[0]* . u[1] */
     QLA_c_eq_r_plus_ir(t0k, 0.0, 0.0);
     for (i = 0; i < QC(xxx); i++)
-        QLA_c_peq_ca_times_c(t0k, Mu(i, 0), Mu(i, 1));
+        QLA_c_peq_ca_times_c(t0k, Mu(0, i), Mu(1, i));
 
     /* make u[1] orthogonal to u[0]: u[1] = u[1] - t0k * u[0] */
     for (i = 0; i < QC(xxx); i++)
-        QLA_c_meq_c_times_c(Mu(i, 1), t0k, Mu(i, 0));
+        QLA_c_meq_c_times_c(Mu(1, i), t0k, Mu(0, i));
 
     /* normalize u[1] */
     for (t = 0, i = 0; i < QC(xxx); i++) {
-        QLA_Complex *ui1 = &Mu(i, 1);
+        QLA_Complex *ui1 = &Mu(1, i);
         t = hypot(t, QLA_real(*ui1));
         t = hypot(t, QLA_imag(*ui1));
     }
     t = 1.0 / t;
     for (i = 0; i < QC(xxx); i++) {
-        QLA_Complex *ui1 = &Mu(i, 1);
+        QLA_Complex *ui1 = &Mu(1, i);
 
         QLA_real(*ui1) *= t;
         QLA_imag(*ui1) *= t;
     }
 
     /* u[2] is a vector product of u[0]* and u[1]* */
-    QLA_c_eq_ca_times_ca (Mu(0,2), Mu(1,0), Mu(2,1));
-    QLA_c_meq_ca_times_ca(Mu(0,2), Mu(2,0), Mu(1,1));
-    
-    QLA_c_eq_ca_times_ca (Mu(1,2), Mu(2,0), Mu(0,1));
-    QLA_c_meq_ca_times_ca(Mu(1,2), Mu(0,0), Mu(2,1));
-
+    QLA_c_eq_ca_times_ca (Mu(2,0), Mu(0,1), Mu(1,2));
+    QLA_c_meq_ca_times_ca(Mu(2,0), Mu(0,2), Mu(1,1));
+                                                  
+    QLA_c_eq_ca_times_ca (Mu(2,1), Mu(0,2), Mu(1,0));
+    QLA_c_meq_ca_times_ca(Mu(2,1), Mu(0,0), Mu(1,2));
+                                                  
     QLA_c_eq_ca_times_ca (Mu(2,2), Mu(0,0), Mu(1,1));
-    QLA_c_meq_ca_times_ca(Mu(2,2), Mu(1,0), Mu(0,1));
+    QLA_c_meq_ca_times_ca(Mu(2,2), Mu(0,1), Mu(1,0));
 #undef Mu
 }
 #else

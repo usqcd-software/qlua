@@ -1,0 +1,76 @@
+require 'stdlib'
+require 'gauge'
+
+function print_gauge_norm_det(u, title)
+  -- print SU(N) check of gauge field
+  title = title or ''
+  assert(0 < #u)
+  local L = u[1].lattice
+  local vol = L:volume()
+  local nc  = u[1]:colors()
+  assert(#L == #u)
+  for i = 0, #L - 1 do
+    local udet      = u[1+i]:det()
+    local udet_avg  = udet:sum() / vol
+    local udet_var  = (udet - L:Complex(udet_avg)):norm2() / vol
+    local uxutr     = (u[1+i]:adjoin() * u[1+i]):trace() / nc
+    local uxutr_avg = uxutr:sum() / vol
+    local uxutr_var = (uxutr - L:Complex(uxutr_avg)):norm2() / vol
+    printf("%s[%d] norm=(%+e %+ej)(%e) det=(%+e %+ej)(%e)\n", title, i, 
+          udet_avg:real(),  udet_avg:imag(),  math.sqrt(udet_var),
+          uxutr_avg:real(), uxutr_avg:imag(), math.sqrt(uxutr_var))
+  end
+end
+function check_gauge_norm_det(u, tol)
+  tol = tol or 1e-12
+  assert(0 < #u)
+  local L = u[1].lattice
+  local vol = L:volume()
+  local nc  = u[1]:colors()
+  assert(#L == #u)
+  local is_sun = true
+  for i = 0, #L - 1 do
+    local udet      = u[1+i]:det()
+    local udet_avg  = udet:sum() / vol
+    local udet_var  = (udet - L:Complex(udet_avg)):norm2() / vol
+    local uxutr     = (u[1+i]:adjoin() * u[1+i]):trace() / nc
+    local uxutr_avg = uxutr:sum() / vol
+    local uxutr_var = (uxutr - L:Complex(uxutr_avg)):norm2() / vol
+    is_sun = is_sun and (udet_var < tol) and (uxutr_var < tol)
+  end
+  return is_sun
+end
+
+function print_gauge_plaquette(u, title)
+  -- print plaquettes of gauge field
+  title = title or ""
+  assert(1 < #u)
+  local L = u[1].lattice
+  local vol = L:volume()
+  local t_axis = #L - 1
+  local nc  = u[1]:colors()
+  local uplaq_s = L:Real(0)
+  local uplaq_t = L:Real(0)
+  assert(#L == #u)
+  for i=0, #L-2 do for j=i+1, #L-1 do
+    local uplaq     = gauge_plaquette(u, i, j):trace():real() / nc
+    if j == t_axis then uplaq_t = uplaq_t + uplaq 
+    else uplaq_s = uplaq_s + uplaq end
+    local uplaq_avg = uplaq:sum() / vol
+    local uplaq_var = (uplaq - L:Real(uplaq_avg)):norm2() / vol
+    printf("%s[%d, %d] plaq=%+e(%e)\n", title, i, j, uplaq_avg, math.sqrt(uplaq_var))
+  end end
+  local uplaq_a = (uplaq_t + uplaq_s) * 2. / #L / (#L - 1)
+  local uplaq_a_avg = uplaq_a:sum() / vol
+  local uplaq_a_var = (uplaq_a - L:Real(uplaq_a_avg)):norm2() / vol
+  printf("%s[ all] plaq=%+e(%e)\n", title, uplaq_a_avg, math.sqrt(uplaq_a_var))
+  uplaq_t = uplaq_t / (#L - 1)
+  local uplaq_t_avg = uplaq_t:sum() / vol
+  local uplaq_t_var = (uplaq_t - L:Real(uplaq_t_avg)):norm2() / vol
+  printf("%s[time] plaq=%+e(%e)\n", title, uplaq_t_avg, math.sqrt(uplaq_t_var))
+  if #L < 2 then return end
+  uplaq_s = uplaq_s * 2. / (#L - 1) / (#L - 2)
+  local uplaq_s_avg = uplaq_s:sum() / vol
+  local uplaq_s_var = (uplaq_s - L:Real(uplaq_s_avg)):norm2() / vol
+  printf("%s[spce] plaq=%+e(%e)\n", title, uplaq_s_avg, math.sqrt(uplaq_s_var))
+end
