@@ -459,7 +459,6 @@ qopt_read_array(lua_State *L, int pos, qoptArray *a)
 int 
 qopt_read_table(lua_State *L, int pos, qoptElem *elem_list)
 {
-    int status = 0;
     char strbuf[128];
     snprintf(strbuf, sizeof(strbuf), "(table at %d)", pos);
     return qopt_read_table_internal(L, pos, elem_list, NULL, strbuf);
@@ -468,7 +467,6 @@ qopt_read_table(lua_State *L, int pos, qoptElem *elem_list)
 int 
 qopt_read_stack(lua_State *L, qoptElem *elem_list)
 {
-    int status = 0;
     char strbuf[128];
     int pos_next = 1,
         pos;
