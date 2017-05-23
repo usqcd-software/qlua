@@ -237,7 +237,7 @@ save_c1_momproj(lua_State *L,
             const int *mom = get_mom(i_mom);
             /* FIXME support arbitrary momenta: need to change momkey format */
             assert(4 == ndim);          
-            int len = snprintf(get_momkey(i_mom), momkey_len,
+            snprintf(get_momkey(i_mom), momkey_len,
                     "PX%d_PY%d_PZ%d", mom[0], mom[1], mom[2]);
         }
         /* save data */
@@ -268,7 +268,7 @@ clearerr_1_1:
         qlua_free(L, momkey_list);
         qlua_free(L, cplx_buf);
 clearerr_1_0:
-        1;
+        ;
     }
 
 clearerr_0_0:

@@ -92,10 +92,6 @@ print_qoptcomplex_(void *a_, const char *msg_head)
 int 
 q_test_qopt(lua_State *L)
 {
-    int i_arr[3];
-    double d_arr[5];
-    const char *s_arr[7];
-    void *xx = NULL;
 
     /*
     qcd.test_qopt(

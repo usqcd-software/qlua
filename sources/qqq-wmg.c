@@ -471,8 +471,10 @@ qqq_wmg(lua_State *L)
   wmg->layout.latsize = NULL;
   wmg->layout.machdim = -1;
   load_action(L, 2, wmg);
-  if (QOP_init(&wmg->layout) != QOP_SUCCESS)
-    luaL_error(L, "QOP init failed");
+  if (!QOP_is_initialized()) {
+      if (QOP_init(&wmg->layout) != QOP_SUCCESS)
+        luaL_error(L, "QOP init failed");
+  }
   QOP_verbose(0);
 
   QOP_D3_GaugeField *gf = QOP_D3_create_G_from_qdp(Ugauge);
