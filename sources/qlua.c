@@ -36,6 +36,7 @@
 #include "qgather.h"                                                 /* DEPS */
 #include "qgamma.h"                                                  /* DEPS */
 #include "nersc_io.h"                                                /* DEPS */
+#include "milc_io.h"                                                 /* DEPS */
 #include "qdpc_io.h"                                                 /* DEPS */
 #include "ddpairs_io.h"                                              /* DEPS */
 #include "qdpcc_io.h"                                                /* DEPS */
@@ -1408,6 +1409,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
         init_qdpc_io,
         init_ddpairs_io,
         init_qdpcc_io,
+        init_milc_io,
 #ifdef HAS_QUDA
         init_quda,
 #endif
@@ -1507,6 +1509,7 @@ qlua_fini(void)
         fini_ddpairs_io,
         fini_qdpc_io,
         fini_nersc_io,
+        fini_milc_io,
 #ifdef HAS_HYPRE
         fini_qhp,
 #endif

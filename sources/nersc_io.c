@@ -678,7 +678,7 @@ q_nersc_read(lua_State *L)
 {
     mLattice *S = qlua_checkLattice(L, 1);
     const char *name = luaL_checkstring(L, 2);
-    default_setup(L);
+    default_setup(L);   /* creates or reuses a table? there is another one below */
     QDP_D3_ColorMatrix **M = qlua_malloc(L, S->rank * sizeof (QDP_D3_ColorMatrix *));
     QLA_D3_ColorMatrix **U = qlua_malloc(L, S->rank * sizeof (QLA_D3_ColorMatrix *));
     int status;
