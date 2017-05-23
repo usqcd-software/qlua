@@ -115,7 +115,7 @@ libsrc = fix.c \
          qscatter.c \
          qgather.c \
          qgamma.c \
-	 endian.c \
+	 qend.c \
 	 milc_io.c \
 	 nersc_io.c \
 	 qio_utils.c \

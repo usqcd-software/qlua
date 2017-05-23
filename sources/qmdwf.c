@@ -11,7 +11,7 @@
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 #include "crc32.h"                                                   /* DEPS */
-#include "endian.h"                                                  /* DEPS */
+#include "qend.h"                                                    /* DEPS */
 #include "qlanczos.h"                                                /* DEPS */
 #define QOP_MDWF_DEFAULT_PRECISION QDP_Precision
 #include "qop-mdwf3.h"

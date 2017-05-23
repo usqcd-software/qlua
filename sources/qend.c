@@ -1,4 +1,4 @@
-#include <endian.h>
+#include "qend.h"
 
 int 
 is_bigendian(void)
