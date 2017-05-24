@@ -87,17 +87,13 @@ read_milc_gauge_master(
         return milcio_error(L, "not implemented for dim!=4");
 
     int milc_nc = 3;
-    int  hdrbuf_len = 96;
-    uint32_t *f_dim, 
-             cksum29, f_cksum29,
-             cksum31, f_cksum31;
+    uint32_t cksum29, cksum31;
     int byterev;
 
     int site_len = S->rank * 2*milc_nc*milc_nc,
         real_size = sizeof(float) ;
     char *site_buf = NULL;
 
-    char *key, *value;
     int  *coord = NULL;
 
     long long volume;
