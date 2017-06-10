@@ -526,6 +526,12 @@ qlua_log_rusage(lua_State *L)
   }
   return 0;
 }
+static int
+qlua_barrier(lua_State *L) 
+{
+  QMP_barrier();
+  return 0;
+}
 
 void
 qlua_qdp_memuse(lua_State *L, const char *name, int count)
@@ -724,15 +730,17 @@ init_qlua_io(lua_State *L)
     lua_pushcfunction(L, qlua_getmetatable);
     lua_setglobal(L, "getmetatable");
 
-    /* qdp memory usage state */
+    /* add to qcd */
     lua_getglobal(L, qcdlib);
+    /* qdp memory usage state */
     lua_pushcfunction(L, qlua_qcdmem);
     lua_setfield(L, -2, "memory_usage");
-    
     /* print rusage */
-    lua_getglobal(L, qcdlib);
     lua_pushcfunction(L, qlua_log_rusage);
     lua_setfield(L, -2, "log_rusage");
+    /* barrier */
+    lua_pushcfunction(L, qlua_barrier);
+    lua_setfield(L, -2, "barrier");
 
     return 0;
 }

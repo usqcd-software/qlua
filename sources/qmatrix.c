@@ -1116,7 +1116,7 @@ init_matrix(lua_State *L)
         {NULL,           qOther,      qOther,      NULL      }
     };
 
-    gsl_set_error_handler_off();
+//    gsl_set_error_handler_off();
     luaL_register(L, matrix_ns,      fMatrix);
     qlua_metatable(L, mtnMatReal,    mtMatReal,          qMatReal);
     qlua_metatable(L, opMatReal,     MatRealMethods,     qNoType);

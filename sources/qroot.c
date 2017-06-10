@@ -250,7 +250,7 @@ static const luaL_Reg fRoot[] = {
 int
 init_root(lua_State *L)
 {
-  gsl_set_error_handler_off();
+//  gsl_set_error_handler_off();
   lua_getglobal(L, "gsl");
   lua_newtable(L);
   luaL_register(L, NULL, fRoot);
