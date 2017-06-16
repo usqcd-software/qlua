@@ -31,7 +31,8 @@ function print_obj(t, name)
     end
     for i, v in pairs(t) do
       local name_i = string.format("%s[%s]", name, tostring(i))
-      print_obj(v, name_i)
+      if '__index' == i then printf("%s : %s\n", name_i, tostring(v))
+      else print_obj(v, name_i) end
     end
   else
     printf("%s : (%s) %s\n", name, type(t), tostring(t))
