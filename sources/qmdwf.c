@@ -2487,13 +2487,24 @@ q_DW_u_reader(double *v_re, double *v_im,
 }
 
 /* MDWF constructors helper:
- *    Lua(U[4], bc[4], Ls, ...) => mMDWF
+ *    Lua(U[4], bc[4], Ls, ..., [opt_idx_:{}]) => mMDWF
+ *    opt_idx_ > 0
  */
 static mMDWF *
-q_mdwf(lua_State *L)
+q_mdwf(lua_State *L, int opt_idx_)
 {
     int i;
     int Ls = luaL_checkint(L, 3);
+    
+    enum QOP_MDWF_eopc_type mdwf_pctype = QOP_MDWF_PC_DEFAULT;
+    int mdwf_parity = 0;
+    if (0 < opt_idx_ && qlua_checkopt_paramtable(L, opt_idx_)) {
+        mdwf_parity = qlua_tabkey_intopt(L, opt_idx_, "parity", 0);
+        const char *pctype_str = qlua_tabkey_stringopt(L, opt_idx_, "pctype", "eopc2");
+        if (!strcmp("eopc2", pctype_str)) mdwf_pctype = QOP_MDWF_EOPC2;
+        else if (!strcmp("eopc2p", pctype_str)) mdwf_pctype = QOP_MDWF_EOPC2PRIME;
+        else luaL_error(L, "unknown MDWF preconditioner '%s'", pctype_str);
+    }
 
     luaL_checktype(L, 1, LUA_TTABLE);
     lua_pushnumber(L, 1);
@@ -2556,6 +2567,8 @@ q_mdwf(lua_State *L)
     cc.neighbor_down = S->neighbor_down;
     cc.sublattice = qlua_sublattice;
     cc.env = S;
+    cc.parity = mdwf_parity;
+    cc.eopc_type = mdwf_pctype;
     if (QOP_MDWF_init(&c->state, &cc))
         luaL_error(L, "MDWF_init() failed");
 
@@ -2622,7 +2635,7 @@ q_mdwf_generic_check_coeff_table(int n, double *r, double *r_im,
 static int
 q_mdwf_generic(lua_State *L)
 {
-    mMDWF *M = q_mdwf(L);
+    mMDWF *M = q_mdwf(L, 8);
     int Ls = luaL_checkint(L, 3);
     double M5 = luaL_checknumber(L, 4);
     double mf = luaL_checknumber(L, 5);
@@ -2677,7 +2690,7 @@ q_mdwf_generic(lua_State *L)
 static int
 q_mdwf_Moebius(lua_State *L)
 {
-    mMDWF *M = q_mdwf(L);
+    mMDWF *M = q_mdwf(L, 8);
     int Ls = luaL_checkint(L, 3);
     double M5 = luaL_checknumber(L, 4);
     double mf = luaL_checknumber(L, 5);
@@ -2713,7 +2726,7 @@ q_mdwf_Moebius(lua_State *L)
 static int
 q_mdwf_Shamir(lua_State *L)
 {
-    mMDWF *M = q_mdwf(L);
+    mMDWF *M = q_mdwf(L, 7);
     double M5 = luaL_checknumber(L, 4);
     double mf = luaL_checknumber(L, 5);
     double a5 = luaL_checknumber(L, 6);
@@ -2737,7 +2750,7 @@ q_mdwf_Shamir(lua_State *L)
 static int
 q_mdwf_Borichi(lua_State *L)
 {
-    mMDWF *M = q_mdwf(L);
+    mMDWF *M = q_mdwf(L, 7);
     double M5 = luaL_checknumber(L, 4);
     double mf = luaL_checknumber(L, 5);
     double a5 = luaL_checknumber(L, 6);
@@ -2761,7 +2774,7 @@ q_mdwf_Borichi(lua_State *L)
 static int
 q_mdwf_Chiu(lua_State *L)
 {
-    mMDWF *M = q_mdwf(L);
+    mMDWF *M = q_mdwf(L, 7);
     int Ls = luaL_checkint(L, 3);
     double M5 = luaL_checknumber(L, 4);
     double mf = luaL_checknumber(L, 5);
