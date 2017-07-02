@@ -25,7 +25,7 @@ get_lex_x(int *x, int l, int *s, int ndim)
     }
 }
 
-static void
+void
 node2coord(int *x, int n, mLattice *S)
 {
     int i;
@@ -36,7 +36,7 @@ node2coord(int *x, int n, mLattice *S)
     }
 }
 
-static int
+int
 coord2node(const int *x, mLattice *S)
 {
     int i;

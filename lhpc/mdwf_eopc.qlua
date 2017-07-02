@@ -313,6 +313,28 @@ do
     end
     return latvec_sub(d, y)
   end
+  mdwf_eopc_pc2=mdwf_eopc_sym2
+  function mdwf_eopc_sym2p(d, u, M5, mf, b5_s, c5_s, is_dag)
+    -- sym2 : 1 - (2*kappa_b).F.B.A^{-1} . F.B.A^{-1}.(2*kappa_b)^{-1}
+    local y = d
+    if not is_dag then
+      y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
+      y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
+      y = latvec_mdwfF(y, u, is_dag)
+      y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
+      y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
+      y = latvec_mdwfF(y, u, is_dag)
+    else 
+      y = latvec_mdwfF(y, u, is_dag)
+      y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
+      y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
+      y = latvec_mdwfF(y, u, is_dag)
+      y = latvec_mdwfB(y, mf, b5_s, c5_s, is_dag)
+      y = latvec_inv_mdwfA(y, M5, mf, b5_s, c5_s, is_dag)
+    end
+    return latvec_sub(d, y)
+  end
+  mdwf_eopc_pc2p=mdwf_eopc_sym2p
   function mdwf_eopc_sym1(d, u, M5, mf, b5_s, c5_s, is_dag)
     -- sym2 : 1 - F.B.A^{-1} . F.B.A^{-1}
     error("fixme")

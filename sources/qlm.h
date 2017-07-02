@@ -65,17 +65,19 @@ typedef enum {
     QLM_LATDIRFERM      = 11,
     QLM_LATDIRPROP      = 13
 } qlmLatField;
-typedef enum qlmSublat {
-    QLM_SUBLAT_FULL     = 0,
+typedef enum {
+    QLM_SUBLAT_NONE     = 0,
     QLM_SUBLAT_EVEN     = 1,
     QLM_SUBLAT_ODD      = 2,
+    QLM_SUBLAT_FULL     = 3
 } qlmSublat;
 #define SUBLAT_PARITY(x) (QLM_SUBLAT_EVEN == (x) ? 0 : 1)
 #define IS_SUBLAT_EOPC(x) (QLM_SUBLAT_EVEN == (x) || QLM_SUBLAT_ODD == (x))
 
 typedef enum {
-    QLM_PREC_FLOAT   = 4,
-    QLM_PREC_DOUBLE  = 8
+    QLM_PREC_NONE   = 0,
+    QLM_PREC_FLOAT  = 4,
+    QLM_PREC_DOUBLE = 8
 } qlmPrec;
 
 /* storage of sites: site data is contiguous; complex numbers are contiguous

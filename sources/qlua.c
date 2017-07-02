@@ -719,6 +719,17 @@ qlua_tabkey_int(lua_State *L, int idx, const char *key)
 
   return v;
 }
+int 
+qlua_tabkey_present(lua_State *L, int idx, const char *key)
+{
+  int v;
+
+  NORMALIZE_INDEX(L, idx);
+  int has_key = qlua_tabpushopt_key(L, idx, key);
+  if (has_key)
+      lua_pop(L, 1);
+  return has_key;
+}
 
 int
 qlua_tabkey_intopt(lua_State *L, int idx, const char *key, int def)
