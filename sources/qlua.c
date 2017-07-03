@@ -722,8 +722,6 @@ qlua_tabkey_int(lua_State *L, int idx, const char *key)
 int 
 qlua_tabkey_present(lua_State *L, int idx, const char *key)
 {
-  int v;
-
   NORMALIZE_INDEX(L, idx);
   int has_key = qlua_tabpushopt_key(L, idx, key);
   if (has_key)

@@ -31,7 +31,7 @@ static void
 Qpp(fc_int2qla_C)(void *restrict dst_, int dst_idx, const void *restrict src_, int src_idx, int iarr, void *arg_)
 {
     qlmData *d = (qlmData *)arg_;
-    pcint *ix = (pcint *)src_ + src_idx * d->site_num_len;
+    pcint *ix = (pcint *)src_ + src_idx * d->site_num_len + iarr;
     QT(_Complex) *qx = ((QT(_Complex) **)dst_)[iarr] + dst_idx;
     cplx_int2qla(*qx, *ix);
 }
