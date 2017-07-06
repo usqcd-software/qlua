@@ -208,6 +208,7 @@ int qlua_push_key_string(lua_State *L, int idx, const char *key, const char *val
 int qlua_push_key_object(lua_State *L, int idx, const char *key);
 
 int qlua_tabkey(lua_State *L, int idx, const char *key);
+int qlua_tabkey_present(lua_State *L, int idx, const char *key);
 int qlua_tabkey_bool(lua_State *L, int idx, const char *key);
 int qlua_tabkey_boolopt(lua_State *L, int idx, const char *key, int def);
 int qlua_tabkey_int(lua_State *L, int idx, const char *key);

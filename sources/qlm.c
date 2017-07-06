@@ -24,6 +24,7 @@
 #include "latdirferm.h"                                              /* DEPS */
 #include "latdirprop.h"                                              /* DEPS */
 
+#define NORMALIZE_INDEX(L, idx) do if (idx < 0) idx = lua_gettop(L) + 1 + idx; while (0)
 
 qlmError qlm_error;
 const char *
@@ -78,13 +79,37 @@ qlm_lftype_str(qlmLatField lftype) {
 qlmLatField 
 qlm_str2lftype(const char *str) 
 {
-    if      (strcmp("Real"           , str)) return QLM_LATREAL     ;
-    else if (strcmp("Complex"        , str)) return QLM_LATCOMPLEX  ;
-    else if (strcmp("ColorVector"    , str)) return QLM_LATCOLVEC   ;
-    else if (strcmp("ColorMatrix"    , str)) return QLM_LATCOLMAT   ;
-    else if (strcmp("DiracFermion"   , str)) return QLM_LATDIRFERM  ;
-    else if (strcmp("DiracPropagator", str)) return QLM_LATDIRPROP  ;
-    else return QLM_LAT_NONE; 
+    if      (!strcmp("Real"           , str)) return QLM_LATREAL     ;
+    else if (!strcmp("Complex"        , str)) return QLM_LATCOMPLEX  ;
+    else if (!strcmp("ColorVector"    , str)) return QLM_LATCOLVEC   ;
+    else if (!strcmp("ColorMatrix"    , str)) return QLM_LATCOLMAT   ;
+    else if (!strcmp("DiracFermion"   , str)) return QLM_LATDIRFERM  ;
+    else if (!strcmp("DiracPropagator", str)) return QLM_LATDIRPROP  ;
+    else {
+        qlm_error = QLM_ERR_ENUM_ERROR;
+        return QLM_LAT_NONE; 
+    }
+}
+qlmPrec
+qlm_str2prec(const char *str)
+{
+    if      (!strcmp("float",  str)) return QLM_PREC_FLOAT;
+    else if (!strcmp("double", str)) return QLM_PREC_DOUBLE;
+    else {
+        qlm_error = QLM_ERR_ENUM_ERROR;
+        return QLM_PREC_NONE;
+    }
+}
+qlmSublat 
+qlm_str2sublat(const char *str)
+{
+    if      (!strcmp("full", str)) return QLM_SUBLAT_FULL;
+    else if (!strcmp("even", str)) return QLM_SUBLAT_EVEN;
+    else if (!strcmp("odd" , str)) return QLM_SUBLAT_ODD;
+    else {
+        qlm_error = QLM_SUBLAT_NONE;
+        return QLM_PREC_NONE;
+    }
 }
 
 qlmData *
@@ -102,8 +127,8 @@ qlm_data_alloc(
         const int blk_site_dim[], 
         int nvec_basis)
 {
-    int prod, i;
-    qlmData *d  = malloc(sizeof(qlmData));
+    qlmData *d  = NULL;
+    d           = malloc(sizeof(qlmData));
     if (NULL == d) 
         return NULL;
     d->S        = S;
@@ -121,9 +146,16 @@ qlm_data_alloc(
     d->site_num_len = qlm_site_num_len(d);
     d->site_size    = d->num_size * d->site_num_len;
 
+    d->ndim     = S->rank;
+    int xlo[QLUA_MAX_LATTICE_RANK], 
+        xhi[QLUA_MAX_LATTICE_RANK];
+    qlua_sublattice(xlo, xhi, QDP_this_node, (void *)S);
+    d->x0_parity = 0;
     d->vec_site_len = 1;
-    for (i = 0; i < S->rank ; i++) {
-        d->vec_site_dim[i] = S->dim[i];
+    for (int i = 0; i < S->rank ; i++) {
+        d->x0[i] = xlo[i];
+        d->x0_parity ^= (d->x0[i] & 1);
+        d->vec_site_dim[i] = xhi[i] - xlo[i];
         d->vec_site_len *= d->vec_site_dim[i];
     }
     if (IS_SUBLAT_EOPC(sublat)) {
@@ -143,12 +175,13 @@ qlm_data_alloc(
 
     if (!is_blocked) {
         assert(nvec_basis == nvec);
-        for (i = 0; i < S->rank ; i++) {
-            d->blk_site_dim[i]  = 0;
-            d->vec_blk_dim[i]   = 0;
+        /* safe values: exactly 1 block */
+        for (int i = 0; i < S->rank ; i++) {
+            d->blk_site_dim[i]  = d->vec_site_dim[i];
+            d->vec_blk_dim[i]   = 1;
         }
-        d->blk_site_len = 0;
-        d->vec_blk_len  = 0;
+        d->blk_site_len = d->vec_site_len;
+        d->vec_blk_len  = 1;
     }
     else {
         if (NULL == blk_site_dim) {
@@ -159,7 +192,7 @@ qlm_data_alloc(
         assert(nvec_basis <= nvec);
         d->blk_site_len = 1;
         d->vec_blk_len  = 1;
-        for (i = 0; i < S->rank ; i++) {
+        for (int i = 0; i < S->rank ; i++) {
             d->blk_site_dim[i] = blk_site_dim[i];
             d->blk_site_len *= d->blk_site_dim[i];
             /* subdivide vecdim into blkdim */
@@ -183,27 +216,28 @@ qlm_data_alloc(
     d->blk_num_len  = d->site_num_len * d->blk_site_len;
     d->blk_size     = d->num_size * d->blk_num_len;
 
-    int vec_data_len = d->nvec_basis * d->vec_size;
-    d->vec_data     = malloc(vec_data_len);
+    int vec_data_size = d->nvec_basis * d->vec_size;
+    d->vec_data     = malloc(vec_data_size);
     if (NULL == d->vec_data) {
         free(d); 
         qlm_error = QLM_ERR_ENOMEM;
         return NULL;
     }
-    memset(d->vec_data, 0, vec_data_len);
+    memset(d->vec_data, 0, vec_data_size);
 
     if (is_blocked) {
-        int blk_coeff_len = d->nvec * d->nvec_basis * d->vec_blk_len * d->num_size;
-        d->blk_coeff    = malloc(blk_coeff_len);
+        int blk_coeff_size = d->nvec * d->nvec_basis * d->vec_blk_len * d->num_size;
+        d->blk_coeff    = malloc(blk_coeff_size);
         if (NULL == d->blk_coeff) {
             free(d->vec_data);
             free(d);
             qlm_error = QLM_ERR_ENOMEM;
             return NULL;
         }
-        memset(d->blk_coeff, 0, blk_coeff_len);
+        memset(d->blk_coeff, 0, blk_coeff_size);
     } else
         d->blk_coeff = NULL;
+
 
     return d;
 }
@@ -214,6 +248,7 @@ void qlm_data_free(qlmData *qlm)
     if (NULL == qlm) return;
     if (NULL != qlm->vec_data)  free(qlm->vec_data);
     if (NULL != qlm->blk_coeff) free(qlm->blk_coeff);
+    free(qlm);
 }
 
 
@@ -305,9 +340,93 @@ qdp_vtype_alloc(qlmLatField lftype, int is_array, int arr_len, int nc)
 
 
 static void *
-qdptype_create(qlmLatField lftype, int nc){}
+qdptype_create(mLattice *S, qlmLatField lftype, int nc)
+{ 
+    switch(lftype) {
+    case QLM_LATREAL:       return (void *)QDP_D_create_R_L(S->lat);
+    case QLM_LATCOMPLEX:    return (void *)QDP_D_create_C_L(S->lat);
+    case QLM_LATCOLVEC:     
+        if     (2 == nc)    return (void *)QDP_D2_create_V_L(S->lat);
+        else if(3 == nc)    return (void *)QDP_D3_create_V_L(S->lat);
+        else                return (void *)QDP_DN_create_V_L(nc, S->lat);
+    case QLM_LATCOLMAT:     
+        if     (2 == nc)    return (void *)QDP_D2_create_M_L(S->lat);
+        else if(3 == nc)    return (void *)QDP_D3_create_M_L(S->lat);
+        else                return (void *)QDP_DN_create_M_L(nc, S->lat);
+    case QLM_LATDIRFERM:
+        if     (2 == nc)    return (void *)QDP_D2_create_D_L(S->lat);
+        else if(3 == nc)    return (void *)QDP_D3_create_D_L(S->lat);
+        else                return (void *)QDP_DN_create_D_L(nc, S->lat);
+    case QLM_LATDIRPROP:
+        if     (2 == nc)    return (void *)QDP_D2_create_P_L(S->lat);
+        else if(3 == nc)    return (void *)QDP_D3_create_P_L(S->lat);
+        else                return (void *)QDP_DN_create_P_L(nc, S->lat);
+    default:
+        qlm_error = QLM_ERR_INVALID_FIELD;
+        return NULL;
+    }
+    return NULL; 
+}
+/* push lattice field to the stack top and return (void *)(QDP_Field *) pointer 
+   luastack:-0+1 */
+static void *
+qdptype_push(lua_State *L, int Sidx, qlmLatField lftype, int nc)
+{ 
+    switch(lftype) {
+    case QLM_LATREAL:       return (void *)(qlua_newZeroLatReal(L, Sidx)->ptr);
+    case QLM_LATCOMPLEX:    return (void *)(qlua_newZeroLatComplex(L, Sidx)->ptr);
+    case QLM_LATCOLVEC:     
+        if     (2 == nc)    return (void *)(qlua_newZeroLatColVec2(L, Sidx, nc)->ptr);
+        else if(3 == nc)    return (void *)(qlua_newZeroLatColVec3(L, Sidx, nc)->ptr);
+        else                return (void *)(qlua_newZeroLatColVecN(L, Sidx, nc)->ptr);
+    case QLM_LATCOLMAT:     
+        if     (2 == nc)    return (void *)(qlua_newZeroLatColMat2(L, Sidx, nc)->ptr);
+        else if(3 == nc)    return (void *)(qlua_newZeroLatColMat3(L, Sidx, nc)->ptr);
+        else                return (void *)(qlua_newZeroLatColMatN(L, Sidx, nc)->ptr);
+    case QLM_LATDIRFERM:
+        if     (2 == nc)    return (void *)(qlua_newZeroLatDirFerm2(L, Sidx, nc)->ptr);
+        else if(3 == nc)    return (void *)(qlua_newZeroLatDirFerm3(L, Sidx, nc)->ptr);
+        else                return (void *)(qlua_newZeroLatDirFermN(L, Sidx, nc)->ptr);
+    case QLM_LATDIRPROP:
+        if     (2 == nc)    return (void *)(qlua_newZeroLatDirProp2(L, Sidx, nc)->ptr);
+        else if(3 == nc)    return (void *)(qlua_newZeroLatDirProp3(L, Sidx, nc)->ptr);
+        else                return (void *)(qlua_newZeroLatDirPropN(L, Sidx, nc)->ptr);
+    default:
+        qlm_error = QLM_ERR_INVALID_FIELD;
+        return NULL;
+    }
+    return NULL; 
+}
 static void
-qdptype_destroy(qlmLatField lftype, int nc, void *x){}
+qdptype_destroy(qlmLatField lftype, int nc, void *x)
+{
+    switch(lftype) {
+    case QLM_LATREAL:       QDP_D_destroy_R((QDP_D_Real *)x);               break;
+    case QLM_LATCOMPLEX:    QDP_D_destroy_C((QDP_D_Complex *)x);            break;
+    case QLM_LATCOLVEC:     
+        if     (2 == nc)    QDP_D2_destroy_V((QDP_D2_ColorVector *)x);
+        else if(3 == nc)    QDP_D3_destroy_V((QDP_D3_ColorVector *)x);
+        else                QDP_DN_destroy_V((QDP_DN_ColorVector *)x);      
+        break;
+    case QLM_LATCOLMAT:     
+        if     (2 == nc)    QDP_D2_destroy_M((QDP_D2_ColorMatrix *)x);
+        else if(3 == nc)    QDP_D3_destroy_M((QDP_D3_ColorMatrix *)x);
+        else                QDP_DN_destroy_M((QDP_DN_ColorMatrix *)x);      
+        break;
+    case QLM_LATDIRFERM:
+        if     (2 == nc)    QDP_D2_destroy_D((QDP_D2_DiracFermion *)x);
+        else if(3 == nc)    QDP_D3_destroy_D((QDP_D3_DiracFermion *)x);
+        else                QDP_DN_destroy_D((QDP_DN_DiracFermion *)x);     
+        break;
+    case QLM_LATDIRPROP:
+        if     (2 == nc)    QDP_D2_destroy_P((QDP_D2_DiracPropagator *)x);
+        else if(3 == nc)    QDP_D3_destroy_P((QDP_D3_DiracPropagator *)x);
+        else                QDP_DN_destroy_P((QDP_DN_DiracPropagator *)x);  
+        break;
+    default:
+        qlm_error = QLM_ERR_INVALID_FIELD;
+    }
+}
 static void *
 qdptype_expose(qlmLatField lftype, int nc, void *x)
 {
@@ -369,15 +488,34 @@ qdptype_reset(qlmLatField lftype, int nc, void *x)
     }
     return 0;
 }
-
+#if 0 /* commented out because `qdp_vtype' is only a presentation of 
+         lattice objects stored on stack; should not be created except by 
+         Lua-push operation or destroyed except by garbate collector */
 /* create fields 
    return value 0:OK 1:fail (set qlm_error) */
 static int
-qdp_vtype_create(qdp_vtype *x)
+qdp_vtype_create(mLattice *S, qdp_vtype *x)
 {
-    /*TODO */
-    luaL_error("TODO implement this");
-
+    assert(NULL != x);
+    if (x->is_array) {
+        for (int i = 0 ; i < x->arr_len ; i++) {
+            x->p.a[i] = qdptype_create(S, x->lftype, x->nc);
+            if (NULL == x->p.a[i]) {
+                for (int j = 0 ; j < i ; j++)
+                    qdptype_destroy(x->lftype, x->nc, x->p.a[j]);
+                qlm_error = QLM_ERR_ENOMEM; 
+                return 1;
+            }
+        }
+    }
+    else {
+        x->p.x = qdptype_create(S, x->lftype, x->nc);
+        if (NULL == x->p.x) {
+            qlm_error = QLM_ERR_ENOMEM; 
+            return 1;
+        }
+    }
+    x->is_exposed = 0;
     return 1;
 }
 /* destroy fields 
@@ -385,17 +523,42 @@ qdp_vtype_create(qdp_vtype *x)
 static void
 qdp_vtype_destroy(qdp_vtype *x)
 {
-    /*TODO */
-    luaL_error("TODO implement this");
-
-    return 1;
+    assert(NULL != x);
+    assert(0 == x->is_exposed);
+    if (x->is_array) {
+        for (int i = 0 ; i < x->arr_len ; i++)
+            if (NULL != x->p.a[i]) 
+                qdptype_destroy(x->lftype, x->nc, x->p.a[i]);
+    }
+    else
+        if (NULL != x->p.x)
+            qdptype_destroy(x->lftype, x->nc, x->p.x);
+}
+#endif
+/* push qdp_vtype (field or array) on top of stack;
+    luastack:-0+1 */
+static void
+qdp_vtype_push(lua_State *L, int Sidx, qdp_vtype *x)
+{
+    assert(NULL != x);
+    NORMALIZE_INDEX(L, Sidx);
+    if (x->is_array) {
+        lua_createtable(L, x->arr_len, 0);
+        int tabidx = lua_gettop(L);
+        for (int i = 0 ; i < x->arr_len ; i++) {
+            x->p.a[i] = qdptype_push(L, Sidx, x->lftype, x->nc); /* luastack:-0+1 */
+            lua_rawseti(L, tabidx, 1 + i);
+        }
+    } else
+        x->p.x = qdptype_push(L, Sidx, x->lftype, x->nc);
+    x->is_exposed = 0;
 }
 
 static void
 qdp_vtype_expose(qdp_vtype *x)
 {
     if (x->is_array) {
-        for (int i = 0 ; i < x->arr_len ; x++)
+        for (int i = 0 ; i < x->arr_len ; i++)
             x->q.a[i] = qdptype_expose(x->lftype, x->nc, x->p.a[i]);
     }
     else
@@ -407,7 +570,7 @@ static void
 qdp_vtype_reset(qdp_vtype *x)
 {
     if (x->is_array) {
-        for (int i = 0 ; i < x->arr_len ; x++)
+        for (int i = 0 ; i < x->arr_len ; i++)
             qdptype_reset(x->lftype, x->nc, x->p.a[i]);
     }
     else
@@ -538,12 +701,16 @@ qlm_check_qdp_vtype(lua_State *L, int idx, const qlmData *d)
     return res;
 }
 /* 0:OK 1:fail (set qlm_error) */
-static int
-qlm_push_qdp_vtype(lua_State *L, const qlmData *d)
+static qdp_vtype *
+qlm_new_qdp_vtype(lua_State *L, int Sidx, const qlmData *d)
 {
-    /*TODO */luaL_error("TODO implement this");
-
-    return 0;
+    qdp_vtype *res = qdp_vtype_alloc(d->lftype, d->is_array, d->arr_len, d->nc);
+    if (NULL == res) {
+        luaL_error(L, "(qlm_new_qdp_vtype) not enough memory\n");
+        return NULL;
+    }
+    qdp_vtype_push(L, Sidx, res);
+    return res;
 }
 
 
@@ -579,9 +746,9 @@ index_x2i(int ndim, const int *restrict dim, int *restrict ilex, const int *rest
 }
 static void
 /* aux functions: coord <-> lexicographic index, even/odd */
-index_i2x_eo(int ndim, const int *restrict dim, int *restrict x, int ilex, int par)
+index_i2x_eo(int ndim, const int *restrict dim, int *restrict x, int ilex_eo, int par)
 {
-    int ilex_ = ilex,
+    int ilex = 2 * ilex_eo,
         p = 0;
     for (int i = 0 ; i < ndim ; i++) {
         x[i]    = ilex % dim[i];
@@ -589,7 +756,7 @@ index_i2x_eo(int ndim, const int *restrict dim, int *restrict x, int ilex, int p
         ilex   /= dim[i];
     }
     if ((p & 1) ^ (par & 1)) {  /* wrong parity */
-        ilex = ilex_ + 1;
+        ilex = 2 * ilex_eo + 1;
         for (int i = 0 ; i < ndim ; i++) {
             x[i]    = ilex % dim[i];
             ilex   /= dim[i];
@@ -890,6 +1057,7 @@ q_qlm_fmt(lua_State *L)
     char fmt_sublat[16] = "";
     char fmt_block[64]  = "";
     char fmt_layout[64] = "";
+    char fmt_field[64]  = "";
     const char *lftype_str = "";
     mQlm *c = qlua_checkQlm(L, 1, NULL);
     qlmData *d = c->d;
@@ -905,10 +1073,11 @@ q_qlm_fmt(lua_State *L)
         snprintf(fmt_layout, sizeof(fmt_layout), ",BLOCK(%s,nbasis=%d)", 
                 fmt_block, d->nvec_basis);
     }
+    snprintf(fmt_field, sizeof(fmt_field), " nc=%d ns=%d", d->nc, d->ns);
 
     snprintf(fmt, sizeof(fmt), 
-            "%s(%dx %s%s%s%s)", qlm_str, d->nvec, lftype_str, 
-            fmt_array, fmt_sublat, fmt_layout);
+            "%s(%dx %s%s%s%s%s)", qlm_str, d->nvec, lftype_str, 
+            fmt_array, fmt_field, fmt_sublat, fmt_layout);
     lua_pushstring(L, fmt);
 
     return 1;
@@ -928,7 +1097,8 @@ q_qlm_gc(lua_State *L)
 static int 
 q_qlm_index(lua_State *L)
 {
-    mQlm *c = qlua_checkQlm(L, 1, NULL);
+    mQlm *c; 
+    c = qlua_checkQlm(L, 1, NULL);
     const char *what_str = luaL_checkstring(L, 2);
 
     if (!strcmp("lattice", what_str)) {
@@ -956,7 +1126,8 @@ static int q_qlm_array_len(lua_State *L)
 }
 static int q_qlm_get_lattice(lua_State *L) 
 {
-    mQlm *c = qlua_checkQlm(L, 1, NULL);
+    mQlm *c = NULL;
+    c = qlua_checkQlm(L, 1, NULL);
     lua_getfenv(L, 1);
     lua_getfield(L, -1, "lattice");
     return 1;
@@ -983,23 +1154,53 @@ q_qlm_insert(lua_State *L)
         return luaL_error(L, "expect vtype at argument 3; %s", qlm_strerror(qlm_error));
     qdp_vtype_expose(vec);
     if (qlm_import_qdp_vtype(d, ivec, vec)) {
-        return luaL_error(L, "import error: %s", qlm_strerror(qlm_error));
+        qdp_vtype_reset(vec);
         qdp_vtype_free(vec);
+        return luaL_error(L, "import error: %s", qlm_strerror(qlm_error));
     }
+
     qdp_vtype_reset(vec);
     qdp_vtype_free(vec);
-    
-    /*TODO*/luaL_error(L, "TODO implement this");
-    return 0;
+    return 0;   /* no return */
+}
+/* [lua] latmat:extract(ivec) ; return a (table of) latfields */
+static int 
+q_qlm_extract(lua_State *L)
+{
+    mQlm *c     = qlua_checkQlm(L, 1, NULL);
+    qlmData *d  = c->d;
+    mLattice *S = NULL;
+    S = qlua_ObjLattice(L, 1);
+    int Sidx    = lua_gettop(L);
+
+    int ivec = luaL_checkint(L, 2);
+    if (ivec < 0 || c->d->nvec <= ivec) 
+        luaL_error(L, "index %d is outside range [0;%d)", ivec, c->d->nvec);
+
+    qdp_vtype *vec = qlm_new_qdp_vtype(L, Sidx, d);
+    if (NULL == vec)
+        return luaL_error(L, "failed to create lattice object (qlm_new_qdp_vtype); %s", 
+                qlm_strerror(qlm_error));
+    qdp_vtype_expose(vec);
+
+    if (qlm_export_qdp_vtype(vec, d, ivec)) {
+        qdp_vtype_reset(vec);
+        qdp_vtype_free(vec);
+        return luaL_error(L, "export error: %s", qlm_strerror(qlm_error));
+    }
+
+    qdp_vtype_reset(vec);
+    qdp_vtype_free(vec);
+    return 1;
 }
 
 
 static struct luaL_Reg mtQlm[] = {
     { "__tostring",                 q_qlm_fmt                       },
     { "__gc",                       q_qlm_gc                        },
-    { "__index",                    q_qlm_index     },
-//    { "extract",                    q_qlm_extract                   },
-//    { "insert",                     q_qlm_insert                  },
+//    { "__index",                    q_qlm_index     },
+    { "extract",                    q_qlm_extract                   },
+    { "insert",                     q_qlm_insert                  },
 //    { "copy",                       q_qlm_copy                      },
 //    { "read_compressed",            q_qlm_read_compressed           },
     { NULL,                         NULL                            }
@@ -1007,8 +1208,18 @@ static struct luaL_Reg mtQlm[] = {
 
 static mQlm *
 qlua_checkQlm(lua_State *L, int idx, mLattice *S) {
-    /* TODO */
-    return NULL;
+    mQlm *c = qlua_checkLatticeType(L, idx, qLatmat, qlm_meta_name);
+    if (NULL != S) {
+        mLattice *S1 = qlua_ObjLattice(L, idx);
+        if (S1->id != S->id)
+            luaL_error(L, "%s on a wrong lattice", qlm_meta_name);
+        lua_pop(L, 1);
+    }
+        
+    if (NULL == c->d)
+        luaL_error(L, "NULL qlm object");
+    
+    return c;
 }
 
 /* lattice object is stored in the userdata's env */
@@ -1028,33 +1239,99 @@ qlua_newQlm(lua_State *L, int Sidx, qlmData *d)
     /* more values to store in env */
     if (! lua_setfenv(L, -2))
         luaL_error(L, "cannot set env");
+
     /* TODO */
-    return NULL;
+    return c;
 }
 /* qcd.latmat.create(lat, type, nvec, 
         {array=<arr_len>, ns=<ns>, nc=<nc>, 
         prec[ision]="float"|"double", 
-        subset="even"|"odd"|"full"},
+        sublat="even"|"odd"|"full"},
         block={bx,by,bz,bt},
-        nvec_basis=<nvec_basis>)
+        nvec_basis=<nvec_basis>})
  */
+#define QLM_NC_DEFAULT  3
+#define QLM_NS_DEFAULT  4
 static int
 q_qlm_create(lua_State *L)
 {
     if (lua_gettop(L) < 3)
         return qlua_badconstr(L, qlm_str);
-    
     mLattice *S = qlua_checkLattice(L, 1);
+    int nvec = 0; 
+    qlmLatField lftype;
     const char *lftype_str = luaL_checkstring(L, 2);
+    if (QLM_LAT_NONE == (lftype = qlm_str2lftype(lftype_str)))
+        luaL_error(L, "bad lftype='%s'", lftype_str);
+   
+    if ((nvec = luaL_checkinteger(L, 3))<= 0)
+        luaL_error(L, "bad nvec=%d", nvec);
 
+    int is_array = 0, 
+        arr_len = 1;
+    int is_blocked = 0,
+        nvec_basis = nvec;
+    int *bs_dim = NULL;
+    int ns = QLM_NS_DEFAULT, 
+        nc = QLM_NC_DEFAULT;
+    qlmPrec prec = QLM_PREC_FLOAT;
+    qlmSublat sublat = QLM_SUBLAT_FULL;
 
-    /* TODO */
-    qlmData *d  = NULL;
-    mQlm    *c  = qlua_newQlm(L, 1, d);
+    const int oi = 4;
+    if (qlua_checkopt_paramtable(L, oi)) {
+        const char *opt_str;
+        opt_str = qlua_tabkey_stringopt(L, oi, "sublat", "full");
+        if (QLM_SUBLAT_NONE == (sublat = qlm_str2sublat(opt_str)))
+            luaL_error(L, "bad sublat='%s'", opt_str);
 
+        opt_str = qlua_tabkey_stringopt(L, oi, "prec", "double");
+        if (QLM_PREC_NONE == (prec = qlm_str2prec(opt_str)))
+            luaL_error(L, "bad prec='%s'", opt_str);
 
+        is_array = qlua_tabkey_present(L, oi, "array");
+        if (is_array) {
+            if ((arr_len = qlua_tabkey_intopt(L, oi, "array", -1)) <= 0)
+                luaL_error(L, "bad arr_len=%d", arr_len);
+        } else arr_len = 1;
+
+        is_blocked = qlua_tabkey_present(L, oi, "block");
+        if (is_blocked) {
+            qlua_tabkey(L, oi, "block");
+            bs_dim = qlua_checkintarray(L, -1, S->rank, NULL);
+            lua_pop(L, 1);
+            if (NULL == bs_dim) 
+                luaL_error(L, "bad blocksize");
+            for (int i = 0 ; i < S->rank ; i++) 
+                if (bs_dim[i] <= 0)
+                    luaL_error(L, "bad blocksize[%d]=%d\n", i, bs_dim[i]);
+
+            nvec_basis = qlua_tabkey_int(L, oi, "nvec_basis");
+            if (nvec_basis <= 0 || nvec < nvec_basis)
+                luaL_error(L, "bad nvec_basis=%d", nvec_basis);
+        }
+
+        if ((ns = qlua_tabkey_intopt(L, oi, "ns", QLM_NS_DEFAULT)) <= 0)
+            luaL_error(L, "bad Ns=%d", ns);
+        if ((nc = qlua_tabkey_intopt(L, oi, "nc", QLM_NC_DEFAULT)) <= 0)
+            luaL_error(L, "bad Nc=%d", nc);
+    }
+
+    qlmData *d  = qlm_data_alloc(S, sublat, nvec, lftype, 
+            is_array, arr_len, ns, nc, prec, 
+            is_blocked, bs_dim, nvec_basis);
+    if (NULL == d) 
+        luaL_error(L, "qlm_data_alloc: return NULL: %s", qlm_strerror(qlm_error));
+
+    mQlm *c = NULL;
+    c  = qlua_newQlm(L, 1, d);
+
+    if (NULL != bs_dim) 
+        qlua_free(L, bs_dim);
     return 1;
 }
+
+void node2coord(int *x, int n, mLattice *S);
+int coord2node(const int *x, mLattice *S);
 
 /* qlm_sandbox(what_str, ...) */
 int q_qlm_sandbox(lua_State *L)
@@ -1069,8 +1346,24 @@ int q_qlm_sandbox(lua_State *L)
         lua_pushvalue(L, 3);
         lua_settable(L, LUA_ENVIRONINDEX);
         return 1;
-    }
-    else {
+    } else if (!strcmp("print_geom", what_str)) {
+        int lo[QLUA_MAX_LATTICE_RANK],
+            hi[QLUA_MAX_LATTICE_RANK],
+            nD[QLUA_MAX_LATTICE_RANK];
+
+        mLattice *S = qlua_checkLattice(L, 2);
+        node2coord(nD, QDP_this_node, S);
+        qlua_sublattice(lo, hi, QDP_this_node, S);
+        
+        char buf[1024], fmt_nD[1024], fmt_lo[128], fmt_hi[128];
+        snprintf_arr(fmt_nD, sizeof(fmt_nD), "%2d", ",", int, nD, S->rank);
+        snprintf_arr(fmt_lo, sizeof(fmt_lo), "%2d", ",", int, lo, S->rank);
+        snprintf_arr(fmt_hi, sizeof(fmt_hi), "%2d", ",", int, hi, S->rank);
+        snprintf(buf, sizeof(buf), "[%4d] {%s} : {%s}..{%s}", 
+                 QDP_this_node, fmt_lo, fmt_hi, fmt_nD);
+        printf("%s\n", buf);
+        return 0;
+    } else {
         return luaL_error(L, "unknown what_str='%s'", what_str);
     }
     /* should not get here */
@@ -1082,8 +1375,8 @@ int q_qlm_sandbox(lua_State *L)
 static int
 qlm_selftest()
 {
-    return 1;   /* not implemented */
-//    return 0;
+//    return 1;   /* not implemented */
+    return 0;
 }
 
 static struct luaL_Reg fQlm[] = {

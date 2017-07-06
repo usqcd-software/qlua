@@ -65,17 +65,19 @@ typedef enum {
     QLM_LATDIRFERM      = 11,
     QLM_LATDIRPROP      = 13
 } qlmLatField;
-typedef enum qlmSublat {
-    QLM_SUBLAT_FULL     = 0,
+typedef enum {
+    QLM_SUBLAT_NONE     = 0,
     QLM_SUBLAT_EVEN     = 1,
     QLM_SUBLAT_ODD      = 2,
+    QLM_SUBLAT_FULL     = 3
 } qlmSublat;
 #define SUBLAT_PARITY(x) (QLM_SUBLAT_EVEN == (x) ? 0 : 1)
 #define IS_SUBLAT_EOPC(x) (QLM_SUBLAT_EVEN == (x) || QLM_SUBLAT_ODD == (x))
 
 typedef enum {
-    QLM_PREC_FLOAT   = 4,
-    QLM_PREC_DOUBLE  = 8
+    QLM_PREC_NONE   = 0,
+    QLM_PREC_FLOAT  = 4,
+    QLM_PREC_DOUBLE = 8
 } qlmPrec;
 
 /* storage of sites: site data is contiguous; complex numbers are contiguous
@@ -126,7 +128,7 @@ typedef struct {
     int         x0_parity;                          /* parity of initial coordinate [!QLM_SUBLAT_FULL] */
 
 
-    int         ndim;
+    int         ndim;                               /* must match S->rank */
     /* "private" geometry vars */
     /* local vol dimensions and length (sites) */
     int         vec_site_dim[QLUA_MAX_LATTICE_RANK],
@@ -141,8 +143,7 @@ typedef struct {
                                                           : prod(blk_site_dim)/2 */
     int         vec_num_len,        /* == site_num_len * vec_site_len */
                 blk_num_len,        /* == site_num_len * blk_site_len */
-                site_num_len,       /* == arr_len * field_num_len */
-                field_num_len;      /* ns^? * nc^? */
+                site_num_len;       /* == arr_len * field_num_len */
     int         vec_size,           /* == num_size * vec_num_len */
                 blk_size,           /* == num_size * blk_num_len */
                 site_size,          /* == num_size * site_num_len */
@@ -164,14 +165,14 @@ typedef struct {
  */
 /* TODO replace geometry with the following (put into a separate struct? */
 /* XXX replace 'len' with 'stride' ? */
-    int         sv_dim[QLUA_MAX_LATTICE_RANK],
-                sb_dim[QLUA_MAX_LATTICE_RANK],
-                bv_dim[QLUA_MAX_LATTICE_RANK];
-    int         sv_len,
-                sb_len, 
-                bv_len;
-    int         ns_len, nb_len, nv_len;
-    int         v_size, b_size, s_size, n_size;
+//    int         sv_dim[QLUA_MAX_LATTICE_RANK],
+//                sb_dim[QLUA_MAX_LATTICE_RANK],
+//                bv_dim[QLUA_MAX_LATTICE_RANK];
+//    int         sv_len,
+//                sb_len, 
+//                bv_len;
+//    int         ns_len, nb_len, nv_len;
+//    int         v_size, b_size, s_size, n_size;
 
 } qlmData;
 qlmData *

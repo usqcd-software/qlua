@@ -292,9 +292,9 @@ show_config() {
    [ -z "$qopqdp" ]  || echo "QOPQDP location         $qopqdp"
    [ -z "$cblas_libs" ] || echo "CBLAS libraries         $cblas_libs"
    [ -z "$arpack" ]  || echo "ARPACK libraries        $arpack_libs"
-   [ "$use_nc2" == 0 ] || echo "Nc=2 special case"
-   [ "$use_nc3" == 0 ] || echo "Nc=3 special case"
-   [ "$use_ncN" == 0 ] || echo "Nc=N included"
+   [ "$use_nc2" -eq 0 ] || echo "Nc=2 special case"
+   [ "$use_nc3" -eq 0 ] || echo "Nc=3 special case"
+   [ "$use_ncN" -eq 0 ] || echo "Nc=N included"
    [ -z "$extras" ]  || echo "Extra oprations included"
    ## Add other packages here
    echo "====================================="
