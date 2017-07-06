@@ -2356,7 +2356,6 @@ q_DW_mixed_solver(lua_State *L,
 
 static MDWFSolver mixed_solver = { q_DW_mixed_solver, "mixedCG" };
 
-#ifdef DEBUG_MDWF_EOPC2
 static int
 q_DW_debugmesilly(lua_State *L)
 {
@@ -2439,7 +2438,6 @@ err_end:
     qlua_free(L, e_y);
     return luaL_error(L, err_str);
 }
-#endif /* defined (DEBUG_MDWF_EOPC2) */
 
 static int
 q_DW_make_mixed_solver(lua_State *L)
@@ -2808,9 +2806,7 @@ static struct luaL_Reg mtMDWF[] = {
     { "Dx",                         q_DW_Dx                         },
     { "solver",                     q_DW_make_solver                },
     { "mixed_solver",               q_DW_make_mixed_solver          },
-#ifdef DEBUG_MDWF_EOPC2
     { "debugmesilly",               q_DW_debugmesilly               },
-#endif /* defined(DEBUG_MDWF_EOPC2) */
     { "eig_deflator",               q_DW_make_deflator              },
 #ifdef HAS_ARPACK
     { "eig_deflator_lanczos",       q_DW_make_deflator_lanczos      },
