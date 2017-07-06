@@ -113,8 +113,9 @@ typedef enum {
     qQudaInvertParam,
     qQudaEigParam,
 #endif /* defined(HAVE_QUDA) */
+    qLatmat,
     /* ZZZ add types for other packages here */
-    qNoType                   /* 67 */
+    qNoType                   /*  */
 } QLUA_Type;
 
 typedef enum { /* simple arithmetic types */

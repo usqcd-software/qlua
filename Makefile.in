@@ -124,7 +124,8 @@ libsrc = fix.c \
          qdpcc_io.c \
          qomp.c \
 	 crc32.c \
-	 qopt.c
+	 qopt.c \
+	 qlm.c
 
 libsrcxx =
 

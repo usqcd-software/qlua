@@ -71,6 +71,7 @@
 #ifdef HAS_QOPQDP
 #include "qqopqdp.h"                                                 /* DEPS */
 #endif
+#include "qlm.h"                                                     /* DEPS */
 
 #include "versions.inc"                                              /* DEPS */
 
@@ -1428,6 +1429,7 @@ qlua_init(lua_State *L, int argc, char *argv[])
 #ifdef HAS_EXTRAS
         init_extras,
 #endif
+        init_qlm,
         /* ZZZ add other packages here */
         NULL };
 
@@ -1550,6 +1552,7 @@ qlua_fini(void)
 #ifdef _OPENMP
         fini_qomp,
 #endif
+        fini_qlm,
         NULL };
     int i;
 
