@@ -103,9 +103,10 @@ do
             --  eps2_f,maxiter_f      params for fin solver if no opt.solver_f
             --  solver_m1             M5=1 solver OR
             --  eps2_m1,maxiter_m1    params for M5=1 solver if no opt.solver_m1
-            
+            --  mdwf_opt              params for qcd.MDWF
       )
     local opt = opt or {}
+    local mdwf_opt = opt.mdwf_opt or {}
     local eps2_1      = opt.eps2_1 or 1e-10
     local maxiter_1   = opt.maxiter_1 or 10000
 
@@ -130,7 +131,7 @@ do
     local DW_c = nil
     local solver_moeb = opt.solver_moeb 
     if nil == solver_moeb then
-      DW_c = DW_c or qcd.MDWF.generic(gauge_u, ferm_bc, L5_c, M5, mq, b5_c, c5_c)
+      DW_c = DW_c or qcd.MDWF.generic(gauge_u, ferm_bc, L5_c, M5, mq, b5_c, c5_c, mdwf_opt)
       local eps2_moeb     = opt.eps2_moeb     or 1.5e-8 
       local maxiter_moeb  = opt.maxiter_moeb  or 10000
       printf("make_solver_MADCG_g5herm: DEFAULT Moebius mixed_solver(%.1e,%d,%.1e,%d)\n",
@@ -140,7 +141,7 @@ do
     -- m=1 f solver: get or set default
     local solver_m1 = opt.solver_m1
     if nil == solver_m1 then
-      local DW_f_m1     = qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, 1.0, b5_f, c5_f)
+      local DW_f_m1     = qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, 1.0, b5_f, c5_f, mdwf_opt)
       local eps2_m1     = opt.eps2_m1     or 1.5e-8 
       local maxiter_m1  = opt.maxiter_m1  or 1000
       printf("make_solver_MADCG_g5herm: DEFAULT M=1 mixed_solver(%.1e,%d,%.1e,%d)\n",
@@ -151,7 +152,7 @@ do
     local DW_f  = nil
     local solver_i = opt.solver_i 
     if nil == solver_i and opt.eps2_i then
-      DW_f  = DW_f or qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, mq, b5_f, c5_f)
+      DW_f  = DW_f or qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, mq, b5_f, c5_f, mdwf_opt)
       local eps2_i      = opt.eps2_i    or 5e-6
       local maxiter_i   = opt.maxiter_i or 1000
       printf("make_solver_MADCG_g5herm: INITIAL mixed_solver(%.1e,%d,%.1e,%d)\n",
@@ -165,7 +166,7 @@ do
     -- final solver: get or set default
     local solver_f = opt.solver_f 
     if nil == solver_f and opt.eps2_f then
-      DW_f  = DW_f or qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, mq, b5_f, c5_f)
+      DW_f  = DW_f or qcd.MDWF.generic(gauge_u, ferm_bc, L5_f, M5, mq, b5_f, c5_f, mdwf_opt)
       local eps2_f      = opt.eps2_f      or 5e-5
       local maxiter_f   = opt.maxiter_f   or 1000
       printf("make_solver_MADCG_g5herm: FINAL mixed_solver(%.1e,%d,%.1e,%d)\n",
