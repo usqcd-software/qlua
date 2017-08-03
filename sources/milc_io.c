@@ -35,14 +35,18 @@ site2coord(int *coord, long long site, int nd, const int *dim)
 static void
 milc_cksum_update(uint32_t *cksum29, uint32_t *cksum31, uint32_t *data, size_t len, size_t offset)
 {
+    uint32_t cksum29_inc = 0,
+             cksum31_inc = 0;
     for (int i = 0 ; i < len ; i++) {
         size_t k = offset + i;
         int k29 = k % 29,
             k31 = k % 31;
         uint32_t x = data[i];
-        *cksum29    ^= (x << k29) + (x >> (32 - k29));
-        *cksum31    ^= (x << k31) + (x >> (32 - k31));
+        cksum29_inc    ^= (k29 ? (x << k29) + (x >> (32 - k29)) : x);
+        cksum31_inc    ^= (k31 ? (x << k31) + (x >> (32 - k31)) : x);
     }
+    *cksum29 = *cksum29 ^ cksum29_inc;
+    *cksum31 = *cksum31 ^ cksum31_inc;
 }
 
 /* 
@@ -137,7 +141,7 @@ read_milc_gauge_master(
         byterev = 1;
     }
     if (byterev) {
-        swap_endian((char *)&hdrbuf.f_dim, 4, 4);
+        swap_endian((char *)&hdrbuf.f_dim, sizeof(hdrbuf.f_dim[0]), 4);
         swap_endian((char *)&hdrbuf.order, sizeof(hdrbuf.order), 1);
         swap_endian((char *)&hdrbuf.cksum, sizeof(hdrbuf.cksum[0]), 2);
     }       
