@@ -1,0 +1,134 @@
+-- gradient flow.
+-- The code is adapted from the code by Evan Weinberg, weinbe2@bu.edu
+-- See arXiv:1105.4749 for the original M. Leuscher's paper
+require "qcdlib/gauge-loops/clover1x1"
+require "qcdlib/gauge-loops/clover2x2"
+require "qcdlib/gauge-loops/clover3x3"
+qcdLib = qcdLib or {};
+
+function qcdLib.symmetricEQ(U, opts)
+   local xopts = opts or {};
+   local volume = U[1].lattice:volume();
+   local flag = xopts.improved;
+     
+   local G2 = {};
+   local G2_imp = {};
+   -- ESW addition 4/9/2014
+   -- New: also keep the field strength tensor over the lattice to construct the topological charge.
+   local G_lat = {};
+   local G_lat_imp = {};
+      
+   for i = 1, #U do
+      G2[i] = {};
+      G2_imp[i] = {};
+      G_lat[i] = {};
+      G_lat_imp[i] = {};
+   end
+
+   local function toAlg(V)
+      local scaledUnit = V.lattice:ColorMatrix(complex(1.0/V:colors(), 0));
+      local X = (V - V:adjoin()) / 2.0;
+      return X - scaledUnit * X:trace();
+   end
+   
+   -- Loop over all directions.
+   for mu = 1,#U-1 do
+      for nu = 0,mu-1 do
+         -- Construct the clover term.
+         local four_plaq = qcdLib.GaugeLoops.matrix("clover1x1")(U, {nu, mu});
+         local algX = toAlg(four_plaq);
+         
+         -- ESW addition 4/9/2014: Keep F_uv
+         G_lat[mu+1][nu+1] = algX;
+         G_lat[nu+1][mu+1] = -algX;
+         
+         -- Square it!
+         local squared = algX*algX;
+         
+         -- And sum over all lattice sites. 
+         G2[mu+1][nu+1] = squared:sum();
+         
+         if flag then
+            -- ESW addition 6/30/2014: Construct some improved operators.
+            -- We're doing a three-loop improvement, which requires
+            -- 2x2 and 3x3 loops.
+            
+            -- 2x2
+            local plaq2x2 = qcdLib.GaugeLoops.matrix("clover2x2")(U, {nu, mu});
+            -- 3x3
+            local plaq3x3 = qcdLib.GaugeLoops.matrix("clover3x3")(U, {nu, mu});
+                                
+            -- Form a combination.
+            local k5 = 1.0/90.0;
+            local plaq_combo = (19.0/9.0-55.0*k5)*four_plaq + (1.0/36.0 - 16.0*k5)*plaq2x2 + k5*plaq3x3;
+            local algX_imp = toAlg(plaq_combo);
+            
+            -- ESW addition 4/9/2014: Keep F_uv
+            G_lat_imp[mu+1][nu+1] = algX_imp;
+            G_lat_imp[nu+1][mu+1] = -algX_imp;
+            -- Square it!
+            local squared_imp = algX_imp*algX_imp;
+            -- And sum over all lattice sites. 
+            G2_imp[mu+1][nu+1] = squared_imp:sum();
+         end
+      end -- nu
+   end -- mu
+  
+   -- E = 1/4 G_{mu nu}^a G_{mu nu}^a
+   -- Other factors have to do with trace normalizations,
+   -- and the fact we average over all directions. 
+   -- Volume is simply the number of lattice sites, there must
+   -- be some good way to compute this from U. 
+   local symmE = 0;
+   local symmE_imp = 0;
+   for mu = 2,#U do
+      for nu = 1,mu-1 do
+         local E_term = G2[mu][nu]:trace():real();
+         E_term = E_term / (-16.0 * volume);
+         symmE = symmE + E_term;
+         
+         if flag then
+            local E_term_imp = G2_imp[mu][nu]:trace():real();
+            E_term_imp = E_term_imp / (-16.0 * volume);
+            symmE_imp = symmE_imp + E_term_imp;
+         end
+      end --nu
+   end --mu
+   
+   -- ESW addition 4/9/2014: Q = 1/(32pi^2) eps_uvrs G_uv^a G_rs^a
+   -- Hopefully the normalization is correct?
+   local function topoQ_part(G, x, y, z, t)
+      local tmp = G[x][y]*G[z][t];
+      return tmp:sum():trace():real();
+   end
+   
+   -- Unimproved
+   local symmQ = 0;
+   symmQ = symmQ + topoQ_part(G_lat, 1, 2, 3, 4);
+   symmQ = symmQ + topoQ_part(G_lat, 1, 4, 2, 3);
+   symmQ = symmQ + topoQ_part(G_lat, 1, 3, 4, 2);
+   -- Now normalize. 
+   -- We have a 1/4 factor for each F_uv, to get to dividing by 16.
+   -- We also multiply by 1/(32pi^2)*8 (since there are 24 epsilon 
+   -- terms, but because of symmetry we only need to grab 3.)
+   symmQ = -symmQ/(64.0*math.pi*math.pi);
+   
+   local symmQ_imp = 0;
+   if flag then
+      -- Improved.
+      symmQ_imp = symmQ_imp + topoQ_part(G_lat_imp, 1, 2, 3, 4);
+      symmQ_imp = symmQ_imp + topoQ_part(G_lat_imp, 1, 4, 2, 3);
+      symmQ_imp = symmQ_imp + topoQ_part(G_lat_imp, 1, 3, 4, 2);
+      -- Now normalize. 
+      -- We have a 1/4 factor for each F_uv, to get to dividing by 16.
+      -- We also multiply by 1/(32pi^2)*8 (since there are 24 epsilon 
+      -- terms, but because of symmetry we only need to grab 3.)
+      symmQ_imp = -symmQ_imp/(64.0*math.pi*math.pi);
+   end
+   
+   if not flag then
+      return {symmetricE = symmE, symmetricQ = symmQ};
+   else
+      return {symmetricE = symmE, symmetricQ = symmQ, improvedE = symmE_imp, improvedQ = symmQ_imp};
+   end
+end

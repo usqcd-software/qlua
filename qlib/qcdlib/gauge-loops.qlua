@@ -1,0 +1,411 @@
+-- the library of closed loops
+qcdLib = qcdLib or {};
+qcdLib.GaugeLoops = qcdLib.GaugeLoops or {};
+qcdLib.LoopTables = qcdLib.LoopTable or {};
+
+do
+   local op = {
+      g = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local d = instr[3];
+             regs[r] = U[dlst[d+1] + 1];
+          end,
+      f = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local s = instr[3];
+             local d = instr[4];
+             regs[r] = regs[s]:shift(dlst[d+1], "from_forward");
+          end,
+      b = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local s = instr[3];
+             local d = instr[4];
+             regs[r] = regs[s]:shift(dlst[d+1], "from_backward");
+          end,
+      j = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local s = instr[3];
+             regs[r] = regs[s]:adjoin();
+          end,
+      r = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local s = instr[3];
+             regs[r] = regs[s]:real();
+          end,
+      m = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local a = instr[3];
+             local b = instr[4];
+             regs[r] = regs[a] * regs[b];
+          end,
+      a = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local a = instr[3];
+             local b = instr[4];
+             regs[r] = regs[a] + regs[b];
+          end,
+      d = function(instr, regs, U, dlst)
+             local r = instr[2];
+             local a = instr[3];
+             local b = instr[4];
+             regs[r] = qcd.dot(regs[a],regs[b]);
+          end
+   };
+   local function eval_code(table, U, dlst)
+      local tmp = {};
+      local i;
+      for i = 1, #table do
+         if table[i][1] == "v" then
+            return tmp[table[i][2]];
+         else
+            local fn = op[table[i][1]];
+            if fn then
+               fn(table[i], tmp, U, dlst);
+            else
+               error(string.format("Undefined operation \"%s\"", table[i][1]));
+            end
+         end
+      end
+      error("INTERNAL ERROR: eval_code did not see return");
+   end
+   function qcdLib.GaugeLoops.make_matrix_xy(name, table)
+      local t = { name = name };
+      function t.matrix(U, opts)
+         return eval_code(table.matrix, U, opts);
+      end
+      return t;
+   end
+   function qcdLib.GaugeLoops.make_sym_xy(name, table)
+      local t = {name = name};
+      --
+      function t.actionDensity(U)
+         local x, y;
+         local v = U[1].lattice:Real(0.0);
+         local dim = #U;
+         local count = 0;
+         for x = 0, dim - 1 do
+            for y = x + 1, dim - 1 do
+               v = v + eval_code(table.action, U, {x, y});
+               count = count + 1;
+            end
+         end
+         return count * table.count - v / U[1]:colors();
+      end
+      --
+      function t.action(U)
+         return t.actionDensity(U):sum();
+      end
+      function t.count(U)
+         local v = table.count;
+         local L = U[1].lattice;
+         local x, y;
+         local i, w;
+         for i = 0, #L - 1 do
+            v = v * L[i]
+         end
+         w = 0
+         for x = 0, #L - 1 do
+            for y = x + 1, #L - 1 do
+               w = w + v
+            end
+         end
+         return w;
+      end
+      --
+      function t.force(U)
+         local x, y;
+         local Nc = U[1]:colors();
+         local L = U[1].lattice
+         local dim = #U;
+         local F = {};
+         for x = 0, dim - 1 do
+            local Fx = L:ColorMatrixN(Nc,0.0);
+            for y = 0, dim - 1 do
+               if not (x == y) then
+                  Fx = Fx + eval_code(table.force.dx, U, {x,y});
+               end
+            end
+            F[x+1] = Fx / Nc;
+         end
+         return F;
+      end
+      return t;
+   end
+   function qcdLib.GaugeLoops.make_gen_xy(name, table)
+      local t = {name = name};
+      --
+      function t.actionDensity(U)
+         local x, y;
+         local v = U[1].lattice:Real(0.0);
+         local dim = #U;
+         local count = 0;
+         for x = 0, dim - 1 do
+            for y = 0, dim - 1 do
+               if not (x == y) then
+                  v = v + eval_code(table.action, U, {x, y});
+                  count = count + 1;
+               end
+            end
+         end
+         return count * table.count - v / U[1]:colors();
+      end
+      --
+      function t.action(U)
+         return t.actionDensity(U):sum();
+      end
+      function t.count(U)
+         local v = table.count;
+         local L = U[1].lattice;
+         local x, y;
+         local i, w;
+         for i = 0, #L - 1 do
+            v = v * L[i]
+         end
+         w = 0
+         for x = 0, #L - 1 do
+            for y = 0, #L - 1 do
+               if not (x == y) then
+                  w = w + v
+               end
+            end
+         end
+         return w;
+      end
+      --
+      function t.force(U)
+         local x, y;
+         local Nc = U[1]:colors();
+         local L = U[1].lattice;
+         local dim = #U;
+         local F = {};
+         for x = 0, dim - 1 do
+            local Fx = L:ColorMatrixN(Nc,0.0);
+            for y = 0, dim - 1 do
+               if not (x == y) then
+                  Fx = Fx + eval_code(table.force.dx, U, {x, y});
+                  Fx = Fx + eval_code(table.force.dy, U, {y, x});
+               end
+            end
+            F[x+1] = Fx / Nc;
+         end
+         return F
+      end
+      return t;
+   end
+
+   function qcdLib.GaugeLoops.make_mix_xyz(name, table)
+      local t = {name = name};
+      --
+      function t.actionDensity(U)
+         local x,y,z;
+         local Nc = U[1]:colors();
+         local dim = #U
+         local v = U[1].lattice:Real(0.0);
+         local count = 0;
+         for x = 0, dim - 1 do
+            for y = x + 1, dim - 1 do
+               for z = 0, dim - 1 do
+                  if not (z == x) and not (z == y) then
+                     v = v + eval_code(table.action, U, {x,y,z});
+                     count = count + 1;
+                  end
+               end
+            end
+         end
+         return count * table.count - v / U[1]:colors();
+      end
+      -- 
+      function t.action(U)
+         return t.actionDensity(U):sum();
+      end
+      function t.count(U)
+         local v = table.count;
+         local L = U[1].lattice;
+         local x, y;
+         local i, w;
+         for i = 0, #L - 1 do
+            v = v * L[i]
+         end
+         w = 0
+         for x = 0, dim - 1 do
+            for y = x + 1, dim - 1 do
+               for z = 0, dim - 1 do
+                  if not (z == x) and not (z == y) then
+                     w = w + v
+                  end
+               end
+            end
+         end
+         return w;
+      end
+      --
+      function t.force(U)
+         local x, y;
+         local Nc = U[1]:colors();
+         local L = U[1].lattice;
+         local dim = #U;
+         local F = {};
+         for x = 0, dim - 1 do
+            local Fx = L:ColorMatrixN(Nc,0.0);
+            for y = 0, dim - 1 do
+               if not (y == x) then
+                  for z = y+1, dim - 1 do
+                     if not (z == y) and not (z == x) then
+                        Fx = Fx + eval_code(table.force.dx, U, {x,y,z});
+                        Fx = Fx + eval_code(table.force.dx, U, {x,z,y});
+                        Fx = Fx + eval_code(table.force.dz, U, {y,z,x});
+                     end
+                  end
+               end
+            end
+            F[x+1] = Fx / Nc;
+         end
+         return F;
+      end
+      return t;
+   end
+
+   function qcdLib.GaugeLoops.make_sym_xyz(name, table)
+      local t = {name = name};
+      --
+      function t.actionDensity(U)
+         local x,y,z;
+         local Nc = U[1]:colors();
+         local dim = #U
+         local v = U[1].lattice:Real(0.0);
+         local count = 0;
+         for x = 0, dim - 1 do
+            for y = x + 1, dim - 1 do
+               for z = y + 1, dim - 1 do
+                  v = v + eval_code(table.action, U, {x,y,z});
+                  count = count + 1;
+               end
+            end
+         end
+         return count * table.count - v / U[1]:colors();
+      end
+      --
+      function t.action(U)
+         return t.actionDensity(U):sum();
+      end
+      function t.count(U)
+         local v = table.count;
+         local L = U[1].lattice;
+         local x, y;
+         local i, w;
+         for i = 0, #L - 1 do
+            v = v * L[i];
+         end
+         w = 0;
+         for x = 0, dim - 1 do
+            for y = x + 1, dim - 1 do
+               for z = y + 1, dim - 1 do
+                  w = w + v;
+               end
+            end
+         end
+         return w;
+      end
+      --
+      function t.force(U)
+         local x, y;
+         local Nc = U[1]:colors();
+         local L = U[1].lattice;
+         local dim = #U;
+         local F = {};
+         for x = 0, dim - 1 do
+            local Fx = L:ColorMatrixN(Nc,0.0);
+            for y = 0, dim - 1 do
+               if not (y == x) then
+                  for z = y+1, dim - 1 do
+                     if not (z == y) and not (z == x) then
+                        Fx = Fx + eval_code(table.force.dx, U, {x,y,z});
+                     end
+                  end
+               end
+            end
+            F[x+1] = Fx / Nc;
+         end
+         return F;
+      end
+      return t;
+   end
+   
+   local function get_parts(params, tbl, value)
+      local i, v;
+      local n = {};
+      local c = {};
+      for i,v in pairs(params) do
+         if (not tbl[i]) or (not tbl[i][value]) then
+            error(string.format("undefined loop %s = %g for %s",
+                                i, v, value));
+         end
+         n[#n+1] = i;
+         c[#c+1] = v;
+      end
+      return n, c;
+   end
+
+   local function preforce(params)
+      local tbl = qcdLib.LoopTables;
+      local n,c = get_parts(params, tbl, "force");
+      local i;
+      local function force(U)
+         local g = tbl[n[1]].force(U);
+         local i;
+         local f = {};
+         for i = 1, #g do
+            f[i] = c[1] * g[i];
+         end
+         for i = 2, #c do
+            local g = tbl[n[i]].force(U);
+            local j;
+            for j = 1, #f do
+               f[j] = f[j] + c[i] * g[j];
+            end
+         end
+         return f;
+      end
+      return force;
+   end
+
+   -- Future extension: gauge force for HMC
+   --function qcdLib.GaugeLoops.hmc_force(params)
+   --   -- XXX
+   --end
+
+   function qcdLib.GaugeLoops.flow_force(params)
+      local pre_force = preforce(params);
+      local function force(U)
+         local f = pre_force(U);
+         local i;
+         for i = 1, #f do
+            f[i] = f[i]:adjoin();
+         end
+         return f;
+      end
+      return force;
+   end
+   
+   function qcdLib.GaugeLoops.action(params)
+      local tbl = qcdLib.LoopTables;
+      local n,c = get_parts(params, tbl, "action");
+      local i;
+      local function action(U)
+         local act = c[1] * tbl[n[1]].action(U);
+         local i;
+         for i = 2, #c do
+            act = act + c[i] * tbl[n[i]].action(U);
+         end
+         return act;
+      end
+      return action;
+   end
+
+   function qcdLib.GaugeLoops.matrix(name)
+      local function matrix(U,opts)
+         return qcdLib.LoopTables[name].matrix(U,opts);
+      end
+      return matrix;
+   end
+end

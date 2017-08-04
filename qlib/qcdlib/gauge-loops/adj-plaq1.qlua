@@ -1,0 +1,60 @@
+-- adjoin plaquette: action and force
+require "qcdlib/gauge-loops";
+
+do
+   local t = { name = "adj_plaq1" };
+   function t.actionDensity(U)
+      local lat = U[1].lattice;
+      local x, y;
+      local dim = #lat;
+      local v = lat:Real(0.0);
+      local Nc = U[1]:colors();
+      local count = 0;
+      for x = 0, dim - 2 do
+         for y = x + 1, dim - 1 do
+            local p1 = U[x+1] * U[y+1]:shift(x, "from_forward");
+            local p2 = U[y+1] * U[x+1]:shift(y, "from_forward");
+            local d = qcd.dot(p2, p1);
+            count = count + 1;
+            v = v + qcd.dot(d,d):real();
+         end
+      end
+      return count - v / (Nc * Nc);
+   end
+   function t.action(U)
+      return t.actionDensity(U):sum();
+   end
+   function t.count(U)
+      local lat = U[1].lattice;
+      return #lat * (#lat - 1) / 2;
+   end
+   function t.force(U)
+      local lat = U[1].lattice;
+      local Nc = U[1]:colors();
+      local dim = #lat;
+      local x, y;
+      local F = {};
+      for x = 0, dim - 1 do
+         local Fx = lat:ColorMatrixN(Nc,0.0);
+         for y = 0, dim - 1 do
+            if not (x == y) then
+               local Ua = U[x+1]:shift(y, "from_forward");
+               local Ub = U[y+1];
+               local Uc = U[y+1]:shift(x, "from_forward");
+               local Ud = U[x+1];
+               local dc = Ud * Uc;
+               local ba = Ub * Ua;
+               local Lup = ba * dc:adjoin();
+               local Ldown = (Ub:adjoin() * dc * Ua:adjoin()):shift(y, "from_backward");
+               local Tup = Lup:trace();
+               local Tdown = Ldown:trace();
+               Fx = Fx - Lup * Tup:conj() - Ldown * Tdown:conj();
+               Fx = Fx + Lup:adjoin() * Tup + Ldown:adjoin() * Tdown;
+            end
+         end
+         F[x+1] = Fx / (Nc * Nc);
+      end
+      return F;
+   end
+   qcdLib.LoopTables.adj_plaq1 = t;
+end

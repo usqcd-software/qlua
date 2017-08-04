@@ -1,0 +1,93 @@
+require "stdlib"
+require "gauge"
+require "qcdlib/gauge-loops/plaq1"
+require "qcdlib/gauge-loops/rect1"
+require "qcdlib/gauge-loops/chair1"
+require "qcdlib/gauge-loops/twist1"
+require "qcdlib/gradient-flow"
+
+printf("Test of plaquette in GaugeLoops\n");
+
+lat = qcd.lattice{8,8,8,16};
+printf("%s\n", tostring(lat));
+
+
+-- gauge action is a collection of closed paths with coupling constants
+-- here we choose some loops and corresponding couplings.
+act_params = { plaq1 = 1.0 };
+
+max_diff = 1e-14; -- maximum allowed difference for the plaquette
+
+-- test params
+alpha = 1.2; -- random field scale
+f_count = 40; -- number of test fields
+
+tau = 0.01;    -- gradient flow step
+t_count = 100;  -- number of gradient flow iterations
+
+-- random generator: keep the seed fixed, to help in testing different machines
+ix = lat:Int(0)
+for i = 0, #lat - 1 do
+   ix = ix * lat[i] + lat:pcoord(i)
+end
+rndS = lat:RandomState(7465, ix);
+
+g_action = qcdLib.GaugeLoops.action(act_params);
+g_rect = qcdLib.GaugeLoops.action({rect1 = 1.0});
+g_chair = qcdLib.GaugeLoops.action({chair1 = 1.0});
+g_twist = qcdLib.GaugeLoops.action({twist1 = 1.0});
+
+-- standard plaquette
+function plaquette(U)
+   local Nc = U[1]:colors();
+   local v = 0.0;
+   local i, j;
+   local count = 0;
+   for i = 1, #U do
+      for j = i + 1, #U do
+         count = count + 1;
+         local p1 = U[i] * U[j]:shift(i-1, "from_forward");
+         local p2 = U[j] * U[i]:shift(j-1, "from_forward");
+         v = v + (1 - qcd.dot(p2,p1):real() / Nc);
+      end
+   end
+   return v:sum() / (U[1].lattice:volume() * count);
+end
+
+-- test routine
+function test(U, msg)
+   local lat = U[1].lattice;
+   local act = g_action(U);
+   local plaq = plaquette(U);
+   local diff = math.abs(act / (lat:volume() * #lat * (#lat - 1) / 2) - plaq);
+   printf("%s: pl %17.9e, rc %17.9e, ch %17.9e, tw %17.9e,   std %17.9e, delta %17.9e\n",
+          msg,
+          act,
+          g_rect(U),
+          g_chair(U),
+          g_twist(U),
+          plaq,
+          diff);
+   if diff > max_diff then
+      error("plaquette value differs too much");
+   end
+end
+
+function gen_U(s)
+   local i;
+   local U = {};
+   for i = 1, #lat do
+      U[i] = toSUn(s * i * rndS:gaussian_ColorMatrix())
+   end
+   return U;
+end
+
+-- random gauge field
+printf("Tests of action definitions\n");
+for k = 0, f_count do
+   local s = k / f_count;
+   U = gen_U(alpha * s * s);
+   test(U, string.format("  test case %4d", k))
+end
+
+printf("DONE\n");

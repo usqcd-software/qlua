@@ -1,0 +1,106 @@
+require "stdlib"
+require "gauge"
+require "qcdlib/gauge-loops/plaq1"
+require "qcdlib/gradient-flow"
+require "qcdlib/symmetric-EQ"
+
+require "tests/gradient-flow/evan-symE"
+
+printf("Test of symmetricE definition\n");
+
+lat = qcd.lattice{8,8,8,16};
+printf("%s\n", tostring(lat));
+
+max_diff = 1e-12; -- maximum allowed difference for the plaquette
+
+-- test params
+alpha = 1.2; -- random field scale
+f_count = 40; -- number of test fields
+
+-- random generator: keep the seed fixed, to help in testing different machines
+do
+   local ix = lat:Int(0)
+   for i = 0, #lat - 1 do
+      ix = ix * lat[i] + lat:pcoord(i)
+   end
+   rndS = lat:RandomState(7465, ix);
+end
+
+g_action = qcdLib.GaugeLoops.action( {plaq1 = 1.0} );
+
+-- Evan's symE
+function evan_symE(U)
+   return symmE(U, U[1].lattice:volume(), 1);
+end
+
+-- new code
+function new_symE(U)
+   return qcdLib.symmetricEQ(U, {improved = true});
+end
+
+-- reference plaquette
+function plaquette(U)
+   local Nc = U[1]:colors();
+   local v = 0.0;
+   local i, j;
+   local count = 0;
+   for i = 1, #U do
+      for j = i + 1, #U do
+         count = count + 1;
+         local p1 = U[i] * U[j]:shift(i-1, "from_forward");
+         local p2 = U[j] * U[i]:shift(j-1, "from_forward");
+         v = v + (1 - qcd.dot(p2,p1):real() / Nc);
+      end
+   end
+   return v:sum() / (U[1].lattice:volume() * count);
+end
+
+
+-- test routine
+function test(U, msg)
+   local action = plaquette(U);
+   local std = evan_symE(U);
+   local new = new_symE(U);
+   local lat = U[1].lattice;
+   local function delta(a,b, fld)
+      local d =  math.abs(a[fld] - b[fld]);
+      local s = 0.5 * (math.abs(a[fld]) + math.abs(b[fld]));
+      if s == 0.0 then
+         return d;
+      end
+      return d / s;
+   end
+   local dsE = delta(std, new, "symmetricE");
+   local dxE = delta(std, new, "improvedE");
+   local dsQ = delta(std, new, "symmetricQ");
+   local dxQ = delta(std, new, "improvedQ");
+   printf("%s: pl %17.9e, new (E %17.9e, xE, %17.9e, Q %17.9e, xQ %17.9e), delta (E %10.2e, xE %10.2e, Q %10.2e, xQ %10.2e)\n",
+          msg,
+          action,
+          new.symmetricE,
+          new.improvedE,
+          new.symmetricQ,
+          new.improvedQ,
+          dsE, dxE, dsQ, dxQ);
+   if (dsE > max_diff) or (dxE > max_diff) or (dsQ > max_diff) or (dxQ > max_diff) then
+      error("new values differ too much");
+   end
+end
+
+-- random gauge field
+printf("Tests of action definitions\n");
+for k = 0, f_count do
+   local function gen_U(s)
+      local i;
+      local U = {};
+      for i = 1, #lat do
+         U[i] = toSUn(s * i * rndS:gaussian_ColorMatrix())
+      end
+      return U;
+   end
+   local s = k / f_count;
+   U = gen_U(alpha * s * s);
+   test(U, string.format("  test %4d", k))
+end
+
+printf("DONE\n");

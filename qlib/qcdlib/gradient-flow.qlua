@@ -1,0 +1,65 @@
+-- gradient flow.
+-- The code is adapted from the code by Evan Weinberg, weinbe2@bu.edu
+-- See arXiv:1105.4749 for the original M. Leuscher's paper
+
+qcdLib = qcdLib or {};
+qcdLib.GradientFlow = qcdLib.GradientFlow or {};
+
+function qcdLib.GradientFlow.flow(force, U, step, opt)
+   local function advance(U, step, update)
+      local mu;
+
+      local st = force(U);
+      local tmp = {};
+      for mu = 1,#U do
+         tmp[mu] = toSUn((step/4.0)*st[mu]) * U[mu];
+      end
+      local destLat = update(U,tmp);
+
+      local f2 = force(destLat);
+      for mu = 1,#U do
+         st[mu] = (8.0/9.0)*f2[mu] - (17.0/36.0)*st[mu];
+         tmp[mu] = toSUn(step*st[mu]) * destLat[mu];
+      end
+      local nextLat = update(U,tmp);
+
+      local f3 = force(nextLat);
+      for mu = 1,#U do
+         st[mu] = (3.0/4.0)*f3[mu] - st[mu];
+         tmp[mu] = toSUn(step*st[mu]) * nextLat[mu];
+      end
+      return update(U,tmp);
+   end
+
+   local xopt = opt or {};
+   local function update_all(old,new) return new end
+   local update = xopt.update or update_all;
+   local monitor = xopt.monitor;
+   local V;
+
+   -- handle difference step descriptions here
+   if type(step) == "function" then
+      local tot_t = 0;
+      local i;
+      V = U;
+      for i = xopt.low, xopt.high do
+         local s = step(i);
+         tot_t = tot_t + s;
+         V = advance(V, s, update);
+         if monitor then monitor(i, s, tot_t, V); end;
+      end
+   else if type(step) == "table" then
+         local tot_t = 0.0;
+         local i;
+         V = U;
+         for i = 1, #step do
+            tot_t = tot_t + step[i];
+            V = advance(V, step[i], update);
+            if monitor then monitor(i, step[i], tot_t, V); end;
+         end
+      else
+         V = advance(U, step, update);
+      end
+   end
+   return V;
+end
